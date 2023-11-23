@@ -1,0 +1,91 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Nov 17 06:06:15 2023
+[*]
+[dumpfile] "./sync_fifo_tb.vcd"
+[dumpfile_mtime] "Fri Nov 17 06:06:09 2023"
+[dumpfile_size] 13193
+[savefile] "./sync_fifo_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] -1 -1
+*-15.403194 235000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sync_fifo_tb.
+[treeopen] sync_fifo_tb.sync_fifo_inst.
+[treeopen] sync_fifo_tb.sync_fifo_inst.g_outregs.
+[treeopen] sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.
+[sst_width] 233
+[signals_width] 134
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+sync_fifo_tb.clock
+sync_fifo_tb.reset
+@800200
+-Sync
+@22
+[color] 7
+sync_fifo_tb.sy_level[3:0]
+sync_fifo_tb.sync_fifo_inst.level_w[4:0]
+@28
+sync_fifo_tb.sync_fifo_inst.fetch_w
+sync_fifo_tb.sync_fifo_inst.store_w
+@22
+sync_fifo_tb.sync_fifo_inst.waddr[4:0]
+[color] 2
+sync_fifo_tb.sync_fifo_inst.raddr[4:0]
+@800200
+-WR
+@28
+sync_fifo_tb.wr_valid
+sync_fifo_tb.wr_ready
+[color] 7
+sync_fifo_tb.dato[1:0]
+@1000200
+-WR
+@28
+[color] 3
+sync_fifo_tb.sync_fifo_inst.rvalid
+[color] 3
+sync_fifo_tb.sync_fifo_inst.xvalid
+sync_fifo_tb.sync_fifo_inst.xready_w
+sync_fifo_tb.sync_fifo_inst.xdata[1:0]
+[color] 3
+sync_fifo_tb.sync_fifo_inst.svalid_w
+[color] 3
+sync_fifo_tb.sync_fifo_inst.sready
+sync_fifo_tb.sync_fifo_inst.sdata_w[1:0]
+@800200
+-RD
+@28
+[color] 3
+sync_fifo_tb.rd_valid
+[color] 3
+sync_fifo_tb.ww_ready
+[color] 2
+sync_fifo_tb.datz[1:0]
+@1000200
+-RD
+-Sync
+@c00200
+-Packet
+@28
+sync_fifo_tb.pw_valid
+sync_fifo_tb.pw_ready
+sync_fifo_tb.pw_last
+sync_fifo_tb.pw_drop
+sync_fifo_tb.pr_valid
+sync_fifo_tb.pr_last
+sync_fifo_tb.pr_data[1:0]
+@1401200
+-Packet
+@29
+sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.s_tready
+@28
+sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tvalid
+sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tready
+sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tdata[1:0]
+sync_fifo_tb.sync_fifo_inst.noreg_w
+sync_fifo_tb.sync_fifo_inst.wfull_w
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,0 +1,9 @@
+*.out
+*.vcd
+*.pdf
+impl/
+*.user
+*.lock
+logs/
+target/
+*.log
