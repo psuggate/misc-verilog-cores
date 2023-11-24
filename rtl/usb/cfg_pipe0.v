@@ -192,8 +192,7 @@ localparam DESC_WITH_STRINGS = {
 	STATE_SET_ADDR = 3'd4;
 
   reg [2:0] state;
-  reg [7:0] mem_addr;
-  reg [7:0] max_mem_addr;
+  reg [$clog2(DESC_SIZE)-1:0] mem_addr;
 
   /**
    * Request types:
@@ -218,6 +217,8 @@ localparam DESC_WITH_STRINGS = {
   wire [7:0] mem_addr_nxt = mem_addr + 1;
 
 
+// -- Signal Output Assignments -- //
+
   assign device_address = device_address_int;
   assign current_configuration = current_configuration_int;
   assign configured = configured_int;
@@ -230,58 +231,57 @@ localparam DESC_WITH_STRINGS = {
   assign ctl_xfer_gnt_o = gnt_q;
 
   assign ctl_tvalid_o = state[0];
-  assign ctl_tdata_o = USB_DESC[8*(mem_addr+1)-1-:8];
-  assign ctl_tlast_o = tlast;
+  assign ctl_tdata_o = descriptor[mem_addr];
+  assign ctl_tlast_o = desc_tlast[mem_addr];
 
+
+// -- Descriptor ROM -- //
+
+reg [7:0] descriptor [0:DESC_SIZE-1];
+reg desc_tlast [0:DESC_SIZE-1];
+
+genvar ii;
+generate
+
+  for (ii=0; ii<DESC_SIZE; ii++) begin : g_set_descriptor_rom
+    assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
+    assign desc_tlast[ii] = ii==DESC_CONFIG_START-1 || ii==DESC_START0-1 ||
+                            ii==DESC_START1-1 || ii==DESC_START2-1 ||
+                            ii==DESC_START3-1 || ii==DESC_SIZE-1;
+  end
+
+endgenerate
+
+
+// -- Configuration Control PIPE0 Logic -- //
 
   always @(posedge clock) begin
-    if (reset) begin
-    end else begin
-      if (state == STATE_GET_DESC && ctl_tvalid_o && ctl_tready_i) begin
-        tlast <= mem_addr_nxt == max_mem_addr;
-      end else if (tlast && ctl_tvalid_o && ctl_tready_i) begin
-        tlast <= 1'b0;
-      end
-
+    if (ctl_xfer_req_i) begin
       gnt_q <= req_type != 3'b000;
+    end else begin
+      gnt_q <= 1'b0;
     end
   end
 
   always @(posedge clock) begin
-    if (reset) begin
-    end else begin
-      case (state)
-        default: begin
-          if (ctl_xfer_req_i) begin
-            if (req_type == 3'b011) begin
-              mem_addr <= DESC_CONFIG_START;
-              max_mem_addr <= DESC_STRING_START - 1;
-            end else if (DESC_HAS_STRINGS && (req_type == 3'b101)) begin
-              if (ctl_xfer_value[7:0] == 8'h00) begin
-                mem_addr <= DESC_START0;
-                max_mem_addr <= DESC_START1 - 1;
-              end else if (ctl_xfer_value[7:0] == 8'h01) begin
-                mem_addr <= DESC_START1;
-                max_mem_addr <= DESC_START2 - 1;
-              end else if (ctl_xfer_value[7:0] == 8'h02) begin
-                mem_addr <= DESC_START2;
-                max_mem_addr <= DESC_START3 - 1;
-              end else if (ctl_xfer_value[7:0] == 8'h03) begin
-                mem_addr <= DESC_START3;
-                max_mem_addr <= DESC_SIZE - 1;
-              end
-            end else begin
-              mem_addr <= 0;
-              max_mem_addr <= DESC_CONFIG_START - 1;
-            end
-          end
+    if (ctl_tready_i && state[0]) begin
+      mem_addr <= mem_addr_nxt;
+    end else if (ctl_xfer_req_i && !state[0]) begin
+      if (req_type == 3'b011) begin
+        mem_addr <= DESC_CONFIG_START;
+      end else if (DESC_HAS_STRINGS && (req_type == 3'b101)) begin
+        if (ctl_xfer_value[7:0] == 8'h00) begin
+          mem_addr <= DESC_START0;
+        end else if (ctl_xfer_value[7:0] == 8'h01) begin
+          mem_addr <= DESC_START1;
+        end else if (ctl_xfer_value[7:0] == 8'h02) begin
+          mem_addr <= DESC_START2;
+        end else if (ctl_xfer_value[7:0] == 8'h03) begin
+          mem_addr <= DESC_START3;
         end
-        STATE_GET_DESC: begin
-          if (ctl_tready_i) begin
-            mem_addr <= mem_addr_nxt;
-          end
-        end
-      endcase
+      end else begin
+        mem_addr <= 0;
+      end
     end
   end
 
