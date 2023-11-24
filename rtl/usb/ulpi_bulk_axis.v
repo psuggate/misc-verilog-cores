@@ -46,7 +46,6 @@ module ulpi_bulk_axis (
   parameter CHANNEL_IN_ENABLE = 1;  /* 0 - Disable; 1 - Enable */
   parameter CHANNEL_OUT_ENABLE = 1;  /* 0 - Disable; 1 - Enable */
 
-  // todo: does this still do anything ??
   parameter PACKET_MODE = 0;  /* 0 - Stream Mode; 1 - Packet Mode */
 
   /* UTMI Low Pin Interface Ports */

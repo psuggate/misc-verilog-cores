@@ -1,0 +1,120 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Mon Nov 20 05:18:55 2023
+[*]
+[dumpfile] "./encode_packet_tb.vcd"
+[dumpfile_mtime] "Mon Nov 20 05:18:36 2023"
+[dumpfile_size] 15441
+[savefile] "./encode_packet_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] -1 -1
+*-16.334831 235000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] encode_packet_tb.
+[treeopen] encode_packet_tb.tx_usb_packet_inst.
+[sst_width] 233
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 298
+@28
+encode_packet_tb.clock
+encode_packet_tb.reset
+@800200
+-USB
+@28
+[color] 2
+encode_packet_tb.crc_err
+encode_packet_tb.usb_sof
+@22
+encode_packet_tb.usb_address[6:0]
+@1000200
+-USB
+@c00200
+-Rx
+@28
+encode_packet_tb.hrecv
+encode_packet_tb.mtype[1:0]
+encode_packet_tb.trn_start
+@22
+encode_packet_tb.trn_endpoint[3:0]
+encode_packet_tb.trn_address[6:0]
+@28
+[color] 3
+encode_packet_tb.mvalid
+encode_packet_tb.mready
+encode_packet_tb.mend
+@22
+encode_packet_tb.mdata[7:0]
+@1401200
+-Rx
+@c00200
+-Tx
+@28
+encode_packet_tb.tstart
+encode_packet_tb.ttype[1:0]
+encode_packet_tb.tvalid
+encode_packet_tb.tready
+encode_packet_tb.tlast
+@22
+encode_packet_tb.tdata[7:0]
+@1401200
+-Tx
+@c00200
+-Handshake
+@28
+encode_packet_tb.hsend
+encode_packet_tb.htype[1:0]
+encode_packet_tb.hdone
+@1401200
+-Handshake
+@800200
+-TB
+@28
+encode_packet_tb.svalid
+encode_packet_tb.sready
+encode_packet_tb.slast
+@22
+encode_packet_tb.sdata[7:0]
+@1000200
+-TB
+@800200
+-Token
+@28
+encode_packet_tb.ksend
+encode_packet_tb.kdone
+encode_packet_tb.ktype[1:0]
+@22
+encode_packet_tb.kdata[15:0]
+@1000200
+-Token
+@c00200
+-Encode
+@22
+encode_packet_tb.rx_usb_packet_inst.crc16_q[15:0]
+encode_packet_tb.rx_usb_packet_inst.crc16_nw[15:0]
+encode_packet_tb.rx_usb_packet_inst.rx_data_crc_w[15:0]
+@28
+encode_packet_tb.rx_usb_packet_inst.rx_vld0
+encode_packet_tb.rx_usb_packet_inst.rx_vld1
+@22
+encode_packet_tb.rx_usb_packet_inst.rx_buf0[7:0]
+encode_packet_tb.rx_usb_packet_inst.rx_buf1[7:0]
+encode_packet_tb.rx_usb_packet_inst.state[6:0]
+@1401200
+-Encode
+@28
+encode_packet_tb.tx_usb_packet_inst.trn_start_i
+encode_packet_tb.tx_usb_packet_inst.trn_tvalid_i
+encode_packet_tb.tx_usb_packet_inst.trn_tready_o
+encode_packet_tb.tx_usb_packet_inst.trn_tlast_i
+encode_packet_tb.tx_usb_packet_inst.trn_type_i[1:0]
+@22
+encode_packet_tb.tx_usb_packet_inst.trn_tdata_i[7:0]
+@28
+[color] 7
+encode_packet_tb.tx_usb_packet_inst.zero_q
+encode_packet_tb.tx_usb_packet_inst.xcrc_q
+@22
+encode_packet_tb.tx_usb_packet_inst.crc16_q[15:0]
+[pattern_trace] 1
+[pattern_trace] 0
