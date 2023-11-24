@@ -140,7 +140,7 @@ module cfg_pipe0 #(
     8'h12  /* bLength = 18 */
   };
 
-  localparam DEVICE_DESC = (HIGH_SPEED == 1) ? DEVICE_DESC_HS : DEVICE_DESC_FS;
+  localparam DEVICE_DESC = HIGH_SPEED ? DEVICE_DESC_HS : DEVICE_DESC_FS;
 
   localparam [4*8-1:0] STR_DESC = {
     16'h0409,
@@ -158,18 +158,13 @@ module cfg_pipe0 #(
   localparam PRODUCT_STR_DESC_LEN = 2 + 2 * PRODUCT_LEN;
   localparam SERIAL_STR_DESC_LEN = 2 + 2 * SERIAL_LEN;
 
-localparam DESC_WITH_STRINGS = {
-    SERIAL_STR_DESC,
-    PRODUCT_STR_DESC,
-    MANUFACTURER_STR_DESC,
-    STR_DESC,
-    CONFIG_DESC,
-    DEVICE_DESC
-};
+  localparam DESC_WITH_STRINGS = {
+    SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC
+  };
 
   localparam DESC_SIZE_NOSTR = DEVICE_DESC_LEN + CONFIG_DESC_LEN;
   localparam DESC_SIZE_STR   =
-             DESC_SIZE_NOSTR + STR_DESC_LEN + MANUFACTURER_STR_DESC_LEN + 
+             DESC_SIZE_NOSTR + STR_DESC_LEN + MANUFACTURER_STR_DESC_LEN +
              PRODUCT_STR_DESC_LEN + SERIAL_STR_DESC_LEN;
 
   localparam DESC_HAS_STRINGS = MANUFACTURER_LEN > 0 || PRODUCT_LEN > 0 || SERIAL_LEN > 0;
@@ -185,14 +180,31 @@ localparam DESC_WITH_STRINGS = {
   localparam DESC_START2 = DESC_START1 + MANUFACTURER_STR_DESC_LEN;
   localparam DESC_START3 = DESC_START2 + PRODUCT_STR_DESC_LEN;
 
+  // -- Current USB Configuration State -- //
+
+  reg [6:0] adr_q;
+  reg [7:0] cfg_q;
+  reg set_q;
+
+
+  // -- Local State and Signals -- //
+
   localparam [2:0]
-	STATE_IDLE = 3'd0, 
+	STATE_IDLE = 3'd0,
 	STATE_GET_DESC = 3'd1,
 	STATE_SET_CONF = 3'd2,
 	STATE_SET_ADDR = 3'd4;
 
+  localparam ASB = $clog2(DESC_SIZE)-1;
+
   reg [2:0] state;
-  reg [$clog2(DESC_SIZE)-1:0] mem_addr;
+  reg gnt_q;
+  reg [ASB:0] mem_addr;
+  wire [ASB:0] mem_next;
+
+  wire is_std_req;
+  wire is_dev_req;
+  wire handle_req;
 
   /**
    * Request types:
@@ -205,55 +217,69 @@ localparam DESC_WITH_STRINGS = {
    */
   reg [2:0] req_type;
 
-  reg [6:0] device_address_int;
-  reg [7:0] current_configuration_int;
-  reg configured_int;
 
-  wire is_std_req;
-  wire is_dev_req;
-  wire handle_req;
+  // -- Signal Output Assignments -- //
 
-  reg tlast, gnt_q;
-  wire [7:0] mem_addr_nxt = mem_addr + 1;
+  assign device_address = adr_q;
+  assign current_configuration = cfg_q;
+  assign configured = set_q;
 
-
-// -- Signal Output Assignments -- //
-
-  assign device_address = device_address_int;
-  assign current_configuration = current_configuration_int;
-  assign configured = configured_int;
-
-  assign is_std_req = ctl_xfer_endpoint == 4'h0 && ctl_xfer_type[6:5] == 2'b00;
-  assign is_dev_req = ctl_xfer_type[4:0] == 5'b00000;
-  assign handle_req = is_std_req & is_dev_req;
+  // todo: make non-combinational ...
   assign standart_request = is_std_req;
 
   assign ctl_xfer_gnt_o = gnt_q;
 
+  // AXI4-Stream master port for descriptor values
   assign ctl_tvalid_o = state[0];
   assign ctl_tdata_o = descriptor[mem_addr];
   assign ctl_tlast_o = desc_tlast[mem_addr];
 
 
-// -- Descriptor ROM -- //
+  // -- Internal Combinational Assignments -- //
 
-reg [7:0] descriptor [0:DESC_SIZE-1];
-reg desc_tlast [0:DESC_SIZE-1];
+  assign is_std_req = ctl_xfer_endpoint == 4'h0 && ctl_xfer_type[6:5] == 2'b00;
+  assign is_dev_req = ctl_xfer_type[4:0] == 5'b00000;
+  assign handle_req = is_std_req & is_dev_req;
 
-genvar ii;
-generate
-
-  for (ii=0; ii<DESC_SIZE; ii++) begin : g_set_descriptor_rom
-    assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
-    assign desc_tlast[ii] = ii==DESC_CONFIG_START-1 || ii==DESC_START0-1 ||
-                            ii==DESC_START1-1 || ii==DESC_START2-1 ||
-                            ii==DESC_START3-1 || ii==DESC_SIZE-1;
+  // todo: can I improve this !?
+  always @(*) begin
+    if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h01)) begin
+      req_type = 3'b001;
+    end else if (handle_req && (ctl_xfer_request == 8'h05)) begin
+      req_type = 3'b010;
+    end else if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h02)) begin
+      req_type = 3'b011;
+    end else if (handle_req && (ctl_xfer_request == 8'h09)) begin
+      req_type = 3'b100;
+    end else if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h03)) begin
+      req_type = 3'b101;
+    end else begin
+      req_type = 3'b000;
+    end
   end
 
-endgenerate
+
+  // -- Descriptor ROM -- //
+
+  reg [7:0] descriptor[0:DESC_SIZE-1];
+  reg desc_tlast[0:DESC_SIZE-1];
+
+  genvar ii;
+  generate
+
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
+      assign desc_tlast[ii] = ii==DESC_CONFIG_START-1 || ii==DESC_START0-1 ||
+                            ii==DESC_START1-1 || ii==DESC_START2-1 ||
+                            ii==DESC_START3-1 || ii==DESC_SIZE-1;
+    end
+
+  endgenerate
 
 
-// -- Configuration Control PIPE0 Logic -- //
+  // -- Configuration Control PIPE0 Logic -- //
+
+  assign mem_next = mem_addr + 1;
 
   always @(posedge clock) begin
     if (ctl_xfer_req_i) begin
@@ -265,7 +291,7 @@ endgenerate
 
   always @(posedge clock) begin
     if (ctl_tready_i && state[0]) begin
-      mem_addr <= mem_addr_nxt;
+      mem_addr <= mem_next;
     end else if (ctl_xfer_req_i && !state[0]) begin
       if (req_type == 3'b011) begin
         mem_addr <= DESC_CONFIG_START;
@@ -288,8 +314,8 @@ endgenerate
   always @(posedge clock) begin
     if (reset) begin
       state <= STATE_IDLE;
-      device_address_int <= 0;
-      configured_int <= 1'b0;
+      adr_q <= 0;
+      set_q <= 1'b0;
     end else begin
       case (state)
         default: begin
@@ -299,7 +325,7 @@ endgenerate
             end else if (req_type == 3'b010) begin
               state <= STATE_SET_ADDR;
             end else if (req_type == 3'b100) begin
-              current_configuration_int <= ctl_xfer_value[7:0];
+              cfg_q <= ctl_xfer_value[7:0];
               state <= STATE_SET_CONF;
             end
           end
@@ -307,7 +333,7 @@ endgenerate
         STATE_SET_ADDR: begin
           if (!ctl_xfer_req_i) begin
             state <= STATE_IDLE;
-            device_address_int <= ctl_xfer_value[6:0];
+            adr_q <= ctl_xfer_value[6:0];
           end
         end
         STATE_GET_DESC: begin
@@ -317,7 +343,7 @@ endgenerate
         end
         STATE_SET_CONF: begin
           if (!ctl_xfer_req_i) begin
-            configured_int <= 1'b1;
+            set_q <= 1'b1;
             state <= STATE_IDLE;
           end
         end
@@ -325,21 +351,5 @@ endgenerate
     end
   end
 
-  always @(*) begin
-    if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h01)) begin
-      req_type = 3'b001;
-    end else if (handle_req && (ctl_xfer_request == 8'h05)) begin
-      req_type = 3'b010;
-    end else if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h02)) begin
-      req_type = 3'b011;
-    end else if (handle_req && (ctl_xfer_request == 8'h09)) begin
-      req_type = 3'b100;
-    end else if (handle_req && (ctl_xfer_request == 8'h06) && (ctl_xfer_value[15:8] == 8'h03)) begin
-      req_type = 3'b101;
-    end else begin
-      req_type = 3'b000;
-    end
-  end
 
-
-endmodule // cfg_pipe0
+endmodule  // cfg_pipe0

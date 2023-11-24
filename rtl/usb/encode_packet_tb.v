@@ -101,27 +101,32 @@ module encode_packet_tb;
       .reset(reset),
       .clock(clock),
 
-      .rx_tvalid_i(svalid),
-      .rx_tready_o(mready),
-      .rx_tlast_i (slast),
-      .rx_tdata_i (sdata),
+      // USB configuration fields, and status flags
+      .usb_address_i(usb_address),
+      .usb_sof_o(usb_sof),
+      .crc_err_o(crc_err),
 
+      // ULPI -> decoder stream
+      .ulpi_tvalid_i(svalid),
+      .ulpi_tready_o(mready),
+      .ulpi_tlast_i (slast),
+      .ulpi_tdata_i (sdata),
+
+      // Indicates that a (OUT/IN/SETUP) token was received
       .trn_start_o(trn_start),
       .trn_type_o(trn_type),
       .trn_address_o(trn_address),
       .trn_endpoint_o(trn_endpoint),
-      .usb_address_i(usb_address),
 
-      .usb_sof_o(usb_sof),
-      .crc_err_o(crc_err),
+      // Data packet (OUT, DATA0/1/2 MDATA) received
+      .out_tvalid_o(mvalid),
+      .out_tend_o  (mend),
+      .out_ttype_o (mtype),
+      .out_tdata_o (mdata),
 
-      .rx_trn_valid_o(mvalid),
-      .rx_trn_end_o  (mend),
-      .rx_trn_type_o (mtype),
-      .rx_trn_data_o (mdata),
-
-      .trn_hsk_type_o(),
-      .trn_hsk_recv_o(hrecv)
+      // Handshake packet information
+      .hsk_type_o(),
+      .hsk_recv_o(hrecv)
   );
 
 

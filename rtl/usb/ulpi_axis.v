@@ -163,27 +163,37 @@ assign ulpi_data_iw = ulpi_data_io;
       .reset(reset),
       .clock(clock),
 
-      .rx_tvalid_i(axis_rx_tvalid),
-      .rx_tready_o(axis_rx_tready),
-      .rx_tlast_i (axis_rx_tlast),
-      .rx_tdata_i (axis_rx_tdata),
-
-      .trn_start_o(usb_rx_trn_start),
-      .trn_type_o(usb_rx_trn_type),
-      .trn_address_o(usb_rx_trn_address),
-      .trn_endpoint_o(usb_rx_trn_endpoint),
+      // USB configuration fields, and status flags
       .usb_address_i(device_address),
-
       .usb_sof_o(usb_sof_o),
       .crc_err_o(usb_crc_error_o),
 
+      // ULPI -> decoder stream
+      .ulpi_tvalid_i(ulpi_rx_tvalid),
+      .ulpi_tready_o(ulpi_rx_tready),
+      .ulpi_tlast_i (ulpi_rx_tlast),
+      .ulpi_tdata_i (ulpi_rx_tdata),
+
+      // Indicates that a (OUT/IN/SETUP) token was received
+      .trn_start_o(usb_rx_trn_start), // Start strobe
+      .trn_type_o(usb_rx_trn_type), // Token-type (OUT/IN/SETUP)
+      .trn_address_o(usb_rx_trn_address),
+      .trn_endpoint_o(usb_rx_trn_endpoint),
+
+      // Data packet (OUT, DATA0/1/2 MDATA) received
       .rx_trn_valid_o(rx_trn_valid),
       .rx_trn_end_o  (rx_trn_end),
       .rx_trn_type_o (rx_trn_data_type),
       .rx_trn_data_o (rx_trn_data),
 
-      .trn_hsk_type_o(rx_trn_hsk_type),
-      .trn_hsk_recv_o(rx_trn_hsk_recv)
+      .out_tvalid_o(out_tvalid_w),
+      .out_tend_o  (out_tend_w),
+      .out_ttype_o (out_ttype_w),
+      .out_tdata_o (out_tdata_w),
+
+      // Handshake packet information
+      .hsk_type_o(rx_trn_hsk_type),
+      .hsk_recv_o(rx_trn_hsk_recv)
   );
 
 
@@ -211,6 +221,12 @@ usb_control
     .cfg_pipe0_tlast_o(cfgi_tlast_w),
     .cfg_pipe0_tdata_o(cfgi_tdata_w)
 );
+
+always @(posedge clock) begin
+  if (reset) begin
+  end else begin
+  end
+end
 
 
   // -- USB configuration endpoint -- //
