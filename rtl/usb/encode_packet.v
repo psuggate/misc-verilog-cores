@@ -17,8 +17,8 @@ module encode_packet (
     tok_type_i,  // 00 - OUT, 01 - SOF, 10 - IN, 11 - SETUP //
     tok_data_i,
 
-    trn_type_i,  // DATA0/1/2 MDATA //
-    trn_start_i,
+    trn_ttype_i,  // DATA0/1/2 MDATA //
+    trn_tsend_i,
     trn_tvalid_i,
     trn_tready_o,
     trn_tlast_i,
@@ -44,8 +44,8 @@ module encode_packet (
   input [1:0] tok_type_i;
   input [15:0] tok_data_i;
 
-  input [1:0] trn_type_i;  /* DATA0/1/2 MDATA */
-  input trn_start_i;
+  input [1:0] trn_ttype_i;  /* DATA0/1/2 MDATA */
+  input trn_tsend_i;
   input trn_tvalid_i;
   output trn_tready_o;
   input trn_tlast_i;
@@ -151,7 +151,7 @@ module encode_packet (
       uready <= 1'b0;
     end else if (xdat_q) begin
       uready <= uready_next;
-    end else if (trn_start_i) begin
+    end else if (trn_tsend_i) begin
       uready <= !trn_tlast_i;
     end
     xvalid <= xvalid_next;
@@ -285,13 +285,13 @@ module encode_packet (
             tvalid <= 1'b1;
             tlast <= 1'b0;
             tdata <= {~{tok_type_i, 2'b01}, {tok_type_i, 2'b01}};
-          end else if (trn_start_i) begin
+          end else if (trn_tsend_i) begin
             {xdat_q, xtok_q, xhsk_q} <= ST_DATA;
             {zero_q, xcrc_q} <= {trn_tlast_i, 1'b0};  // PID-only packet ??
 
             tvalid <= 1'b1;
             tlast <= 1'b0;
-            tdata <= {~{trn_type_i, 2'b11}, {trn_type_i, 2'b11}};
+            tdata <= {~{trn_ttype_i, 2'b11}, {trn_ttype_i, 2'b11}};
           end else begin
             {xdat_q, xtok_q, xhsk_q} <= ST_IDLE;
             {zero_q, xcrc_q} <= 2'b00;

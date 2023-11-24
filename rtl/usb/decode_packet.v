@@ -11,29 +11,29 @@ module decode_packet (
 
     output usb_sof_o,
     output crc_err_o,
-    input  [6:0] usb_address_i, // todo: not needed for "decode" !?
 
-    input  ulpi_tvalid_i,
+    input ulpi_tvalid_i,
     output ulpi_tready_o,
-    input  ulpi_tlast_i,
-    input  [7:0] ulpi_tdata_i,
+    input ulpi_tlast_i,
+    input [7:0] ulpi_tdata_i,
 
-    output trn_start_o,
-    output [1:0] trn_type_o,
-    output [6:0] trn_address_o,
-    output [3:0] trn_endpoint_o,
+    output tok_recv_o,
+    output [1:0] tok_type_o,
+    output [6:0] tok_addr_o,
+    output [3:0] tok_endp_o,
 
     // Data packet (OUT, DATA0/1/2 MDATA) received
     output out_tvalid_o,
-    output out_tend_o,
-    output [1:0] out_ttype_o, // OUT DATA0/1/2 MDATA
+    input out_tready_i,  // todo
+    output out_tlast_o,
+    output [1:0] out_ttype_o,  // OUT DATA0/1/2 MDATA
     output [7:0] out_tdata_o,
 
     output hsk_recv_o,
-    output [1:0] hsk_type_o // 00 - ACK, 10 - NAK, 11 - STALL, 01 - NYET
+    output [1:0] hsk_type_o  // 00 - ACK, 10 - NAK, 11 - STALL, 01 - NYET
 );
 
-`include "usb_crc.vh"
+  `include "usb_crc.vh"
 
   localparam  [6:0]
 	ST_IDLE      = 7'h01,
@@ -44,29 +44,27 @@ module decode_packet (
 	ST_DATA      = 7'h20,
 	ST_DATA_CRC  = 7'h40;
 
-  reg [6:0] state;
+  reg [ 6:0] state;
 
   reg [10:0] token_data;
-  reg [4:0] token_crc5;
+  reg [ 4:0] token_crc5;
   reg [7:0] rx_buf1, rx_buf0;
-  wire [15:0] rx_data_crc_w;
-  wire [4:0] rx_crc5_w;
+  wire [15:0] crc16_w;
+  wire [ 4:0] rx_crc5_w;
   wire [3:0] rx_pid_pw, rx_pid_nw;
-  wire [15:0] crc16_nw;
   reg [15:0] crc16_q;
 
-  reg sof_flag, crc_err_flag;
-  reg trn_start_q, trn_frame_q, rx_trn_end_q, hsk_recv_q;
-  reg [1:0] trn_type_q, rx_trn_type_q, hsk_type_q;
+  reg sof_flag_q, crc_err_flag;
+  reg tok_recv_q, hsk_recv_q;
+  reg [1:0] trn_type_q;
 
-  reg rx_vld0, rx_vld1, rx_valid_q, tvalid_q;
-
-  wire addr_match_w; // todo: not needed for "decode" !?
+  reg rx_vld0, rx_vld1, tvalid_q;
+  wire third_w;
 
 
   // -- Input/Output Assignments -- //
 
-  assign usb_sof_o = sof_flag;
+  assign usb_sof_o = sof_flag_q;
   assign crc_err_o = crc_err_flag;
 
   // todo: theoretically, this can fail !?
@@ -74,49 +72,39 @@ module decode_packet (
   // todo: what does the ULPI PHY do when STP is asserted mid-packet !?
   assign ulpi_tready_o = 1'b1;
 
-  // Rx data-path (from USB host) to either USB config OR bulk EP cores
-  assign out_tvalid_o = tvalid_q;
-  assign out_tend_o   = rx_trn_end_q;
-  assign out_ttype_o  = trn_type_q;
-  assign out_tdata_o  = rx_buf1;
-
   assign hsk_recv_o = hsk_recv_q;
   assign hsk_type_o = trn_type_q;
 
-  assign trn_start_o    = trn_start_q;
-  assign trn_type_o     = trn_type_q;
-  assign trn_address_o  = token_data[6:0];
-  assign trn_endpoint_o = token_data[10:7];
+  assign tok_recv_o = tok_recv_q;
+  assign tok_type_o = trn_type_q;  // OUT/IN/SETUP
+  assign tok_addr_o = token_data[6:0];
+  assign tok_endp_o = token_data[10:7];
+
+  // Rx data-path (from USB host) to either USB config OR bulk EP cores
+  assign out_tvalid_o = tvalid_q;
+  assign out_tlast_o = ulpi_tlast_i;
+  assign out_ttype_o = trn_type_q;  // DATA0/1/2 MDATA
+  assign out_tdata_o = rx_buf1;
 
 
   // -- Internal Signals -- //
 
-  assign rx_pid_pw     = ulpi_tdata_i[3:0];
-  assign rx_pid_nw     = ~ulpi_tdata_i[7:4];
-  assign rx_crc5_w     = crc5(token_data);
-  assign rx_data_crc_w = {rx_buf0, rx_buf1};
-
-  // todo: not needed for "decode" !?
-  assign addr_match_w  = token_data[6:0] == usb_address_i;
+  assign rx_pid_pw = ulpi_tdata_i[3:0];
+  assign rx_pid_nw = ~ulpi_tdata_i[7:4];
+  assign rx_crc5_w = crc5(token_data);
 
 
   // -- Rx Data -- //
 
-  always @(posedge clock) begin
-    if (state == ST_DATA) begin
-      tvalid_q <= ulpi_tvalid_i && !ulpi_tlast_i && rx_vld0 && addr_match_w;
-    end else begin
-      tvalid_q <= 1'b0;
-    end
-  end
+  // Asserted from the 3rd byte onwards (so after PID and DATA[0])
+  // Note: if asserted, then 'ulpi_tdata_i' is at least the 3rd byte
+  assign third_w = rx_vld0 && !rx_vld1;
 
   always @(posedge clock) begin
     if (state == ST_IDLE) begin
       {rx_vld1, rx_vld0} <= 2'b00;
-      rx_valid_q <= 1'b0;
     end else if (ulpi_tvalid_i) begin
       {rx_vld1, rx_vld0} <= {rx_vld0, 1'b1};
-      rx_valid_q <= rx_vld0 && addr_match_w;
     end
 
     if (ulpi_tvalid_i) begin
@@ -126,71 +114,51 @@ module decode_packet (
     end
   end
 
-
-  // -- Rx Data CRC Calculation -- //
-
-  // todo: use the residual from the USB 2.0 spec?
-  assign crc16_nw = ~{crc16_q[0], crc16_q[1], crc16_q[2], crc16_q[3],
-                      crc16_q[4], crc16_q[5], crc16_q[6], crc16_q[7],
-                      crc16_q[8], crc16_q[9], crc16_q[10], crc16_q[11],
-                      crc16_q[12], crc16_q[13], crc16_q[14], crc16_q[15]
-                     };
-
   always @(posedge clock) begin
-    if (!rx_vld1) begin
-      crc16_q <= 16'hffff;
+    if (state == ST_DATA) begin
+      tvalid_q <= ulpi_tvalid_i && !ulpi_tlast_i && rx_vld0;
     end else begin
-      crc16_q <= crc16(rx_buf1, crc16_q);
+      tvalid_q <= 1'b0;
     end
   end
 
 
-  // -- Start-Of-Frame Signal -- //
+  // -- Rx Data CRC Calculation -- //
+
+  assign crc16_w = crc16(rx_buf0, crc16_q);
 
   always @(posedge clock) begin
-    case (state)
-      ST_SOF_CRC: sof_flag <= token_crc5 == rx_crc5_w;
-      default: sof_flag <= 1'b0;
-    endcase
+    if (!rx_vld0) begin
+      crc16_q <= 16'hffff;
+    end else begin
+      crc16_q <= crc16_w;
+    end
   end
 
-  always @(posedge clock) begin
-    case (state)
-      ST_SOF_CRC, ST_TOKEN_CRC: crc_err_flag <= token_crc5 != rx_crc5_w;
-      ST_DATA_CRC: crc_err_flag <= rx_data_crc_w != crc16_nw;
-      default: crc_err_flag <= 1'b0;
-    endcase
-  end
+
+  // -- CRC-Error, Start-Of-Frame, and Token-Received Signals -- //
 
   // Strobes that indicate the start and end of a (received) packet.
+  // todo: unify the SOF and TOKEN states !?
   always @(posedge clock) begin
-    case (state)
-      ST_TOKEN_CRC: begin
-        trn_start_q  <= addr_match_w && token_crc5 == rx_crc5_w;
-        rx_trn_end_q <= 1'b0;
-      end
-      ST_DATA_CRC: begin
-        trn_start_q  <= 1'b0;
-        rx_trn_end_q <= trn_frame_q;
-        // rx_trn_end_q <= addr_match_w;
-      end
-      default: begin
-        trn_start_q  <= 1'b0;
-        rx_trn_end_q <= 1'b0;
-      end
-    endcase
+    // tok_recv_q <= state[2] && trn_type_q != 2'01 && token_crc5 == rx_crc5_w;
+    // sof_flag_q <= state[2] && trn_type_q == 2'01 && token_crc5 == rx_crc5_w;
+    tok_recv_q <= state[4] && token_crc5 == rx_crc5_w;
+    sof_flag_q <= state[2] && token_crc5 == rx_crc5_w;
   end
 
   always @(posedge clock) begin
     if (reset) begin
-      trn_frame_q <= 1'b0;
-    end else if (state[4] && addr_match_w && token_crc5 == rx_crc5_w) begin
-    // if (trn_start_q && !trn_frame_q) begin
-      trn_frame_q <= 1'b1;
-    end else if (state[6] && trn_frame_q) begin
-      trn_frame_q <= 1'b0;
+      crc_err_flag <= 1'b0;
+    end else if (state == ST_SOF_CRC || state == ST_TOKEN_CRC) begin
+      crc_err_flag <= token_crc5 != rx_crc5_w;
+    end else if (state == ST_DATA_CRC) begin
+      crc_err_flag <= crc16_w != 16'h800d;
     end
   end
+
+
+  // -- USB Address and Endpoint Registers -- //
 
   // Note: these data are also used for the USB device address & endpoint
   always @(posedge clock) begin
@@ -198,8 +166,8 @@ module decode_packet (
       ST_TOKEN, ST_SOF: begin
         if (ulpi_tvalid_i) begin
           token_data[7:0] <= rx_vld0 ? token_data[7:0] : ulpi_tdata_i;
-          token_data[10:8] <= rx_vld0 && !rx_vld1 ? ulpi_tdata_i[2:0] : token_data[10:8];
-          token_crc5 <= rx_vld0 && !rx_vld1 ? ulpi_tdata_i[7:3] : token_crc5;
+          token_data[10:8] <= third_w ? ulpi_tdata_i[2:0] : token_data[10:8];
+          token_crc5 <= third_w ? ulpi_tdata_i[7:3] : token_crc5;
         end
       end
       default: begin
@@ -262,11 +230,11 @@ module decode_packet (
   always @(posedge clock) begin
     if (ulpi_tvalid_i && state == ST_IDLE && rx_pid_pw == rx_pid_nw) begin
       trn_type_q <= rx_pid_pw[3:2];
-      hsk_recv_q <= rx_pid_pw[1:0] == 2'b10 && addr_match_w;
+      hsk_recv_q <= rx_pid_pw[1:0] == 2'b10;
     end else begin
       hsk_recv_q <= 1'b0;
     end
   end
 
 
-endmodule // decode_packet
+endmodule  // decode_packet

@@ -94,6 +94,7 @@ module encode_packet_tb;
   wire [6:0] trn_address, usb_address;
   wire [3:0] trn_endpoint;
   wire [7:0] mdata;
+  reg xready = 1'b1;
 
   assign usb_address = 7'h00;
 
@@ -101,8 +102,7 @@ module encode_packet_tb;
       .reset(reset),
       .clock(clock),
 
-      // USB configuration fields, and status flags
-      .usb_address_i(usb_address),
+      // USB packet-decoder status flags
       .usb_sof_o(usb_sof),
       .crc_err_o(crc_err),
 
@@ -113,14 +113,15 @@ module encode_packet_tb;
       .ulpi_tdata_i (sdata),
 
       // Indicates that a (OUT/IN/SETUP) token was received
-      .trn_start_o(trn_start),
-      .trn_type_o(trn_type),
-      .trn_address_o(trn_address),
-      .trn_endpoint_o(trn_endpoint),
+      .tok_recv_o(trn_start),
+      .tok_type_o(trn_type),
+      .tok_addr_o(trn_address),
+      .tok_endp_o(trn_endpoint),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
       .out_tvalid_o(mvalid),
-      .out_tend_o  (mend),
+      .out_tready_i(xready),
+      .out_tlast_o (mend),
       .out_ttype_o (mtype),
       .out_tdata_o (mdata),
 
@@ -154,8 +155,8 @@ module encode_packet_tb;
       .tok_type_i(ktype),
       .tok_data_i(kdata),
 
-      .trn_start_i (tstart),
-      .trn_type_i  (ttype),
+      .trn_tsend_i (tstart),
+      .trn_ttype_i (ttype),
       .trn_tvalid_i(tvalid),
       .trn_tready_o(tready),
       .trn_tlast_i (tlast),

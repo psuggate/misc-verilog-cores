@@ -195,7 +195,7 @@ module cfg_pipe0 #(
 	STATE_SET_CONF = 3'd2,
 	STATE_SET_ADDR = 3'd4;
 
-  localparam ASB = $clog2(DESC_SIZE)-1;
+  localparam ASB = $clog2(DESC_SIZE) - 1;
 
   reg [2:0] state;
   reg gnt_q;

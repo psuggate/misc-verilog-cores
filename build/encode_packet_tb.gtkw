@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Nov 20 05:18:55 2023
+[*] Fri Nov 24 07:08:33 2023
 [*]
 [dumpfile] "./encode_packet_tb.vcd"
-[dumpfile_mtime] "Mon Nov 20 05:18:36 2023"
-[dumpfile_size] 15441
+[dumpfile_mtime] "Fri Nov 24 07:08:25 2023"
+[dumpfile_size] 15184
 [savefile] "./encode_packet_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-16.334831 235000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.334831 335000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] encode_packet_tb.
 [treeopen] encode_packet_tb.tx_usb_packet_inst.
 [sst_width] 233
@@ -91,8 +91,6 @@ encode_packet_tb.kdata[15:0]
 -Encode
 @22
 encode_packet_tb.rx_usb_packet_inst.crc16_q[15:0]
-encode_packet_tb.rx_usb_packet_inst.crc16_nw[15:0]
-encode_packet_tb.rx_usb_packet_inst.rx_data_crc_w[15:0]
 @28
 encode_packet_tb.rx_usb_packet_inst.rx_vld0
 encode_packet_tb.rx_usb_packet_inst.rx_vld1
@@ -102,12 +100,12 @@ encode_packet_tb.rx_usb_packet_inst.rx_buf1[7:0]
 encode_packet_tb.rx_usb_packet_inst.state[6:0]
 @1401200
 -Encode
+@c00200
+-Salad
 @28
-encode_packet_tb.tx_usb_packet_inst.trn_start_i
 encode_packet_tb.tx_usb_packet_inst.trn_tvalid_i
 encode_packet_tb.tx_usb_packet_inst.trn_tready_o
 encode_packet_tb.tx_usb_packet_inst.trn_tlast_i
-encode_packet_tb.tx_usb_packet_inst.trn_type_i[1:0]
 @22
 encode_packet_tb.tx_usb_packet_inst.trn_tdata_i[7:0]
 @28
@@ -116,5 +114,29 @@ encode_packet_tb.tx_usb_packet_inst.zero_q
 encode_packet_tb.tx_usb_packet_inst.xcrc_q
 @22
 encode_packet_tb.tx_usb_packet_inst.crc16_q[15:0]
+@1401200
+-Salad
+@800200
+-Data
+@28
+encode_packet_tb.mvalid
+encode_packet_tb.mready
+encode_packet_tb.mend
+@22
+encode_packet_tb.mdata[7:0]
+@1000200
+-Data
+@22
+encode_packet_tb.rx_usb_packet_inst.crc16_q[15:0]
+encode_packet_tb.rx_usb_packet_inst.crc16_w[15:0]
+encode_packet_tb.rx_usb_packet_inst.state[6:0]
+@28
+encode_packet_tb.rx_usb_packet_inst.rx_vld0
+encode_packet_tb.rx_usb_packet_inst.rx_vld1
+@22
+encode_packet_tb.rx_usb_packet_inst.token_crc5[4:0]
+encode_packet_tb.rx_usb_packet_inst.rx_crc5_w[4:0]
+@29
+encode_packet_tb.rx_usb_packet_inst.crc_err_flag
 [pattern_trace] 1
 [pattern_trace] 0
