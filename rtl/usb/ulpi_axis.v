@@ -259,6 +259,13 @@ module ulpi_axis (  /*AUTOARG*/);
       .ep1_ce_o(),
       .ep2_ce_o(),
 
+      .ctl_start_o(),
+      .ctl_rtype_o(),  // todo:
+      .ctl_rargs_o(),  // todo:
+      .ctl_value_o(),
+      .ctl_index_o(),
+      .ctl_length_o(),
+
       .cfg_pipe0_type_o(ctl_xfer_type_w),
       .cfg_pipe0_endp_o(ctl_xfer_endp_w),
 

@@ -1,5 +1,18 @@
 `timescale 1ns / 100ps
-module transaction (  /*AUTOARG*/);
+module transaction (  /*AUTOARG*/
+  // Outputs
+  hsk_send_o, hsk_type_o, out_tready_o, ep0_ce_o, ep1_ce_o, ep2_ce_o,
+  ctl_start_o, ctl_rtype_o, ctl_rargs_o, ctl_value_o, ctl_index_o,
+  ctl_length_o, ctl_tvalid_o, ctl_tlast_o, ctl_tdata_o, ctl_tready_o,
+  blk_start_o, blk_dtype_o, blk_muxsel_o, blk_tvalid_o, blk_tlast_o,
+  blk_tdata_o, blk_tready_o,
+  // Inputs
+  clock, reset, usb_addr_i, tok_recv_i, tok_type_i, tok_addr_i,
+  tok_endp_i, hsk_recv_i, hsk_type_i, hsk_sent_i, out_tvalid_i,
+  out_tlast_i, out_ttype_i, out_tdata_i, ctl_tready_i, ctl_tvalid_i,
+  ctl_tlast_i, ctl_tdata_i, blk_done1_i, blk_done2_i, blk_tready_i,
+  blk_tvalid_i, blk_tlast_i, blk_tdata_i
+  );
 
   parameter EP1_BULK_IN = 1;
   parameter EP1_BULK_OUT = 1;
@@ -28,7 +41,7 @@ module transaction (  /*AUTOARG*/);
 
   input hsk_recv_i;
   input [1:0] hsk_type_i;
-  output hsk_sent_o;
+  output hsk_send_o;
   input hsk_sent_i;
   output [1:0] hsk_type_o;
 
@@ -43,22 +56,88 @@ module transaction (  /*AUTOARG*/);
   output ep1_ce_o;  // Bulk EP #1
   output ep2_ce_o;  // Bulk EP #2
 
+  // USB Control Transfer parameters and data-streams
+  output ctl_start_o;
+  output [7:0] ctl_rtype_o;  // todo:
+  output [7:0] ctl_rargs_o;  // todo:
+  output [15:0] ctl_value_o;
+  output [15:0] ctl_index_o;
+  output [15:0] ctl_length_o;
 
-// -- Module Constants -- //
+  output ctl_tvalid_o;
+  input ctl_tready_i;
+  output ctl_tlast_o;
+  output [7:0] ctl_tdata_o;
 
-localparam TOK_OUT   = 2'b00;
-localparam TOK_IN    = 2'b10;
-localparam TOK_SETUP = 2'b11;
+  input ctl_tvalid_i;
+  output ctl_tready_o;
+  input ctl_tlast_i;
+  input [7:0] ctl_tdata_i;
+
+  // USB Bulk Transfer parameters and data-streams
+  output blk_start_o;
+  output blk_dtype_o;  // todo: OUT/IN, DATA0/1
+  input blk_done1_i; // todo: smrat ??
+  input blk_done2_i; // todo: smrat ??
+  output blk_muxsel_o; // todo: smrat ??
+
+  output blk_tvalid_o; // todo: not needed, as can use stream from the decoder !?
+  input blk_tready_i;
+  output blk_tlast_o;
+  output [7:0] blk_tdata_o;
+
+  input blk_tvalid_i; // todo: not needed, as can use external MUX to encoder !?
+  output blk_tready_o;
+  input blk_tlast_i;
+  input [7:0] blk_tdata_i;
+
+
+  // -- Module Constants -- //
+
+  localparam TOK_OUT = 2'b00;
+  localparam TOK_IN = 2'b10;
+  localparam TOK_SETUP = 2'b11;
+
+  localparam BLK_IDLE = 4'h0;
+  localparam BLK_SETUP_DAT = 8'h02;
+
+  localparam CTL_IDLE = 4'h0;
+  localparam CTL_DONE = 4'h0;
+  localparam CTL_FAIL = 4'hf;
+
+  localparam CTL_IDLE_DONE = 8'h01;
+  localparam CTL_SETUP_DAT = 8'h02;
+  localparam CTL_SETUP_ACK = 8'h02;
+  localparam CTL_DATA_OUT_IN = 8'hff;
+
+
+  // -- Module State and Signals -- //
+
+  reg ep0_ce_q, ep1_ce_q, ep2_ce_q;
+
+  reg blk_start_q, ctl_start_q;
+  reg blk_error_q, ctl_error_q;
+
+  reg [7:0] ctl_rtype_q, ctl_rargs_q;
+  reg [7:0] ctl_valhi_q, ctl_vallo_q;
+  reg [7:0] ctl_idxhi_q, ctl_idxlo_q;
+  reg [7:0] ctl_lenhi_q, ctl_lenlo_q;
 
 
   // -- Input and Output Signal Assignments -- //
 
-  reg ep0_ce_q, ep1_ce_q, ep2_ce_q;
-
-
   assign ep0_ce_o = ep0_ce_q;
   assign ep1_ce_o = ep1_ce_q;
   assign ep2_ce_o = ep2_ce_q;
+
+  assign blk_start_o = blk_start_q;
+  assign ctl_start_o = ctl_start_q;
+
+  assign ctl_rtype_o  = ctl_rtype_q;
+  assign ctl_rargs_o  = ctl_rargs_q;
+  assign ctl_value_o  = {ctl_valhi_q, ctl_vallo_q};
+  assign ctl_index_o  = {ctl_idxhi_q, ctl_idxlo_q};
+  assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
 
   // -- Downstream Chip-Enables -- //
@@ -83,13 +162,11 @@ localparam TOK_SETUP = 2'b11;
   // Todo: should this FSM handle no-data responses ??
   //
   localparam ST_IDLE = 4'h0;
-  localparam ST_BULK = 4'h1; // USB Bulk IN/OUT Transfer
-  localparam ST_CTRL = 4'h2; // USB Control Transfer
-  localparam ST_DUMP = 4'hf; // ignoring xfer, or bad shit happened
+  localparam ST_BULK = 4'h1;  // USB Bulk IN/OUT Transfer
+  localparam ST_CTRL = 4'h2;  // USB Control Transfer
+  localparam ST_DUMP = 4'hf;  // ignoring xfer, or bad shit happened
 
   reg [3:0] state, xbulk, xctrl;
-  reg blk_start_q, ctl_start_q;
-  reg blk_error_q, ctl_error_q;
 
   // todo: control the input MUX, and the output CE's
   always @(posedge clock) begin
@@ -98,7 +175,7 @@ localparam TOK_SETUP = 2'b11;
       ctl_req_type_q <= 3'b000;
     end else begin
       case (state)
-        default: begin // ST_IDLE
+        default: begin  // ST_IDLE
           //
           // Decode tokens until we see our address, and a valid endpoint
           ///
@@ -108,9 +185,8 @@ localparam TOK_SETUP = 2'b11;
               state <= ST_BULK;
               blk_start_q <= 1'b1;
               ctl_start_q <= 1'b0;
-            end else if (tok_type_i == TOK_SETUP &&
-                         (tok_endp_i == 4'h0 || // PIPE0 required
-                          EP1_CONTROL && tok_endp_i == ENDPOINT1 ||
+            end else if (tok_type_i == TOK_SETUP && (tok_endp_i == 4'h0 ||  // PIPE0 required
+                EP1_CONTROL && tok_endp_i == ENDPOINT1 ||
                           EP2_CONTROL && tok_endp_i == ENDPOINT2)) begin
               state <= ST_CTRL;
               blk_start_q <= 1'b0;
@@ -136,7 +212,7 @@ localparam TOK_SETUP = 2'b11;
           if (blk_error_q) begin
             // Bulk Transfer has failed, wait for the USB to settle down
             state <= ST_DUMP;
-          else if (xbulk == BLK_IDLE) begin
+          end else if (xbulk == BLK_IDLE) begin
             state <= ST_IDLE;
           end
         end
@@ -167,21 +243,23 @@ localparam TOK_SETUP = 2'b11;
   // -- FSM for Bulk IN/OUT Transfers to Endpoints -- //
 
   //
-  // Bulk transfers 
+  // Bulk transfers
   //
-  reg blk_hsend_q; // note: just a strobe (for the handshake FSM)
+  reg blk_hsend_q;  // note: just a strobe (for the handshake FSM)
   reg [1:0] blk_htype_q;
 
   always @(posedge clock) begin
     if (state == ST_BULK) begin
       case (xctrl)
         default: begin
-          xctrl <= CTL_IDLE;
+          xctrl   <= CTL_IDLE;
           hsend_q <= 1'b0;
           htype_q <= 2'bx;
         end
       endcase
     end else begin
+
+      // Todo: too late to do anything ??
       if (blk_start_q) begin
         xbulk <= BLK_SETUP_DAT;
       end else begin
@@ -204,8 +282,9 @@ localparam TOK_SETUP = 2'b11;
   //  - BYTE[5:4] -- Index
   //  - BYTE[7:6] -- Buffer length (can be zero)
   //  - BYTE[8..] -- Buffer contents (optional)
-  // After receiving the packets: 'SETUP' & 'DATA0', a USB must respond witn an
-  // 'ACK' handshake, before the "Data Stage" of the Control Transfer begins.
+  // After receiving the packets: 'SETUP' & 'DATA0', a USB device must respond
+  // with an 'ACK' handshake, before the "Data Stage" of the Control Transfer
+  // begins.
   //
   // Post-'ACK', the host issues an 'IN' (or 'OUT') token, and the device (or
   // host, respectively) then follows with zero or more DATA1, DATA0, ... tokens
@@ -225,11 +304,40 @@ localparam TOK_SETUP = 2'b11;
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
 
-  reg ctl_hsend_q; // note: just a strobe (for the handshake FSM)
+  reg ctl_hsend_q;  // note: just a strobe (for the handshake FSM)
   reg [1:0] ctl_htype_q;
 
   reg [2:0] ctl_req_type_q;
   reg ctl_req_recv_q;
+  reg ctl_tready_q; // todo: pointless !?
+
+  reg [2:0] xcptr;
+  wire [2:0] xcnxt = xcptr + 1;
+
+  // Parser of Control Transfer parameters
+  // Todo:
+  //  - conditional expr. does not exclude enough scenarios !?
+  //  - "parse" the request-type for PIPE0 ??
+  //  - figure out which 'xctrl[_]' bit to use for CE !?
+  always @(posedge clock) begin
+    if (xctrl != CTL_SETUP_DAT) begin
+      xcptr <= 3'b000;
+    end else if (ctl_tvalid_i && ctl_tready_o) begin
+      ctl_rtype_q <= xcptr == 3'b000 ? ctl_tdata_i : ctl_rtype_q;
+      ctl_rargs_q <= xcptr == 3'b001 ? ctl_tdata_i : ctl_rargs_q;
+
+      ctl_vallo_q <= xcptr == 3'b010 ? ctl_tdata_i : ctl_vallo_q;
+      ctl_valhi_q <= xcptr == 3'b011 ? ctl_tdata_i : ctl_valhi_q;
+
+      ctl_idxlo_q <= xcptr == 3'b100 ? ctl_tdata_i : ctl_idxlo_q;
+      ctl_idxhi_q <= xcptr == 3'b101 ? ctl_tdata_i : ctl_idxhi_q;
+
+      ctl_lenlo_q <= xcptr == 3'b110 ? ctl_tdata_i : ctl_lenlo_q;
+      ctl_lenhi_q <= xcptr == 3'b111 ? ctl_tdata_i : ctl_lenhi_q;
+
+      xcptr <= xcnxt;
+    end
+  end
 
   // todo: recognise control requests to PIPE0
   // todo: then extract the relevant fields
@@ -237,20 +345,20 @@ localparam TOK_SETUP = 2'b11;
     if (state == ST_CTRL) begin
       case (xctrl)
         CTL_FAIL: begin
-          xctrl <= CTL_IDLE;
+          xctrl   <= CTL_IDLE;
           hsend_q <= 1'b0;
           htype_q <= 2'bx;
         end
 
-        default: begin // CTL_SETUP_DAT
+        default: begin  // CTL_SETUP_DAT
           // todo: parse and extract the initial bytes ...
 
           if (out_tvalid_i && out_tready_o && out_tlast_i) begin
-            xctrl <= CTL_SETUP_ACK;
+            xctrl   <= CTL_SETUP_ACK;
             hsend_q <= 1'b1;
             htype_q <= HSK_ACK;
           end else begin
-            xctrl <= xctrl;
+            xctrl   <= xctrl;
             hsend_q <= 1'b0;
             htype_q <= 2'bx;
           end
@@ -287,7 +395,7 @@ localparam TOK_SETUP = 2'b11;
       endcase
     end else begin
 
-      // Todo: does not do anything ??
+      // Todo: too late to do anything ??
       if (ctl_start_q) begin
         xctrl <= CTL_SETUP_DAT;
       end else begin
