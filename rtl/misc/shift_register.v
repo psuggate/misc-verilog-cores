@@ -25,7 +25,7 @@ module shift_register (
 
   genvar ii;
   generate
-    begin : g_shift
+    // begin : g_shift
 
       // begin : g_shift_register
       reg [MSB:0] srl[0:DEPTH-1];
@@ -46,7 +46,7 @@ module shift_register (
         data_q <= srl[addr_i];
       end
 
-    end
+    // end
   endgenerate  // g_shift_register
 
 endmodule  // shift_register

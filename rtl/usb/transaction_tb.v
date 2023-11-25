@@ -1,9 +1,14 @@
 `timescale 1ns / 100ps
 module transaction_tb;
 
-  // -- Simulation Data -- //
-
   `include "usb_crc.vh"
+
+  localparam TOK_OUT = 2'b00;
+  localparam TOK_IN = 2'b10;
+  localparam TOK_SETUP = 2'b11;
+
+
+  // -- Simulation Data -- //
 
   initial begin
     $dumpfile("transaction_tb.vcd");
@@ -94,32 +99,32 @@ module transaction_tb;
 
   wire ctl0_select_w, ctl0_accept_w, ctl0_error_w;
 
+  // From/to USB decoder/encoder
   wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tlast_w;
-  wire [1:0] usb_rx_ttype_w;
-  wire [7:0] usb_rx_tdata_w;
+  wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
+  wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
 
   wire ctl_rx_start_w;
   wire [7:0] ctl_rx_rtype_w, ctl_rx_rargs_w;
   wire [15:0] ctl_rx_value_w, ctl_rx_index_w, ctl_rx_length_w;
 
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w;
-
   wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
-  wire [7:0] cfgi_tdata_w;
+  wire [7:0] ctl0_tdata_w, cfgi_tdata_w;
 
   wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
-  wire [7:0] blko_tdata_w;
-
   wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
-  wire [7:0] blki_tdata_w;
+  wire [7:0] blko_tdata_w, blki_tdata_w;
+
+  wire tx_hsend_w, tx_hsent_w, usb_rx_trecv_w, usb_tx_tsend_w, usb_tx_tsent_w;
+  wire [1:0] usb_rx_ttype_w, usb_tx_ttype_w, tx_htype_w;
 
 
   // -- Test-Module Output Checker -- //
 
   wire tok_recv_w, rx_hrecv_w, mvalid, mready, mend;
   wire [1:0] tok_type_w, mtype, rx_htype_w;
-  wire usb_sof, crc_err, hrecv;
+  wire usb_sof, crc_err, hrecv, tdone;
   wire [6:0] tok_addr_w;
   wire [3:0] tok_endp_w;
   wire [7:0] mdata;
@@ -147,6 +152,7 @@ module transaction_tb;
 
       .trn_tsend_i (tstart),
       .trn_ttype_i (ttype),
+      .trn_tdone_o (tdone),
       .trn_tvalid_i(tvalid),
       .trn_tready_o(tready),
       .trn_tlast_i (tlast),
@@ -226,9 +232,9 @@ module transaction_tb;
       .usb_conf_o  (usb_conf_w),
       .configured_o(usb_configured_w),
 
-      .req_type_i  (ctl_rx_rtype_w),
-      .req_args_i  (ctl_rx_rargs_w),
-      .req_value_i (ctl_rx_value_w),
+      .req_type_i (ctl_rx_rtype_w),
+      .req_args_i (ctl_rx_rargs_w),
+      .req_value_i(ctl_rx_value_w),
 
       .m_tvalid_o(cfgi_tvalid_w),
       .m_tready_i(cfgi_tready_w),
@@ -242,19 +248,21 @@ module transaction_tb;
   ///
 
   transaction #(
-      .EP1_BULK_IN(1),  // IN- & OUT- for TART raw (antenna) samples
+      .EP1_BULK_IN (1),  // IN- & OUT- for TART raw (antenna) samples
       .EP1_BULK_OUT(1),
-      .EP1_CONTROL(0),
-      .EP2_BULK_IN(1),  // IN-only for TART correlated values
+      .EP1_CONTROL (0),
+      .EP2_BULK_IN (1),  // IN-only for TART correlated values
       .EP2_BULK_OUT(0),
-      .EP2_CONTROL(1),  // Control EP for configuring TART
-      .HIGH_SPEED(1)
+      .EP2_CONTROL (1),  // Control EP for configuring TART
+      .HIGH_SPEED  (1)
   ) U_USB_CONTROL (
       .clock(clock),
       .reset(reset),
 
+      // Configured USB device-address
       .usb_addr_i(usb_addr_w),
 
+      // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_recv_w),
       .tok_type_i(tok_type_w),
       .tok_addr_i(tok_addr_w),
@@ -262,15 +270,28 @@ module transaction_tb;
 
       .hsk_recv_i(rx_hrecv_w),
       .hsk_type_i(rx_htype_w),
-      .hsk_send_o(),
-      .hsk_sent_i(1'b0),
-      .hsk_type_o(),
+      .hsk_send_o(tx_hsend_w),
+      .hsk_sent_i(tx_hsent_w),
+      .hsk_type_o(tx_htype_w),
 
-      .out_tvalid_i(usb_rx_tvalid_w),
-      .out_tready_o(usb_rx_tready_w),
-      .out_tlast_i (usb_rx_tlast_w),
-      .out_ttype_i (usb_rx_ttype_w),
-      .out_tdata_i (usb_rx_tdata_w),
+      // DATA0/1 info from the decoder, and to the encoder
+      .usb_recv_i(usb_rx_trecv_w),
+      .usb_type_i(usb_rx_ttype_w),
+      .usb_send_o(usb_tx_tsend_w),
+      .usb_sent_i(usb_tx_tsent_w),
+      .usb_type_o(usb_tx_ttype_w),
+
+      // USB control & bulk data received from host (via decoder)
+      .usb_tvalid_i(usb_rx_tvalid_w),
+      .usb_tready_o(usb_rx_tready_w),
+      .usb_tlast_i (usb_rx_tlast_w),
+      .usb_tdata_i (usb_rx_tdata_w),
+
+      // USB control & bulk data transmitted to host (via encoder)
+      .usb_tvalid_o(usb_tx_tvalid_w),
+      .usb_tready_i(usb_tx_tready_w),
+      .usb_tlast_o (usb_tx_tlast_w),
+      .usb_tdata_o (usb_tx_tdata_w),
 
       .ep0_ce_o(ctl0_select_w),
       .ep1_ce_o(),
@@ -298,9 +319,6 @@ module transaction_tb;
       .ctl_value_o (ctl_rx_value_w),
       .ctl_index_o (ctl_rx_index_w),
       .ctl_length_o(ctl_rx_length_w),
-
-      // .ctl_type_o(ctl_xfer_type_w),
-      // .ctl_endp_o(ctl_xfer_endp_w),
 
       .ctl_tvalid_o(ctl0_tvalid_w),
       .ctl_tready_i(ctl0_tready_w),
@@ -372,8 +390,6 @@ module transaction_tb;
     input [3:0] epn;
     input [1:0] typ;
     begin
-      integer count;
-
       sready <= 1'b1;
 
       ksend  <= 1'b1;
@@ -397,6 +413,33 @@ module transaction_tb;
       @(posedge clock);
     end
   endtask  // send_token
+
+
+  // -- Encode and Send an OUT Token, then 8B DATA0/1 Packet -- //
+
+  task send_data;
+    input [6:0] adr;
+    input [3:0] epn;
+    input odd;
+    input [63:0] dat;
+    begin
+      integer count;
+
+      send_token(adr, epn, TOK_OUT);
+
+      sready <= 1'b1;
+      count  <= 8;
+      @(posedge clock);
+
+      while (!tdone) begin
+        @(posedge clock);
+      end
+
+      // todo: check for 'ACK'
+
+      @(posedge clock);
+    end
+  endtask  // send_data
 
 
   // -- Encode and Send a USB Handshake Packet -- //

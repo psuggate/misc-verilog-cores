@@ -1,5 +1,5 @@
 `timescale 1ns / 100ps
-`define SERIAL_NUMBER "BULK0000"
+`define SERIAL_STRING "BULK0000"
 `define SERIAL_LENGTH 8
 
 `define VENDOR_STRING "University of Otago"
@@ -10,7 +10,18 @@
 
 module ulpi_axis (  /*AUTOARG*/);
 
-  parameter [`SERIAL_LENGTH*8-1:0] SERIAL_NUMBER = `SERIAL_NUMBER;
+  parameter EP1_BULK_IN = 1;
+  parameter EP1_BULK_OUT = 1;
+  parameter EP1_CONTROL = 0;
+
+  parameter EP2_BULK_IN = 1;
+  parameter EP2_BULK_OUT = 0;
+  parameter EP2_CONTROL = 1;
+
+  parameter ENDPOINT1 = 1;  // set to '0' to disable
+  parameter ENDPOINT2 = 2;  // set to '0' to disable
+
+  parameter [`SERIAL_LENGTH*8-1:0] SERIAL_STRING = `SERIAL_STRING;
   parameter [7:0] SERIAL_LENGTH = `SERIAL_LENGTH;
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
@@ -100,11 +111,13 @@ module ulpi_axis (  /*AUTOARG*/);
 
   // -- AXI4 stream to/from ULPI stream -- //
 
-  wire ulpi_rx_tvalid, ulpi_rx_tready, ulpi_rx_tlast;
-  wire [7:0] ulpi_rx_tdata;
+  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
+  wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
+  wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
-  wire ulpi_tx_tvalid, ulpi_tx_tready, ulpi_tx_tlast;
-  wire [7:0] ulpi_tx_tdata;
+  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
+  wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
+  wire [7:0] ctl0_tdata_w, cfgi_tdata_w;
 
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
@@ -121,15 +134,15 @@ module ulpi_axis (  /*AUTOARG*/);
       .ulpi_stp(ulpi_stp_o),
       .ulpi_reset(ulpi_reset_o),
 
-      .axis_rx_tvalid_o(ulpi_rx_tvalid),
-      .axis_rx_tready_i(ulpi_rx_tready),
-      .axis_rx_tlast_o (ulpi_rx_tlast),
-      .axis_rx_tdata_o (ulpi_rx_tdata),
+      .axis_rx_tvalid_o(ulpi_rx_tvalid_w),
+      .axis_rx_tready_i(ulpi_rx_tready_w),
+      .axis_rx_tlast_o (ulpi_rx_tlast_w),
+      .axis_rx_tdata_o (ulpi_rx_tdata_w),
 
-      .axis_tx_tvalid_i(ulpi_tx_tvalid),
-      .axis_tx_tready_o(ulpi_tx_tready),
-      .axis_tx_tlast_i (ulpi_tx_tlast),
-      .axis_tx_tdata_i (ulpi_tx_tdata),
+      .axis_tx_tvalid_i(ulpi_tx_tvalid_w),
+      .axis_tx_tready_o(ulpi_tx_tready_w),
+      .axis_tx_tlast_i (ulpi_tx_tlast_w),
+      .axis_tx_tdata_i (ulpi_tx_tdata_w),
 
       .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
       .usb_vbus_valid_o(usb_vbus_valid_o),
@@ -138,193 +151,109 @@ module ulpi_axis (  /*AUTOARG*/);
   );
 
 
-  // -- Encode/decode USB packets, over the AXI4 streams -- //
+  // -- Route Bulk IN Signals -- //
 
-  wire hsk_send, hsk_sent;
-  wire [1:0] hsk_type;
+  generate
+    if (EP1_BULK_IN && EP2_BULK_IN) begin : g_yes_mux_bulk_in
 
-  wire in_tsend_w, in_tvalid_w, in_tready_w, in_tlast_w;
-  wire [1:0] in_ttype_w;
-  wire [7:0] in_tdata_w;
+      // todo: 2:1 AXI4-Stream MUX (from Alex Forencich)
 
-  encode_packet tx_usb_packet_inst (
-      .reset(reset),
-      .clock(clock),
+    end else begin : g_no_mux_bulk_in
 
-      .tx_tvalid_o(ulpi_tx_tvalid),
-      .tx_tready_i(ulpi_tx_tready),
-      .tx_tlast_o (ulpi_tx_tlast),
-      .tx_tdata_o (ulpi_tx_tdata),
+      // todo: Hook-up bulk EP signals
 
-      .hsk_send_i(hsk_send),
-      .hsk_done_o(hsk_sent),
-      .hsk_type_i(hsk_type),
-
-      .tok_send_i(1'b0),  // Only used by USB hosts
-      .tok_done_o(),
-      .tok_type_i(2'bx),
-      .tok_data_i(16'bx),
-
-      .trn_tsend_i (in_tsend_w),
-      .trn_ttype_i (in_ttype_w),
-      .trn_tvalid_i(in_tvalid_w),
-      .trn_tready_o(in_tready_w),
-      .trn_tlast_i (in_tlast_w),
-      .trn_tdata_i (in_tdata_w)
-  );
-
-  wire tok_rx_recv, hsk_rx_recv;
-  wire [1:0] tok_rx_type, hsk_rx_type;
-  wire [6:0] tok_rx_addr;
-  wire [3:0] tok_rx_endp;
-
-  wire out_tvalid_w, out_tready_w, out_tlast_w;
-  wire [1:0] out_ttype_w;
-  wire [7:0] out_tdata_w;
-
-  decode_packet rx_usb_packet_inst (
-      .reset(reset),
-      .clock(clock),
-
-      // USB configuration fields, and status flags
-      .usb_sof_o(usb_sof_o),
-      .crc_err_o(crc_err_o),
-
-      // ULPI -> decoder stream
-      .ulpi_tvalid_i(ulpi_rx_tvalid),
-      .ulpi_tready_o(ulpi_rx_tready),
-      .ulpi_tlast_i (ulpi_rx_tlast),
-      .ulpi_tdata_i (ulpi_rx_tdata),
-
-      // Indicates that a (OUT/IN/SETUP) token was received
-      .tok_recv_o(tok_rx_recv),  // Start strobe
-      .tok_type_o(tok_rx_type),  // Token-type (OUT/IN/SETUP)
-      .tok_addr_o(tok_rx_addr),
-      .tok_endp_o(tok_rx_endp),
-
-      // Data packet (OUT, DATA0/1/2 MDATA) received
-      .out_tvalid_o(out_tvalid_w),
-      .out_tready_i(out_tready_w),
-      .out_tlast_o (out_tlast_w),
-      .out_ttype_o (out_ttype_w),
-      .out_tdata_o (out_tdata_w),
-
-      // Handshake packet information
-      .hsk_recv_o(hsk_rx_recv),
-      .hsk_type_o(hsk_rx_type)
-  );
+    end
+  endgenerate
 
 
-  // -- FSM for USB packets, handshakes, etc. -- //
+  // -- Route Control Transfer Signals -- //
 
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w;
+  generate
+    if (EP1_CONTROL && EP2_CONTROL) begin : g_yes_mux_control
 
-  wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
-  wire [7:0] cfgi_tdata_w;
+      // todo: 2:1 AXI4-Stream MUX (from Alex Forencich)
 
-  wire [1:0] ctl_xfer_type_w;
-  wire [3:0] ctl_xfer_endp_w;
-  wire [7:0] ctl_xfer_request_w;
-  wire [15:0] ctl_xfer_value_w, ctl_xfer_index_w, ctl_xfer_length_w;
+    end else begin : g_no_mux_control
 
-  wire ctl_xfer_int, ctl_xfer_accept_std;
+      // todo: Hook-up control EP signals
 
-  transaction #(
-      .EP1_BULK_IN(1),  // IN- & OUT- for TART raw (antenna) samples
-      .EP1_BULK_OUT(1),
-      .EP1_CONTROL(0),
-      .EP2_BULK_IN(1),  // IN-only for TART correlated values
-      .EP2_BULK_OUT(0),
-      .EP2_CONTROL(1),  // Control EP for configuring TART
-      .HIGH_SPEED(HIGH_SPEED)
-  ) U_USB_CONTROL (
-      .clock(clock),
-      .reset(reset),
-
-.usb_addr_i(),
-
-.tok_recv_i(),
-.tok_type_i(),
-.tok_addr_i(),
-.tok_endp_i(),
-
-.hsk_recv_i(),
-.hsk_type_i(),
-.hsk_send_o(),
-.hsk_type_o(),
-.hsk_sent_i(),
-
-      .ep0_ce_o(ctl_xfer_int),
-      .ep1_ce_o(),
-      .ep2_ce_o(),
-
-      .ctl_start_o(),
-      .ctl_rtype_o(),  // todo:
-      .ctl_rargs_o(),  // todo:
-      .ctl_value_o(),
-      .ctl_index_o(),
-      .ctl_length_o(),
-
-      .cfg_pipe0_type_o(ctl_xfer_type_w),
-      .cfg_pipe0_endp_o(ctl_xfer_endp_w),
-
-      .cfg_pipe0_tvalid_o(ctl0_tvalid_w),
-      .cfg_pipe0_tready_i(ctl0_tready_w),
-      .cfg_pipe0_tlast_o (ctl0_tlast_w),
-      .cfg_pipe0_tdata_o (ctl0_tdata_w),
-
-      .cfg_pipe0_tvalid_i(cfgi_tvalid_w),
-      .cfg_pipe0_tready_o(cfgi_tready_w),
-      .cfg_pipe0_tlast_i (cfgi_tlast_w),
-      .cfg_pipe0_tdata_i (cfgi_tdata_w)
-  );
+    end
+  endgenerate
 
 
-  // -- USB configuration endpoint -- //
+  // -- Top-level USB Control Core -- //
 
-  wire cfg_request_w, usb_configured;
-  wire [6:0] device_address;
-  wire [7:0] current_configuration;
-
-  // todo:
-  //  - this module is messy -- does it work well enough?
-  //  - does wrapping in skid-buffers break it !?
-  cfg_pipe0 #(
+  usb_control #(
+      .EP1_BULK_IN(EP1_BULK_IN),  // IN- & OUT- for TART raw (antenna) samples
+      .EP1_BULK_OUT(EP1_BULK_OUT),
+      .EP1_CONTROL(EP1_CONTROL),
+      .ENDPOINT1(ENDPOINT1),
+      .EP2_BULK_IN(EP2_BULK_IN),  // IN-only for TART correlated values
+      .EP2_BULK_OUT(EP2_BULK_OUT),
+      .EP2_CONTROL(EP2_CONTROL),  // Control EP for configuring TART
+      .ENDPOINT2(ENDPOINT2),
       .VENDOR_ID(VENDOR_ID),
+      .VENDOR_LENGTH(VENDOR_LENGTH),
+      .VENDOR_STRING(VENDOR_STRING),
       .PRODUCT_ID(PRODUCT_ID),
-      .MANUFACTURER_LEN(MANUFACTURER_LEN),
-      .MANUFACTURER(MANUFACTURER),
-      .PRODUCT_LEN(PRODUCT_LEN),
-      .PRODUCT(PRODUCT),
-      .SERIAL_LEN(SERIAL_LEN),
-      .SERIAL(SERIAL),
-      .CONFIG_DESC_LEN(CONFIG_DESC_LEN),
-      .CONFIG_DESC(CONFIG_DESC),
-      .HIGH_SPEED(HIGH_SPEED)
-  ) U_CFG_PIPE0 (
+      .PRODUCT_LENGTH(PRODUCT_LENGTH),
+      .PRODUCT_STRING(PRODUCT_STRING),
+      .SERIAL_LENGTH(SERIAL_LENGTH),
+      .SERIAL_STRING(SERIAL_STRING)
+  ) U_USB_CONTROL0 (
       .clock(clock),
       .reset(reset),
 
-      .ctl_xfer_req_i(ctl_xfer_int),
-      .ctl_xfer_gnt_o(ctl_xfer_accept_std),
+      .configured_o(),
+      .usb_addr_o(),
+      .usb_conf_o(),
+      .usb_sof_o(),
+      .crc_err_o(),
 
-      .ctl_xfer_endpoint(ctl_xfer_endp_w),
-      .ctl_xfer_type(ctl_xfer_type_w),
-      .ctl_xfer_request(ctl_xfer_request_w),
-      .ctl_xfer_value(ctl_xfer_value_w),
-      .ctl_xfer_index(ctl_xfer_index_w),
-      .ctl_xfer_length(ctl_xfer_length_w),
+      // USB control & bulk data received from host (via decoder)
+      .usb_tvalid_i(ulpi_rx_tvalid_w),
+      .usb_tready_o(ulpi_rx_tready_w),
+      .usb_tlast_i (ulpi_rx_tlast_w),
+      .usb_tdata_i (ulpi_rx_tdata_w),
 
-      .ctl_tvalid_o(cfgi_tvalid_w),
-      .ctl_tready_i(cfgi_tready_w),
-      .ctl_tlast_o (cfgi_tlast_w),
-      .ctl_tdata_o (cfgi_tdata_w),
+      // USB control & bulk data transmitted to host (via encoder)
+      .usb_tvalid_o(ulpi_tx_tvalid_w),
+      .usb_tready_i(ulpi_tx_tready_w),
+      .usb_tlast_o (ulpi_tx_tlast_w),
+      .usb_tdata_o (ulpi_tx_tdata_w),
 
-      .device_address(device_address),
-      .current_configuration(current_configuration),
-      .configured(usb_configured),
-      .standart_request(cfg_request_w)
+      .blk_start_o (),
+      .blk_dtype_o (),
+      .blk_done1_i (1'b0),
+      .blk_done2_i (1'b0),
+      .blk_muxsel_o(),
+
+      .blk_tvalid_o(blko_tvalid_w),
+      .blk_tready_i(blko_tready_w),
+      .blk_tlast_o (blko_tlast_w),
+      .blk_tdata_o (blko_tdata_w),
+
+      .blk_tvalid_i(blki_tvalid_w),
+      .blk_tready_o(blki_tready_w),
+      .blk_tlast_i (blki_tlast_w),
+      .blk_tdata_i (blki_tdata_w),
+
+      .ctl_start_o (ctl_start_w),
+      .ctl_rtype_o (ctl_rtype_w),
+      .ctl_rargs_o (ctl_rargs_w),
+      .ctl_value_o (ctl_value_w),
+      .ctl_index_o (ctl_index_w),
+      .ctl_length_o(ctl_length_w),
+
+      .ctl_tvalid_o(ctlo_tvalid_w),
+      .ctl_tready_i(ctlo_tready_w),
+      .ctl_tlast_o (ctlo_tlast_w),
+      .ctl_tdata_o (ctlo_tdata_w),
+
+      .ctl_tvalid_i(ctli_tvalid_w),
+      .ctl_tready_o(ctli_tready_w),
+      .ctl_tlast_i (ctli_tlast_w),
+      .ctl_tdata_i (ctli_tdata_w)
   );
 
 

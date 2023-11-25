@@ -41,8 +41,8 @@ module ctl_pipe0 #(
     },
     parameter integer HIGH_SPEED = 1
 ) (
-    input wire reset,
-    input wire clock,
+    input reset,
+    input clock,
 
     input  select_i,
     output accept_o,

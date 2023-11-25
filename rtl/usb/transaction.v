@@ -1,18 +1,82 @@
 `timescale 1ns / 100ps
-module transaction (  /*AUTOARG*/
-  // Outputs
-  hsk_send_o, hsk_type_o, out_tready_o, ep0_ce_o, ep1_ce_o, ep2_ce_o,
-  ctl_start_o, ctl_rtype_o, ctl_rargs_o, ctl_value_o, ctl_index_o,
-  ctl_length_o, ctl_tvalid_o, ctl_tlast_o, ctl_tdata_o, ctl_tready_o,
-  blk_start_o, blk_dtype_o, blk_muxsel_o, blk_tvalid_o, blk_tlast_o,
-  blk_tdata_o, blk_tready_o,
-  // Inputs
-  clock, reset, usb_addr_i, tok_recv_i, tok_type_i, tok_addr_i,
-  tok_endp_i, hsk_recv_i, hsk_type_i, hsk_sent_i, out_tvalid_i,
-  out_tlast_i, out_ttype_i, out_tdata_i, ctl_tready_i, ctl_tvalid_i,
-  ctl_tlast_i, ctl_tdata_i, blk_done1_i, blk_done2_i, blk_tready_i,
-  blk_tvalid_i, blk_tlast_i, blk_tdata_i
-  );
+module transaction (
+    clock,
+    reset,
+
+    // Configured device address (or all zero)
+    usb_addr_i,
+
+    // Decoded token from USB host
+    tok_recv_i,
+    tok_type_i,
+    tok_addr_i,
+    tok_endp_i,
+
+    hsk_recv_i,  // Handshake from USB host
+    hsk_type_i,
+    hsk_send_o,  // Send handshake to USB host
+    hsk_sent_i,
+    hsk_type_o,
+
+    // DATA0/1 info from the decoder, and to the encoder
+    usb_recv_i,
+    usb_type_i,
+    usb_send_o,
+    usb_sent_i,
+    usb_type_o,
+
+    // From USB packet decoder
+    usb_tvalid_i,
+    usb_tready_o,
+    usb_tlast_i,
+    usb_tdata_i,
+
+    // To USB packet encoder
+    usb_tvalid_o,
+    usb_tready_i,
+    usb_tlast_o,
+    usb_tdata_o,
+
+    // Downstream chip-enables
+    ep0_ce_o,
+    ep1_ce_o,
+    ep2_ce_o,
+
+    // Control transfers
+    ctl_start_o,
+    ctl_rtype_o,
+    ctl_rargs_o,
+    ctl_value_o,
+    ctl_index_o,
+    ctl_length_o,
+
+    ctl_tvalid_o,
+    ctl_tready_i,
+    ctl_tlast_o,
+    ctl_tdata_o,
+
+    ctl_tvalid_i,
+    ctl_tready_o,
+    ctl_tlast_i,
+    ctl_tdata_i,
+
+    // Bulk IN/OUT transfers
+    blk_start_o,
+    blk_dtype_o,
+    blk_done1_i,
+    blk_done2_i,
+    blk_muxsel_o,
+
+    blk_tvalid_o,
+    blk_tready_i,
+    blk_tlast_o,
+    blk_tdata_o,
+
+    blk_tvalid_i,
+    blk_tready_o,
+    blk_tlast_i,
+    blk_tdata_i
+);
 
   parameter EP1_BULK_IN = 1;
   parameter EP1_BULK_OUT = 1;
@@ -31,6 +95,7 @@ module transaction (  /*AUTOARG*/
   input clock;
   input reset;
 
+  // Configured device address (or all zero)
   input [6:0] usb_addr_i;
 
   // Signals from the USB packet decoder (upstream)
@@ -45,13 +110,27 @@ module transaction (  /*AUTOARG*/
   input hsk_sent_i;
   output [1:0] hsk_type_o;
 
-  input out_tvalid_i;
-  output out_tready_o;
-  input out_tlast_i;
-  input [1:0] out_ttype_i;
-  input [7:0] out_tdata_i;
+  // DATA0/1 info from the decoder, and to the encoder
+  input usb_recv_i;
+  input [1:0] usb_type_i;
+  output usb_send_o;
+  input usb_sent_i;
+  output [1:0] usb_type_o;
+
+  // USB control & bulk data received from host
+  input usb_tvalid_i;
+  output usb_tready_o;
+  input usb_tlast_i;
+  input [7:0] usb_tdata_i;
+
+  // USB control & bulk data transmitted to the host
+  output usb_tvalid_o;
+  input usb_tready_i;
+  output usb_tlast_o;
+  output [7:0] usb_tdata_o;
 
   // Signals to the downstream endpoints
+  // todo: make more generic ??
   output ep0_ce_o;  // Control EP
   output ep1_ce_o;  // Bulk EP #1
   output ep2_ce_o;  // Bulk EP #2
@@ -77,16 +156,16 @@ module transaction (  /*AUTOARG*/
   // USB Bulk Transfer parameters and data-streams
   output blk_start_o;
   output blk_dtype_o;  // todo: OUT/IN, DATA0/1
-  input blk_done1_i; // todo: smrat ??
-  input blk_done2_i; // todo: smrat ??
-  output blk_muxsel_o; // todo: smrat ??
+  input blk_done1_i;  // todo: smrat ??
+  input blk_done2_i;  // todo: smrat ??
+  output blk_muxsel_o;  // todo: smrat ??
 
-  output blk_tvalid_o; // todo: not needed, as can use stream from the decoder !?
+  output blk_tvalid_o;  // todo: not needed, as can use stream from the decoder !?
   input blk_tready_i;
   output blk_tlast_o;
   output [7:0] blk_tdata_o;
 
-  input blk_tvalid_i; // todo: not needed, as can use external MUX to encoder !?
+  input blk_tvalid_i;  // todo: not needed, as can use external MUX to encoder !?
   output blk_tready_o;
   input blk_tlast_i;
   input [7:0] blk_tdata_i;
@@ -94,21 +173,31 @@ module transaction (  /*AUTOARG*/
 
   // -- Module Constants -- //
 
-  localparam TOK_OUT = 2'b00;
-  localparam TOK_IN = 2'b10;
-  localparam TOK_SETUP = 2'b11;
+  localparam [1:0] TOK_OUT = 2'b00;
+  localparam [1:0] TOK_IN = 2'b10;
+  localparam [1:0] TOK_SETUP = 2'b11;
+
+  localparam [1:0] HSK_ACK = 2'b00;
+  localparam [1:0] HSK_NAK = 2'b10;
 
   localparam BLK_IDLE = 4'h0;
   localparam BLK_SETUP_DAT = 8'h02;
 
-  localparam CTL_IDLE = 4'h0;
-  localparam CTL_DONE = 4'h0;
-  localparam CTL_FAIL = 4'hf;
+  localparam CTL_FAIL = 8'h00;
+  localparam CTL_DONE = 8'h01;
+  localparam CTL_SETUP_RX = 8'h02;
+  localparam CTL_SETUP_ACK = 8'h03;
 
-  localparam CTL_IDLE_DONE = 8'h01;
-  localparam CTL_SETUP_DAT = 8'h02;
-  localparam CTL_SETUP_ACK = 8'h02;
-  localparam CTL_DATA_OUT_IN = 8'hff;
+  localparam CTL_DATA_TOK = 8'hf0;
+  localparam CTL_DATO_RX = 8'hf4;
+  localparam CTL_DATO_ACK = 8'hf5;
+  localparam CTL_DATI_TX = 8'hf8;
+  localparam CTL_DATI_ACK = 8'hf9;
+
+  localparam CTL_STATUS_TOK = 8'hcb;
+  localparam CTL_STATUS_RX = 8'hcc;
+  localparam CTL_STATUS_TX = 8'hcd;
+  localparam CTL_STATUS_ACK = 8'hce;
 
 
   // -- Module State and Signals -- //
@@ -133,10 +222,10 @@ module transaction (  /*AUTOARG*/
   assign blk_start_o = blk_start_q;
   assign ctl_start_o = ctl_start_q;
 
-  assign ctl_rtype_o  = ctl_rtype_q;
-  assign ctl_rargs_o  = ctl_rargs_q;
-  assign ctl_value_o  = {ctl_valhi_q, ctl_vallo_q};
-  assign ctl_index_o  = {ctl_idxhi_q, ctl_idxlo_q};
+  assign ctl_rtype_o = ctl_rtype_q;
+  assign ctl_rargs_o = ctl_rargs_q;
+  assign ctl_value_o = {ctl_valhi_q, ctl_vallo_q};
+  assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
 
@@ -224,7 +313,7 @@ module transaction (  /*AUTOARG*/
           if (ctl_error_q) begin
             // Control Transfer has failed, wait for the USB to settle down
             state <= ST_DUMP;
-          end else if (xctrl == CTL_IDLE) begin
+          end else if (xctrl == CTL_DONE) begin
             state <= ST_IDLE;
           end
         end
@@ -252,7 +341,7 @@ module transaction (  /*AUTOARG*/
     if (state == ST_BULK) begin
       case (xctrl)
         default: begin
-          xctrl   <= CTL_IDLE;
+          xctrl   <= CTL_SETUP_RX;
           hsend_q <= 1'b0;
           htype_q <= 2'bx;
         end
@@ -263,7 +352,7 @@ module transaction (  /*AUTOARG*/
       if (blk_start_q) begin
         xbulk <= BLK_SETUP_DAT;
       end else begin
-        xbulk <= CTL_IDLE;
+        xbulk <= BLK_IDLE;
       end
       blk_hsend_q <= 1'b0;
     end
@@ -309,8 +398,10 @@ module transaction (  /*AUTOARG*/
 
   reg [2:0] ctl_req_type_q;
   reg ctl_req_recv_q;
-  reg ctl_tready_q; // todo: pointless !?
+  reg ctl_tready_q;  // todo: pointless !?
 
+  wire we_are_like_totally_done_with_data_w;
+  reg odd_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
 
@@ -320,7 +411,7 @@ module transaction (  /*AUTOARG*/
   //  - "parse" the request-type for PIPE0 ??
   //  - figure out which 'xctrl[_]' bit to use for CE !?
   always @(posedge clock) begin
-    if (xctrl != CTL_SETUP_DAT) begin
+    if (xctrl != CTL_SETUP_RX) begin
       xcptr <= 3'b000;
     end else if (ctl_tvalid_i && ctl_tready_o) begin
       ctl_rtype_q <= xcptr == 3'b000 ? ctl_tdata_i : ctl_rtype_q;
@@ -339,78 +430,151 @@ module transaction (  /*AUTOARG*/
     end
   end
 
+  // Control transfer handshakes
+  always @(posedge clock) begin
+    if (reset) begin
+      ctl_hsend_q <= 1'b0;
+      ctl_htype_q <= 2'bx;
+    end else begin
+      case (xctrl)
+        CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
+          ctl_hsend_q <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
+          ctl_htype_q <= HSK_ACK;
+        end
+        default: begin
+          ctl_hsend_q <= 1'b0;
+          ctl_htype_q <= 2'bx;
+        end
+      endcase
+    end
+  end
+
   // todo: recognise control requests to PIPE0
   // todo: then extract the relevant fields
   always @(posedge clock) begin
     if (state == ST_CTRL) begin
       case (xctrl)
         CTL_FAIL: begin
-          xctrl   <= CTL_IDLE;
-          hsend_q <= 1'b0;
-          htype_q <= 2'bx;
+          xctrl <= CTL_DONE;
         end
 
-        default: begin  // CTL_SETUP_DAT
-          // todo: parse and extract the initial bytes ...
-
-          if (out_tvalid_i && out_tready_o && out_tlast_i) begin
-            xctrl   <= CTL_SETUP_ACK;
-            hsend_q <= 1'b1;
-            htype_q <= HSK_ACK;
+        //
+        // Setup Stage
+        ///
+        default: begin  // CTL_SETUP_RX
+          // todo: parsing and extract the initial bytes works ??
+          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            xctrl <= CTL_SETUP_ACK;
           end else begin
-            xctrl   <= xctrl;
-            hsend_q <= 1'b0;
-            htype_q <= 2'bx;
+            xctrl <= CTL_SETUP_RX;
           end
         end
 
         CTL_SETUP_ACK: begin
-          hsend_q <= 1'b0;
-          htype_q <= 2'bx;
-
           if (hsk_sent_i) begin
-            xctrl <= CTL_DATA_OUT_IN;
+            xctrl <= ctl_length_o == 0 ? CTL_STATUS_TOK : CTL_DATA_TOK;
+            odd_q <= 1'b1;  // Toggles after each DATA0/1
           end
         end
 
-        // Data:   OUT/IN
-        //         DATA1
-        //         ACK
-        //         DATA0
-        //         ACK
-        //         ...
+        //
+        // Data Stage
+        // Packets:
+        //  {OUT/IN, DATA1, ACK}, {OUT/IN, DATA0, ACK}, ...
+        ///
+        CTL_DATA_TOK: begin
+          // Wait for an IN/OUT token
+          if (tok_recv_i) begin
+            // todo: handle erroneous input ??
+            xctrl <= tok_type_i == TOK_IN ? CTL_DATI_TX : CTL_DATO_RX;
+          end
+        end
 
-        // Status: IN/OUT
-        //         DATA1
-        //         ACK
+        CTL_DATO_RX: begin  // Rx OUT from USB
+          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            xctrl <= CTL_DATO_ACK;
+          end
+        end
+
+        CTL_DATO_ACK: begin
+          if (we_are_like_totally_done_with_data_w) begin
+            xctrl <= CTL_STATUS_TOK;
+            odd_q <= 1'b1;
+          end else if (hsk_sent_i) begin
+            xctrl <= CTL_DATA_TOK;
+            odd_q <= ~odd_q;
+          end
+        end
+
+        CTL_DATI_TX: begin  // Tx IN to USB
+          // todo: transition to 'CTL_STATUS' when 'length' bytes have been
+          //   received
+          // if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
+          if (ctl_tvalid_o && ctl_tready_i && ctl_tlast_o) begin
+            xctrl <= CTL_DATI_ACK;
+          end
+        end
+
+        CTL_DATI_ACK: begin
+          if (we_are_like_totally_done_with_data_w) begin
+            xctrl <= CTL_STATUS_TOK;
+            odd_q <= 1'b1;
+          end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
+            xctrl <= CTL_DATA_TOK;
+            odd_q <= ~odd_q;
+          end
+        end
+
+        //
+        // Status Stage
+        // Packets: {IN/OUT, DATA1, ACK}
+        ///
+        CTL_STATUS_TOK: begin
+          if (!odd_q) begin
+            $error("%10t: INCORRECT DATA0/1 BIT");
+          end
+
+          if (tok_recv_i) begin
+            xctrl <= tok_type_i == TOK_IN ? CTL_STATUS_TX : CTL_STATUS_RX;
+          end
+        end
+
+        CTL_STATUS_RX: begin  // Rx Status from USB
+          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            xctrl <= CTL_STATUS_ACK;
+          end
+        end
+
+        CTL_STATUS_TX: begin  // Tx Status to USB
+          if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
+            xctrl <= CTL_STATUS_ACK;
+          end
+        end
+
+        CTL_STATUS_ACK: begin
+          if (hsk_recv_i || hsk_sent_i) begin
+            xctrl <= CTL_DONE;
+            odd_q <= 1'b0;
+          end
+        end
 
         CTL_DONE: begin
           // Wait for the main FSM to return to IDLE, and then get ready for the
           // next Control Transfer.
           if (state == ST_IDLE) begin
-            xctrl <= CTL_SETUP_DAT;
+            xctrl <= CTL_SETUP_RX;
           end
         end
 
       endcase
     end else begin
-
-      // Todo: too late to do anything ??
-      if (ctl_start_q) begin
-        xctrl <= CTL_SETUP_DAT;
-      end else begin
-        xctrl <= CTL_IDLE;
-      end
-      ctl_hsend_q <= 1'b0;
+      // Just wait and Rx SETUP data
+      xctrl <= CTL_SETUP_RX;
     end
-
   end
 
 
   // -- FSM to Issue Handshake Packets -- //
-
-  localparam [1:0] HSK_ACK = 2'b00;
-  localparam [1:0] HSK_NAK = 2'b10;
 
   reg hsend_q;
   reg [1:0] htype_q;

@@ -19,6 +19,8 @@ module encode_packet (
 
     trn_ttype_i,  // DATA0/1/2 MDATA //
     trn_tsend_i,
+    trn_tdone_o,
+
     trn_tvalid_i,
     trn_tready_o,
     trn_tlast_i,
@@ -46,10 +48,15 @@ module encode_packet (
 
   input [1:0] trn_ttype_i;  /* DATA0/1/2 MDATA */
   input trn_tsend_i;
+  output trn_tdone_o;
+
   input trn_tvalid_i;
   output trn_tready_o;
   input trn_tlast_i;
   input [7:0] trn_tdata_i;
+
+
+  // -- Module-Wide Definitions -- //
 
   `include "usb_crc.vh"
 
@@ -77,7 +84,20 @@ module encode_packet (
     src_to_dst = src_ready && (dst_ready || !dst_valid);
   endfunction
 
-  reg xvalid, tvalid, uready;
+
+  localparam [2:0] ST_IDLE = 3'b000;
+  localparam [2:0] ST_XHSK = 3'b001;
+  localparam [2:0] ST_XTOK = 3'b010;
+  localparam [2:0] ST_DATA = 3'b100;
+
+  `define ST_XHSK state[0]
+  `define ST_XTOK state[1]
+  `define ST_DATA state[2]
+
+
+  // -- Module State & Signals -- //
+
+  reg xvalid, tvalid, uready, done_q;
   reg xlast, tlast;
   reg [7:0] xdata, tdata;
   wire tvalid_next, xvalid_next, uready_next;
@@ -95,6 +115,7 @@ module encode_packet (
   assign tx_tlast_o   = tlast;
   assign tx_tdata_o   = tdata;
 
+  assign trn_tdone_o  = done_q;
   assign trn_tready_o = uready;
 
 
@@ -139,6 +160,10 @@ module encode_packet (
     end
   end
 
+  always @(posedge clock) begin
+    done_q <= `ST_DATA & tvalid & tlast & tx_tready_i;
+  end
+
 
   // -- Skid-Register for AXI-S Transfers -- //
 
@@ -167,11 +192,6 @@ module encode_packet (
 
   wire [2:0] state = {xdat_q, xtok_q, xhsk_q};
 
-  localparam [2:0] ST_IDLE = 3'b000;
-  localparam [2:0] ST_XHSK = 3'b001;
-  localparam [2:0] ST_XTOK = 3'b010;
-  localparam [2:0] ST_DATA = 3'b100;
-
   always @(posedge clock) begin
     if (reset) begin
       {xdat_q, xtok_q, xhsk_q} <= ST_IDLE;
@@ -182,6 +202,38 @@ module encode_packet (
       tdata <= 8'bx;
     end else begin
       case (state)
+        default: begin  // ST_IDLE
+          if (hsk_send_i) begin
+            {xdat_q, xtok_q, xhsk_q} <= ST_XHSK;
+            {zero_q, xcrc_q} <= 2'b00;
+
+            tvalid <= 1'b1;
+            tlast <= 1'b1;
+            tdata <= {~{hsk_type_i, 2'b10}, hsk_type_i, 2'b10};
+          end else if (TOKEN && tok_send_i) begin
+            {xdat_q, xtok_q, xhsk_q} <= ST_XTOK;
+            {zero_q, xcrc_q} <= 2'b10;
+
+            tvalid <= 1'b1;
+            tlast <= 1'b0;
+            tdata <= {~{tok_type_i, 2'b01}, {tok_type_i, 2'b01}};
+          end else if (trn_tsend_i) begin
+            {xdat_q, xtok_q, xhsk_q} <= ST_DATA;
+            {zero_q, xcrc_q} <= {trn_tlast_i, 1'b0};  // PID-only packet ??
+
+            tvalid <= 1'b1;
+            tlast <= 1'b0;
+            tdata <= {~{trn_ttype_i, 2'b11}, {trn_ttype_i, 2'b11}};
+          end else begin
+            {xdat_q, xtok_q, xhsk_q} <= ST_IDLE;
+            {zero_q, xcrc_q} <= 2'b00;
+
+            tvalid <= 1'b0;
+            tlast <= 1'b0;
+            tdata <= 8'bx;
+          end
+        end
+
         ST_XHSK: begin
           // Handshake packet
           if (!hsk_send_i) begin
@@ -267,38 +319,6 @@ module encode_packet (
               xcrc_q <= xcrc_q;
               tdata  <= tdata;
             end
-          end
-        end
-
-        default: begin
-          if (hsk_send_i) begin
-            {xdat_q, xtok_q, xhsk_q} <= ST_XHSK;
-            {zero_q, xcrc_q} <= 2'b00;
-
-            tvalid <= 1'b1;
-            tlast <= 1'b1;
-            tdata <= {~{hsk_type_i, 2'b10}, hsk_type_i, 2'b10};
-          end else if (TOKEN && tok_send_i) begin
-            {xdat_q, xtok_q, xhsk_q} <= ST_XTOK;
-            {zero_q, xcrc_q} <= 2'b10;
-
-            tvalid <= 1'b1;
-            tlast <= 1'b0;
-            tdata <= {~{tok_type_i, 2'b01}, {tok_type_i, 2'b01}};
-          end else if (trn_tsend_i) begin
-            {xdat_q, xtok_q, xhsk_q} <= ST_DATA;
-            {zero_q, xcrc_q} <= {trn_tlast_i, 1'b0};  // PID-only packet ??
-
-            tvalid <= 1'b1;
-            tlast <= 1'b0;
-            tdata <= {~{trn_ttype_i, 2'b11}, {trn_ttype_i, 2'b11}};
-          end else begin
-            {xdat_q, xtok_q, xhsk_q} <= ST_IDLE;
-            {zero_q, xcrc_q} <= 2'b00;
-
-            tvalid <= 1'b0;
-            tlast <= 1'b0;
-            tdata <= 8'bx;
           end
         end
       endcase
