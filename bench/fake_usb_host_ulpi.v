@@ -37,20 +37,23 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
 
   // -- Constants & Settings -- //
 
+  `include "usb_crc.vh"
+
   localparam HIGH_SPEED = 1;
   localparam TOKEN = 1;
+
+  localparam TOK_OUT = 2'b00;
+  localparam TOK_IN = 2'b10;
+  localparam TOK_SETUP = 2'b11;
 
 
   // -- State & Signals -- //
 
-  reg sready, hsend, tstart, tvalid, tlast;
-  wire svalid, slast, hdone, tready;
+  reg mvalid, sready, hsend, tstart, tvalid, tlast;
+  wire svalid, mready, slast, hdone, tready;
   reg [1:0] htype, ttype;
-  reg [7:0] tdata;
+  reg  [7:0] tdata;
   wire [7:0] sdata;
-
-  reg udir_q, unxt_q;  // ULPI signals
-  reg [7:0] udat_q;
 
   reg hsend_q, ksend_q;
   reg [1:0] htype_q, ktype_q;
@@ -68,11 +71,6 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
 
 
   // -- Input/Output Assignments -- //
-
-  assign ulpi_clock_o = ~clock;
-  assign ulpi_dir_o   = udir_q;
-  assign ulpi_nxt_o   = unxt_q;
-  assign ulpi_data_io = udir_q ? udat_q : 8'bz;
 
 
   // -- Fake ULPI -- //
@@ -92,8 +90,14 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
       case (state)
         ST_INIT: begin
           if (!ulpi_rst_ni) begin
-            state <= ST_RSTN;
-            count <= 0;
+            state   <= ST_RSTN;
+            count   <= 0;
+
+            hsend_q <= 1'b0;
+            ksend_q <= 1'b0;
+
+            sready  <= 1'b0;
+            mvalid  <= 1'b0;
           end
         end
 
@@ -113,13 +117,33 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
   end
 
 
+  fake_ulpi_phy U_ULPI_PHY0 (
+      .clock(clock),
+      .reset(reset),
+
+      .ulpi_clock_o(ulpi_clock_o),
+      .ulpi_rst_ni (ulpi_rst_ni),
+      .ulpi_dir_o  (ulpi_dir_o),
+      .ulpi_nxt_o  (ulpi_nxt_o),
+      .ulpi_stp_i  (ulpi_stp_i),
+      .ulpi_data_io(ulpi_data_io),
+
+      .usb_tvalid_i(usb_tx_tvalid_w),
+      .usb_tready_o(usb_tx_tready_w),
+      .usb_tlast_i (usb_tx_tlast_w),
+      .usb_tdata_i (usb_tx_tdata_w),
+
+      .usb_tvalid_o(usb_rx_tvalid_w),
+      .usb_tready_i(usb_rx_tready_w),
+      .usb_tlast_o (usb_rx_tlast_w),
+      .usb_tdata_o (usb_rx_tdata_w)
+  );
+
+
   // -- USB Packet Operations -- //
 
-  wire mvalid, mready, mend;
-  wire [1:0] mtype, usb_rx_ttype_w;
-  wire hrecv, tdone;
-  wire [7:0] mdata;
-  reg xready = 1'b1;
+  wire [1:0] usb_rx_ttype_w;
+  wire tdone;
 
   encode_packet #(
       .TOKEN(TOKEN)
@@ -127,10 +151,10 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
       .reset(reset),
       .clock(clock),
 
-      .tx_tvalid_o(svalid),
-      .tx_tready_i(sready),
-      .tx_tlast_o (slast),
-      .tx_tdata_o (sdata),
+      .tx_tvalid_o(usb_tx_tvalid_w),
+      .tx_tready_i(usb_tx_tready_w),
+      .tx_tlast_o (usb_tx_tlast_w),
+      .tx_tdata_o (usb_tx_tdata_w),
 
       .hsk_send_i(hsend_q),
       .hsk_done_o(hdone_w),
@@ -141,9 +165,10 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
       .tok_type_i(ktype_q),
       .tok_data_i(kdata_q),
 
-      .trn_tsend_i (tstart),
-      .trn_ttype_i (ttype),
-      .trn_tdone_o (tdone),
+      .trn_tsend_i(tstart),
+      .trn_ttype_i(ttype),
+      .trn_tdone_o(tdone),
+
       .trn_tvalid_i(tvalid),
       .trn_tready_o(tready),
       .trn_tlast_i (tlast),
@@ -181,6 +206,145 @@ module fake_usb_host_ulpi (  /*AUTOARG*/
       .hsk_type_o(rx_htype_w),
       .hsk_recv_o(rx_hrecv_w)
   );
+
+
+  //
+  //  Simulation Tasks
+  ///
+
+  // -- Encode and Send a USB Data Packet -- //
+
+  task send_packet;
+    input [7:0] len;
+    input [3:0] pid;
+    input stub;
+    begin
+      integer count;
+
+      sready  <= 1'b1;
+
+      hsend_q <= 1'b0;
+      htype_q <= 2'bx;
+
+      tstart  <= 1'b1;
+      ttype   <= pid[3:2];
+      tvalid  <= 1'b1;
+      tlast   <= 1'b0;
+      tdata   <= $urandom;  // {~pid, pid};
+
+      count   <= len;
+
+      @(posedge clock);
+      tstart <= 1'b0;
+
+      while (sready) begin
+        @(posedge clock);
+
+        if (tready) begin
+          tvalid <= count > 0;
+          tlast  <= count == 1 && !stub;
+          tdata  <= $urandom;
+
+          count  <= count - 1;
+        end
+
+        if (svalid && slast) begin
+          sready <= 1'b0;
+        end
+      end
+
+      @(posedge clock);
+      @(posedge clock);
+    end
+  endtask  // send_packet
+
+
+  // -- Encode and Send a USB Token Packet -- //
+
+  task send_token;
+    input [6:0] adr;
+    input [3:0] epn;
+    input [1:0] typ;
+    begin
+      sready  <= 1'b1;
+
+      ksend_q <= 1'b1;
+      ktype_q <= typ;
+      kdata_q <= {crc5({epn, adr}), epn, adr};
+
+      @(posedge clock);
+
+      while (ksend_q || !kdone_w) begin
+        @(posedge clock);
+
+        if (kdone_w) begin
+          ksend_q <= 1'b0;
+        end
+
+        if (svalid && slast) begin
+          sready <= 1'b0;
+        end
+      end
+
+      @(posedge clock);
+    end
+  endtask  // send_token
+
+
+  // -- Encode and Send an OUT Token, then 8B DATA0/1 Packet -- //
+
+  task send_data;
+    input [6:0] adr;
+    input [3:0] epn;
+    input odd;
+    input [63:0] dat;
+    begin
+      integer count;
+
+      send_token(adr, epn, TOK_OUT);
+
+      sready <= 1'b1;
+      count  <= 8;
+      @(posedge clock);
+
+      while (!tdone) begin
+        @(posedge clock);
+      end
+
+      // todo: check for 'ACK'
+
+      @(posedge clock);
+    end
+  endtask  // send_data
+
+
+  // -- Encode and Send a USB Handshake Packet -- //
+
+  task handshake;
+    input [1:0] typ;
+    begin
+      sready  <= 1'b1;
+
+      hsend_q <= 1'b1;
+      htype_q <= typ;
+
+      @(posedge clock);
+
+      while (hsend_q || !hdone_w) begin
+        @(posedge clock);
+
+        if (hdone_w) begin
+          hsend_q <= 1'b0;
+        end
+
+        if (svalid && slast) begin
+          sready <= 1'b0;
+        end
+      end
+
+      @(posedge clock);
+    end
+  endtask  // handshake
 
 
 endmodule  // fake_usb_host_ulpi

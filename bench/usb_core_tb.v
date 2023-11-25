@@ -5,7 +5,7 @@ module usb_core_tb;
   // -- Simulation Data -- //
 
   initial begin
-    $dumpfile("transaction_tb.vcd");
+    $dumpfile("usb_core_tb.vcd");
     $dumpvars;
 
     #8000 $finish;  // todo ...
@@ -14,7 +14,7 @@ module usb_core_tb;
 
   // -- Globals -- //
 
-  reg clock, reset, arst_n;
+  reg clock = 1'b1, reset, arst_n;
   wire usb_clock, usb_rst_n, dev_clock, dev_reset;
 
   always #3 clock <= ~clock;
@@ -30,13 +30,16 @@ module usb_core_tb;
 
   // -- Simulation Signals -- //
 
-  reg sready, tstart, tvalid, tlast;
+  reg svalid, slast, mready;
+  reg [7:0] sdata;
+  wire mvalid, mlast, sready;
+  wire [7:0] mdata;
 
   wire ulpi_dir_w, ulpi_nxt_w, ulpi_stp_w;
   wire [7:0] ulpi_data_w;
 
   reg enumerate;
-  wire enum_done;
+  wire enum_done, device_usb_idle_w;
 
   wire host_usb_sof_w, host_crc_err_w;
   wire dev_usb_sof_w, dev_crc_err_w, fifo_in_full_w;
@@ -50,10 +53,11 @@ module usb_core_tb;
     while (reset) begin
       @(posedge clock);
 
-      sready <= 1'b0;
-      tstart <= 1'b0;
-      tvalid <= 1'b0;
-      tlast  <= 1'b0;
+      svalid <= 1'b0;
+      slast <= 1'b0;
+      mready <= 1'b0;
+
+      enumerate <= 1'b0;
     end
 
     @(posedge clock);
@@ -62,7 +66,7 @@ module usb_core_tb;
     enumerate <= 1'b1;
     @(posedge clock);
 
-    while (!enum_done) begin
+    while (!enum_done || !device_usb_idle_w) begin
       @(posedge clock);
     end
     enumerate <= 1'b0;
@@ -109,18 +113,19 @@ module usb_core_tb;
 
       .fifo_in_full_o(fifo_in_full_w),
 
-      .usb_sof_o(dev_usb_sof_w),
-      .crc_err_o(dev_crc_err_w),
+      .usb_idle_o(device_usb_idle_w),
+      .usb_sof_o (dev_usb_sof_w),
+      .crc_err_o (dev_crc_err_w),
 
-      .s_axis_tvalid_i(),
-      .s_axis_tready_o(),
-      .s_axis_tlast_i (),
-      .s_axis_tdata_i (),
+      .s_axis_tvalid_i(svalid),
+      .s_axis_tready_o(sready),
+      .s_axis_tlast_i (slast),
+      .s_axis_tdata_i (sdata),
 
-      .m_axis_tvalid_o(),
-      .m_axis_tready_i(),
-      .m_axis_tlast_o (),
-      .m_axis_tdata_o ()
+      .m_axis_tvalid_o(mvalid),
+      .m_axis_tready_i(mready),
+      .m_axis_tlast_o (mlast),
+      .m_axis_tdata_o (mdata)
   );
 
 

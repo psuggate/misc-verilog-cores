@@ -164,7 +164,7 @@ module ulpi_axis (  /*AUTOARG*/
 
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
-  ) usb_ulpi_inst (
+  ) U_USB_ULPI0 (
       .rst_n(rst_nq),
 
       .ulpi_clk(clock),

@@ -1,0 +1,40 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Nov 25 23:34:35 2023
+[*]
+[dumpfile] "./usb_core_tb.vcd"
+[dumpfile_mtime] "Sat Nov 25 23:34:29 2023"
+[dumpfile_size] 87823
+[savefile] "./usb_core_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-14.533766 20000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+usb_core_tb.clock
+usb_core_tb.arst_n
+usb_core_tb.reset
+usb_core_tb.device_usb_idle_w
+@800200
+-Host
+@28
+usb_core_tb.enumerate
+usb_core_tb.enum_done
+@1000200
+-Host
+@800200
+-ULPI
+@28
+usb_core_tb.ulpi_dir_w
+usb_core_tb.ulpi_nxt_w
+usb_core_tb.ulpi_stp_w
+@22
+usb_core_tb.ulpi_data_w[7:0]
+@1000200
+-ULPI
+[pattern_trace] 1
+[pattern_trace] 0
