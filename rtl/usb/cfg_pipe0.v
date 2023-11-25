@@ -48,8 +48,8 @@ module cfg_pipe0 #(
     input wire [ 7:0] ctl_xfer_type,
     input wire [ 7:0] ctl_xfer_request,
     input wire [15:0] ctl_xfer_value,
-    input wire [15:0] ctl_xfer_index,
-    input wire [15:0] ctl_xfer_length,
+    input wire [15:0] ctl_xfer_index, // not used
+    input wire [15:0] ctl_xfer_length, // not used
 
     output wire ctl_xfer_gnt_o,
     input  wire ctl_xfer_req_i,

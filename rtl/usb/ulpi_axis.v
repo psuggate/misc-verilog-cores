@@ -242,6 +242,19 @@ module ulpi_axis (  /*AUTOARG*/);
       .clock(clock),
       .reset(reset),
 
+.usb_addr_i(),
+
+.tok_recv_i(),
+.tok_type_i(),
+.tok_addr_i(),
+.tok_endp_i(),
+
+.hsk_recv_i(),
+.hsk_type_i(),
+.hsk_send_o(),
+.hsk_type_o(),
+.hsk_sent_i(),
+
       .ep0_ce_o(ctl_xfer_int),
       .ep1_ce_o(),
       .ep2_ce_o(),
