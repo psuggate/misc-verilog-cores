@@ -1,5 +1,50 @@
 `timescale 1ns / 100ps
-module usb_control (  /*AUTOARG*/);
+module usb_control (  /*AUTOARG*/
+    // Outputs
+    reset,
+    configured_o,
+    usb_addr_o,
+    usb_conf_o,
+    usb_sof_o,
+    crc_err_o,
+    usb_tready_o,
+    usb_tvalid_o,
+    usb_tlast_o,
+    usb_tdata_o,
+    ctl_start_o,
+    ctl_rtype_o,
+    ctl_rargs_o,
+    ctl_value_o,
+    ctl_index_o,
+    ctl_length_o,
+    ctl_tvalid_o,
+    ctl_tlast_o,
+    ctl_tdata_o,
+    ctl_tready_o,
+    blk_start_o,
+    blk_dtype_o,
+    blk_muxsel_o,
+    blk_tvalid_o,
+    blk_tlast_o,
+    blk_tdata_o,
+    blk_tready_o,
+    // Inputs
+    clock,
+    usb_tvalid_i,
+    usb_tlast_i,
+    usb_tdata_i,
+    usb_tready_i,
+    ctl_tready_i,
+    ctl_tvalid_i,
+    ctl_tlast_i,
+    ctl_tdata_i,
+    blk_done1_i,
+    blk_done2_i,
+    blk_tready_i,
+    blk_tvalid_i,
+    blk_tlast_i,
+    blk_tdata_i
+);
 
   parameter EP1_BULK_IN = 1;
   parameter EP1_BULK_OUT = 1;
@@ -20,6 +65,7 @@ module usb_control (  /*AUTOARG*/);
   parameter PRODUCT_STRING = "";
   parameter SERIAL_LENGTH = 8;
   parameter SERIAL_STRING = "SN000001";
+
 
   input clock;
   output reset;
@@ -88,6 +134,52 @@ module usb_control (  /*AUTOARG*/);
   wire ctl0_select_w, ctl0_accept_w, ctl0_error_w;
   wire [6:0] usb_addr_w;
 
+  wire hsk_send, hsk_sent;
+  wire [1:0] hsk_type;
+
+  wire rx_hrecv_w, tx_hsend_w, tx_hsent_w;
+  wire [1:0] rx_htype_w, tx_htype_w;
+
+  wire in_tsend_w, in_tvalid_w, in_tready_w, in_tlast_w;
+  wire [1:0] in_ttype_w;
+  wire [7:0] in_tdata_w;
+
+  wire tok_rx_recv_w, hsk_rx_recv_w;
+  wire [1:0] tok_rx_type_w, hsk_rx_type_w;
+  wire [6:0] tok_rx_addr_w;
+  wire [3:0] tok_rx_endp_w;
+
+  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
+  wire [7:0] ctl0_tdata_w;
+
+  wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
+  wire [7:0] cfgi_tdata_w;
+
+  wire usb_rx_trecv_w, usb_tx_tsend_w, usb_tx_tsent_w;
+  wire [1:0] usb_rx_ttype_w, usb_tx_ttype_w;
+
+  wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tlast_w;
+  wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
+  wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
+
+  wire ctlo_tvalid_w, ctlo_tready_w, ctlo_tlast_w;
+  wire ctli_tvalid_w, ctli_tready_w, ctli_tlast_w;
+  wire [7:0] ctlo_tdata_w, ctli_tdata_w;
+
+  wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
+  wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
+  wire [7:0] blko_tdata_w, blki_tdata_w;
+
+  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
+  wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
+  wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
+
+  wire ctl_start_w;
+  wire [7:0] ctl_rtype_w, ctl_rargs_w;
+  wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
+
+  wire trn_tdone_o;
+
   assign usb_addr_o = usb_addr_w;
 
   assign ctl_tvalid_o = ctlo_tvalid_w;
@@ -98,19 +190,9 @@ module usb_control (  /*AUTOARG*/);
 
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 
-  wire hsk_send, hsk_sent;
-  wire [1:0] hsk_type;
-
-  wire in_tsend_w, in_tvalid_w, in_tready_w, in_tlast_w;
-  wire [1:0] in_ttype_w;
-  wire [7:0] in_tdata_w;
-
   encode_packet #(
       .TOKEN(0)
   ) U_USB_ENCODER0 (
-      .reset(reset),
-      .clock(clock),
-
       .tx_tvalid_o(usb_tvalid_o),
       .tx_tready_i(usb_tready_i),
       .tx_tlast_o (usb_tlast_o),
@@ -130,37 +212,26 @@ module usb_control (  /*AUTOARG*/);
       .trn_tvalid_i(in_tvalid_w),
       .trn_tready_o(in_tready_w),
       .trn_tlast_i (in_tlast_w),
-      .trn_tdata_i (in_tdata_w)
+      .trn_tdata_i (in_tdata_w),
+      /*AUTOINST*/
+      // Outputs
+      .trn_tdone_o (trn_tdone_o),
+      // Inputs
+      .reset       (reset),
+      .clock       (clock)
   );
 
-  wire tok_rx_recv, hsk_rx_recv;
-  wire [1:0] tok_rx_type, hsk_rx_type;
-  wire [6:0] tok_rx_addr;
-  wire [3:0] tok_rx_endp;
-
-  wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tlast_w;
-  wire [1:0] usb_rx_ttype_w;
-  wire [7:0] usb_rx_tdata_w;
-
   decode_packet U_USB_DECODER0 (
-      .reset(reset),
-      .clock(clock),
-
-      // USB configuration fields, and status flags
-      .usb_sof_o(usb_sof_o),
-      .crc_err_o(crc_err_o),
-
-      // ULPI -> decoder stream
-      .ulpi_tvalid_i(ulpi_rx_tvalid),
-      .ulpi_tready_o(ulpi_rx_tready),
-      .ulpi_tlast_i (ulpi_rx_tlast),
-      .ulpi_tdata_i (ulpi_rx_tdata),
+      .ulpi_tvalid_i(ulpi_rx_tvalid_w),
+      .ulpi_tready_o(ulpi_rx_tready_w),
+      .ulpi_tlast_i (ulpi_rx_tlast_w),
+      .ulpi_tdata_i (ulpi_rx_tdata_w),
 
       // Indicates that a (OUT/IN/SETUP) token was received
-      .tok_recv_o(tok_rx_recv),  // Start strobe
-      .tok_type_o(tok_rx_type),  // Token-type (OUT/IN/SETUP)
-      .tok_addr_o(tok_rx_addr),
-      .tok_endp_o(tok_rx_endp),
+      .tok_recv_o(tok_rx_recv_w),  // Start strobe
+      .tok_type_o(tok_rx_type_w),  // Token-type (OUT/IN/SETUP)
+      .tok_addr_o(tok_rx_addr_w),
+      .tok_endp_o(tok_rx_endp_w),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
       .out_tvalid_o(usb_rx_tvalid_w),
@@ -170,25 +241,19 @@ module usb_control (  /*AUTOARG*/);
       .out_tdata_o (usb_rx_tdata_w),
 
       // Handshake packet information
-      .hsk_recv_o(hsk_rx_recv),
-      .hsk_type_o(hsk_rx_type)
+      .hsk_recv_o(hsk_rx_recv_w),
+      .hsk_type_o(hsk_rx_type_w),
+      /*AUTOINST*/
+      // Outputs
+      .usb_sof_o (usb_sof_o),
+      .crc_err_o (crc_err_o),
+      // Inputs
+      .reset     (reset),
+      .clock     (clock)
   );
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
-
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w;
-
-  wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
-  wire [7:0] cfgi_tdata_w;
-
-  wire [1:0] ctl_xfer_type_w;
-  wire [3:0] ctl_xfer_endp_w;
-  wire [7:0] ctl_xfer_request_w;
-  wire [15:0] ctl_xfer_value_w, ctl_xfer_index_w, ctl_xfer_length_w;
-
-  wire ctl_xfer_int, ctl_xfer_accept_std;
 
   transaction #(
       .EP1_BULK_IN(EP1_BULK_IN),  // IN- & OUT- for TART raw (antenna) samples
@@ -201,16 +266,13 @@ module usb_control (  /*AUTOARG*/);
       .ENDPOINT2(ENDPOINT2),
       .HIGH_SPEED(HIGH_SPEED)
   ) U_USB_CONTROL (
-      .clock(clock),
-      .reset(reset),
-
       .usb_addr_i(usb_addr_w),
 
       // Signals from the USB packet decoder (upstream)
-      .tok_recv_i(tok_recv_w),
-      .tok_type_i(tok_type_w),
-      .tok_addr_i(tok_addr_w),
-      .tok_endp_i(tok_endp_w),
+      .tok_recv_i(tok_rx_recv_w),
+      .tok_type_i(tok_rx_type_w),
+      .tok_addr_i(tok_rx_addr_w),
+      .tok_endp_i(tok_rx_endp_w),
 
       .hsk_recv_i(rx_hrecv_w),
       .hsk_type_i(rx_htype_w),
@@ -237,7 +299,7 @@ module usb_control (  /*AUTOARG*/);
       .usb_tlast_o (usb_tx_tlast_w),
       .usb_tdata_o (usb_tx_tdata_w),
 
-      .ep0_ce_o(ctl_xfer_int),
+      .ep0_ce_o(ctl0_select_w),
       .ep1_ce_o(),
       .ep2_ce_o(),
 
@@ -274,7 +336,11 @@ module usb_control (  /*AUTOARG*/);
       .ctl_tvalid_i(ctli_tvalid_w),
       .ctl_tready_o(ctli_tready_w),
       .ctl_tlast_i (ctli_tlast_w),
-      .ctl_tdata_i (ctli_tdata_w)
+      .ctl_tdata_i (ctli_tdata_w),
+      /*AUTOINST*/
+      // Inputs
+      .clock       (clock),
+      .reset       (reset)
   );
 
 
@@ -307,26 +373,27 @@ module usb_control (  /*AUTOARG*/);
       .SERIAL(SERIAL_STRING),
       .HIGH_SPEED(HIGH_SPEED)
   ) U_CFG_PIPE0 (
-      .clock(clock),
-      .reset(reset),
-
       .select_i(ctl0_select_w),
       .accept_o(ctl0_accept_w),
       .error_o (ctl0_error_w),
 
-      .configured_o(configured_o),
-      .usb_addr_o  (usb_addr_w),
-      .usb_conf_o  (usb_conf_o),
-
+      .usb_addr_o (usb_addr_w),
       .req_type_i (ctl_rtype_w),
       .req_args_i (ctl_rargs_w),
       .req_value_i(ctl_value_w),
 
       // AXI4-Stream for device descriptors
-      .m_tvalid_o(ctl0_tvalid_w),
-      .m_tready_i(ctl0_tready_w),
-      .m_tlast_o (ctl0_tlast_w),
-      .m_tdata_o (ctl0_tdata_w)
+      .m_tvalid_o  (ctl0_tvalid_w),
+      .m_tready_i  (ctl0_tready_w),
+      .m_tlast_o   (ctl0_tlast_w),
+      .m_tdata_o   (ctl0_tdata_w),
+      /*AUTOINST*/
+      // Outputs
+      .configured_o(configured_o),
+      .usb_conf_o  (usb_conf_o[7:0]),
+      // Inputs
+      .reset       (reset),
+      .clock       (clock)
   );
 
 

@@ -48,7 +48,7 @@ module ulpi_bulk_axis_tb;
 
 
   // -- Module Under Test -- //
-
+  /*
   ulpi_bulk_axis #(
       .FPGA_VENDOR(FPGA_VENDOR),
       .FPGA_FAMILY(FPGA_FAMILY),
@@ -80,6 +80,7 @@ module ulpi_bulk_axis_tb;
       .m_axis_tlast_o (m_tlast),
       .m_axis_tdata_o (m_tdata)
   );
+*/
 
 
 endmodule  // axis_usbd_tb

@@ -364,7 +364,7 @@ module transaction (
   //
   // These transfers have a predefined structure (see pp.225, USB 2.0 Spec), and
   // the initial 'DATA0' packet (after the 'SETUP' token) contains data laid-out
-  // in a predefined manner:
+  // in the following format:
   //  - BYTE[0]   -- Request Type
   //  - BYTE[1]   -- Request
   //  - BYTE[3:2] -- Value

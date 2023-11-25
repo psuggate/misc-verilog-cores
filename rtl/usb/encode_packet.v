@@ -123,11 +123,12 @@ module encode_packet (
 
   wire [15:0] crc16_nw;
 
-  assign crc16_nw = ~{crc16_q[0], crc16_q[1], crc16_q[2], crc16_q[3],
-                      crc16_q[4], crc16_q[5], crc16_q[6], crc16_q[7],
-                      crc16_q[8], crc16_q[9], crc16_q[10], crc16_q[11],
-                      crc16_q[12], crc16_q[13], crc16_q[14], crc16_q[15]
-                     };
+  genvar ii;
+  generate
+    for (ii = 0; ii < 16; ii++) begin : g_crc16_revneg
+      assign crc16_nw[ii] = ~crc16_q[15-ii];
+    end  // g_crc16_revneg
+  endgenerate
 
   always @(posedge clock) begin
     if (!xdat_q) begin

@@ -8,7 +8,38 @@
 `define PRODUCT_STRING "TART USB"
 `define PRODUCT_LENGTH 8
 
-module ulpi_axis (  /*AUTOARG*/);
+module ulpi_axis (  /*AUTOARG*/
+    // Outputs
+    ulpi_reset_o,
+    ulpi_stp_o,
+    usb_clock_o,
+    usb_reset_o,
+    fifo_in_full_o,
+    fifo_out_full_o,
+    fifo_out_overflow_o,
+    fifo_has_data_o,
+    usb_sof_o,
+    crc_err_o,
+    usb_vbus_valid_o,
+    usb_idle_o,
+    usb_suspend_o,
+    ulpi_rx_overflow_o,
+    s_axis_tready_o,
+    m_axis_tvalid_o,
+    m_axis_tlast_o,
+    m_axis_tdata_o,
+    // Inouts
+    ulpi_data_io,
+    // Inputs
+    areset_n,
+    ulpi_clock_i,
+    ulpi_dir_i,
+    ulpi_nxt_i,
+    s_axis_tvalid_i,
+    s_axis_tlast_i,
+    s_axis_tdata_i,
+    m_axis_tready_i
+);
 
   parameter EP1_BULK_IN = 1;
   parameter EP1_BULK_OUT = 1;
@@ -105,11 +136,15 @@ module ulpi_axis (  /*AUTOARG*/);
   wire [7:0] ulpi_data_iw, ulpi_data_ow;
 
 
-  assign ulpi_data_io = usb_dir_i ? {8{1'bz}} : ulpi_data_ow;
+  assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
 
 
   // -- AXI4 stream to/from ULPI stream -- //
+
+  wire ctl_start_w;
+  wire [7:0] ctl_rtype_w, ctl_rargs_w;
+  wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
 
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
@@ -118,6 +153,14 @@ module ulpi_axis (  /*AUTOARG*/);
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
   wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
   wire [7:0] ctl0_tdata_w, cfgi_tdata_w;
+
+  wire ctlo_tvalid_w, ctlo_tready_w, ctlo_tlast_w;
+  wire ctli_tvalid_w, ctli_tready_w, ctli_tlast_w;
+  wire [7:0] ctlo_tdata_w, ctli_tdata_w;
+
+  wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
+  wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
+  wire [7:0] blko_tdata_w, blki_tdata_w;
 
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
@@ -145,9 +188,9 @@ module ulpi_axis (  /*AUTOARG*/);
       .axis_tx_tdata_i (ulpi_tx_tdata_w),
 
       .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
-      .usb_vbus_valid_o(usb_vbus_valid_o),
-      .usb_idle_o(usb_idle_o),
-      .usb_suspend_o(usb_suspend_o)
+      .usb_vbus_valid_o  (usb_vbus_valid_o),
+      .usb_idle_o        (usb_idle_o),
+      .usb_suspend_o     (usb_suspend_o)
   );
 
 
@@ -201,9 +244,6 @@ module ulpi_axis (  /*AUTOARG*/);
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING)
   ) U_USB_CONTROL0 (
-      .clock(clock),
-      .reset(reset),
-
       .configured_o(),
       .usb_addr_o(),
       .usb_conf_o(),
@@ -253,7 +293,12 @@ module ulpi_axis (  /*AUTOARG*/);
       .ctl_tvalid_i(ctli_tvalid_w),
       .ctl_tready_o(ctli_tready_w),
       .ctl_tlast_i (ctli_tlast_w),
-      .ctl_tdata_i (ctli_tdata_w)
+      .ctl_tdata_i (ctli_tdata_w),
+      /*AUTOINST*/
+      // Outputs
+      .reset       (reset),
+      // Inputs
+      .clock       (clock)
   );
 
 
