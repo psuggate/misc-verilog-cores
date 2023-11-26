@@ -13,8 +13,8 @@ module fake_usb_host_ulpi (
 
     usb_sof_o,
     crc_err_o,
-    dev_enum_start_i, 
-dev_configured_i,
+    dev_enum_start_i,
+    dev_configured_i,
     dev_enum_done_o
 
 );
@@ -93,8 +93,8 @@ dev_configured_i,
   // -- Fake Stimulus -- //
 
   initial begin : g_stimulus
-    tvalid <= 1'b0;
-    tlast <= 1'b0;
+    tvalid  <= 1'b0;
+    tlast   <= 1'b0;
 
     hsend_q <= 1'b0;
     ksend_q <= 1'b0;
@@ -135,8 +135,8 @@ dev_configured_i,
       state <= ST_INIT;
       enum_done_q <= 1'b0;
 
-      sready  <= 1'b0;
-      mvalid  <= 1'b0;
+      sready <= 1'b0;
+      mvalid <= 1'b0;
     end else begin
       case (state)
         ST_INIT: begin
@@ -277,8 +277,8 @@ dev_configured_i,
       send_ack();
       @(posedge clock);
     end
-  endtask // send_control
-  
+  endtask  // send_control
+
   // Encode and send a USB 'DATA0' packet
   task send_data0;
     input [63:0] data;
@@ -304,14 +304,14 @@ dev_configured_i,
       @(posedge clock);
       $display("%10t: DATA0 packet sent (bytes: 8)", $time);
     end
-  endtask // send_data0
+  endtask  // send_data0
 
   // Receive and decode a USB 'DATA1' packet
   task recv_data1;
     begin
       integer count;
 
-      count <= 0;
+      count  <= 0;
       sready <= 1'b1;
       while (!svalid) @(posedge clock);
 
@@ -329,7 +329,7 @@ dev_configured_i,
       @(posedge clock);
       $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
     end
-  endtask // recv_data1
+  endtask  // recv_data1
 
 
   // -- Encode and Send a USB Token Packet -- //
@@ -341,14 +341,15 @@ dev_configured_i,
     begin
       reg [7:0] pid;
 
-      sready  <= 1'b1;
+      sready <= 1'b1;
       ksend_q <= 1'b1;
       ktype_q <= typ;
       pid <= {~{typ, 2'b01}, {typ, 2'b01}};
       kdata_q <= {crc5({epn, adr}), epn, adr};
 
       @(posedge clock);
-      $display("%10t: Sending token: [0x%02x, 0x%02x, 0x%02x]", $time, pid, kdata_q[7:0], kdata_q[15:8]);
+      $display("%10t: Sending token: [0x%02x, 0x%02x, 0x%02x]", $time, pid, kdata_q[7:0],
+               kdata_q[15:8]);
 
       while (ksend_q || !kdone_w) begin
         @(posedge clock);
@@ -375,7 +376,7 @@ dev_configured_i,
       handshake(HSK_ACK);
       $display("%10t: ACK sent", $time);
     end
-  endtask // send_ack
+  endtask  // send_ack
 
   // Receive a USB 'ACK' handshake packet
   task recv_ack;
@@ -384,7 +385,7 @@ dev_configured_i,
       @(posedge clock);
       $display("%10t: ACK received", $time);
     end
-  endtask // recv_ack
+  endtask  // recv_ack
 
   task handshake;
     input [1:0] typ;

@@ -65,16 +65,16 @@ module fake_ulpi_phy (  /*AUTOARG*/
   assign usb_tready_o = rdy_q;
 
   assign usb_tvalid_o = tvalid;
-  assign usb_tlast_o  = tlast; // todo: ulpi_stp_i !?
-  assign usb_tdata_o  = tdata;
+  assign usb_tlast_o = tlast;  // todo: ulpi_stp_i !?
+  assign usb_tdata_o = tdata;
 
 
   // -- Internal Signal Assignments -- //
 
   // Valid USB PID means start of packet Rx
   assign pid_valid_w = dir_q == 1'b0 && ulpi_data_io[3:0] == ~ulpi_data_io[7:4];
-  assign tx_start_w  = usb_tvalid_i && !rx_start_w;
-  assign rx_start_w  = pid_valid_w && usb_tready_i;
+  assign tx_start_w = usb_tvalid_i && !rx_start_w;
+  assign rx_start_w = pid_valid_w && usb_tready_i;
 
   assign non_pid_w = dir_q == 1'b0 && ulpi_data_io != 8'h0 && ulpi_data_io[3:0] != ~ulpi_data_io[7:4];
 
@@ -84,19 +84,19 @@ module fake_ulpi_phy (  /*AUTOARG*/
   always @(posedge clock) begin
     case (state)
       default: begin
-        tdata <= 'bx;
+        tdata  <= 'bx;
         tvalid <= 1'b0;
       end
 
       ST_IDLE: begin
-        tdata <= ulpi_data_io;
+        tdata  <= ulpi_data_io;
         tvalid <= rx_start_w;
       end
 
       ST_RECV: begin
-        tdata <= ulpi_data_io;
+        tdata  <= ulpi_data_io;
         tvalid <= nxt_q;
-        tlast <= ulpi_stp_i; // todo: should be combinational !?
+        tlast  <= ulpi_stp_i;  // todo: should be combinational !?
       end
     endcase
   end
@@ -125,7 +125,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           dir_q <= tx_start_w;  //
           nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
           rdy_q <= tx_start_w;
-          dat_q <= 'bz; // usb_tdata_i;
+          dat_q <= 'bz;  // usb_tdata_i;
 
           if (rx_start_w) begin
             // ULPI data is coming in over the wire

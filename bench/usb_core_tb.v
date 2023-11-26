@@ -83,8 +83,8 @@ module usb_core_tb;
 
 
   fake_usb_host_ulpi U_FAKE_USB0 (
-      .clock(clock),
-      .reset(reset),
+      .clock (clock),
+      .reset (reset),
       .enable(device_usb_idle_w),
 
       .ulpi_clock_o(usb_clock),
@@ -99,12 +99,9 @@ module usb_core_tb;
 
       .dev_enum_start_i(enumerate),
       .dev_enum_done_o (enum_done),
-                                  .dev_configured_i(configured)
+      .dev_configured_i(configured)
   );
 
-
-  `define __use_c_u_n_t
-  `ifdef __use_c_u_n_t
 
   //
   // Core Under New Tests
@@ -123,10 +120,10 @@ module usb_core_tb;
 
       .fifo_in_full_o(fifo_in_full_w),
 
-                         .configured_o(configured),
+      .configured_o(configured),
       .usb_idle_o(device_usb_idle_w),
-      .usb_sof_o (dev_usb_sof_w),
-      .crc_err_o (dev_crc_err_w),
+      .usb_sof_o(dev_usb_sof_w),
+      .crc_err_o(dev_crc_err_w),
 
       .s_axis_tvalid_i(svalid),
       .s_axis_tready_o(sready),
@@ -138,21 +135,6 @@ module usb_core_tb;
       .m_axis_tlast_o (mlast),
       .m_axis_tdata_o (mdata)
   );
-
-  `else
-
-  reg dir_q;
-
-  assign device_usb_idle_w = 1'b1;
-
-  assign ulpi_stp = 1'b0;
-  assign ulpi_data = ulpi_dir ? 8'bz : 8'h00;
-
-  always @(posedge clock) begin
-    dir_q <= ulpi_dir;
-  end
-
-  `endif
 
 
 endmodule  // usb_core_tb
