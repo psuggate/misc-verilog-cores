@@ -9,37 +9,18 @@
 `define PRODUCT_LENGTH 8
 
 module ulpi_axis (  /*AUTOARG*/
-    // Outputs
-    ulpi_reset_o,
-    ulpi_stp_o,
-    usb_clock_o,
-    usb_reset_o,
-    fifo_in_full_o,
-    fifo_out_full_o,
-    fifo_out_overflow_o,
-    fifo_has_data_o,
-    usb_sof_o,
-    crc_err_o,
-    usb_vbus_valid_o,
-    usb_idle_o,
-    usb_suspend_o,
-    ulpi_rx_overflow_o,
-    s_axis_tready_o,
-    m_axis_tvalid_o,
-    m_axis_tlast_o,
-    m_axis_tdata_o,
-    // Inouts
-    ulpi_data_io,
-    // Inputs
-    areset_n,
-    ulpi_clock_i,
-    ulpi_dir_i,
-    ulpi_nxt_i,
-    s_axis_tvalid_i,
-    s_axis_tlast_i,
-    s_axis_tdata_i,
-    m_axis_tready_i
-);
+  // Outputs
+  ulpi_reset_o, ulpi_stp_o, usb_clock_o, usb_reset_o, fifo_in_full_o,
+  fifo_out_full_o, fifo_out_overflow_o, fifo_has_data_o, configured_o,
+  usb_sof_o, crc_err_o, usb_vbus_valid_o, usb_idle_o, usb_suspend_o,
+  ulpi_rx_overflow_o, s_axis_tready_o, m_axis_tvalid_o,
+  m_axis_tlast_o, m_axis_tdata_o,
+  // Inouts
+  ulpi_data_io,
+  // Inputs
+  areset_n, ulpi_clock_i, ulpi_dir_i, ulpi_nxt_i, s_axis_tvalid_i,
+  s_axis_tlast_i, s_axis_tdata_i, m_axis_tready_i
+  );
 
   parameter EP1_BULK_IN = 1;
   parameter EP1_BULK_OUT = 1;
@@ -86,6 +67,7 @@ module ulpi_axis (  /*AUTOARG*/
   output fifo_out_overflow_o;
   output fifo_has_data_o;
 
+  output configured_o;
   output usb_sof_o;
   output crc_err_o;
   output usb_vbus_valid_o;
@@ -139,6 +121,8 @@ module ulpi_axis (  /*AUTOARG*/
   assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
 
+  assign s_axis_tready_o = 1'b1;
+
 
   // -- AXI4 stream to/from ULPI stream -- //
 
@@ -186,12 +170,12 @@ module ulpi_axis (  /*AUTOARG*/
       .axis_tx_tready_o(ulpi_tx_tready_w),
       .axis_tx_tlast_i (ulpi_tx_tlast_w),
       .axis_tx_tdata_i (ulpi_tx_tdata_w),
-
-      .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
-      .usb_vbus_valid_o  (usb_vbus_valid_o),
-      .usb_idle_o        (usb_idle_o),
-      .usb_suspend_o     (usb_suspend_o)
-  );
+                 /*AUTOINST*/
+                 // Outputs
+                 .ulpi_rx_overflow_o    (ulpi_rx_overflow_o),
+                 .usb_vbus_valid_o      (usb_vbus_valid_o),
+                 .usb_idle_o            (usb_idle_o),
+                 .usb_suspend_o         (usb_suspend_o));
 
 
   // -- Route Bulk IN Signals -- //
@@ -244,11 +228,11 @@ module ulpi_axis (  /*AUTOARG*/
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING)
   ) U_USB_CONTROL0 (
-      .configured_o(),
+      .configured_o(configured_o),
       .usb_addr_o(),
       .usb_conf_o(),
-      .usb_sof_o(),
-      .crc_err_o(),
+      .usb_sof_o(usb_sof_o),
+      .crc_err_o(crc_err_o),
 
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),
@@ -295,11 +279,10 @@ module ulpi_axis (  /*AUTOARG*/
       .ctl_tlast_i (ctli_tlast_w),
       .ctl_tdata_i (ctli_tdata_w),
       /*AUTOINST*/
-      // Outputs
-      .reset       (reset),
-      // Inputs
-      .clock       (clock)
-  );
+                    // Outputs
+                    .reset              (reset),
+                    // Inputs
+                    .clock              (clock));
 
 
 endmodule  // ulpi_axis

@@ -187,6 +187,8 @@ module usb_control (  /*AUTOARG*/
   assign ctl_tlast_o = ctlo_tlast_w;
   assign ctl_tdata_o = ctlo_tdata_w;
 
+  assign usb_tready_o = 1'b1; // todo: usb_rx_tready_w;
+
 
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 

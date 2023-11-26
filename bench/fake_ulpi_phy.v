@@ -52,7 +52,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   reg tvalid, tlast;
   reg [7:0] tdata;
 
-  wire pid_valid_w, tx_start_w, rx_start_w;
+  wire pid_valid_w, non_pid_w, tx_start_w, rx_start_w;
 
 
   // -- Output Signal Assignments -- //
@@ -65,7 +65,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   assign usb_tready_o = rdy_q;
 
   assign usb_tvalid_o = tvalid;
-  assign usb_tlast_o  = tlast;
+  assign usb_tlast_o  = tlast; // todo: ulpi_stp_i !?
   assign usb_tdata_o  = tdata;
 
 
@@ -75,6 +75,8 @@ module fake_ulpi_phy (  /*AUTOARG*/
   assign pid_valid_w = dir_q == 1'b0 && ulpi_data_io[3:0] == ~ulpi_data_io[7:4];
   assign tx_start_w  = usb_tvalid_i && !rx_start_w;
   assign rx_start_w  = pid_valid_w && usb_tready_i;
+
+  assign non_pid_w = dir_q == 1'b0 && ulpi_data_io != 8'h0 && ulpi_data_io[3:0] != ~ulpi_data_io[7:4];
 
 
   // -- Rx Datapath -- //
@@ -112,6 +114,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   always @(posedge clock) begin
     if (reset || !ulpi_rst_ni) begin
       state <= ST_IDLE;
+
       dir_q <= 1'b0;
       nxt_q <= 1'b0;
       rdy_q <= 1'b0;
@@ -120,14 +123,16 @@ module fake_ulpi_phy (  /*AUTOARG*/
       case (state)
         default: begin  // ST_IDLE
           dir_q <= tx_start_w;  //
-          nxt_q <= rx_start_w;  // Pause after PID is standard
+          nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
           rdy_q <= tx_start_w;
-          dat_q <= usb_tdata_i;
+          dat_q <= 'bz; // usb_tdata_i;
 
-          if (tx_start_w) begin
-            state <= ST_SEND;
-          end else if (rx_start_w) begin
+          if (rx_start_w) begin
+            // ULPI data is coming in over the wire
             state <= ST_RECV;
+          end else if (tx_start_w) begin
+            // We need to push data onto the wire
+            state <= ST_SEND;
           end else begin
             state <= ST_IDLE;
           end
@@ -138,7 +143,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
           nxt_q <= 1'b0;
-          rdy_q <= usb_tvalid_i && !ulpi_stp_i;
+          rdy_q <= usb_tvalid_i && !ulpi_stp_i && !usb_tlast_i;
           dat_q <= usb_tdata_i;
         end
 

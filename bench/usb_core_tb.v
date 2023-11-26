@@ -17,7 +17,7 @@ module usb_core_tb;
   reg clock = 1'b1, reset, arst_n;
   wire usb_clock, usb_rst_n, dev_clock, dev_reset;
 
-  always #3 clock <= ~clock;
+  always #5 clock <= ~clock;
 
   initial begin
     reset  <= 1'b1;
@@ -35,11 +35,12 @@ module usb_core_tb;
   wire mvalid, mlast, sready;
   wire [7:0] mdata;
 
-  wire ulpi_dir_w, ulpi_nxt_w, ulpi_stp_w;
-  wire [7:0] ulpi_data_w;
+  wire ulpi_clock;
+  wire ulpi_dir, ulpi_nxt, ulpi_stp;
+  wire [7:0] ulpi_data;
 
   reg enumerate;
-  wire enum_done, device_usb_idle_w;
+  wire enum_done, configured, device_usb_idle_w;
 
   wire host_usb_sof_w, host_crc_err_w;
   wire dev_usb_sof_w, dev_crc_err_w, fifo_in_full_w;
@@ -62,6 +63,10 @@ module usb_core_tb;
 
     @(posedge clock);
     @(posedge clock);
+    while (!device_usb_idle_w) begin
+      @(posedge clock);
+    end
+    @(posedge clock);
 
     enumerate <= 1'b1;
     @(posedge clock);
@@ -80,21 +85,26 @@ module usb_core_tb;
   fake_usb_host_ulpi U_FAKE_USB0 (
       .clock(clock),
       .reset(reset),
+      .enable(device_usb_idle_w),
 
       .ulpi_clock_o(usb_clock),
       .ulpi_rst_ni (usb_rst_n),
-      .ulpi_dir_o  (ulpi_dir_w),
-      .ulpi_nxt_o  (ulpi_nxt_w),
-      .ulpi_stp_i  (ulpi_stp_w),
-      .ulpi_data_io(ulpi_data_w),
+      .ulpi_dir_o  (ulpi_dir),
+      .ulpi_nxt_o  (ulpi_nxt),
+      .ulpi_stp_i  (ulpi_stp),
+      .ulpi_data_io(ulpi_data),
 
       .usb_sof_o(host_usb_sof_w),
       .crc_err_o(host_crc_err_w),
 
       .dev_enum_start_i(enumerate),
-      .dev_enum_done_o (enum_done)
+      .dev_enum_done_o (enum_done),
+                                  .dev_configured_i(configured)
   );
 
+
+  `define __use_c_u_n_t
+  `ifdef __use_c_u_n_t
 
   //
   // Core Under New Tests
@@ -103,16 +113,17 @@ module usb_core_tb;
       .areset_n(arst_n),
       .ulpi_clock_i(usb_clock),
       .ulpi_reset_o(usb_rst_n),
-      .ulpi_dir_i(ulpi_dir_w),
-      .ulpi_nxt_i(ulpi_nxt_w),
-      .ulpi_stp_o(ulpi_stp_w),
-      .ulpi_data_io(ulpi_data_w),
+      .ulpi_dir_i(ulpi_dir),
+      .ulpi_nxt_i(ulpi_nxt),
+      .ulpi_stp_o(ulpi_stp),
+      .ulpi_data_io(ulpi_data),
 
       .usb_clock_o(dev_clock),
       .usb_reset_o(dev_reset),
 
       .fifo_in_full_o(fifo_in_full_w),
 
+                         .configured_o(configured),
       .usb_idle_o(device_usb_idle_w),
       .usb_sof_o (dev_usb_sof_w),
       .crc_err_o (dev_crc_err_w),
@@ -127,6 +138,21 @@ module usb_core_tb;
       .m_axis_tlast_o (mlast),
       .m_axis_tdata_o (mdata)
   );
+
+  `else
+
+  reg dir_q;
+
+  assign device_usb_idle_w = 1'b1;
+
+  assign ulpi_stp = 1'b0;
+  assign ulpi_data = ulpi_dir ? 8'bz : 8'h00;
+
+  always @(posedge clock) begin
+    dir_q <= ulpi_dir;
+  end
+
+  `endif
 
 
 endmodule  // usb_core_tb
