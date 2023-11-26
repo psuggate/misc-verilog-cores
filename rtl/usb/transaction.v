@@ -180,7 +180,7 @@ module transaction (
   localparam [1:0] HSK_ACK = 2'b00;
   localparam [1:0] HSK_NAK = 2'b10;
 
-  localparam BLK_IDLE = 4'h0;
+  localparam BLK_IDLE = 8'h00;
   localparam BLK_SETUP_DAT = 8'h02;
 
   localparam CTL_FAIL = 8'h00;
@@ -228,6 +228,8 @@ module transaction (
   assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
+  assign usb_tready_o = 1'b1; // todo: ...
+
 
   // -- Downstream Chip-Enables -- //
 
@@ -255,7 +257,8 @@ module transaction (
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
   localparam ST_DUMP = 4'hf;  // ignoring xfer, or bad shit happened
 
-  reg [3:0] state, xbulk, xctrl;
+  reg [3:0] state;
+  reg [7:0] xbulk, xctrl;
 
   // todo: control the input MUX, and the output CE's
   always @(posedge clock) begin
@@ -273,24 +276,20 @@ module transaction (
                 (tok_endp_i == ENDPOINT1 || tok_endp_i == ENDPOINT2)) begin
               state <= ST_BULK;
               blk_start_q <= 1'b1;
-              ctl_start_q <= 1'b0;
             end else if (tok_type_i == TOK_SETUP && (tok_endp_i == 4'h0 ||  // PIPE0 required
                 EP1_CONTROL && tok_endp_i == ENDPOINT1 ||
                           EP2_CONTROL && tok_endp_i == ENDPOINT2)) begin
               state <= ST_CTRL;
               blk_start_q <= 1'b0;
-              ctl_start_q <= 1'b1;
             end else begin
               // Either invalid endpoint, or unsupported transfer-type for the
               // requested endpoint.
               state <= ST_DUMP;
               blk_start_q <= 1'b0;
-              ctl_start_q <= 1'b0;
             end
           end else begin
             state <= ST_IDLE;
             blk_start_q <= 1'b0;
-            ctl_start_q <= 1'b0;
           end
         end
 
@@ -337,11 +336,12 @@ module transaction (
   reg blk_hsend_q;  // note: just a strobe (for the handshake FSM)
   reg [1:0] blk_htype_q;
 
+/*
   always @(posedge clock) begin
     if (state == ST_BULK) begin
-      case (xctrl)
+      case (xbulk)
         default: begin
-          xctrl   <= CTL_SETUP_RX;
+          xbulk   <= BLK_OUT_RX;
           hsend_q <= 1'b0;
           htype_q <= 2'bx;
         end
@@ -350,13 +350,14 @@ module transaction (
 
       // Todo: too late to do anything ??
       if (blk_start_q) begin
-        xbulk <= BLK_SETUP_DAT;
+        xbulk <= BLK_OUT_RX;
       end else begin
         xbulk <= BLK_IDLE;
       end
       blk_hsend_q <= 1'b0;
     end
   end
+*/
 
 
   // -- Control Transfers FSM -- //
@@ -402,6 +403,7 @@ module transaction (
 
   wire we_are_like_totally_done_with_data_w;
   reg odd_q;
+
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
 
@@ -411,22 +413,30 @@ module transaction (
   //  - "parse" the request-type for PIPE0 ??
   //  - figure out which 'xctrl[_]' bit to use for CE !?
   always @(posedge clock) begin
-    if (xctrl != CTL_SETUP_RX) begin
+    // if (reset || xctrl != CTL_SETUP_RX) begin
+    if (state == ST_IDLE) begin
       xcptr <= 3'b000;
-    end else if (ctl_tvalid_i && ctl_tready_o) begin
-      ctl_rtype_q <= xcptr == 3'b000 ? ctl_tdata_i : ctl_rtype_q;
-      ctl_rargs_q <= xcptr == 3'b001 ? ctl_tdata_i : ctl_rargs_q;
+      ctl_start_q <= 1'b0;
+    end else if (usb_tvalid_i && usb_tready_o) begin
+      ctl_rtype_q <= xcptr == 3'b000 ? usb_tdata_i : ctl_rtype_q;
+      ctl_rargs_q <= xcptr == 3'b001 ? usb_tdata_i : ctl_rargs_q;
 
-      ctl_vallo_q <= xcptr == 3'b010 ? ctl_tdata_i : ctl_vallo_q;
-      ctl_valhi_q <= xcptr == 3'b011 ? ctl_tdata_i : ctl_valhi_q;
+      ctl_vallo_q <= xcptr == 3'b010 ? usb_tdata_i : ctl_vallo_q;
+      ctl_valhi_q <= xcptr == 3'b011 ? usb_tdata_i : ctl_valhi_q;
 
-      ctl_idxlo_q <= xcptr == 3'b100 ? ctl_tdata_i : ctl_idxlo_q;
-      ctl_idxhi_q <= xcptr == 3'b101 ? ctl_tdata_i : ctl_idxhi_q;
+      ctl_idxlo_q <= xcptr == 3'b100 ? usb_tdata_i : ctl_idxlo_q;
+      ctl_idxhi_q <= xcptr == 3'b101 ? usb_tdata_i : ctl_idxhi_q;
 
-      ctl_lenlo_q <= xcptr == 3'b110 ? ctl_tdata_i : ctl_lenlo_q;
-      ctl_lenhi_q <= xcptr == 3'b111 ? ctl_tdata_i : ctl_lenhi_q;
+      ctl_lenlo_q <= xcptr == 3'b110 ? usb_tdata_i : ctl_lenlo_q;
+      ctl_lenhi_q <= xcptr == 3'b111 ? usb_tdata_i : ctl_lenhi_q;
 
       xcptr <= xcnxt;
+
+      if (xcptr == 7) begin
+        ctl_start_q <= 1'b1;
+      end
+    end else begin
+      ctl_start_q <= 1'b0;
     end
   end
 

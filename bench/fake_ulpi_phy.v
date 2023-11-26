@@ -37,7 +37,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   input usb_tlast_i;
   input [7:0] usb_tdata_i;
 
-  // Encoded USB packets OUT (to ULPI)
+  // Decoded USB packets OUT (to ULPI)
   output usb_tvalid_o;
   input usb_tready_i;
   output usb_tlast_o;
@@ -52,7 +52,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   reg tvalid, tlast;
   reg [7:0] tdata;
 
-  wire pid_valid_w, non_pid_w, tx_start_w, rx_start_w;
+  wire pid_vld_w, non_pid_w, tx_start_w, rx_start_w;
 
 
   // -- Output Signal Assignments -- //
@@ -72,11 +72,11 @@ module fake_ulpi_phy (  /*AUTOARG*/
   // -- Internal Signal Assignments -- //
 
   // Valid USB PID means start of packet Rx
-  assign pid_valid_w = dir_q == 1'b0 && ulpi_data_io[3:0] == ~ulpi_data_io[7:4];
   assign tx_start_w = usb_tvalid_i && !rx_start_w;
-  assign rx_start_w = pid_valid_w && usb_tready_i;
+  assign rx_start_w = pid_vld_w && usb_tready_i;
 
-  assign non_pid_w = dir_q == 1'b0 && ulpi_data_io != 8'h0 && ulpi_data_io[3:0] != ~ulpi_data_io[7:4];
+  assign pid_vld_w = dir_q == 1'b0 && ulpi_data_io[7:4] == 4'b0100;
+  assign non_pid_w = dir_q == 1'b0 && ulpi_data_io[7:4] != 4'b0100 && ulpi_data_io != 8'h00;
 
 
   // -- Rx Datapath -- //
@@ -90,12 +90,16 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
       ST_IDLE: begin
         tdata  <= ulpi_data_io;
-        tvalid <= rx_start_w;
+        tvalid <= rx_start_w && nxt_q;
       end
 
       ST_RECV: begin
-        tdata  <= ulpi_data_io;
-        tvalid <= nxt_q;
+        if (!tvalid) begin
+          tdata  <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
+        end else begin
+          tdata  <= ulpi_data_io;
+        end
+        tvalid <= nxt_q && !ulpi_stp_i;
         tlast  <= ulpi_stp_i;  // todo: should be combinational !?
       end
     endcase
@@ -142,7 +146,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           state <= ulpi_stp_i ? ST_STOP : usb_tlast_i ? ST_IDLE : state;
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
-          nxt_q <= 1'b0;
+          nxt_q <= usb_tvalid_i && !ulpi_stp_i;
           rdy_q <= usb_tvalid_i && !ulpi_stp_i && !usb_tlast_i;
           dat_q <= usb_tdata_i;
         end
@@ -152,7 +156,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
 
           dir_q <= 1'b0;
-          nxt_q <= 1'b1;  // todo
+          nxt_q <= !ulpi_stp_i;  // todo
           rdy_q <= 1'b0;
           dat_q <= dat_q;
         end

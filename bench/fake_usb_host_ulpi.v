@@ -74,7 +74,8 @@ module fake_usb_host_ulpi (
 
   wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tlast_w;
   wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
-  wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
+  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
+  wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w, ulpi_rx_tdata_w;
 
   wire [1:0] usb_rx_ttype_w;
   wire tdone;
@@ -179,10 +180,10 @@ module fake_usb_host_ulpi (
       .usb_tdata_i (usb_tx_tdata_w),
 
       // To the USB packet decoder
-      .usb_tvalid_o(usb_rx_tvalid_w),
-      .usb_tready_i(usb_rx_tready_w),
-      .usb_tlast_o (usb_rx_tlast_w),
-      .usb_tdata_o (usb_rx_tdata_w)
+      .usb_tvalid_o(ulpi_rx_tvalid_w),
+      .usb_tready_i(ulpi_rx_tready_w),
+      .usb_tlast_o (ulpi_rx_tlast_w),
+      .usb_tdata_o (ulpi_rx_tdata_w)
   );
 
 
@@ -227,10 +228,10 @@ module fake_usb_host_ulpi (
       .crc_err_o(crc_err_o),
 
       // ULPI -> decoder stream
-      .ulpi_tvalid_i(svalid),
-      .ulpi_tready_o(mready),
-      .ulpi_tlast_i (slast),
-      .ulpi_tdata_i (sdata),
+      .ulpi_tvalid_i(ulpi_rx_tvalid_w),
+      .ulpi_tready_o(ulpi_rx_tready_w),
+      .ulpi_tlast_i (ulpi_rx_tlast_w),
+      .ulpi_tdata_i (ulpi_rx_tdata_w),
 
       // Indicates that a (OUT/IN/SETUP) token was received
       .tok_recv_o(tok_recv_w),
@@ -273,6 +274,7 @@ module fake_usb_host_ulpi (
       send_data0(data);
       recv_ack();
 
+      send_token(value[6:0], endp, TOK_IN);
       recv_data1();
       send_ack();
       @(posedge clock);

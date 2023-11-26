@@ -1,26 +1,41 @@
 `timescale 1ns / 100ps
-module usb_control (  /*AUTOARG*/
-    // Outputs
+module usb_control (
+    clock,
     reset,
+
     configured_o,
     usb_addr_o,
     usb_conf_o,
     usb_sof_o,
     crc_err_o,
+
+    usb_tvalid_i,
     usb_tready_o,
+    usb_tlast_i,
+    usb_tdata_i,
+
     usb_tvalid_o,
+    usb_tready_i,
     usb_tlast_o,
     usb_tdata_o,
+
     ctl_start_o,
     ctl_rtype_o,
     ctl_rargs_o,
     ctl_value_o,
     ctl_index_o,
     ctl_length_o,
+
+    ctl_tvalid_i,
+    ctl_tready_o,
+    ctl_tlast_i,
+    ctl_tdata_i,
+
     ctl_tvalid_o,
+    ctl_tready_i,
     ctl_tlast_o,
     ctl_tdata_o,
-    ctl_tready_o,
+
     blk_start_o,
     blk_dtype_o,
     blk_muxsel_o,
@@ -28,16 +43,7 @@ module usb_control (  /*AUTOARG*/
     blk_tlast_o,
     blk_tdata_o,
     blk_tready_o,
-    // Inputs
-    clock,
-    usb_tvalid_i,
-    usb_tlast_i,
-    usb_tdata_i,
-    usb_tready_i,
-    ctl_tready_i,
-    ctl_tvalid_i,
-    ctl_tlast_i,
-    ctl_tdata_i,
+
     blk_done1_i,
     blk_done2_i,
     blk_tready_i,
@@ -68,7 +74,7 @@ module usb_control (  /*AUTOARG*/
 
 
   input clock;
-  output reset;
+  input reset;
 
   output configured_o;
   output [6:0] usb_addr_o;
@@ -134,13 +140,10 @@ module usb_control (  /*AUTOARG*/
   wire ctl0_select_w, ctl0_accept_w, ctl0_error_w;
   wire [6:0] usb_addr_w;
 
-  wire hsk_send, hsk_sent;
-  wire [1:0] hsk_type;
-
   wire rx_hrecv_w, tx_hsend_w, tx_hsent_w;
   wire [1:0] rx_htype_w, tx_htype_w;
 
-  wire in_tsend_w, in_tvalid_w, in_tready_w, in_tlast_w;
+  wire in_tsend_w, in_tdone_w, in_tvalid_w, in_tready_w, in_tlast_w;
   wire [1:0] in_ttype_w;
   wire [7:0] in_tdata_w;
 
@@ -178,7 +181,6 @@ module usb_control (  /*AUTOARG*/
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
 
-  wire trn_tdone_o;
 
   assign usb_addr_o = usb_addr_w;
 
@@ -194,40 +196,49 @@ module usb_control (  /*AUTOARG*/
 
   encode_packet #(
       .TOKEN(0)
-  ) U_USB_ENCODER0 (
+  ) U_ENCODER0 (
+      .reset      (reset),
+      .clock      (clock),
+
       .tx_tvalid_o(usb_tvalid_o),
       .tx_tready_i(usb_tready_i),
       .tx_tlast_o (usb_tlast_o),
       .tx_tdata_o (usb_tdata_o),
 
-      .hsk_send_i(hsk_send),
-      .hsk_done_o(hsk_sent),
-      .hsk_type_i(hsk_type),
+      .hsk_send_i(tx_hsend_w),
+      .hsk_done_o(tx_hsent_w),
+      .hsk_type_i(tx_htype_w),
 
       .tok_send_i(1'b0),  // Only used by USB hosts
       .tok_done_o(),
       .tok_type_i(2'bx),
       .tok_data_i(16'bx),
 
-      .trn_tsend_i (in_tsend_w),
-      .trn_ttype_i (in_ttype_w),
+      .trn_tsend_i(in_tsend_w),
+      .trn_ttype_i(in_ttype_w),
+      .trn_tdone_o(in_tdone_w),
+
       .trn_tvalid_i(in_tvalid_w),
       .trn_tready_o(in_tready_w),
       .trn_tlast_i (in_tlast_w),
-      .trn_tdata_i (in_tdata_w),
-      /*AUTOINST*/
-      // Outputs
-      .trn_tdone_o (trn_tdone_o),
-      // Inputs
-      .reset       (reset),
-      .clock       (clock)
+      .trn_tdata_i (in_tdata_w)
   );
 
-  decode_packet U_USB_DECODER0 (
-      .ulpi_tvalid_i(ulpi_rx_tvalid_w),
-      .ulpi_tready_o(ulpi_rx_tready_w),
-      .ulpi_tlast_i (ulpi_rx_tlast_w),
-      .ulpi_tdata_i (ulpi_rx_tdata_w),
+  decode_packet U_DECODER0 (
+      .reset(reset),
+      .clock(clock),
+
+      .ulpi_tvalid_i(usb_tvalid_i),
+      .ulpi_tready_o(usb_tready_o),
+      .ulpi_tlast_i (usb_tlast_i),
+      .ulpi_tdata_i (usb_tdata_i),
+
+      .usb_sof_o(usb_sof_o),
+      .crc_err_o(crc_err_o),
+
+      // Handshake packet information
+      .hsk_recv_o(hsk_rx_recv_w),
+      .hsk_type_o(hsk_rx_type_w),
 
       // Indicates that a (OUT/IN/SETUP) token was received
       .tok_recv_o(tok_rx_recv_w),  // Start strobe
@@ -240,18 +251,7 @@ module usb_control (  /*AUTOARG*/
       .out_tready_i(usb_rx_tready_w),
       .out_tlast_o (usb_rx_tlast_w),
       .out_ttype_o (usb_rx_ttype_w),
-      .out_tdata_o (usb_rx_tdata_w),
-
-      // Handshake packet information
-      .hsk_recv_o(hsk_rx_recv_w),
-      .hsk_type_o(hsk_rx_type_w),
-      /*AUTOINST*/
-      // Outputs
-      .usb_sof_o (usb_sof_o),
-      .crc_err_o (crc_err_o),
-      // Inputs
-      .reset     (reset),
-      .clock     (clock)
+      .out_tdata_o (usb_rx_tdata_w)
   );
 
 
@@ -267,7 +267,10 @@ module usb_control (  /*AUTOARG*/
       .EP2_CONTROL(EP2_CONTROL),  // Control EP for configuring TART
       .ENDPOINT2(ENDPOINT2),
       .HIGH_SPEED(HIGH_SPEED)
-  ) U_USB_CONTROL (
+  ) U_USB_TRN0 (
+      .clock(clock),
+      .reset(reset),
+
       .usb_addr_i(usb_addr_w),
 
       // Signals from the USB packet decoder (upstream)
@@ -323,7 +326,7 @@ module usb_control (  /*AUTOARG*/
       .blk_tdata_i (blki_tdata_w),
 
       // To/from USB control transfer endpoints
-      .ctl_start_o (),
+      .ctl_start_o (ctl_start_w),
       .ctl_rtype_o (ctl_rtype_w),
       .ctl_rargs_o (ctl_rargs_w),
       .ctl_value_o (ctl_value_w),
@@ -338,11 +341,7 @@ module usb_control (  /*AUTOARG*/
       .ctl_tvalid_i(ctli_tvalid_w),
       .ctl_tready_o(ctli_tready_w),
       .ctl_tlast_i (ctli_tlast_w),
-      .ctl_tdata_i (ctli_tdata_w),
-      /*AUTOINST*/
-      // Inputs
-      .clock       (clock),
-      .reset       (reset)
+      .ctl_tdata_i (ctli_tdata_w)
   );
 
 
@@ -375,9 +374,14 @@ module usb_control (  /*AUTOARG*/
       .SERIAL(SERIAL_STRING),
       .HIGH_SPEED(HIGH_SPEED)
   ) U_CFG_PIPE0 (
-      .select_i(ctl0_select_w),
+      .reset(reset),
+      .clock(clock),
+
+      .select_i(ctl0_select_w && ctl_start_w),
       .accept_o(ctl0_accept_w),
-      .error_o (ctl0_error_w),
+      .error_o(ctl0_error_w),
+      .configured_o(configured_o),
+      .usb_conf_o(usb_conf_o[7:0]),
 
       .usb_addr_o (usb_addr_w),
       .req_type_i (ctl_rtype_w),
@@ -385,17 +389,10 @@ module usb_control (  /*AUTOARG*/
       .req_value_i(ctl_value_w),
 
       // AXI4-Stream for device descriptors
-      .m_tvalid_o  (ctl0_tvalid_w),
-      .m_tready_i  (ctl0_tready_w),
-      .m_tlast_o   (ctl0_tlast_w),
-      .m_tdata_o   (ctl0_tdata_w),
-      /*AUTOINST*/
-      // Outputs
-      .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o[7:0]),
-      // Inputs
-      .reset       (reset),
-      .clock       (clock)
+      .m_tvalid_o(ctl0_tvalid_w),
+      .m_tready_i(ctl0_tready_w),
+      .m_tlast_o (ctl0_tlast_w),
+      .m_tdata_o (ctl0_tdata_w)
   );
 
 

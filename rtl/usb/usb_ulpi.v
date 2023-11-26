@@ -165,7 +165,9 @@ module usb_ulpi #(
   end
 
   always @(posedge ulpi_clk) begin
-    if (!dir_q && !ulpi_dir) begin
+    if (!rst_n) begin
+      usb_reset_out <= 1'b0;
+    end else if (!dir_q && !ulpi_dir) begin
       if (state == STATE_RESET) begin
         usb_reset_out <= 1'b1;
       end else if (state == STATE_IDLE) begin

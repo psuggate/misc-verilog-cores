@@ -8,12 +8,19 @@
 `define PRODUCT_STRING "TART USB"
 `define PRODUCT_LENGTH 8
 
-module ulpi_axis (  /*AUTOARG*/
-    // Outputs
+module ulpi_axis (
+    areset_n,
+
+    ulpi_clock_i,
     ulpi_reset_o,
+    ulpi_dir_i,
+    ulpi_nxt_i,
     ulpi_stp_o,
+    ulpi_data_io,
+
     usb_clock_o,
     usb_reset_o,
+
     fifo_in_full_o,
     fifo_out_full_o,
     fifo_out_overflow_o,
@@ -25,21 +32,16 @@ module ulpi_axis (  /*AUTOARG*/
     usb_idle_o,
     usb_suspend_o,
     ulpi_rx_overflow_o,
-    s_axis_tready_o,
-    m_axis_tvalid_o,
-    m_axis_tlast_o,
-    m_axis_tdata_o,
-    // Inouts
-    ulpi_data_io,
-    // Inputs
-    areset_n,
-    ulpi_clock_i,
-    ulpi_dir_i,
-    ulpi_nxt_i,
+
     s_axis_tvalid_i,
+    s_axis_tready_o,
     s_axis_tlast_i,
     s_axis_tdata_i,
-    m_axis_tready_i
+
+    m_axis_tvalid_o,
+    m_axis_tready_i,
+    m_axis_tlast_o,
+    m_axis_tdata_o
 );
 
   parameter EP1_BULK_IN = 1;
@@ -117,13 +119,16 @@ module ulpi_axis (  /*AUTOARG*/
 
   // -- Signals and Assignments -- //
 
-  wire clock, reset;
   reg rst_nq, rst_nr;
+  reg reset;
+  wire clock;
+
 
   assign usb_clock_o = clock;
   assign usb_reset_o = reset;
 
   assign clock = ~ulpi_clock_i;
+
 
   always @(posedge clock or negedge areset_n) begin
     if (!areset_n) begin
@@ -132,6 +137,15 @@ module ulpi_axis (  /*AUTOARG*/
       {rst_nq, rst_nr} <= {rst_nr, areset_n};
     end
   end
+
+  always @(posedge clock) begin
+    if (!rst_nq) begin
+      reset <= 1'b1;
+    end else begin
+      reset <= 1'b0; // Sync reset for USB domain cores
+    end
+  end
+
 
   // ULPI signals
   wire ulpi_dir_i, ulpi_nxt_i, ulpi_stp_o;
@@ -145,6 +159,8 @@ module ulpi_axis (  /*AUTOARG*/
 
 
   // -- AXI4 stream to/from ULPI stream -- //
+
+  wire usb_in_reset_w;
 
   wire ctl_start_w;
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
@@ -172,7 +188,7 @@ module ulpi_axis (  /*AUTOARG*/
       .rst_n(rst_nq),
 
       .ulpi_clk(clock),
-      .usb_reset_o(reset),  // Sync reset for USB domain cores
+      .usb_reset_o(usb_in_reset_w),
 
       .ulpi_data_in(ulpi_data_iw),
       .ulpi_data_out(ulpi_data_ow),
@@ -186,12 +202,11 @@ module ulpi_axis (  /*AUTOARG*/
       .axis_rx_tlast_o (ulpi_rx_tlast_w),
       .axis_rx_tdata_o (ulpi_rx_tdata_w),
 
-      .axis_tx_tvalid_i  (ulpi_tx_tvalid_w),
-      .axis_tx_tready_o  (ulpi_tx_tready_w),
-      .axis_tx_tlast_i   (ulpi_tx_tlast_w),
-      .axis_tx_tdata_i   (ulpi_tx_tdata_w),
-      /*AUTOINST*/
-      // Outputs
+      .axis_tx_tvalid_i(ulpi_tx_tvalid_w),
+      .axis_tx_tready_o(ulpi_tx_tready_w),
+      .axis_tx_tlast_i (ulpi_tx_tlast_w),
+      .axis_tx_tdata_i (ulpi_tx_tdata_w),
+
       .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
       .usb_vbus_valid_o  (usb_vbus_valid_o),
       .usb_idle_o        (usb_idle_o),
@@ -248,12 +263,14 @@ module ulpi_axis (  /*AUTOARG*/
       .PRODUCT_STRING(PRODUCT_STRING),
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING)
-  ) U_USB_CONTROL0 (
+  ) U_USB_CTRL0 (
+      .clock       (clock),
+      .reset       (reset),
       .configured_o(configured_o),
-      .usb_addr_o(),
-      .usb_conf_o(),
-      .usb_sof_o(usb_sof_o),
-      .crc_err_o(crc_err_o),
+      .usb_addr_o  (),
+      .usb_conf_o  (),
+      .usb_sof_o   (usb_sof_o),
+      .crc_err_o   (crc_err_o),
 
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),
@@ -298,12 +315,7 @@ module ulpi_axis (  /*AUTOARG*/
       .ctl_tvalid_i(ctli_tvalid_w),
       .ctl_tready_o(ctli_tready_w),
       .ctl_tlast_i (ctli_tlast_w),
-      .ctl_tdata_i (ctli_tdata_w),
-      /*AUTOINST*/
-      // Outputs
-      .reset       (reset),
-      // Inputs
-      .clock       (clock)
+      .ctl_tdata_i (ctli_tdata_w)
   );
 
 

@@ -6,7 +6,7 @@ module usb_core_tb;
 
   initial begin
     $dumpfile("usb_core_tb.vcd");
-    $dumpvars;
+    $dumpvars(0, usb_core_tb);
 
     #8000 $finish;  // todo ...
   end
@@ -23,8 +23,8 @@ module usb_core_tb;
     reset  <= 1'b1;
     arst_n <= 1'b0;
 
-    #20 arst_n <= 1'b1;
-    #10 reset <= 1'b0;
+    #40 arst_n <= 1'b1;
+    #20 reset <= 1'b0;
   end
 
 
