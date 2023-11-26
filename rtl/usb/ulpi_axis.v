@@ -120,7 +120,7 @@ module ulpi_axis (
   // -- Signals and Assignments -- //
 
   reg rst_nq, rst_nr;
-  reg reset;
+  reg  reset;
   wire clock;
 
 
@@ -142,7 +142,7 @@ module ulpi_axis (
     if (!rst_nq) begin
       reset <= 1'b1;
     end else begin
-      reset <= 1'b0; // Sync reset for USB domain cores
+      reset <= 1'b0;  // Sync reset for USB domain cores
     end
   end
 
@@ -170,13 +170,9 @@ module ulpi_axis (
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
-  wire [7:0] ctl0_tdata_w, cfgi_tdata_w;
-
-  wire ctlo_tvalid_w, ctlo_tready_w, ctlo_tlast_w;
-  wire ctli_tvalid_w, ctli_tready_w, ctli_tlast_w;
-  wire [7:0] ctlo_tdata_w, ctli_tdata_w;
+  wire cto_tvalid_w, cto_tready_w, cto_tlast_w;
+  wire cti_tvalid_w, cti_tready_w, cti_tlast_w;
+  wire [7:0] cto_tdata_w, cti_tdata_w;
 
   wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
   wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
@@ -307,15 +303,15 @@ module ulpi_axis (
       .ctl_index_o (ctl_index_w),
       .ctl_length_o(ctl_length_w),
 
-      .ctl_tvalid_o(ctlo_tvalid_w),
-      .ctl_tready_i(ctlo_tready_w),
-      .ctl_tlast_o (ctlo_tlast_w),
-      .ctl_tdata_o (ctlo_tdata_w),
+      .ctl_tvalid_o(cto_tvalid_w),
+      .ctl_tready_i(cto_tready_w),
+      .ctl_tlast_o (cto_tlast_w),
+      .ctl_tdata_o (cto_tdata_w),
 
-      .ctl_tvalid_i(ctli_tvalid_w),
-      .ctl_tready_o(ctli_tready_w),
-      .ctl_tlast_i (ctli_tlast_w),
-      .ctl_tdata_i (ctli_tdata_w)
+      .ctl_tvalid_i(cti_tvalid_w),
+      .ctl_tready_o(cti_tready_w),
+      .ctl_tlast_i (cti_tlast_w),
+      .ctl_tdata_i (cti_tdata_w)
   );
 
 

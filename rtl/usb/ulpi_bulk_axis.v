@@ -153,10 +153,10 @@ module ulpi_bulk_axis (
       .sys_clk(aclk),
       .reset_n(aresetn),
 
-      .fifo_in_full_o(fifo_in_full_o),
+      .fifo_in_full_o (fifo_in_full_o),
       .fifo_out_full_o(fifo_out_full_o),
       .fifo_has_data_o(fifo_has_data_o),
-      .usb_sof_o    (usb_sof_o),
+      .usb_sof_o      (usb_sof_o),
 
       .ulpi_clk     (ulpi_clock_i),
       .ulpi_reset   (ulpi_reset_o),

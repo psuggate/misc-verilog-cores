@@ -3,6 +3,7 @@
 // Based on project 'https://github.com/ObKo/USBCore'
 // License: MIT
 //  Copyright (c) 2021 Dmitry Matyunin
+//  Copyright (c) 2023 Patrick Suggate
 //
 module usb_ulpi #(
     parameter integer HIGH_SPEED = 1
@@ -77,8 +78,6 @@ module usb_ulpi #(
   reg [7:0] buf_data;
 
   reg rx_err;
-  wire [3:0] tx_pid;
-  wire tx_eop;
 
   reg [2:0] chirp_kj_counter;
   reg hs_enabled = 1'b0;
@@ -479,4 +478,4 @@ module usb_ulpi #(
   end
 
 
-endmodule // usb_ulpi
+endmodule  // usb_ulpi

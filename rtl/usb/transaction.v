@@ -228,7 +228,7 @@ module transaction (
   assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
-  assign usb_tready_o = 1'b1; // todo: ...
+  assign usb_tready_o = 1'b1;  // todo: ...
 
 
   // -- Downstream Chip-Enables -- //
@@ -336,7 +336,7 @@ module transaction (
   reg blk_hsend_q;  // note: just a strobe (for the handshake FSM)
   reg [1:0] blk_htype_q;
 
-/*
+  /*
   always @(posedge clock) begin
     if (state == ST_BULK) begin
       case (xbulk)
@@ -412,6 +412,8 @@ module transaction (
   //  - conditional expr. does not exclude enough scenarios !?
   //  - "parse" the request-type for PIPE0 ??
   //  - figure out which 'xctrl[_]' bit to use for CE !?
+  //  - if there is more data after the 8th byte, then forward that out (via
+  //    an AXI4-Stream skid-register) !?
   always @(posedge clock) begin
     // if (reset || xctrl != CTL_SETUP_RX) begin
     if (state == ST_IDLE) begin

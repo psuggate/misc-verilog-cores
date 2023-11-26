@@ -1,24 +1,24 @@
 `timescale 1ns / 100ps
 module fake_ulpi_phy (  /*AUTOARG*/
-    // Outputs
-    ulpi_clock_o,
-    ulpi_dir_o,
-    ulpi_nxt_o,
-    usb_tready_o,
-    usb_tvalid_o,
-    usb_tlast_o,
-    usb_tdata_o,
-    // Inouts
-    ulpi_data_io,
-    // Inputs
     clock,
     reset,
+
+    ulpi_clock_o,
     ulpi_rst_ni,
+    ulpi_dir_o,
+    ulpi_nxt_o,
     ulpi_stp_i,
+    ulpi_data_io,
+
     usb_tvalid_i,
+    usb_tready_o,
     usb_tlast_i,
     usb_tdata_i,
-    usb_tready_i
+
+    usb_tvalid_o,
+    usb_tready_i,
+    usb_tlast_o,
+    usb_tdata_o
 );
 
   input clock;
@@ -49,7 +49,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   reg dir_q, nxt_q, rdy_q;
   reg [7:0] dat_q;
 
-  reg tvalid, tlast;
+  reg tvalid;
   reg [7:0] tdata;
 
   wire pid_vld_w, non_pid_w, tx_start_w, rx_start_w;
@@ -65,7 +65,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   assign usb_tready_o = rdy_q;
 
   assign usb_tvalid_o = tvalid;
-  assign usb_tlast_o = tlast;  // todo: ulpi_stp_i !?
+  assign usb_tlast_o = ulpi_stp_i;
   assign usb_tdata_o = tdata;
 
 
@@ -95,12 +95,11 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
       ST_RECV: begin
         if (!tvalid) begin
-          tdata  <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
+          tdata <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
         end else begin
-          tdata  <= ulpi_data_io;
+          tdata <= ulpi_data_io;
         end
         tvalid <= nxt_q && !ulpi_stp_i;
-        tlast  <= ulpi_stp_i;  // todo: should be combinational !?
       end
     endcase
   end
@@ -129,7 +128,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           dir_q <= tx_start_w;  //
           nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
           rdy_q <= tx_start_w;
-          dat_q <= 'bz;  // usb_tdata_i;
+          dat_q <= 'bz;
 
           if (rx_start_w) begin
             // ULPI data is coming in over the wire
@@ -156,7 +155,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
 
           dir_q <= 1'b0;
-          nxt_q <= !ulpi_stp_i;  // todo
+          nxt_q <= !ulpi_stp_i;
           rdy_q <= 1'b0;
           dat_q <= dat_q;
         end

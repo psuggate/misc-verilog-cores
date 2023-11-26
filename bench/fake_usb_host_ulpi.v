@@ -147,7 +147,6 @@ module fake_usb_host_ulpi (
         end
 
         ST_ENUM: begin
-          // send_token(TOK_SETUP);
           if (dev_configured_i) begin
             state <= ST_IDLE;
           end

@@ -197,8 +197,8 @@ module usb_control (
   encode_packet #(
       .TOKEN(0)
   ) U_ENCODER0 (
-      .reset      (reset),
-      .clock      (clock),
+      .reset(reset),
+      .clock(clock),
 
       .tx_tvalid_o(usb_tvalid_o),
       .tx_tready_i(usb_tready_i),
