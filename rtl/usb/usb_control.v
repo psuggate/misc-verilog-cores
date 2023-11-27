@@ -248,8 +248,8 @@ module usb_control (
       .tok_endp_o(tok_rx_endp_w),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
-      .out_recv_o (usb_rx_trecv_w),
-      .out_type_o (usb_rx_ttype_w),
+      .out_recv_o(usb_rx_trecv_w),
+      .out_type_o(usb_rx_ttype_w),
 
       .out_tvalid_o(usb_rx_tvalid_w),
       .out_tready_i(usb_rx_tready_w),
@@ -364,8 +364,8 @@ module usb_control (
 
       assign ctli_tvalid_w = ctl0_tvalid_w;
       assign ctl0_tready_w = ctli_tready_w;
-      assign ctli_tlast_w  = ctl0_tlast_w;
-      assign ctli_tdata_w  = ctl0_tdata_w;
+      assign ctli_tlast_w = ctl0_tlast_w;
+      assign ctli_tdata_w = ctl0_tdata_w;
 
     end
   endgenerate
@@ -388,9 +388,9 @@ module usb_control (
       .clock(clock),
 
       .select_i(ctl0_select_w),
-      .start_i(ctl_start_w),
+      .start_i (ctl_start_w),
       .accept_o(ctl0_accept_w),
-      .done_o(ctl0_done_w),
+      .done_o  (ctl0_done_w),
 
       .error_o(ctl0_error_w),
       .configured_o(configured_o),

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Nov 27 07:36:21 2023
+[*] Mon Nov 27 08:17:27 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Nov 27 07:34:42 2023"
-[dumpfile_size] 116215
+[dumpfile_mtime] "Mon Nov 27 08:16:57 2023"
+[dumpfile_size] 116266
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-18.095644 1405000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.095644 1335000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] usb_core_tb.
@@ -175,7 +175,7 @@ U_ULPI_USB0.ulpi_rx_tlast_w
 U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 @1401200
 -Rx
-@c00201
+@c00200
 -Control
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ep0_ce_q
@@ -217,9 +217,23 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 @1401200
 -Transfer
-@1401201
 -Control
 @1000200
 -Device
+@420
+usb_core_tb.recv_data1.count
+@28
+usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.ulpi_tvalid_i
+usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.ulpi_tready_o
+usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.ulpi_tlast_i
+@22
+usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.ulpi_tdata_i[7:0]
+@28
+usb_core_tb.U_FAKE_USB0.srecv
+usb_core_tb.U_FAKE_USB0.svalid
+usb_core_tb.U_FAKE_USB0.sready
+usb_core_tb.U_FAKE_USB0.slast
+@22
+usb_core_tb.U_FAKE_USB0.sdata[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

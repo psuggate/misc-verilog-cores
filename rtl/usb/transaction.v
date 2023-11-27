@@ -268,12 +268,12 @@ module transaction (
 
   // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
 
-  reg trn_zero_q; // zero-size data transfer ??
+  reg trn_zero_q;  // zero-size data transfer ??
   reg trn_send_q;
   reg [1:0] trn_type_q;
 
-  assign trn_send_o = trn_send_q;
-  assign trn_type_o = trn_type_q;
+  assign trn_send_o   = trn_send_q;
+  assign trn_type_o   = trn_type_q;
 
   // todo: use an AXI4-Stream MUX
   assign usb_tvalid_o = trn_zero_q ? 1'b0 : ctl_tvalid_i;
@@ -298,7 +298,7 @@ module transaction (
         end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
           trn_zero_q <= 1'b0;
           trn_send_q <= 1'b1;
-          trn_type_q <= DATA1; // todo: odd/even
+          trn_type_q <= DATA1;  // todo: odd/even
         end
       end else begin
         trn_zero_q <= trn_zero_q;
@@ -311,18 +311,18 @@ module transaction (
 
   // -- Datapath from the USB Packet Decoder -- //
 
-  reg recv1, recv0;
-  wire usb_recv_w;
+  reg  usb_recv_q;
+  wire usb_zero_w;
 
-  assign usb_recv_w = recv1;
+  assign usb_zero_w = usb_recv_q && !usb_tvalid_i && usb_tlast_i;
 
-  // Delay the 'RECV' signal to align with 'tvalid', so that we can tell if the
-  // packet contains no data.
+  // Delay the 'RECV' signal to align with 'tlast' (and '!tvalid'), as this
+  // condition indicates that the received packet contains no data.
   always @(posedge clock) begin
     if (reset) begin
-      {recv1, recv0} <= 2'b00;
-    end else begin // todo: check 'nxt' ??
-      {recv1, recv0} <= {recv0, usb_recv_i};
+      usb_recv_q <= 2'b0;
+    end else begin
+      usb_recv_q <= usb_recv_i;
     end
   end
 
@@ -534,7 +534,7 @@ module transaction (
       case (xctrl)
         CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
           ctl_hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i ||
-                         usb_recv_w && !usb_tvalid_i && usb_type_i == DATA1;
+                         usb_zero_w && usb_type_i == DATA1;
           ctl_htype_q <= HSK_ACK;
         end
         default: begin
@@ -637,7 +637,7 @@ module transaction (
         CTL_STATUS_RX: begin  // Rx Status from USB
           if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_STATUS_ACK;
-          end else if (usb_recv_w && !usb_tvalid_i && usb_type_i == DATA1) begin
+          end else if (usb_zero_w && usb_type_i == DATA1) begin
             // We have received a zero-data 'Status' packet
             xctrl <= CTL_STATUS_ACK;
           end
@@ -711,7 +711,7 @@ module transaction (
     case (xctrl)
       CTL_FAIL: dbg_xctrl = "FAIL";
       CTL_DONE: dbg_xctrl = "DONE";
-      CTL_SETUP_RX:  dbg_xctrl = "SETUP_RX";
+      CTL_SETUP_RX: dbg_xctrl = "SETUP_RX";
       CTL_SETUP_ACK: dbg_xctrl = "SETUP_ACK";
 
       CTL_DATA_TOK: dbg_xctrl = "DATA_TOK";
@@ -721,11 +721,11 @@ module transaction (
       CTL_DATI_ACK: dbg_xctrl = "DATI_ACK";
 
       CTL_STATUS_TOK: dbg_xctrl = "STATUS_TOK";
-      CTL_STATUS_RX: dbg_xctrl = "STATUS_RX";
-      CTL_STATUS_TX: dbg_xctrl = "STATUS_TX";
+      CTL_STATUS_RX:  dbg_xctrl = "STATUS_RX";
+      CTL_STATUS_TX:  dbg_xctrl = "STATUS_TX";
       CTL_STATUS_ACK: dbg_xctrl = "STATUS_ACK";
 
-      default:  dbg_xctrl = "UNKNOWN";
+      default: dbg_xctrl = "UNKNOWN";
     endcase
   end
 

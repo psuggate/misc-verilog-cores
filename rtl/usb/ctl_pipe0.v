@@ -221,14 +221,14 @@ module ctl_pipe0 #(
   localparam [2:0] GET_CONF = 3'b011;
   localparam [2:0] SET_CONF = 3'b100;
   localparam [2:0] GET_DSTR = 3'b101;
-  
+
   reg [2:0] req_type;
 
 
   // -- Signal Output Assignments -- //
 
   assign accept_o = gnt_q;
-  assign done_o = done_q; // Signals that an entire frame has been sent
+  assign done_o = done_q;  // Signals that an entire frame has been sent
   assign error_o = err_q;
 
   assign usb_addr_o = adr_q;
@@ -305,7 +305,7 @@ module ctl_pipe0 #(
       done_q <= 1'b1;
     end
   end
-      
+
   always @(posedge clock) begin
     if (m_tready_i && state[0]) begin
       mem_addr <= mem_next;

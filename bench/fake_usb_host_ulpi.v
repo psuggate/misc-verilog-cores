@@ -110,7 +110,8 @@ module fake_usb_host_ulpi (
   // Set the device-address of a USB device
   initial begin : g_enumerate
     enabled();
-    #80 while (state != ST_ENUM) begin
+    #80
+    while (state != ST_ENUM) begin
       @(posedge clock);
     end
 
@@ -129,7 +130,8 @@ module fake_usb_host_ulpi (
   // Enable a device configuration
   initial begin : g_configure
     enabled();
-    #80 while (state != ST_CONF) begin
+    #80
+    while (state != ST_CONF) begin
       @(posedge clock);
     end
 
@@ -147,10 +149,11 @@ module fake_usb_host_ulpi (
   initial begin : g_read_desc
     enabled();
 
-    wait(dev_configured_i);
+    wait (dev_configured_i);
     @(posedge clock);
 
-    #80 while (state != ST_DESC) begin
+    #80
+    while (state != ST_DESC) begin
       @(posedge clock);
     end
 
@@ -318,7 +321,7 @@ module fake_usb_host_ulpi (
         @(posedge clock);
       end
     end
-  endtask // enable
+  endtask  // enable
 
 
   // -- Encode and Send a USB Handshake Packet -- //
@@ -343,15 +346,12 @@ module fake_usb_host_ulpi (
   task handshake;
     input [1:0] typ;
     begin
-      sready  <= 1'b1;
       {hsend_q, htype_q} <= {1'b1, typ};
       @(posedge clock);
 
       while (hsend_q || !hdone_w) begin
         @(posedge clock);
-
         if (hdone_w) hsend_q <= 1'b0;
-        if (svalid && slast) sready <= 1'b0;
       end
     end
   endtask  // handshake
@@ -366,7 +366,6 @@ module fake_usb_host_ulpi (
     begin
       reg [7:0] pid;
 
-      sready <= 1'b1;
       pid <= {~{typ, 2'b01}, {typ, 2'b01}};
       {ksend_q, ktype_q, kdata_q} <= {1'b1, typ, {crc5({epn, adr}), epn, adr}};
       @(posedge clock);
@@ -375,9 +374,7 @@ module fake_usb_host_ulpi (
 
       while (ksend_q || !kdone_w) begin
         @(posedge clock);
-
         if (kdone_w) ksend_q <= 1'b0;
-        if (svalid && slast) sready <= 1'b0;
       end
     end
   endtask  // send_token
@@ -392,12 +389,12 @@ module fake_usb_host_ulpi (
       send_data0(data);
       recv_ack();
     end
-  endtask // send_setup
+  endtask  // send_setup
 
 
   // -- USB Control Transfers -- //
 
-  reg [8:0] resp [0:1023];
+  reg [8:0] resp[0:1023];
 
   task recv_status;
     input [6:0] addr;
@@ -409,7 +406,7 @@ module fake_usb_host_ulpi (
       $display("%10t: STATUS received", $time);
       send_ack();
     end
-  endtask // recv_status
+  endtask  // recv_status
 
   // Enumerate a USB device's address
   task send_address;
@@ -445,15 +442,15 @@ module fake_usb_host_ulpi (
       // Note: Control Transfer IN packet-size is 64B (High-Speed)
       send_setup(addr, endp, {16'h40, 16'h0, value, rargs, rtype});
 
-      send_token(addr, endp, TOK_IN); // Data Stage
+      send_token(addr, endp, TOK_IN);  // Data Stage
       recv_data1();
       send_ack();
 
-      send_token(addr, endp, TOK_OUT); // Status Stage
+      send_token(addr, endp, TOK_OUT);  // Status Stage
       send_data(0, 0, 1);
       recv_ack();
     end
-  endtask // recv_control
+  endtask  // recv_control
 
 
   // -- USB Data Transfers -- //
@@ -490,7 +487,7 @@ module fake_usb_host_ulpi (
     begin
       send_data(data, 3'd7, 0);
     end
-  endtask // send_data0
+  endtask  // send_data0
 
   // Encode and send a USB 'DATA1' packet (8 bytes)
   task send_data1;
@@ -498,31 +495,30 @@ module fake_usb_host_ulpi (
     begin
       send_data(64'h0, 3'd7, 1);
     end
-  endtask // send_data1
+  endtask  // send_data1
 
   // Receive and decode a USB 'DATA1' packet
   task recv_data1;
     begin
       integer count;
-
       count  <= 0;
       sready <= 1'b1;
-      @(posedge clock);
       while (!srecv) @(posedge clock);
+      @(posedge clock);
 
       if (stype != DATA1) begin
         $error("%10t: Not a DATA1 packet: 0x%02x", $time, stype);
         #100 $fatal;
       end
 
-      while (svalid && !slast) begin
+      while (!slast) begin
         @(posedge clock);
         if (svalid) begin
-          count <= count + 1;
-          resp[count] <= sdata;
+          resp[count] <= {slast, sdata};
+          count = count + 1;
         end
-        sready <= !(svalid && slast);
       end
+      sready = 1'b0;
       $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
     end
   endtask  // recv_data1
@@ -542,7 +538,7 @@ module fake_usb_host_ulpi (
       ST_CONF: dbg_state = "CONF";
       ST_DESC: dbg_state = "DESC";
 
-      default:  dbg_state = "UNKNOWN";
+      default: dbg_state = "UNKNOWN";
     endcase
   end
 
