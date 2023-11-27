@@ -77,7 +77,7 @@ module usb_core_tb;
     enumerate <= 1'b0;
     @(posedge clock);
 
-    #40 @(posedge clock);
+    #4000 @(posedge clock);
     $finish;
   end
 
@@ -106,7 +106,13 @@ module usb_core_tb;
   //
   // Core Under New Tests
   ///
-  ulpi_axis U_ULPI_USB0 (
+  ulpi_axis
+#(
+  .EP1_CONTROL(0),
+  .ENDPOINT1(0),
+  .EP2_CONTROL(0),
+  .ENDPOINT2(0)
+) U_ULPI_USB0 (
       .areset_n(arst_n),
       .ulpi_clock_i(usb_clock),
       .ulpi_reset_o(usb_rst_n),

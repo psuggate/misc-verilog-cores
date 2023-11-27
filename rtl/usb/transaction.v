@@ -32,6 +32,11 @@ module transaction (
     usb_tdata_i,
 
     // To USB packet encoder
+    trn_send_o,
+    trn_type_o,
+    trn_busy_i,
+    trn_done_i,
+
     usb_tvalid_o,
     usb_tready_i,
     usb_tlast_o,
@@ -124,6 +129,11 @@ module transaction (
   input [7:0] usb_tdata_i;
 
   // USB control & bulk data transmitted to the host
+  output trn_send_o;
+  output [1:0] trn_type_o;
+  input trn_busy_i;
+  input trn_done_i;
+
   output usb_tvalid_o;
   input usb_tready_i;
   output usb_tlast_o;
@@ -180,6 +190,9 @@ module transaction (
   localparam [1:0] HSK_ACK = 2'b00;
   localparam [1:0] HSK_NAK = 2'b10;
 
+  localparam [1:0] DATA0 = 2'b00;
+  localparam [1:0] DATA1 = 2'b10;
+
   localparam BLK_IDLE = 8'h00;
   localparam BLK_SETUP_DAT = 8'h02;
 
@@ -230,6 +243,8 @@ module transaction (
 
   assign usb_tready_o = 1'b1;  // todo: ...
 
+  assign ctl_tready_o = 1'b1;
+
 
   // -- Downstream Chip-Enables -- //
 
@@ -240,6 +255,46 @@ module transaction (
       ep0_ce_q <= tok_type_i == 2'b11 && tok_endp_i == 4'h0;
       ep1_ce_q <= ENDPOINT1 != 0 && tok_endp_i == ENDPOINT1[3:0];
       ep2_ce_q <= ENDPOINT2 != 0 && tok_endp_i == ENDPOINT2[3:0];
+    end else if (hsk_recv_i || hsk_sent_i) begin
+      // todo: is this the correct condition to trigger off of?
+      {ep2_ce_q, ep1_ce_q, ep0_ce_q} <= 3'b000;
+    end
+  end
+
+
+  // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
+
+  reg trn_zero_q; // zero-size data transfer ??
+  reg trn_send_q;
+  reg [1:0] trn_type_q;
+
+  assign trn_send_o = trn_send_q;
+  assign trn_type_o = trn_type_q;
+
+  // todo: use an AXI4-Stream MUX
+  assign usb_tvalid_o = trn_zero_q ? 1'b0 : ctl_tvalid_i;
+  assign usb_tlast_o  = trn_zero_q ? 1'b1 : ctl_tlast_i;
+  assign usb_tdata_o  = ctl_tdata_i;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      trn_zero_q <= 1'b0;
+      trn_send_q <= 1'b0;
+      trn_type_q <= 2'bxx;
+    end else begin
+      if (trn_busy_i) begin
+        trn_zero_q <= 1'b0;
+        trn_send_q <= 1'b0;
+        trn_type_q <= 2'bxx;
+      end else if (!trn_busy_i && state == ST_CTRL && xctrl == CTL_STATUS_TX && ctl_length_o == 0) begin
+        trn_zero_q <= 1'b1;
+        trn_send_q <= 1'b1;
+        trn_type_q <= DATA1;
+      end else begin
+        trn_zero_q <= trn_zero_q;
+        trn_send_q <= trn_send_q;
+        trn_type_q <= trn_type_q;
+      end
     end
   end
 
@@ -560,6 +615,8 @@ module transaction (
         CTL_STATUS_TX: begin  // Tx Status to USB
           if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
             xctrl <= CTL_STATUS_ACK;
+          end else if (trn_zero_q && trn_send_q) begin
+            xctrl <= CTL_STATUS_ACK;
           end
         end
 
@@ -611,6 +668,38 @@ module transaction (
       end
     end
   end
+
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [119:0] dbg_xctrl;
+
+  always @* begin
+    case (xctrl)
+      CTL_FAIL: dbg_xctrl = "FAIL";
+      CTL_DONE: dbg_xctrl = "DONE";
+      CTL_SETUP_RX:  dbg_xctrl = "SETUP_RX";
+      CTL_SETUP_ACK: dbg_xctrl = "SETUP_ACK";
+
+      CTL_DATA_TOK: dbg_xctrl = "DATA_TOK";
+      CTL_DATO_RX:  dbg_xctrl = "DATO_RX";
+      CTL_DATO_ACK: dbg_xctrl = "DATO_ACK";
+      CTL_DATI_TX:  dbg_xctrl = "DATI_TX";
+      CTL_DATI_ACK: dbg_xctrl = "DATI_ACK";
+
+      CTL_STATUS_TOK: dbg_xctrl = "STATUS_TOK";
+      CTL_STATUS_RX: dbg_xctrl = "STATUS_RX";
+      CTL_STATUS_TX: dbg_xctrl = "STATUS_TX";
+      CTL_STATUS_ACK: dbg_xctrl = "STATUS_ACK";
+
+      default:  dbg_xctrl = "UNKNOWN";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // transaction

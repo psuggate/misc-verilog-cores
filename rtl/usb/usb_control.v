@@ -143,12 +143,11 @@ module usb_control (
   wire rx_hrecv_w, tx_hsend_w, tx_hsent_w;
   wire [1:0] rx_htype_w, tx_htype_w;
 
-  wire in_tsend_w, in_tdone_w, in_tvalid_w, in_tready_w, in_tlast_w;
-  wire [1:0] in_ttype_w;
-  wire [7:0] in_tdata_w;
+  wire enc_busy_w, trn_send_w, trn_done_w;
+  wire [1:0] trn_type_w;
 
-  wire tok_rx_recv_w, hsk_rx_recv_w;
-  wire [1:0] tok_rx_type_w, hsk_rx_type_w;
+  wire tok_rx_recv_w;
+  wire [1:0] tok_rx_type_w;
   wire [6:0] tok_rx_addr_w;
   wire [3:0] tok_rx_endp_w;
 
@@ -200,6 +199,8 @@ module usb_control (
       .reset(reset),
       .clock(clock),
 
+      .enc_busy_o(enc_busy_w),
+
       .tx_tvalid_o(usb_tvalid_o),
       .tx_tready_i(usb_tready_i),
       .tx_tlast_o (usb_tlast_o),
@@ -214,14 +215,14 @@ module usb_control (
       .tok_type_i(2'bx),
       .tok_data_i(16'bx),
 
-      .trn_tsend_i(in_tsend_w),
-      .trn_ttype_i(in_ttype_w),
-      .trn_tdone_o(in_tdone_w),
+      .trn_tsend_i(trn_send_w),
+      .trn_ttype_i(trn_type_w),
+      .trn_tdone_o(trn_done_w),
 
-      .trn_tvalid_i(in_tvalid_w),
-      .trn_tready_o(in_tready_w),
-      .trn_tlast_i (in_tlast_w),
-      .trn_tdata_i (in_tdata_w)
+      .trn_tvalid_i(usb_tx_tvalid_w),
+      .trn_tready_o(usb_tx_tready_w),
+      .trn_tlast_i (usb_tx_tlast_w),
+      .trn_tdata_i (usb_tx_tdata_w)
   );
 
   decode_packet U_DECODER0 (
@@ -237,8 +238,8 @@ module usb_control (
       .crc_err_o(crc_err_o),
 
       // Handshake packet information
-      .hsk_recv_o(hsk_rx_recv_w),
-      .hsk_type_o(hsk_rx_type_w),
+      .hsk_recv_o(rx_hrecv_w),
+      .hsk_type_o(rx_htype_w),
 
       // Indicates that a (OUT/IN/SETUP) token was received
       .tok_recv_o(tok_rx_recv_w),  // Start strobe
@@ -247,10 +248,12 @@ module usb_control (
       .tok_endp_o(tok_rx_endp_w),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
+      .out_recv_o (usb_rx_trecv_w),
+      .out_type_o (usb_rx_ttype_w),
+
       .out_tvalid_o(usb_rx_tvalid_w),
       .out_tready_i(usb_rx_tready_w),
       .out_tlast_o (usb_rx_tlast_w),
-      .out_ttype_o (usb_rx_ttype_w),
       .out_tdata_o (usb_rx_tdata_w)
   );
 
@@ -299,6 +302,11 @@ module usb_control (
       .usb_tdata_i (usb_rx_tdata_w),
 
       // USB control & bulk data transmitted to host (via encoder)
+      .trn_send_o(trn_send_w),
+      .trn_type_o(trn_type_w),
+      .trn_busy_i(enc_busy_w),
+      .trn_done_i(trn_done_w),
+
       .usb_tvalid_o(usb_tx_tvalid_w),
       .usb_tready_i(usb_tx_tready_w),
       .usb_tlast_o (usb_tx_tlast_w),
@@ -377,7 +385,8 @@ module usb_control (
       .reset(reset),
       .clock(clock),
 
-      .select_i(ctl0_select_w && ctl_start_w),
+      .select_i(ctl0_select_w),
+      .start_i(ctl_start_w),
       .accept_o(ctl0_accept_w),
       .error_o(ctl0_error_w),
       .configured_o(configured_o),

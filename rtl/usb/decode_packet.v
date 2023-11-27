@@ -23,10 +23,12 @@ module decode_packet (
     output [3:0] tok_endp_o,
 
     // Data packet (OUT, DATA0/1/2 MDATA) received
+    output out_recv_o,
+    output [1:0] out_type_o,  // OUT DATA0/1/2 MDATA
+
     output out_tvalid_o,
     input out_tready_i,  // todo
     output out_tlast_o,
-    output [1:0] out_ttype_o,  // OUT DATA0/1/2 MDATA
     output [7:0] out_tdata_o,
 
     output hsk_recv_o,
@@ -55,7 +57,7 @@ module decode_packet (
   reg [15:0] crc16_q;
 
   reg sof_flag_q, crc_err_flag;
-  reg tok_recv_q, hsk_recv_q;
+  reg tok_recv_q, hsk_recv_q, out_recv_q;
   reg [1:0] trn_type_q;
 
   reg rx_vld0, rx_vld1, tvalid_q;
@@ -81,9 +83,11 @@ module decode_packet (
   assign tok_endp_o = token_data[10:7];
 
   // Rx data-path (from USB host) to either USB config OR bulk EP cores
+  assign out_recv_o = out_recv_q;
+  assign out_type_o = trn_type_q;  // DATA0/1/2 MDATA
+
   assign out_tvalid_o = tvalid_q;
   assign out_tlast_o = ulpi_tlast_i;
-  assign out_ttype_o = trn_type_q;  // DATA0/1/2 MDATA
   assign out_tdata_o = rx_buf1;
 
 
@@ -230,8 +234,10 @@ module decode_packet (
   always @(posedge clock) begin
     if (ulpi_tvalid_i && state == ST_IDLE && rx_pid_pw == rx_pid_nw) begin
       trn_type_q <= rx_pid_pw[3:2];
+      out_recv_q <= rx_pid_pw[1:0] == 2'b11;
       hsk_recv_q <= rx_pid_pw[1:0] == 2'b10;
     end else begin
+      out_recv_q <= 1'b0;
       hsk_recv_q <= 1'b0;
     end
   end

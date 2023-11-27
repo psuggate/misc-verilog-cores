@@ -45,6 +45,7 @@ module ctl_pipe0 #(
     input clock,
 
     input  select_i,
+    input  start_i,
     output accept_o,
     output error_o,
 
@@ -213,6 +214,13 @@ module ctl_pipe0 #(
    *	100 - Set configuration
    *	101 - Get string descriptor
    */
+  localparam [2:0] REQ_NONE = 3'b000;
+  localparam [2:0] GET_DESC = 3'b001;
+  localparam [2:0] SET_ADDR = 3'b010;
+  localparam [2:0] GET_CONF = 3'b011;
+  localparam [2:0] SET_CONF = 3'b100;
+  localparam [2:0] GET_DSTR = 3'b101;
+  
   reg [2:0] req_type;
 
 
@@ -241,17 +249,17 @@ module ctl_pipe0 #(
   // todo: can I improve this !?
   always @(*) begin
     if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h01) begin
-      req_type = 3'b001;
+      req_type = GET_DESC;
     end else if (handle_req && req_args_i == 8'h05) begin
-      req_type = 3'b010;
+      req_type = SET_ADDR;
     end else if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h02) begin
-      req_type = 3'b011;
+      req_type = GET_CONF;
     end else if (handle_req && req_args_i == 8'h09) begin
-      req_type = 3'b100;
+      req_type = SET_CONF;
     end else if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h03) begin
-      req_type = 3'b101;
+      req_type = GET_DSTR;
     end else begin
-      req_type = 3'b000;
+      req_type = REQ_NONE;
     end
   end
 
@@ -279,9 +287,9 @@ module ctl_pipe0 #(
   assign mem_next = mem_addr + 1;
 
   always @(posedge clock) begin
-    if (select_i) begin
-      gnt_q <= handle_req && req_type != 3'b000;
-      err_q <= !handle_req || req_type == 3'b000;
+    if (select_i && start_i) begin
+      gnt_q <= handle_req && req_type != REQ_NONE;
+      err_q <= !handle_req || req_type == REQ_NONE;
     end else if (!select_i) begin
       gnt_q <= 1'b0;
       err_q <= 1'b0;
@@ -291,10 +299,10 @@ module ctl_pipe0 #(
   always @(posedge clock) begin
     if (m_tready_i && state[0]) begin
       mem_addr <= mem_next;
-    end else if (select_i && !state[0]) begin
-      if (req_type == 3'b011) begin
+    end else if (select_i && start_i && !state[0]) begin
+      if (req_type == GET_CONF) begin
         mem_addr <= DESC_CONFIG_START;
-      end else if (DESC_HAS_STRINGS && req_type == 3'b101) begin
+      end else if (DESC_HAS_STRINGS && req_type == GET_DSTR) begin
         if (req_value_i[7:0] == 8'h00) begin
           mem_addr <= DESC_START0;
         end else if (req_value_i[7:0] == 8'h01) begin
@@ -318,39 +326,25 @@ module ctl_pipe0 #(
     end else begin
       case (state)
         default: begin
-          if (select_i) begin
+          if (select_i && start_i) begin
 
             // todo: only 'req_type[0]' needs to be asserted !?
-            if (req_type == 3'b001 || req_type == 3'b011 || req_type == 3'b101) begin
+            if (req_type == GET_DESC || req_type == GET_CONF || req_type == GET_DSTR) begin
               state <= STATE_GET_DESC;
-            end else if (req_type == 3'b010) begin
+            end else if (req_type == SET_ADDR) begin
+              adr_q <= req_value_i[6:0];
               state <= STATE_SET_ADDR;
-            end else if (req_type == 3'b100) begin
+            end else if (req_type == SET_CONF) begin
+              set_q <= 1'b1;
               cfg_q <= req_value_i[7:0];
               state <= STATE_SET_CONF;
             end
           end
         end
 
-        STATE_SET_ADDR: begin
-          if (!select_i) begin
-            state <= STATE_IDLE;
-            adr_q <= req_value_i[6:0];
-          end
-        end
-
-        STATE_GET_DESC: begin
-          if (!select_i) begin
-            state <= STATE_IDLE;
-          end
-        end
-
-        STATE_SET_CONF: begin
-          if (!select_i) begin
-            set_q <= 1'b1;
-            state <= STATE_IDLE;
-          end
-        end
+        STATE_GET_DESC: state <= select_i ? state : STATE_IDLE;
+        STATE_SET_ADDR: state <= select_i ? state : STATE_IDLE;
+        STATE_SET_CONF: state <= select_i ? state : STATE_IDLE;
       endcase
     end
   end

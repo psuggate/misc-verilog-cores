@@ -3,6 +3,8 @@ module encode_packet (
     reset,
     clock,
 
+    enc_busy_o,
+
     tx_tvalid_o,
     tx_tready_i,
     tx_tlast_o,
@@ -31,6 +33,8 @@ module encode_packet (
 
   input reset;
   input clock;
+
+  output enc_busy_o;
 
   output tx_tvalid_o;
   input tx_tready_i;
@@ -108,6 +112,8 @@ module encode_packet (
   reg hend_q, kend_q;
 
 
+  assign enc_busy_o   = tvalid;
+
   assign hsk_done_o   = hend_q;
   assign tok_done_o   = TOKEN ? kend_q : 1'b0;
 
@@ -162,7 +168,12 @@ module encode_packet (
   end
 
   always @(posedge clock) begin
-    done_q <= `ST_DATA & tvalid & tlast & tx_tready_i;
+    if (`ST_DATA && tvalid && tlast && tx_tready_i) begin
+      done_q <= 1'b1;
+    end else begin // if (!trn_tsend_i) begin
+      done_q <= 1'b0;
+    end
+    // done_q <= `ST_DATA & tvalid & tlast & tx_tready_i;
   end
 
 
@@ -205,6 +216,7 @@ module encode_packet (
       case (state)
         default: begin  // ST_IDLE
           if (hsk_send_i) begin
+            // Perform a single-byte Handshake Transfer
             {xdat_q, xtok_q, xhsk_q} <= ST_XHSK;
             {zero_q, xcrc_q} <= 2'b00;
 
@@ -212,6 +224,8 @@ module encode_packet (
             tlast <= 1'b1;
             tdata <= {~{hsk_type_i, 2'b10}, hsk_type_i, 2'b10};
           end else if (TOKEN && tok_send_i) begin
+            // Send a USB Token to a Device
+            // Note: Host- & Hub- only
             {xdat_q, xtok_q, xhsk_q} <= ST_XTOK;
             {zero_q, xcrc_q} <= 2'b10;
 
@@ -219,8 +233,9 @@ module encode_packet (
             tlast <= 1'b0;
             tdata <= {~{tok_type_i, 2'b01}, {tok_type_i, 2'b01}};
           end else if (trn_tsend_i) begin
+            // Send a DATA0/1/2 MDATA packet
             {xdat_q, xtok_q, xhsk_q} <= ST_DATA;
-            {zero_q, xcrc_q} <= {trn_tlast_i, 1'b0};  // PID-only packet ??
+            {zero_q, xcrc_q} <= {trn_tlast_i && !trn_tvalid_i, 1'b0};  // PID-only packet ??
 
             tvalid <= 1'b1;
             tlast <= 1'b0;
