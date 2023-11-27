@@ -49,6 +49,7 @@ module transaction (
 
     // Control transfers
     ctl_start_o,
+    ctl_done_i,
     ctl_rtype_o,
     ctl_rargs_o,
     ctl_value_o,
@@ -147,6 +148,7 @@ module transaction (
 
   // USB Control Transfer parameters and data-streams
   output ctl_start_o;
+  input ctl_done_i;
   output [7:0] ctl_rtype_o;  // todo:
   output [7:0] ctl_rargs_o;  // todo:
   output [15:0] ctl_value_o;
@@ -243,7 +245,7 @@ module transaction (
 
   assign usb_tready_o = 1'b1;  // todo: ...
 
-  assign ctl_tready_o = 1'b1;
+  assign ctl_tready_o = usb_tready_i;
 
 
   // -- Downstream Chip-Enables -- //
@@ -252,11 +254,13 @@ module transaction (
     if (reset) begin
       {ep2_ce_q, ep1_ce_q, ep0_ce_q} <= 3'b000;
     end else if (tok_recv_i && tok_addr_i == usb_addr_i) begin
-      ep0_ce_q <= tok_type_i == 2'b11 && tok_endp_i == 4'h0;
+      ep0_ce_q <= tok_endp_i == 4'h0;
       ep1_ce_q <= ENDPOINT1 != 0 && tok_endp_i == ENDPOINT1[3:0];
       ep2_ce_q <= ENDPOINT2 != 0 && tok_endp_i == ENDPOINT2[3:0];
-    end else if (hsk_recv_i || hsk_sent_i) begin
+    end else if (xctrl == CTL_SETUP_ACK && hsk_sent_i && ctl_length_o == 0) begin
       // todo: is this the correct condition to trigger off of?
+      {ep2_ce_q, ep1_ce_q, ep0_ce_q} <= 3'b000;
+    end else if (state == ST_CTRL && ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
       {ep2_ce_q, ep1_ce_q, ep0_ce_q} <= 3'b000;
     end
   end
@@ -286,15 +290,39 @@ module transaction (
         trn_zero_q <= 1'b0;
         trn_send_q <= 1'b0;
         trn_type_q <= 2'bxx;
-      end else if (!trn_busy_i && state == ST_CTRL && xctrl == CTL_STATUS_TX && ctl_length_o == 0) begin
-        trn_zero_q <= 1'b1;
-        trn_send_q <= 1'b1;
-        trn_type_q <= DATA1;
+      end else if (state == ST_CTRL) begin
+        if (xctrl == CTL_STATUS_TX && ctl_length_o == 0) begin
+          trn_zero_q <= 1'b1;
+          trn_send_q <= 1'b1;
+          trn_type_q <= DATA1;
+        end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
+          trn_zero_q <= 1'b0;
+          trn_send_q <= 1'b1;
+          trn_type_q <= DATA1; // todo: odd/even
+        end
       end else begin
         trn_zero_q <= trn_zero_q;
         trn_send_q <= trn_send_q;
         trn_type_q <= trn_type_q;
       end
+    end
+  end
+
+
+  // -- Datapath from the USB Packet Decoder -- //
+
+  reg recv1, recv0;
+  wire usb_recv_w;
+
+  assign usb_recv_w = recv1;
+
+  // Delay the 'RECV' signal to align with 'tvalid', so that we can tell if the
+  // packet contains no data.
+  always @(posedge clock) begin
+    if (reset) begin
+      {recv1, recv0} <= 2'b00;
+    end else begin // todo: check 'nxt' ??
+      {recv1, recv0} <= {recv0, usb_recv_i};
     end
   end
 
@@ -505,7 +533,8 @@ module transaction (
     end else begin
       case (xctrl)
         CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
-          ctl_hsend_q <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
+          ctl_hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i ||
+                         usb_recv_w && !usb_tvalid_i && usb_type_i == DATA1;
           ctl_htype_q <= HSK_ACK;
         end
         default: begin
@@ -557,7 +586,7 @@ module transaction (
           end
         end
 
-        CTL_DATO_RX: begin  // Rx OUT from USB
+        CTL_DATO_RX: begin  // Rx OUT from USB Host
           if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_DATO_ACK;
           end
@@ -573,22 +602,21 @@ module transaction (
           end
         end
 
-        CTL_DATI_TX: begin  // Tx IN to USB
-          // todo: transition to 'CTL_STATUS' when 'length' bytes have been
-          //   received
-          // if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
-          if (ctl_tvalid_o && ctl_tready_i && ctl_tlast_o) begin
+        CTL_DATI_TX: begin  // Tx IN to USB Host
+          if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
             xctrl <= CTL_DATI_ACK;
           end
         end
 
         CTL_DATI_ACK: begin
-          if (we_are_like_totally_done_with_data_w) begin
-            xctrl <= CTL_STATUS_TOK;
-            odd_q <= 1'b1;
-          end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
-            xctrl <= CTL_DATA_TOK;
-            odd_q <= ~odd_q;
+          if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
+            if (ctl_done_i) begin
+              xctrl <= CTL_STATUS_TOK;
+              odd_q <= 1'b1;
+            end else begin
+              xctrl <= CTL_DATA_TOK;
+              odd_q <= ~odd_q;
+            end
           end
         end
 
@@ -608,6 +636,9 @@ module transaction (
 
         CTL_STATUS_RX: begin  // Rx Status from USB
           if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            xctrl <= CTL_STATUS_ACK;
+          end else if (usb_recv_w && !usb_tvalid_i && usb_type_i == DATA1) begin
+            // We have received a zero-data 'Status' packet
             xctrl <= CTL_STATUS_ACK;
           end
         end
@@ -668,7 +699,6 @@ module transaction (
       end
     end
   end
-
 
 
   // -- Simulation Only -- //

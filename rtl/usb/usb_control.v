@@ -151,7 +151,7 @@ module usb_control (
   wire [6:0] tok_rx_addr_w;
   wire [3:0] tok_rx_endp_w;
 
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
+  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w, ctl0_done_w;
   wire [7:0] ctl0_tdata_w;
 
   wire cfgi_tvalid_w, cfgi_tready_w, cfgi_tlast_w;
@@ -176,7 +176,7 @@ module usb_control (
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
-  wire ctl_start_w;
+  wire ctl_start_w, ctl_done_w;
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
 
@@ -335,6 +335,7 @@ module usb_control (
 
       // To/from USB control transfer endpoints
       .ctl_start_o (ctl_start_w),
+      .ctl_done_i  (ctl_done_w),
       .ctl_rtype_o (ctl_rtype_w),
       .ctl_rargs_o (ctl_rargs_w),
       .ctl_value_o (ctl_value_w),
@@ -352,13 +353,14 @@ module usb_control (
       .ctl_tdata_i (ctli_tdata_w)
   );
 
-
   generate
     if (EP1_CONTROL || EP2_CONTROL) begin : g_yes_mux_control
 
       // todo: 2:1 AXI4-Stream MUX (from Alex Forencich)
 
     end else begin : g_no_mux_control
+
+      assign ctl_done_w = ctl0_done_w;
 
       assign ctli_tvalid_w = ctl0_tvalid_w;
       assign ctl0_tready_w = ctli_tready_w;
@@ -388,6 +390,8 @@ module usb_control (
       .select_i(ctl0_select_w),
       .start_i(ctl_start_w),
       .accept_o(ctl0_accept_w),
+      .done_o(ctl0_done_w),
+
       .error_o(ctl0_error_w),
       .configured_o(configured_o),
       .usb_conf_o(usb_conf_o[7:0]),

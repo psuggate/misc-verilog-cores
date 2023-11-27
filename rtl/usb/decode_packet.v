@@ -230,7 +230,6 @@ module decode_packet (
 
   // -- Transaction Type Register -- //
 
-  // todo: combine into just one register !?
   always @(posedge clock) begin
     if (ulpi_tvalid_i && state == ST_IDLE && rx_pid_pw == rx_pid_nw) begin
       trn_type_q <= rx_pid_pw[3:2];

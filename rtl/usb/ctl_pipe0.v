@@ -47,6 +47,7 @@ module ctl_pipe0 #(
     input  select_i,
     input  start_i,
     output accept_o,
+    output done_o,
     output error_o,
 
     output configured_o,
@@ -197,7 +198,7 @@ module ctl_pipe0 #(
   localparam ASB = $clog2(DESC_SIZE) - 1;
 
   reg [2:0] state;
-  reg gnt_q, err_q;
+  reg gnt_q, err_q, done_q;
   reg [ASB:0] mem_addr;
   wire [ASB:0] mem_next;
 
@@ -227,6 +228,7 @@ module ctl_pipe0 #(
   // -- Signal Output Assignments -- //
 
   assign accept_o = gnt_q;
+  assign done_o = done_q; // Signals that an entire frame has been sent
   assign error_o = err_q;
 
   assign usb_addr_o = adr_q;
@@ -297,6 +299,14 @@ module ctl_pipe0 #(
   end
 
   always @(posedge clock) begin
+    if (reset || start_i) begin
+      done_q <= 1'b0;
+    end else if (select_i && m_tvalid_o && m_tready_i && m_tlast_o && state == STATE_GET_DESC) begin
+      done_q <= 1'b1;
+    end
+  end
+      
+  always @(posedge clock) begin
     if (m_tready_i && state[0]) begin
       mem_addr <= mem_next;
     end else if (select_i && start_i && !state[0]) begin
@@ -342,7 +352,8 @@ module ctl_pipe0 #(
           end
         end
 
-        STATE_GET_DESC: state <= select_i ? state : STATE_IDLE;
+        STATE_GET_DESC: state <= m_tvalid_o && !m_tlast_o ? state : STATE_IDLE;
+        // STATE_GET_DESC: state <= select_i ? state : STATE_IDLE;
         STATE_SET_ADDR: state <= select_i ? state : STATE_IDLE;
         STATE_SET_CONF: state <= select_i ? state : STATE_IDLE;
       endcase

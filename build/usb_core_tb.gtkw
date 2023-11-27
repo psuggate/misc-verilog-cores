@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Nov 27 05:25:00 2023
+[*] Mon Nov 27 07:36:21 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Nov 27 05:22:54 2023"
-[dumpfile_size] 91019
+[dumpfile_mtime] "Mon Nov 27 07:34:42 2023"
+[dumpfile_size] 116215
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 839400
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.095644 1305000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.095644 1405000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] usb_core_tb.
@@ -22,17 +22,20 @@
 usb_core_tb.clock
 usb_core_tb.arst_n
 usb_core_tb.reset
-usb_core_tb.device_usb_idle_w
-[color] 1
-usb_core_tb.U_FAKE_USB0.crc_err_o
+[color] 3
+usb_core_tb.U_FAKE_USB0.enable
 [color] 3
 usb_core_tb.U_FAKE_USB0.dev_configured_i
+[color] 1
+usb_core_tb.U_FAKE_USB0.crc_err_o
+@800200
+-Host
+@820
+[color] 7
+usb_core_tb.U_FAKE_USB0.dbg_state[119:0]
 @22
 [color] 2
 U_ULPI_USB0.U_USB_CTRL0.usb_addr_w[6:0]
-usb_core_tb.U_FAKE_USB0.state[3:0]
-@800200
--Host
 @28
 usb_core_tb.enumerate
 usb_core_tb.enum_done
@@ -100,11 +103,11 @@ U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.out_tdata_o[7:0]
 -Device
 @22
 U_ULPI_USB0.U_USB_ULPI0.state[3:0]
-@800200
--Trn
 @820
 [color] 7
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xctrl[119:0]
+@c00200
+-Trn
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[3:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl[7:0]
@@ -113,28 +116,31 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xcptr[2:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsend_q
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.htype_q[1:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_sent_i
-@29
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_recv_i
-@28
+[color] 3
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_recv_i
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tvalid_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_send_q
 U_ULPI_USB0.U_USB_CTRL0.usb_tvalid_o
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_done_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_zero_q
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_type_q[1:0]
-@c00200
+@800200
 -Tok
 @28
+[color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_recv_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_type_i[1:0]
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_addr_i[6:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_endp_i[3:0]
-@1401200
--Tok
 @1000200
+-Tok
+@1401200
 -Trn
 @800200
 -Tx
+@c00200
 -Enc
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tsend_i
@@ -149,7 +155,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tx_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tlast
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tdata[7:0]
-@1000200
+@1401200
 -Enc
 @28
 U_ULPI_USB0.ulpi_tx_tvalid_w
@@ -169,17 +175,18 @@ U_ULPI_USB0.ulpi_rx_tlast_w
 U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 @1401200
 -Rx
-@c00200
+@c00201
 -Control
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ep0_ce_q
 U_ULPI_USB0.U_USB_CTRL0.tx_hsend_w
 U_ULPI_USB0.U_USB_CTRL0.tx_htype_w[1:0]
 U_ULPI_USB0.U_USB_CTRL0.tx_hsent_w
-@c00200
+@800200
 -Internal
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.state[2:0]
+[color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.select_i
 [color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.start_i
@@ -195,7 +202,8 @@ U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
 @28
 U_ULPI_USB0.U_USB_CTRL0.ctli_tready_w
-@1401200
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_done_i
+@1000200
 -Internal
 @c00200
 -Transfer
@@ -209,6 +217,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 @1401200
 -Transfer
+@1401201
 -Control
 @1000200
 -Device

@@ -81,11 +81,21 @@ module usb_core_tb;
     $finish;
   end
 
+  reg enabled = 1'b0;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      enabled <= 1'b0;
+    end else if (device_usb_idle_w) begin
+      enabled <= 1'b1;
+    end
+  end
+
 
   fake_usb_host_ulpi U_FAKE_USB0 (
       .clock (clock),
       .reset (reset),
-      .enable(device_usb_idle_w),
+      .enable(enabled),
 
       .ulpi_clock_o(usb_clock),
       .ulpi_rst_ni (usb_rst_n),
