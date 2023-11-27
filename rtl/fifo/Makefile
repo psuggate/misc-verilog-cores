@@ -8,7 +8,7 @@ sim:	build
 IVC	?= iverilog
 OPT	:= -g2005-sv -D__icarus -Wall
 
-SRC	:= $(wildcard *.v) $(wildcard ../misc/*.v)
+SRC	:= $(wildcard *.v) $(wildcard ../misc/*.v) $(wildcard ../axis/*.v)
 RTL	:= $(filter-out %_tb.v, $(SRC))
 BENCH	:= $(filter %_tb.v, $(SRC))
 OUT	:= $(BENCH:%.v=../../build/%.out)
