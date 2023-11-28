@@ -1,23 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Nov 27 08:17:27 2023
+[*] Tue Nov 28 07:47:22 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Nov 27 08:16:57 2023"
-[dumpfile_size] 116266
+[dumpfile_mtime] "Tue Nov 28 06:54:16 2023"
+[dumpfile_size] 145854
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 0
+[timestart] 1453300
 [size] 2560 1376
 [pos] -1 -1
-*-18.095644 1335000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.095644 1765000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 190
+[signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 414
+[sst_vpaned_height] 575
 @28
 usb_core_tb.clock
 usb_core_tb.arst_n
@@ -28,6 +28,9 @@ usb_core_tb.U_FAKE_USB0.enable
 usb_core_tb.U_FAKE_USB0.dev_configured_i
 [color] 1
 usb_core_tb.U_FAKE_USB0.crc_err_o
+@29
+[color] 1
+U_ULPI_USB0.U_USB_CTRL0.crc_err_o
 @800200
 -Host
 @820
@@ -106,7 +109,7 @@ U_ULPI_USB0.U_USB_ULPI0.state[3:0]
 @820
 [color] 7
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xctrl[119:0]
-@c00200
+@800200
 -Trn
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[3:0]
@@ -136,11 +139,9 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_addr_i[6:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_endp_i[3:0]
 @1000200
 -Tok
-@1401200
 -Trn
-@800200
--Tx
 @c00200
+-Tx
 -Enc
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tsend_i
@@ -163,7 +164,7 @@ U_ULPI_USB0.ulpi_tx_tready_w
 U_ULPI_USB0.ulpi_tx_tlast_w
 @22
 U_ULPI_USB0.ulpi_tx_tdata_w[7:0]
-@1000200
+@1401200
 -Tx
 @c00200
 -Rx
@@ -175,7 +176,7 @@ U_ULPI_USB0.ulpi_rx_tlast_w
 U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 @1401200
 -Rx
-@c00200
+@800200
 -Control
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ep0_ce_q
@@ -217,8 +218,8 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 @1401200
 -Transfer
--Control
 @1000200
+-Control
 -Device
 @420
 usb_core_tb.recv_data1.count

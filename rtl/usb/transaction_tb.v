@@ -180,10 +180,12 @@ module transaction_tb;
       .tok_endp_o(tok_endp_w),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
+      .out_recv_o(usb_rx_trecv_w),
+      .out_type_o(usb_rx_ttype_w),
+
       .out_tvalid_o(usb_rx_tvalid_w),
       .out_tready_i(usb_rx_tready_w),
       .out_tlast_o (usb_rx_tlast_w),
-      .out_ttype_o (usb_rx_ttype_w),
       .out_tdata_o (usb_rx_tdata_w),
 
       // Handshake packet information

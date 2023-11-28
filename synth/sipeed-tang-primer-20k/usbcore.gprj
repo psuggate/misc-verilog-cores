@@ -1,0 +1,23 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW2A-18C" pn="GW2A-LV18PG256C8/I7">gw2a18c-011</Device>
+    <FileList>
+        <File path="usb_demo_top.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/axis/axis_skid.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/axis/skid_loader.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/decode_packet.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/encode_packet.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/transaction.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/usb_control.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/ulpi_axis.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/usb_ulpi.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/usb/ctl_pipe0.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/arch/gw2a_rpll.v" type="file.verilog" enable="1"/>
+        <File path="gw2a-tang-primer.cst" type="file.cst" enable="1"/>
+        <File path="gw2a-tang-primer.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>

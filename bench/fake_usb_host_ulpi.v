@@ -62,7 +62,7 @@ module fake_usb_host_ulpi (
 
   // -- State & Signals -- //
 
-  reg enum_done_q;
+  reg enum_done_q, desc_done_q, conf_done_q;
   wire [6:0] dev_addr_w;
 
   reg mvalid, sready, hsend, tstart, tvalid, tlast;
@@ -107,13 +107,26 @@ module fake_usb_host_ulpi (
     $display("%10t: DEVICE has ENABLE asserted", $time);
   end
 
+  // Read the device-configuration descriptor
+  initial begin : g_read_desc
+    enabled();
+    #80 while (state != ST_DESC) @(posedge clock);
+
+    // wait (dev_configured_i);
+    // @(posedge clock);
+
+    $display("%10t: FETCH device DESCRIPTOR", $time);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00});
+    desc_done_q <= 1'b1;
+
+    @(posedge clock);
+    $display("%10t: DESCRIPTOR from device ...", $time);
+  end
+
   // Set the device-address of a USB device
   initial begin : g_enumerate
     enabled();
-    #80
-    while (state != ST_ENUM) begin
-      @(posedge clock);
-    end
+    #80 while (state != ST_ENUM) @(posedge clock);
 
     // Default ADDR, Pipe0 ENDP, SETUP, Device Req, Set Addr, New ADDR
     $display("%10t: Enumerating USB device address", $time);
@@ -130,46 +143,40 @@ module fake_usb_host_ulpi (
   // Enable a device configuration
   initial begin : g_configure
     enabled();
-    #80
-    while (state != ST_CONF) begin
-      @(posedge clock);
-    end
+    #80 while (state != ST_CONF) @(posedge clock);
 
     // Default ADDR, Pipe0 ENDP, SETUP, Device Req, Set Addr, New ADDR
     $display("%10t: Setting USB device configuration", $time);
-    send_control(7'h09, 4'h0, 8'h00, 8'h09, 16'h0001);
+    send_control(DEV_ADDR, 4'h0, 8'h00, 8'h09, 16'h0001);
 
-    while (!dev_configured_i) begin
-      @(posedge clock);
-    end
+    while (!dev_configured_i) @(posedge clock);
+    @(posedge clock);
+    conf_done_q <= 1'b1;
+
+    @(posedge clock);
     $display("%10t: USB configured", $time);
   end
 
   // Read the device-configuration descriptor
-  initial begin : g_read_desc
+  initial begin : g_read_serial
     enabled();
+    #80 while (!conf_done_q) @(posedge clock);
+    #80 while (state != ST_STR0) @(posedge clock);
 
-    wait (dev_configured_i);
-    @(posedge clock);
+    $display("%10t: FETCH device SERIAL#", $time);
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00});
 
-    #80
-    while (state != ST_DESC) begin
-      @(posedge clock);
-    end
-
-    $display("%10t: FETCH device DESCRIPTOR", $time);
-    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00});
-
-    $display("%10t: DESCRIPTOR from device ...", $time);
+    $display("%10t: SERIAL from device ...", $time);
   end
 
 
   // -- Fake ULPI -- //
 
   localparam ST_INIT = 4'h0;
-  localparam ST_ENUM = 4'h1;
-  localparam ST_CONF = 4'h2;
-  localparam ST_DESC = 4'h3;
+  localparam ST_DESC = 4'h1;
+  localparam ST_ENUM = 4'h2;
+  localparam ST_CONF = 4'h3;
+  localparam ST_STR0 = 4'h4;
   localparam ST_IDLE = 4'hf;
 
   reg [3:0] state;
@@ -177,7 +184,9 @@ module fake_usb_host_ulpi (
   always @(posedge clock) begin
     if (reset || !ulpi_rst_ni) begin
       state <= ST_INIT;
+      desc_done_q <= 1'b0;
       enum_done_q <= 1'b0;
+      conf_done_q <= 1'b0;
 
       sready <= 1'b0;
       mvalid <= 1'b0;
@@ -185,6 +194,13 @@ module fake_usb_host_ulpi (
       case (state)
         ST_INIT: begin
           if (dev_enum_start_i) begin
+            state <= ST_DESC;
+          end
+        end
+
+        ST_DESC: begin
+          // if (svalid && sready && slast) begin
+          if (desc_done_q) begin
             state <= ST_ENUM;
           end
         end
@@ -196,18 +212,20 @@ module fake_usb_host_ulpi (
         end
 
         ST_CONF: begin
-          if (dev_configured_i && hdone_w) begin
-            state <= ST_DESC;
+          // if (dev_configured_i && hdone_w) begin
+          if (conf_done_q) begin
+            state <= ST_STR0;
           end
         end
 
-        ST_DESC: begin
+        ST_STR0: begin
           if (svalid && sready && slast) begin
             state <= ST_IDLE;
           end
         end
 
         default: begin
+          // $display("%10t: Hello!", $time);
         end
       endcase
     end
@@ -463,7 +481,7 @@ module fake_usb_host_ulpi (
       integer count;
 
       {tstart, ttype} <= {1'b1, odd ? DATA1 : DATA0};
-      {tvalid, tlast} <= 2'b10;
+      {tvalid, tlast} <= {len != 0, len == 0};
       {data, tdata} <= {8'hxx, data};
       count <= len;
 
@@ -515,10 +533,12 @@ module fake_usb_host_ulpi (
         @(posedge clock);
         if (svalid) begin
           resp[count] <= {slast, sdata};
-          count = count + 1;
+          count <= count + 1;
         end
       end
-      sready = 1'b0;
+      sready <= 1'b0;
+      count <= count + (svalid && slast);
+      @(posedge clock);
       $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
     end
   endtask  // recv_data1
@@ -533,10 +553,11 @@ module fake_usb_host_ulpi (
   always @* begin
     case (state)
       ST_INIT: dbg_state = "INIT";
-      ST_IDLE: dbg_state = "IDLE";
+      ST_DESC: dbg_state = "DESC";
       ST_ENUM: dbg_state = "ENUM";
       ST_CONF: dbg_state = "CONF";
-      ST_DESC: dbg_state = "DESC";
+      ST_STR0: dbg_state = "STR0";
+      ST_IDLE: dbg_state = "IDLE";
 
       default: dbg_state = "UNKNOWN";
     endcase
