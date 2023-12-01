@@ -32,6 +32,7 @@ module usb_ulpi #(
     input wire [7:0] axis_tx_tdata_i,
 
     output ulpi_rx_overflow_o,
+    output usb_hs_enabled_o,
 
     output wire usb_vbus_valid_o,  /* VBUS has valid voltage */
     output wire usb_reset_o,  /* USB bus is in reset state */
@@ -112,6 +113,7 @@ module usb_ulpi #(
   assign usb_reset_o = usb_reset_out;
   assign usb_idle_o = state == STATE_IDLE;
   assign usb_suspend_o = state == STATE_SUSPEND;
+  assign usb_hs_enabled_o = hs_enabled;
 
 
   // -- Status & Errors in this ULPI Core -- //

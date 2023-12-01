@@ -37,6 +37,11 @@ module decode_packet (
 
   `include "usb_crc.vh"
 
+  localparam [1:0] TOK_OUT = 2'b00;
+  localparam [1:0] TOK_SOF = 2'b01;
+  localparam [1:0] TOK_IN = 2'b10;
+  localparam [1:0] TOK_SETUP = 2'b11;
+
   localparam  [6:0]
 	ST_IDLE      = 7'h01,
 	ST_SOF       = 7'h02,
@@ -114,7 +119,8 @@ module decode_packet (
     if (ulpi_tvalid_i) begin
       {rx_buf1, rx_buf0} <= {rx_buf0, ulpi_tdata_i};
     end else begin
-      {rx_buf1, rx_buf0} <= {rx_buf0, 8'bx};
+      {rx_buf1, rx_buf0} <= {rx_buf1, 8'hxx};
+      // {rx_buf1, rx_buf0} <= {rx_buf1, rx_buf0};
     end
   end
 
@@ -145,8 +151,8 @@ module decode_packet (
   // Strobes that indicate the start and end of a (received) packet.
   // todo: unify the SOF and TOKEN states !?
   always @(posedge clock) begin
-    // tok_recv_q <= state[2] && trn_type_q != 2'01 && token_crc5 == rx_crc5_w;
-    // sof_flag_q <= state[2] && trn_type_q == 2'01 && token_crc5 == rx_crc5_w;
+    // tok_recv_q <= state[4] && trn_type_q != TOK_SOF && token_crc5 == rx_crc5_w;
+    // sof_flag_q <= state[2] && trn_type_q == TOK_SOF && token_crc5 == rx_crc5_w;
     tok_recv_q <= state[4] && token_crc5 == rx_crc5_w;
     sof_flag_q <= state[2] && token_crc5 == rx_crc5_w;
   end

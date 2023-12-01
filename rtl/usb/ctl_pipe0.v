@@ -182,9 +182,27 @@ module ctl_pipe0 #(
 
   // -- Current USB Configuration State -- //
 
-  reg [6:0] adr_q;
-  reg [7:0] cfg_q;
-  reg set_q;
+  reg [6:0] adr_q = 7'h00;
+  reg [7:0] cfg_q = 8'h00;
+  reg set_q = 1'b0;
+
+
+  // -- Descriptor ROM -- //
+
+  reg [7:0] descriptor[0:DESC_SIZE-1];
+  reg desc_tlast[0:DESC_SIZE-1];
+
+  genvar ii;
+  generate
+
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
+      assign desc_tlast[ii] = ii==DESC_CONFIG_START-1 || ii==DESC_START0-1 ||
+                            ii==DESC_START1-1 || ii==DESC_START2-1 ||
+                            ii==DESC_START3-1 || ii==DESC_SIZE-1;
+    end
+
+  endgenerate
 
 
   // -- Local State and Signals -- //
@@ -264,24 +282,6 @@ module ctl_pipe0 #(
       req_type = REQ_NONE;
     end
   end
-
-
-  // -- Descriptor ROM -- //
-
-  reg [7:0] descriptor[0:DESC_SIZE-1];
-  reg desc_tlast[0:DESC_SIZE-1];
-
-  genvar ii;
-  generate
-
-    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
-      assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
-      assign desc_tlast[ii] = ii==DESC_CONFIG_START-1 || ii==DESC_START0-1 ||
-                            ii==DESC_START1-1 || ii==DESC_START2-1 ||
-                            ii==DESC_START3-1 || ii==DESC_SIZE-1;
-    end
-
-  endgenerate
 
 
   // -- Configuration Control PIPE0 Logic -- //

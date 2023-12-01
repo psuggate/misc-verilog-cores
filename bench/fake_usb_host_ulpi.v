@@ -47,6 +47,7 @@ module fake_usb_host_ulpi (
   localparam TOKEN = 1;
 
   localparam [1:0] TOK_OUT = 2'b00;
+  localparam [1:0] TOK_SOF = 2'b01;
   localparam [1:0] TOK_IN = 2'b10;
   localparam [1:0] TOK_SETUP = 2'b11;
 
@@ -117,6 +118,9 @@ module fake_usb_host_ulpi (
 
     $display("%10t: FETCH device DESCRIPTOR", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00});
+
+    $display("%10t: FETCH config DESCRIPTOR", $time);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00});
     desc_done_q <= 1'b1;
 
     @(posedge clock);
@@ -131,6 +135,8 @@ module fake_usb_host_ulpi (
     // Default ADDR, Pipe0 ENDP, SETUP, Device Req, Set Addr, New ADDR
     $display("%10t: Enumerating USB device address", $time);
     send_address(DEV_ADDR);
+
+    send_sof(11'h123);
 
     // USB device has been enumerated (received a device-address)
     @(posedge clock);
@@ -408,6 +414,14 @@ module fake_usb_host_ulpi (
       recv_ack();
     end
   endtask  // send_setup
+
+  task send_sof;
+    input [10:0] num;
+    begin
+      send_token(num[6:0], num[10:7], TOK_SOF);
+      $display("%10t: SOF token sent", $time);
+    end
+  endtask // send_sof
 
 
   // -- USB Control Transfers -- //

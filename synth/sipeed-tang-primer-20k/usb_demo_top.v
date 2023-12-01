@@ -38,124 +38,40 @@ module usb_demo_top (
   inout [7:0] ulpi_data;
 
 
-  wire clock, rst_n, reset, locked;
-  wire axi_clk, ddr_clk, usb_clk, usb_rst_n;
+  // -- Signals -- //
 
-  assign reset   = ~locked;
-  assign axi_clk = clock;
+  // todo: what? how? where?
+  // GSR GSR ();
 
+  // Globalists //
+  reg [4:0] rst_cnt = 0;
+  wire clock, usb_clock, usb_reset;
 
-  localparam DDR_FREQ_MHZ = 100;
+  assign clock = ~ulpi_clk;
 
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-
-
-  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
-  gw2a_rpll #(
-      .FCLKIN("27"),
-      .IDIV_SEL(IDIV_SEL),
-      .FBDIV_SEL(FBDIV_SEL),
-      .ODIV_SEL(ODIV_SEL),
-      .DYN_SDIV_SEL(SDIV_SEL)
-  ) axis_rpll_inst (
-      .clkout(ddr_clk),  // 200 MHz
-      .clockd(clock),    // 100 MHz
-      .lock  (locked),
-      .clkin (clk_26)
-  );
-
-
-  // -- Start-up -- //
-
-  reg rst_nq, ce_q, enab_q, enable;
-
-  always @(posedge clk_26) begin
-    rst_nq <= rst_n;
-    ce_q   <= locked & rst_nq;
-  end
-
-  always @(posedge clock or negedge ce_q) begin
-    if (!ce_q) begin
-      enab_q <= 1'b0;
-      enable <= 1'b0;
+  always @(posedge clock or negedge rst_n) begin
+    if (!rst_n) begin
+      rst_cnt <= 5'd0;
     end else begin
-      enab_q <= ce_q;
-      if (enab_q) begin
-        enable <= 1'b1;
+      if (!rst_cnt[4]) begin
+        rst_cnt <= rst_cnt + 5'd1;
       end
     end
   end
 
+  // Local Signals //
+  wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
+  wire usb_sof, configured;
 
+  // Data-path //
   wire s_tvalid, s_tready, s_tlast;
   wire [7:0] s_tdata;
 
   wire m_tvalid, m_tready, m_tlast;
-  wire [ 7:0] m_tdata;
-
-  // Miscellaneous
-  reg  [23:0] count;
-  wire usb_sof, fifo_in_full, fifo_out_full, fifo_has_data, configured;
-
-  reg ulpi_error_q, ulpi_rx_overflow, ulpi_usb_reset;
-  wire flasher;
-
-  // todo: does not work, as I need cross-domain clocking
-  assign flasher = ulpi_error_q ? count[11] & count[10] : ~count[13] & ulpi_usb_reset;
-
-  // assign leds = {~count[13], ~configured, ~fifo_in_full, ~fifo_out_full, 2'b11};
-  assign leds = {~count[23], ~configured, ~device_usb_idle_w, ~ulpi_error_q, 2'b11};
-
-  // always @(posedge usb_sof) begin
-  always @(posedge ulpi_clk) begin
-    if (!usb_rst_n) begin
-      count <= 0;
-    end else begin
-      count <= count + 1;
-    end
-  end
-
-
-  // -- Some Errors -- //
-
-  always @(posedge usb_clk) begin
-    if (!rst_n) begin
-      ulpi_error_q <= 1'b0;
-    end else if (ulpi_dir && ulpi_stp) begin
-      ulpi_error_q <= 1'b1;
-    end
-  end
-
-/*
-  always @(posedge usb_clk) begin
-    if (!rst_n) begin
-      ulpi_error_q <= 1'b0;
-    end else begin
-      ulpi_error_q <= ulpi_rx_overflow;
-    end
-  end
-*/
+  wire [7:0] m_tdata;
 
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
-
-  wire ulpi_data_t;
-  wire [7:0] ulpi_data_o;
-
-  assign ulpi_rst = usb_rst_n;
-  assign usb_clk  = ~ulpi_clk;
-
-
-  wire device_usb_idle_w, dev_crc_err_w;
-
-  assign fifo_has_data = configured;
-
-  assign ulpi_usb_reset = dev_crc_err_w;
-  assign ulpi_rx_overflow = device_usb_idle_w;
-
 
   //
   // Core Under New Tests
@@ -166,21 +82,20 @@ module usb_demo_top (
       .EP2_CONTROL(0),
       .ENDPOINT2  (0)
   ) U_ULPI_USB0 (
-      .areset_n(1'b1), // rst_n),
+      .areset_n(rst_cnt[4]),
 
-      .ulpi_clock_i(usb_clk),
-      .ulpi_reset_o(usb_rst_n),
+      .ulpi_clock_i(clock),
+      .ulpi_reset_o(ulpi_rst),
       .ulpi_dir_i  (ulpi_dir),
       .ulpi_nxt_i  (ulpi_nxt),
       .ulpi_stp_o  (ulpi_stp),
       .ulpi_data_io(ulpi_data),
 
-      .usb_clock_o(),
-      .usb_reset_o(),
-
-      .fifo_in_full_o(fifo_in_full),
+      .usb_clock_o(usb_clock),
+      .usb_reset_o(usb_reset),
 
       .configured_o(configured),
+      .usb_hs_enabled_o(usb_hs_enabled_w),
       .usb_idle_o(device_usb_idle_w),
       .usb_sof_o(usb_sof),
       .crc_err_o(dev_crc_err_w),
@@ -197,14 +112,15 @@ module usb_demo_top (
   );
 
 
-  // Loop-back FIFO for testing
+  // -- Loop-back FIFO for Testing -- //
+
   sync_fifo #(
       .WIDTH (9),
       .ABITS (11),
       .OUTREG(3)
   ) rddata_fifo_inst (
-      .clock(usb_clk),
-      .reset(~rst_n),
+      .clock(usb_clock),
+      .reset(usb_reset),
 
       .valid_i(s_tvalid),
       .ready_o(s_tready),
@@ -214,6 +130,72 @@ module usb_demo_top (
       .ready_i(m_tready),
       .data_o ({m_tlast, m_tdata})
   );
+
+
+  // -- LEDs Stuffs -- //
+
+  localparam [1:0] TOK_SETUP = 2'b11;
+
+  wire [3:0] cbits;
+
+  // assign cbits = {dev_crc_err_w, U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[2:0]};
+  // assign cbits = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl[3:0];
+  // assign cbits = U_ULPI_USB0.tx_counter[6:3];
+  // assign cbits = U_ULPI_USB0.rx_counter[9:6];
+
+  // Miscellaneous
+  reg [23:0] count;
+  reg sof_q, ctl_latch_q = 0;
+
+  wire tok_setup_w = U_ULPI_USB0.U_USB_CTRL0.tok_rx_recv_w && U_ULPI_USB0.U_USB_CTRL0.tok_rx_type_w == TOK_SETUP;
+  reg [6:0] usb_addr_q;
+  always @(posedge usb_clock) begin
+    if (usb_reset) begin
+      usb_addr_q <= 7'h7c;
+    end else begin
+      if (tok_setup_w) begin
+        usb_addr_q <= U_ULPI_USB0.U_USB_CTRL0.tok_rx_addr_w;
+      end
+    end
+  end
+
+
+  wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[1];
+  // wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_recv_o;
+  // wire flag_tok_recv_w, flag_hsk_recv_w, flag_hsk_sent_w;
+  // wire [3:0] cbits = usb_addr_q[3:0];
+
+  // assign leds = {~count[10], ~ctl_latch_q, ~device_usb_idle_w, ~usb_hs_enabled_w, 2'b11};
+  // assign leds = {~count[7], ~configured, ~device_usb_idle_w, ~flag_hsk_sent_w, 2'b11};
+  // assign leds = {~count[7], ~flag_tok_recv_w, ~flag_hsk_recv_w, ~flag_hsk_sent_w, 2'b11};
+  assign leds = {~cbits[3:0], 2'b11};
+  assign cbits = {ctl_latch_q,
+                  U_ULPI_USB0.U_USB_CTRL0.ctl_sel_q,
+                  // U_ULPI_USB0.U_USB_CTRL0.usb_sof_q,
+                  U_ULPI_USB0.U_USB_CTRL0.hsk_recv_q,
+                  U_ULPI_USB0.U_USB_CTRL0.hsk_sent_q
+                  };
+
+
+  always @(posedge usb_clock) begin
+    if (ctl_select_w) begin
+      ctl_latch_q <= 1'b1;
+    end
+  end
+
+  // always @(posedge usb_sof) begin
+  always @(posedge usb_clock) begin
+    if (usb_reset) begin
+      count <= 0;
+      sof_q <= 1'b0;
+    end else begin
+      sof_q <= usb_sof;
+
+      if (usb_sof && !sof_q) begin
+        count <= count + 1;
+      end
+    end
+  end
 
 
 endmodule  // usb_demo_top

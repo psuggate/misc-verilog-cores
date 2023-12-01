@@ -9,6 +9,10 @@ module usb_control (
     usb_sof_o,
     crc_err_o,
 
+   flag_tok_recv_o,
+   flag_hsk_recv_o,
+   flag_hsk_sent_o,
+
     usb_tvalid_i,
     usb_tready_o,
     usb_tlast_i,
@@ -81,6 +85,10 @@ module usb_control (
   output [7:0] usb_conf_o;
   output usb_sof_o;
   output crc_err_o;
+
+  output flag_tok_recv_o;
+  output flag_hsk_recv_o;
+  output flag_hsk_sent_o;
 
   // USB control & bulk data received from host
   input usb_tvalid_i;
@@ -191,6 +199,25 @@ module usb_control (
   assign usb_tready_o = 1'b1;  // todo: usb_rx_tready_w;
 
 
+  // -- Status & Debug Flags -- //
+
+  reg tok_recv_q, hsk_recv_q, hsk_sent_q;
+
+  assign flag_tok_recv_o = tok_recv_q;
+  assign flag_hsk_recv_o = hsk_recv_q;
+  assign flag_hsk_sent_o = hsk_sent_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      {tok_recv_q, hsk_recv_q, hsk_sent_q} <= 3'h0;
+    end else begin
+      tok_recv_q <= tok_recv_q | tok_rx_recv_w;
+      hsk_recv_q <= hsk_recv_q | rx_hrecv_w;
+      hsk_sent_q <= hsk_sent_q | tx_hsent_w;
+    end
+  end
+
+
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 
   encode_packet #(
@@ -260,6 +287,76 @@ module usb_control (
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
+  control_transfer
+  U_USB_TRN0 (
+      .clock(clock),
+      .reset(reset),
+
+      .usb_addr_i(usb_addr_w),
+/*
+   .fsm_ctrl_i(fsm_ctrl_w),
+   .fsm_idle_i(fsm_idle_w),
+   // .ctl_done_o(ctl_done_w),
+*/
+
+      // Signals from the USB packet decoder (upstream)
+      .tok_recv_i(tok_rx_recv_w),
+      .tok_type_i(tok_rx_type_w),
+      .tok_addr_i(tok_rx_addr_w),
+      .tok_endp_i(tok_rx_endp_w),
+
+      .hsk_recv_i(rx_hrecv_w),
+      .hsk_type_i(rx_htype_w),
+      .hsk_send_o(tx_hsend_w),
+      .hsk_sent_i(tx_hsent_w),
+      .hsk_type_o(tx_htype_w),
+
+      // DATA0/1 info from the decoder, and to the encoder
+      .usb_recv_i(usb_rx_trecv_w),
+      .usb_type_i(usb_rx_ttype_w),
+      .usb_send_o(usb_tx_tsend_w),
+      .usb_sent_i(usb_tx_tsent_w),
+      .usb_type_o(usb_tx_ttype_w),
+
+      // USB control & bulk data received from host (via decoder)
+      .usb_tvalid_i(usb_rx_tvalid_w),
+      .usb_tready_o(usb_rx_tready_w),
+      .usb_tlast_i (usb_rx_tlast_w),
+      .usb_tdata_i (usb_rx_tdata_w),
+
+      // USB control & bulk data transmitted to host (via encoder)
+      .trn_send_o(trn_send_w),
+      .trn_type_o(trn_type_w),
+      .trn_busy_i(enc_busy_w),
+      .trn_done_i(trn_done_w),
+
+      .usb_tvalid_o(usb_tx_tvalid_w),
+      .usb_tready_i(usb_tx_tready_w),
+      .usb_tlast_o (usb_tx_tlast_w),
+      .usb_tdata_o (usb_tx_tdata_w),
+
+      // To/from USB control transfer endpoints
+      .ctl_start_o (ctl_start_w),
+      .ctl_cycle_o (ctl0_select_w),
+      .ctl_done_i  (ctl0_done_w),
+      .ctl_rtype_o (ctl_rtype_w),
+      .ctl_rargs_o (ctl_rargs_w),
+      .ctl_value_o (ctl_value_w),
+      .ctl_index_o (ctl_index_w),
+      .ctl_length_o(ctl_length_w),
+
+      .ctl_tvalid_o(),
+      .ctl_tready_i(1'b1),
+      .ctl_tlast_o (),
+      .ctl_tdata_o (),
+
+      .ctl_tvalid_i(ctl0_tvalid_w),
+      .ctl_tready_o(ctl0_tready_w),
+      .ctl_tlast_i (ctl0_tlast_w),
+      .ctl_tdata_i (ctl0_tdata_w)
+  );
+
+/*
   transaction #(
       .EP1_BULK_IN(EP1_BULK_IN),  // IN- & OUT- for TART raw (antenna) samples
       .EP1_BULK_OUT(EP1_BULK_OUT),
@@ -369,6 +466,7 @@ module usb_control (
 
     end
   endgenerate
+*/
 
 
   // -- USB Default (PIPE0) Configuration Endpoint -- //

@@ -57,7 +57,8 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
   // -- Output Signal Assignments -- //
 
-  assign ulpi_clock_o = ~clock;
+  assign ulpi_clock_o = clock;
+  // assign ulpi_clock_o = ~clock;
   assign ulpi_dir_o = dir_q;
   assign ulpi_nxt_o = nxt_q;
   assign ulpi_data_io = dir_q ? dat_q : 'bz;
