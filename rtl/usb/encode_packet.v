@@ -317,7 +317,7 @@ module encode_packet (
               tlast <= 1'b1;
               tdata <= crc16_nw[15:8];
             end
-          end else if (tx_tready_i && (zero_q || !trn_tvalid_i)) begin
+          end else if (tx_tready_i && (zero_q || !trn_tvalid_i && !xvalid)) begin
             // Sending 1st byte of CRC16
             {xdat_q, zero_q, xcrc_q} <= 3'b101;
 

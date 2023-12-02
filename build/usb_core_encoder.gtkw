@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Dec  2 05:17:10 2023
+[*] Sat Dec  2 09:19:09 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Dec  2 05:13:12 2023"
-[dumpfile_size] 166816
+[dumpfile_mtime] "Sat Dec  2 09:15:02 2023"
+[dumpfile_size] 226873
 [savefile] "./usb_core_encoder.gtkw"
-[timestart] 1703100
+[timestart] 5283100
 [size] 1920 1043
 [pos] -1 -1
-*-16.945190 2170000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.945190 6020000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.
@@ -55,27 +55,28 @@ U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tdata_i[7:0]
 @800200
 -CTL_PIPE0
 @28
+[color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.select_i
-@29
+@22
+[color] 2
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.mem_addr[5:0]
+@28
 [color] 7
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.state[2:0]
-@28
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tvalid_o
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
+@22
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
 @800200
 -Chop
-@22
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.length_i[15:0]
 @28
 [color] 3
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.active_i
 @24
-[color] 2
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.count[15:0]
+[color] 7
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.count[6:0]
 @28
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.clast_w
 U_ULPI_USB0.U_USB_CTRL0.ask_tvalid_w
 U_ULPI_USB0.U_USB_CTRL0.ask_tready_w
 U_ULPI_USB0.U_USB_CTRL0.ask_tlast_w
@@ -84,8 +85,10 @@ U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w[7:0]
 @1000200
 -Chop
 -CTL_PIPE0
-@28
+@29
+[color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xsrc_q
+@28
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xdat_q
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.done_q
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xhsk_q

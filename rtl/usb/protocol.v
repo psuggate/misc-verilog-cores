@@ -330,6 +330,7 @@ module protocol #(
       .length_i(len_q),
       // .active_i(ctl0_cycle_w),
       // .length_i(ctl_length_w),
+      // .length_i({ctl_length_w[15:6] != 0, ctl_length_w[5:0]}),
 
       .s_tvalid(ctl0_tvalid_w),
       .s_tready(ctl0_tready_w),

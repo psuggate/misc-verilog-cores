@@ -119,8 +119,8 @@ module decode_packet (
     if (ulpi_tvalid_i) begin
       {rx_buf1, rx_buf0} <= {rx_buf0, ulpi_tdata_i};
     end else begin
-      {rx_buf1, rx_buf0} <= {rx_buf1, 8'hxx};
-      // {rx_buf1, rx_buf0} <= {rx_buf1, rx_buf0};
+      // {rx_buf1, rx_buf0} <= {rx_buf1, 8'hxx};
+      {rx_buf1, rx_buf0} <= {rx_buf1, rx_buf0};
     end
   end
 
@@ -135,6 +135,23 @@ module decode_packet (
 
   // -- Rx Data CRC Calculation -- //
 
+  reg vld_q;
+
+  assign crc16_w = crc16(rx_buf0, crc16_q);
+
+  always @(posedge clock) begin
+    vld_q <= ulpi_tvalid_i;
+
+    if (!rx_vld0) begin
+      crc16_q <= 16'hffff;
+    end else if (!vld_q) begin
+      crc16_q <= crc16_q;
+    end else begin
+      crc16_q <= crc16_w;
+    end
+  end
+
+/*
   assign crc16_w = crc16(rx_buf0, crc16_q);
 
   always @(posedge clock) begin
@@ -144,6 +161,7 @@ module decode_packet (
       crc16_q <= crc16_w;
     end
   end
+*/
 
 
   // -- CRC-Error, Start-Of-Frame, and Token-Received Signals -- //

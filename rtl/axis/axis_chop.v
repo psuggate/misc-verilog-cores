@@ -97,7 +97,7 @@ module axis_chop (
 
 
       // -- Control -- //
-
+    /*
       function src_ready(input svalid, input tvalid, input dvalid, input dready);
         src_ready = dready || !(tvalid || (dvalid && svalid));
       endfunction
@@ -110,9 +110,10 @@ module axis_chop (
         dst_valid = tvalid || svalid || (dvalid && !dready);
       endfunction
 
-      // assign sready_next = src_ready(s_tvalid, tvalid, mvalid, m_tready);
-      // assign tvalid_next = tmp_valid(s_tvalid, tvalid, mvalid, m_tready);
-      // assign mvalid_next = dst_valid(s_tvalid, tvalid, mvalid, m_tready);
+      assign sready_next = src_ready(s_tvalid, tvalid, mvalid, m_tready);
+      assign tvalid_next = tmp_valid(s_tvalid, tvalid, mvalid, m_tready);
+      assign mvalid_next = dst_valid(s_tvalid, tvalid, mvalid, m_tready);
+    */
 
     // assign sready_next = !(s_tvalid && mvalid || tvalid) || m_tready;
     // assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
@@ -151,7 +152,7 @@ module axis_chop (
       endfunction
 
       always @(posedge clock) begin
-        if (mvalid && m_tready && mlast) begin
+        if (reset || mvalid && m_tready && mlast) begin
           mlast <= 1'b0;
           tlast <= 1'b0;
         end else begin

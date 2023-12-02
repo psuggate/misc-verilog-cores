@@ -53,6 +53,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
   reg [7:0] tdata;
 
   wire pid_vld_w, non_pid_w, reg_pid_w, tx_start_w, rx_start_w;
+  wire [7:0] rx_cmd_w;
 
 
   // -- Output Signal Assignments -- //
@@ -80,6 +81,17 @@ module fake_ulpi_phy (  /*AUTOARG*/
   assign non_pid_w = dir_q == 1'b0 && ulpi_data_io[7:4] != 4'b0100 && ulpi_data_io != 8'h00;
   assign reg_pid_w = !dir_q && ulpi_data_io[7];
 
+  // See pp.16, UTMI+ Low Pin Interface (ULPI) Specification
+  assign rx_cmd_w = {2'b01, tx_start_w ? 2'b01 : 2'b00, 2'b11, 2'b00};
+
+  localparam [3:0] ST_IDLE = 4'b0000;
+  localparam [3:0] ST_SEND = 4'b0001;
+  localparam [3:0] ST_RECV = 4'b0010;
+  localparam [3:0] ST_STOP = 4'b0100;
+  localparam [3:0] ST_WAIT = 4'b1000;
+
+  reg [3:0] state, snext;
+
 
   // -- Rx Datapath -- //
 
@@ -96,7 +108,8 @@ module fake_ulpi_phy (  /*AUTOARG*/
       end
 
       ST_RECV: begin
-        if (!tvalid) begin
+        // if (!tvalid) begin
+        if (!tvalid && rx_start_w) begin
           tdata <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
         end else begin
           tdata <= ulpi_data_io;
@@ -106,16 +119,16 @@ module fake_ulpi_phy (  /*AUTOARG*/
     endcase
   end
 
+  // Fake Flow-Control //
+  reg [2:0] rnd_q;
+
+  always @(posedge clock) begin
+    // rnd_q <= 3'd0;
+    rnd_q <= $urandom;
+  end
+
 
   // -- ULPI FSM -- //
-
-  localparam [3:0] ST_IDLE = 4'b0000;
-  localparam [3:0] ST_SEND = 4'b0001;
-  localparam [3:0] ST_RECV = 4'b0010;
-  localparam [3:0] ST_STOP = 4'b0100;
-  localparam [3:0] ST_WAIT = 4'b1000;
-
-  reg [3:0] state, snext;
 
   always @(posedge clock) begin
     if (reset || !ulpi_rst_ni) begin
@@ -130,8 +143,9 @@ module fake_ulpi_phy (  /*AUTOARG*/
       case (state)
         default: begin  // ST_IDLE
           dir_q <= tx_start_w;  //
-          nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
-          rdy_q <= tx_start_w;
+          // nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
+          nxt_q <= rx_start_w || non_pid_w || !dir_q && tx_start_w;
+          rdy_q <= tx_start_w && dir_q;
           dat_q <= 'bz;
           reg_q <= reg_pid_w;
 
@@ -147,10 +161,10 @@ module fake_ulpi_phy (  /*AUTOARG*/
             // snext <= ST_RECV;
           end else if (tx_start_w) begin
             // We need to push data onto the wire
-            state <= ST_SEND;
+            // state <= ST_SEND;
 
-            // state <= ST_STOP;
-            // snext <= ST_SEND;
+            state <= ST_WAIT;
+            snext <= ST_SEND;
           end else begin
             state <= ST_IDLE;
             snext <= 'bx;
@@ -159,7 +173,10 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
         ST_WAIT: begin
           state <= snext;
+          snext <= 'bx;
           nxt_q <= 1'b0;
+          rdy_q <= tx_start_w && dir_q;
+          dat_q <= tx_start_w ? rx_cmd_w : dat_q;
           reg_q <= 1'b0;
         end
 
@@ -169,29 +186,32 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
           nxt_q <= usb_tvalid_i && !ulpi_stp_i;
+          // nxt_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111);
           rdy_q <= usb_tvalid_i && !ulpi_stp_i && !usb_tlast_i;
           dat_q <= usb_tdata_i;
         end
 
         ST_RECV: begin
           // The PHY receives a 'STOP' command to indicate end
-          state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
+          // state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
+          state <= ulpi_stp_i ? ST_IDLE : state;
           snext <= ST_IDLE;
 
           dir_q <= 1'b0;
-          nxt_q <= !ulpi_stp_i;
+          // nxt_q <= !ulpi_stp_i && !(rnd_q == 3'b111);
+          nxt_q <= !ulpi_stp_i && !(rnd_q >= 5);
           rdy_q <= 1'b0;
           dat_q <= dat_q;
         end
 
         ST_STOP: begin
           // todo: Dump the remainder of the packet in the FIFO ??
-          // state <= ST_IDLE;
-          state <= snext;
-          snext <= 'bx;
+          state <= ST_IDLE;
+          // state <= snext;
+          // snext <= 'bx;
 
-          // dir_q <= 1'b0;
-          dir_q <= snext == ST_SEND;
+          dir_q <= 1'b0;
+          // dir_q <= snext == ST_SEND;
           nxt_q <= 1'b0;
           rdy_q <= 1'b0;  // usb_tvalid_i && !usb_tlast_i;
           dat_q <= usb_tdata_i;

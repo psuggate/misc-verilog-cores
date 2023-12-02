@@ -18,7 +18,6 @@
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/transaction.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_axis.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_control.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_std_request.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_ulpi.v" type="file.verilog" enable="1"/>
         <File path="usb_demo_top.v" type="file.verilog" enable="1"/>
         <File path="gw2a-tang-primer.cst" type="file.cst" enable="1"/>

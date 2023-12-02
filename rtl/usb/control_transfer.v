@@ -130,9 +130,9 @@ module control_transfer
   assign ctl_tlast_o  = 1'b0;
   assign ctl_tdata_o  = 8'h00;
 
-  assign usb_tvalid_o = ctl_tvalid_i; // && tx_count < ctl_length_o[9:0];
+  assign usb_tvalid_o = ctl_tvalid_i;
   assign ctl_tready_o = usb_tready_i;
-  assign usb_tlast_o  = ctl_tlast_i; // || tx_cnext >= ctl_length_o[9:0];
+  assign usb_tlast_o  = ctl_tlast_i;
   assign usb_tdata_o  = ctl_tdata_i;
 
 
@@ -203,16 +203,7 @@ module control_transfer
   assign usb_send_o   = trn_send_q;
   assign usb_type_o   = trn_type_q;
 
-/*
   always @(posedge clock) begin
-    if (reset) begin
-      
-    end
-  end
-*/
-
-  always @(posedge clock) begin
-    // if (reset || usb_busy_i || usb_sent_i) begin
     if (reset || usb_busy_i) begin
       trn_zero_q <= 1'b0;
       trn_send_q <= 1'b0;

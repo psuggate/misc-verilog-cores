@@ -358,8 +358,12 @@ module ctl_pipe0 #(
           end
         end
 
-        STATE_GET_DESC: state <= m_tvalid_o && !m_tlast_o ? state : STATE_IDLE;
-        // STATE_GET_DESC: state <= select_i ? state : STATE_IDLE;
+        STATE_GET_DESC: begin
+          if (m_tvalid_o && m_tready_i) begin
+            state <= m_tlast_o ? STATE_IDLE : state;
+          end
+        end
+
         STATE_SET_ADDR: state <= select_i ? state : STATE_IDLE;
         STATE_SET_CONF: state <= select_i ? state : STATE_IDLE;
       endcase
