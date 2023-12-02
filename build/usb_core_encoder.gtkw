@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Dec  2 09:19:09 2023
+[*] Sat Dec  2 23:44:12 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Dec  2 09:15:02 2023"
-[dumpfile_size] 226873
+[dumpfile_mtime] "Sat Dec  2 23:40:23 2023"
+[dumpfile_size] 188898
 [savefile] "./usb_core_encoder.gtkw"
-[timestart] 5283100
+[timestart] 810300
 [size] 1920 1043
 [pos] -1 -1
-*-16.945190 6020000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.945190 1400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.
@@ -53,6 +53,36 @@ U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tdata_i[7:0]
 @1000200
 -To Encoder
 @800200
+-Chop
+@28
+[color] 3
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.active_i
+@22
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.length_i[6:0]
+@28
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.final_o
+U_ULPI_USB0.U_USB_CTRL0.ask_tvalid_w
+U_ULPI_USB0.U_USB_CTRL0.ask_tready_w
+U_ULPI_USB0.U_USB_CTRL0.ask_tlast_w
+@22
+U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w[7:0]
+@c00201
+-Internal
+@24
+[color] 7
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.count[6:0]
+@28
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.clast
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.fin_q
+@22
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.source_w[6:0]
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.remain_w[6:0]
+U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.remain_q[6:0]
+@1401201
+-Internal
+@1000200
+-Chop
+@800200
 -CTL_PIPE0
 @28
 [color] 3
@@ -68,27 +98,11 @@ U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
-@800200
--Chop
-@28
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.active_i
-@24
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.count[6:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.ask_tvalid_w
-U_ULPI_USB0.U_USB_CTRL0.ask_tready_w
-U_ULPI_USB0.U_USB_CTRL0.ask_tlast_w
-@22
-U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w[7:0]
 @1000200
--Chop
 -CTL_PIPE0
-@29
+@28
 [color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xsrc_q
-@28
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xdat_q
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.done_q
 U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xhsk_q

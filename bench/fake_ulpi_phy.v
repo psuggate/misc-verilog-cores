@@ -1,5 +1,5 @@
 `timescale 1ns / 100ps
-module fake_ulpi_phy (  /*AUTOARG*/
+module fake_ulpi_phy (
     clock,
     reset,
 
@@ -152,8 +152,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
           if (reg_q) begin
             state <= ST_WAIT;
             snext <= ST_IDLE;
-          end else
-          if (!reg_q && rx_start_w) begin
+          end else if (!reg_q && rx_start_w) begin
             // ULPI data is coming in over the wire
             state <= ST_RECV;
 

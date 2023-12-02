@@ -113,6 +113,107 @@ module usb_core_tb;
   );
 
 
+  ulpi_flow_check U_ULPI_FLOW0 (
+      .ulpi_clk  (usb_clock),
+      .ulpi_rst_n(usb_rst_n),
+      .ulpi_dir  (ulpi_dir),
+      .ulpi_nxt  (ulpi_nxt),
+      .ulpi_stp  (ulpi_stp),
+      .ulpi_data (ulpi_data)
+  );
+
+
+  // Check the output from the Control PIPE0 //
+  wire ctl0_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tvalid_w;
+  wire ctl0_tready_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tready_w;
+  wire ctl0_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tlast_w;
+  wire [7:0] ctl0_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW0 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(ctl0_tvalid_w),
+      .axis_tready(ctl0_tready_w),
+      .axis_tlast(ctl0_tlast_w),
+      .axis_tdata(ctl0_tdata_w)
+  );
+
+  // Check the output from the AXI4-Stream burst-chopper //
+  wire ask_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ask_tvalid_w;
+  wire ask_tready_w = U_ULPI_USB0.U_USB_CTRL0.ask_tready_w;
+  wire ask_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ask_tlast_w;
+  wire [7:0] ask_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW1 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(ask_tvalid_w),
+      .axis_tready(ask_tready_w),
+      .axis_tlast(ask_tlast_w),
+      .axis_tdata(ask_tdata_w)
+  );
+
+  // Check the output from the USB packet decoder //
+  wire usb_rx_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tvalid_w;
+  wire usb_rx_tready_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tready_w;
+  wire usb_rx_tlast_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tlast_w;
+  wire [7:0] usb_rx_tdata_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW2 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(usb_rx_tvalid_w),
+      .axis_tready(usb_rx_tready_w),
+      .axis_tlast(usb_rx_tlast_w),
+      .axis_tdata(usb_rx_tdata_w)
+  );
+
+  // Check the output to the USB packet encoder //
+  wire usb_tx_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tvalid_w;
+  wire usb_tx_tready_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tready_w;
+  wire usb_tx_tlast_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tlast_w;
+  wire [7:0] usb_tx_tdata_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW3 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(usb_tx_tvalid_w),
+      .axis_tready(usb_tx_tready_w),
+      .axis_tlast(usb_tx_tlast_w),
+      .axis_tdata(usb_tx_tdata_w)
+  );
+
+  // Check the output to ULPI-interface module //
+  wire ulpi_tx_tvalid_w = U_ULPI_USB0.ulpi_tx_tvalid_w;
+  wire ulpi_tx_tready_w = U_ULPI_USB0.ulpi_tx_tready_w;
+  wire ulpi_tx_tlast_w = U_ULPI_USB0.ulpi_tx_tlast_w;
+  wire [7:0] ulpi_tx_tdata_w = U_ULPI_USB0.ulpi_tx_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW4 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(ulpi_tx_tvalid_w),
+      .axis_tready(ulpi_tx_tready_w),
+      .axis_tlast(ulpi_tx_tlast_w),
+      .axis_tdata(ulpi_tx_tdata_w)
+  );
+
+  // Check the output from ULPI-interface module //
+  wire ulpi_rx_tvalid_w = U_ULPI_USB0.ulpi_rx_tvalid_w;
+  wire ulpi_rx_tready_w = U_ULPI_USB0.ulpi_rx_tready_w;
+  wire ulpi_rx_tlast_w = U_ULPI_USB0.ulpi_rx_tlast_w;
+  wire [7:0] ulpi_rx_tdata_w = U_ULPI_USB0.ulpi_rx_tdata_w;
+
+  axis_flow_check U_AXIS_FLOW5 (
+      .clock(usb_clock),
+      .reset(reset),
+      .axis_tvalid(ulpi_rx_tvalid_w),
+      .axis_tready(ulpi_rx_tready_w),
+      .axis_tlast(ulpi_rx_tlast_w),
+      .axis_tdata(ulpi_rx_tdata_w)
+  );
+
+
   //
   // Core Under New Tests
   ///

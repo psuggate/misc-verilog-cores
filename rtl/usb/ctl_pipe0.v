@@ -46,7 +46,7 @@ module ctl_pipe0 #(
 
     input  select_i,
     input  start_i,
-    output accept_o,
+   input stop_i,
     output error_o,
 
     output configured_o,
@@ -334,6 +334,9 @@ module ctl_pipe0 #(
     end
   end
 
+  // reg [5:0] tx_count;
+  // wire [5:0] tx_cnext = tx_count - 1;
+  
   always @(posedge clock) begin
     if (reset) begin
       state <= STATE_IDLE;
@@ -360,7 +363,7 @@ module ctl_pipe0 #(
 
         STATE_GET_DESC: begin
           if (m_tvalid_o && m_tready_i) begin
-            state <= m_tlast_o ? STATE_IDLE : state;
+            state <= m_tlast_o || stop_i ? STATE_IDLE : state;
           end
         end
 

@@ -312,6 +312,7 @@ module protocol #(
 
   reg act_q;
   reg [6:0] len_q;
+  wire ctl0_stop_w;
 
   always @(posedge clock) begin
     act_q <= ctl0_cycle_w && !(ask_tvalid_w && ask_tready_w && ask_tlast_w);
@@ -331,6 +332,7 @@ module protocol #(
       // .active_i(ctl0_cycle_w),
       // .length_i(ctl_length_w),
       // .length_i({ctl_length_w[15:6] != 0, ctl_length_w[5:0]}),
+      .final_o(ctl0_stop_w),
 
       .s_tvalid(ctl0_tvalid_w),
       .s_tready(ctl0_tready_w),
@@ -372,6 +374,7 @@ module protocol #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
+      .stop_i(ctl0_stop_w),
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),

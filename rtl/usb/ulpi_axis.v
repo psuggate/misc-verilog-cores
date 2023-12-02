@@ -160,7 +160,6 @@ module ulpi_axis
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
   ) U_USB_ULPI0 (
-      // .rst_n(1'b1),  // ulpi_rst_nw
       .rst_n(ulpi_rst_nw),
 
       .ulpi_clk(clock),
