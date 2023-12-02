@@ -17,10 +17,21 @@ module usb_demo_top (
 
   // -- Constants -- //
 
+  parameter integer SERIAL_LENGTH = 8;
+  parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001";
+  // localparam [63:0] SERIAL_NUMBER = "GULP0123";
+
+  parameter [15:0] VENDOR_ID = 16'hF4CE;
+  parameter integer VENDOR_LENGTH = 19;
+  parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago";
+
+  parameter [15:0] PRODUCT_ID = 16'h0003;
+  parameter integer PRODUCT_LENGTH = 8;
+  parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB";
+
   // USB configuration
   localparam FPGA_VENDOR = "gowin";
   localparam FPGA_FAMILY = "gw2a";
-  localparam [63:0] SERIAL_NUMBER = "GULP0123";
 
   localparam HIGH_SPEED = 1'b1;
 
@@ -77,6 +88,14 @@ module usb_demo_top (
   // Core Under New Tests
   ///
   ulpi_axis #(
+      .VENDOR_ID(VENDOR_ID),
+      .VENDOR_LENGTH(VENDOR_LENGTH),
+      .VENDOR_STRING(VENDOR_STRING),
+      .PRODUCT_ID(PRODUCT_ID),
+      .PRODUCT_LENGTH(PRODUCT_LENGTH),
+      .PRODUCT_STRING(PRODUCT_STRING),
+      .SERIAL_LENGTH(SERIAL_LENGTH),
+      .SERIAL_STRING(SERIAL_STRING),
       .EP1_CONTROL(0),
       .ENDPOINT1  (0),
       .EP2_CONTROL(0),
@@ -146,6 +165,7 @@ module usb_demo_top (
   // Miscellaneous
   reg [23:0] count;
   reg sof_q, ctl_latch_q = 0;
+  reg [2:0] err_code_q;
 
   wire tok_setup_w = U_ULPI_USB0.U_USB_CTRL0.tok_rx_recv_w && U_ULPI_USB0.U_USB_CTRL0.tok_rx_type_w == TOK_SETUP;
   reg [6:0] usb_addr_q;
@@ -160,26 +180,35 @@ module usb_demo_top (
   end
 
 
-  wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[1];
-  // wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_recv_o;
-  // wire flag_tok_recv_w, flag_hsk_recv_w, flag_hsk_sent_w;
-  // wire [3:0] cbits = usb_addr_q[3:0];
+  // wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[1];
+  wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_start_q;
 
   // assign leds = {~count[10], ~ctl_latch_q, ~device_usb_idle_w, ~usb_hs_enabled_w, 2'b11};
   // assign leds = {~count[7], ~configured, ~device_usb_idle_w, ~flag_hsk_sent_w, 2'b11};
   // assign leds = {~count[7], ~flag_tok_recv_w, ~flag_hsk_recv_w, ~flag_hsk_sent_w, 2'b11};
   assign leds = {~cbits[3:0], 2'b11};
-  assign cbits = {ctl_latch_q,
+  assign cbits = {ctl_latch_q, err_code_q};
+/*
                   U_ULPI_USB0.U_USB_CTRL0.ctl_sel_q,
                   // U_ULPI_USB0.U_USB_CTRL0.usb_sof_q,
                   U_ULPI_USB0.U_USB_CTRL0.hsk_recv_q,
                   U_ULPI_USB0.U_USB_CTRL0.hsk_sent_q
                   };
 
-
   always @(posedge usb_clock) begin
     if (ctl_select_w) begin
       ctl_latch_q <= 1'b1;
+      err_code_q <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_code_q;
+    end
+  end
+*/
+
+  reg lst_reset;
+  always @(posedge usb_clock) begin
+    lst_reset <= usb_reset;
+
+    if (usb_reset && !lst_reset) begin
+      {ctl_latch_q, err_code_q} <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl;
     end
   end
 

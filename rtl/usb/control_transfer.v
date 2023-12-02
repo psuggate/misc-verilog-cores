@@ -15,7 +15,6 @@ module control_transfer
   output ctl_start_o,
   output ctl_cycle_o,
   input ctl_error_i,
-  input ctl_done_i,
   output [7:0] ctl_rtype_o,  // todo:
   output [7:0] ctl_rargs_o,  // todo:
   output [15:0] ctl_value_o,
@@ -31,8 +30,6 @@ module control_transfer
   output ctl_tready_o,
   input ctl_tlast_i,
   input [7:0] ctl_tdata_i,
-
-  output status_state_o,
 
   // Signals from the USB packet decoder (upstream)
   input tok_recv_i,
@@ -109,7 +106,10 @@ module control_transfer
   reg odd_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
-  reg [3:0] xctrl = CTL_SETUP_RX;
+  reg [3:0] xctrl; //  = CTL_SETUP_RX;
+
+  reg [9:0] tx_count;
+  wire [9:0] tx_cnext = tx_count + 10'd1;
 
 
   // -- Input and Output Signal Assignments -- //
@@ -130,9 +130,9 @@ module control_transfer
   assign ctl_tlast_o  = 1'b0;
   assign ctl_tdata_o  = 8'h00;
 
-  assign usb_tvalid_o = ctl_tvalid_i;
+  assign usb_tvalid_o = ctl_tvalid_i; // && tx_count < ctl_length_o[9:0];
   assign ctl_tready_o = usb_tready_i;
-  assign usb_tlast_o  = ctl_tlast_i;
+  assign usb_tlast_o  = ctl_tlast_i; // || tx_cnext >= ctl_length_o[9:0];
   assign usb_tdata_o  = ctl_tdata_i;
 
 
@@ -203,6 +203,14 @@ module control_transfer
   assign usb_send_o   = trn_send_q;
   assign usb_type_o   = trn_type_q;
 
+/*
+  always @(posedge clock) begin
+    if (reset) begin
+      
+    end
+  end
+*/
+
   always @(posedge clock) begin
     // if (reset || usb_busy_i || usb_sent_i) begin
     if (reset || usb_busy_i) begin
@@ -217,7 +225,7 @@ module control_transfer
       end else if ((xctrl == CTL_DATI_TX || xctrl == CTL_STATUS_TX) && ctl_tvalid_i) begin
         trn_zero_q <= 1'b0;
         trn_send_q <= 1'b1;
-        trn_type_q <= DATA1;  // todo: odd/even
+        trn_type_q <= odd_q ? DATA1 : DATA0;  // todo: odd/even
       end else begin
         trn_zero_q <= trn_zero_q;
         trn_send_q <= trn_send_q;
@@ -243,33 +251,45 @@ module control_transfer
   localparam ST_CTRL = 3'h2;  // USB Control Transfer
   localparam ST_DUMP = 3'h4;  // ignoring xfer, or bad shit happened
 
+  localparam ER_NONE = 3'h0;
+  localparam ER_BLKI = 3'h1;
+  localparam ER_BLKO = 3'h2;
+  localparam ER_TOKN = 3'h3;
+  localparam ER_ADDR = 3'h4;
+  localparam ER_ENDP = 3'h5;
+  localparam ER_CONF = 3'h6;
+
   reg [2:0] state;
   reg err_start_q = 1'b0;
+  reg [2:0] err_code_q = ER_NONE;
 
   // todo: control the input MUX, and the output CE's
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
       err_start_q <= 1'b0;
+      err_code_q <= ER_NONE;
     end else begin
       case (state)
         default: begin  // ST_IDLE
           //
           // Decode tokens until we see our address, and a valid endpoint
           ///
-          // if (tok_recv_i) begin
           if (tok_recv_i && tok_addr_i == usb_addr_i) begin
             if (tok_type_i == TOK_IN || tok_type_i == TOK_OUT) begin
               state <= ST_DUMP;
               err_start_q <= 1'b1;
+              err_code_q <= tok_type_i == TOK_IN ? ER_BLKI : ER_BLKO;
             end else if (tok_type_i == TOK_SETUP) begin
               state <= ST_CTRL;
               err_start_q <= tok_endp_i != 4'h0;
+              err_code_q <= tok_endp_i != 4'h0 ? ER_ENDP : ER_NONE;
             end else begin
               // Either invalid endpoint, or unsupported transfer-type for the
               // requested endpoint.
               state <= ST_DUMP;
               err_start_q <= 1'b1;
+              err_code_q <= ER_TOKN;
             end
           end else begin
             state <= ST_IDLE;
@@ -284,6 +304,8 @@ module control_transfer
           if (ctl_error_q) begin
             // Control Transfer has failed, wait for the USB to settle down
             state <= ST_DUMP;
+            err_start_q <= 1'b1;
+            err_code_q <= ER_CONF;
           end else if (xctrl == CTL_DONE) begin
             state <= ST_IDLE;
           end
@@ -310,7 +332,6 @@ module control_transfer
   //  - if there is more data after the 8th byte, then forward that out (via
   //    an AXI4-Stream skid-register) !?
   always @(posedge clock) begin
-    // if (reset || fsm_idle_i) begin
     if (reset || state == ST_IDLE) begin
       xcptr <= 3'b000;
       ctl_lenlo_q <= 0;
@@ -338,6 +359,9 @@ module control_transfer
       end
     end else begin
       ctl_start_q <= 1'b0;
+      if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
+        ctl_cycle_q <= 1'b0;
+      end
     end
   end
 
@@ -383,6 +407,19 @@ module control_transfer
   //   for Bulk Transfers, during the "Data Stage," but the first data packet is
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
+
+  always @(posedge clock) begin
+    if (reset) begin
+      tx_count <= 0;
+    end else begin
+      if (xctrl == CTL_DATI_TX && usb_tvalid_o && usb_tready_i) begin
+        tx_count <= tx_cnext;
+      end else if (xctrl == CTL_DONE || xctrl == CTL_SETUP_RX) begin
+        tx_count <= 0;
+      end
+    end
+  end
+  
 
   // todo: recognise control requests to PIPE0
   // todo: then extract the relevant fields
@@ -441,11 +478,22 @@ module control_transfer
         CTL_DATI_TX: begin  // Tx IN to USB Host
           if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
             xctrl <= CTL_DATI_ACK;
+          // end else if (tx_cnext == ctl_length_o[9:0]) begin
+          //   xctrl <= CTL_DATI_ACK;
           end
         end
 
         CTL_DATI_ACK: begin
           if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
+            xctrl <= CTL_STATUS_TOK;
+            odd_q <= 1'b1;
+
+            /**
+             * TODO: can not support this until data-path CTL -> ENC is sorted-
+             *   out, because (AXI-S, skid) pipepline-registers break the phase
+             *   of 'ctl_done_i'.
+             */
+            /*
             if (ctl_done_i) begin
               xctrl <= CTL_STATUS_TOK;
               odd_q <= 1'b1;
@@ -453,6 +501,9 @@ module control_transfer
               xctrl <= CTL_DATA_TOK;
               odd_q <= ~odd_q;
             end
+            */
+          end else if (hsk_recv_i || tok_recv_i) begin // Non-ACK
+            xctrl <= CTL_DONE;
           end
         end
 

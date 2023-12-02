@@ -1,14 +1,13 @@
 `timescale 1ns / 100ps
-module protocol
-#(
-  parameter [15:0] VENDOR_ID = 16'hFACE,
-  parameter VENDOR_LENGTH = 7,
-  parameter VENDOR_STRING = "Potatoe",
-  parameter [15:0] PRODUCT_ID = 16'h0bde,
-  parameter PRODUCT_LENGTH = 6,
-  parameter PRODUCT_STRING = "Fallow",
-  parameter SERIAL_LENGTH = 8,
-  parameter SERIAL_STRING = "SN000001"
+module protocol #(
+    parameter [15:0] VENDOR_ID = 16'hFACE,
+    parameter VENDOR_LENGTH = 7,
+    parameter VENDOR_STRING = "Potatoe",
+    parameter [15:0] PRODUCT_ID = 16'h0bde,
+    parameter PRODUCT_LENGTH = 6,
+    parameter PRODUCT_STRING = "Fallow",
+    parameter SERIAL_LENGTH = 8,
+    parameter SERIAL_STRING = "SN000001"
 ) (
     input clock,
     input reset,
@@ -93,7 +92,7 @@ module protocol
 
   wire [6:0] usb_addr_w;
 
-  wire ctl0_start_w, ctl0_cycle_w, ctl0_done_w, ctl0_accept_w, ctl0_error_w;
+  wire ctl0_start_w, ctl0_cycle_w, ctl0_error_w;
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
   wire [7:0] ctl0_tdata_w;
 
@@ -125,7 +124,7 @@ module protocol
 
   assign usb_addr_o = usb_addr_w;
 
-  assign crc_err_o = crc_err_q;
+  assign crc_err_o  = crc_err_q;
 
 
   // -- Status & Debug Flags -- //
@@ -237,13 +236,15 @@ module protocol
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  control_transfer
-  U_USB_TRN0 (
+  wire ask_tvalid_w, ask_tready_w, ask_tlast_w;
+  wire [7:0] ask_tdata_w;
+
+  control_transfer U_USB_TRN0 (
       .clock(clock),
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
-/*
+      /*
    .fsm_ctrl_i(fsm_ctrl_w),
    .fsm_idle_i(fsm_idle_w),
    .ctl_done_o(ctl_done_w),
@@ -281,10 +282,9 @@ module protocol
       .usb_tdata_o (usb_tx_tdata_w),
 
       // To/from USB control transfer endpoints
-      .ctl_start_o (ctl0_start_w),
-      .ctl_cycle_o (ctl0_cycle_w),
-      .ctl_done_i  (ctl0_done_w),
-      .ctl_error_i (ctl0_error_w),
+      .ctl_start_o(ctl0_start_w),
+      .ctl_cycle_o(ctl0_cycle_w),
+      .ctl_error_i(ctl0_error_w),
 
       .ctl_rtype_o (ctl_rtype_w),
       .ctl_rargs_o (ctl_rargs_w),
@@ -297,10 +297,10 @@ module protocol
       .ctl_tlast_o (),
       .ctl_tdata_o (),
 
-      .ctl_tvalid_i(ctl0_tvalid_w),
-      .ctl_tready_o(ctl0_tready_w),
-      .ctl_tlast_i (ctl0_tlast_w),
-      .ctl_tdata_i (ctl0_tdata_w)
+      .ctl_tvalid_i(ask_tvalid_w),
+      .ctl_tready_o(ask_tready_w),
+      .ctl_tlast_i (ask_tlast_w),
+      .ctl_tdata_i (ask_tdata_w)
   );
 
 
@@ -309,45 +309,85 @@ module protocol
   //
   //  Add a skid-buffer, and see what happens !?
   //
+
+  reg act_q;
+  reg [6:0] len_q;
+
+  always @(posedge clock) begin
+    act_q <= ctl0_cycle_w && !(ask_tvalid_w && ask_tready_w && ask_tlast_w);
+    len_q <= {ctl_length_w[15:6] != 0, ctl_length_w[5:0]};
+  end
   
+  axis_chop #(
+      .WIDTH (8),
+      .MAXLEN(64),
+      .BYPASS(0)
+  ) axis_skid_inst (
+      .clock(clock),
+      .reset(reset),
+
+      .active_i(act_q),
+      .length_i(len_q),
+      // .active_i(ctl0_cycle_w),
+      // .length_i(ctl_length_w),
+
+      .s_tvalid(ctl0_tvalid_w),
+      .s_tready(ctl0_tready_w),
+      .s_tlast (ctl0_tlast_w),
+      .s_tdata (ctl0_tdata_w),
+
+      .m_tvalid(ask_tvalid_w),
+      .m_tready(ask_tready_w),
+      .m_tlast (ask_tlast_w),
+      .m_tdata (ask_tdata_w)
+  );
+
+
   // -- USB Default (PIPE0) Configuration Endpoint -- //
+
+  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN;
+  localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
+  localparam integer CSB = CONF_DESC_BITS - 1;
+  localparam [CSB:0] CONF_DESC_VALS = {EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
   ctl_pipe0 #(
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID),
-      .MANUFACTURER_LEN(VENDOR_LENGTH),
+      // .MANUFACTURER_LEN(VENDOR_LENGTH),
+      .MANUFACTURER_LEN(0),
       .MANUFACTURER(VENDOR_STRING),
-      .PRODUCT_LEN(PRODUCT_LENGTH),
+      // .PRODUCT_LEN(PRODUCT_LENGTH),
+      .PRODUCT_LEN(0),
       .PRODUCT(PRODUCT_STRING),
-      .SERIAL_LEN(SERIAL_LENGTH),
+      // .SERIAL_LEN(SERIAL_LENGTH),
+      .SERIAL_LEN(0),
       .SERIAL(SERIAL_STRING),
-      .CONFIG_DESC_LEN(CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN),
-      .CONFIG_DESC({EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC}),
+      .CONFIG_DESC_LEN(CONF_DESC_SIZE),
+      .CONFIG_DESC(CONF_DESC_VALS),
       .HIGH_SPEED(1)
   ) U_CFG_PIPE0 (
-      .reset(reset),
       .clock(clock),
+      .reset(reset),
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
-      .done_o  (ctl0_done_w),
-
-      .accept_o(ctl0_accept_w),
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
-      .usb_conf_o(usb_conf_o[7:0]),
-      .usb_addr_o (usb_addr_w),
+      .usb_conf_o  (usb_conf_o[7:0]),
+      .usb_addr_o  (usb_addr_w),
 
       .req_type_i (ctl_rtype_w),
       .req_args_i (ctl_rargs_w),
       .req_value_i(ctl_value_w),
+      .req_index_i(ctl_index_w),
+      .req_length_i(ctl_length_w),
 
       // AXI4-Stream for device descriptors
       .m_tvalid_o(ctl0_tvalid_w),
-      .m_tready_i(ctl0_tready_w),
       .m_tlast_o (ctl0_tlast_w),
-      .m_tdata_o (ctl0_tdata_w)
+      .m_tdata_o (ctl0_tdata_w),
+      .m_tready_i(ctl0_tready_w)
   );
 
 

@@ -1,80 +1,72 @@
 `timescale 1ns / 100ps
-`define SERIAL_STRING "BULK0000"
-`define SERIAL_LENGTH 8
+module ulpi_axis
+ #(
+  parameter EP1_BULK_IN = 1,
+  parameter EP1_BULK_OUT = 1,
+  parameter EP1_CONTROL = 0,
 
-`define VENDOR_STRING "University of Otago"
-`define VENDOR_LENGTH 19
+  parameter EP2_BULK_IN = 1,
+  parameter EP2_BULK_OUT = 0,
+  parameter EP2_CONTROL = 1,
 
-`define PRODUCT_STRING "TART USB"
-`define PRODUCT_LENGTH 8
+  parameter ENDPOINT1 = 1,  // set to '0' to disable
+  parameter ENDPOINT2 = 2,  // set to '0' to disable
 
-module ulpi_axis (
-  // Global, asynchronous reset
-  input areset_n,
+  parameter integer SERIAL_LENGTH = 8,
+  parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
 
-  // UTMI Low Pin Interface (ULPI)
-  input ulpi_clock_i,
-  output ulpi_reset_o,
-  input ulpi_dir_i,
-  input ulpi_nxt_i,
-  output ulpi_stp_o,
-  inout [7:0] ulpi_data_io,
+  parameter [15:0] VENDOR_ID = 16'hF4CE,
+  parameter integer VENDOR_LENGTH = 19,
+  parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago",
 
-  // USB clock-domain clock & reset
-  output usb_clock_o,
-  output usb_reset_o,  // USB core is in reset state
+  parameter [15:0] PRODUCT_ID = 16'h0003,
+  parameter integer PRODUCT_LENGTH = 8,
+  parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
+) (
+    // Global, asynchronous reset
+    input areset_n,
 
-  // Status flags for IN/OUT FIFOs, and the USB core
-  output fifo_in_full_o,
-  output fifo_out_full_o,
-  output fifo_out_overflow_o,
-  output fifo_has_data_o,
+    // UTMI Low Pin Interface (ULPI)
+    input ulpi_clock_i,
+    output ulpi_reset_o,
+    input ulpi_dir_i,
+    input ulpi_nxt_i,
+    output ulpi_stp_o,
+    inout [7:0] ulpi_data_io,
 
-  output configured_o,
-  output usb_sof_o,
-  output crc_err_o,
-  output usb_vbus_valid_o,
-  output usb_hs_enabled_o,
-  output usb_idle_o,  // USB core is idling
-  output usb_suspend_o,  // USB core has been suspended
-  output ulpi_rx_overflow_o,
+    // USB clock-domain clock & reset
+    output usb_clock_o,
+    output usb_reset_o,  // USB core is in reset state
 
-  // AXI4-stream slave-port signals (IN: EP -> host)
-  // Note: USB clock-domain
-  input s_axis_tvalid_i,
-  output s_axis_tready_o,
-  input s_axis_tlast_i,
-  input [7:0] s_axis_tdata_i,
+    // Status flags for IN/OUT FIFOs, and the USB core
+    output fifo_in_full_o,
+    output fifo_out_full_o,
+    output fifo_out_overflow_o,
+    output fifo_has_data_o,
 
-  // AXI4-stream master-port signals (OUT: host -> EP)
-  // Note: USB clock-domain
-  output m_axis_tvalid_o,
-  input m_axis_tready_i,
-  output m_axis_tlast_o,
-  output [7:0] m_axis_tdata_o
+    output configured_o,
+    output usb_sof_o,
+    output crc_err_o,
+    output usb_vbus_valid_o,
+    output usb_hs_enabled_o,
+    output usb_idle_o,  // USB core is idling
+    output usb_suspend_o,  // USB core has been suspended
+    output ulpi_rx_overflow_o,
+
+    // AXI4-stream slave-port signals (IN: EP -> host)
+    // Note: USB clock-domain
+    input s_axis_tvalid_i,
+    output s_axis_tready_o,
+    input s_axis_tlast_i,
+    input [7:0] s_axis_tdata_i,
+
+    // AXI4-stream master-port signals (OUT: host -> EP)
+    // Note: USB clock-domain
+    output m_axis_tvalid_o,
+    input m_axis_tready_i,
+    output m_axis_tlast_o,
+    output [7:0] m_axis_tdata_o
 );
-
-  parameter EP1_BULK_IN = 1;
-  parameter EP1_BULK_OUT = 1;
-  parameter EP1_CONTROL = 0;
-
-  parameter EP2_BULK_IN = 1;
-  parameter EP2_BULK_OUT = 0;
-  parameter EP2_CONTROL = 1;
-
-  parameter ENDPOINT1 = 1;  // set to '0' to disable
-  parameter ENDPOINT2 = 2;  // set to '0' to disable
-
-  parameter [`SERIAL_LENGTH*8-1:0] SERIAL_STRING = `SERIAL_STRING;
-  parameter [7:0] SERIAL_LENGTH = `SERIAL_LENGTH;
-
-  parameter [15:0] VENDOR_ID = 16'hF4CE;
-  parameter [`VENDOR_LENGTH*8-1:0] VENDOR_STRING = `VENDOR_STRING;
-  parameter [7:0] VENDOR_LENGTH = `VENDOR_LENGTH;
-
-  parameter [15:0] PRODUCT_ID = 16'h0003;
-  parameter [`PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = `PRODUCT_STRING;
-  parameter [7:0] PRODUCT_LENGTH = `PRODUCT_LENGTH;
 
 
   // -- Constants -- //
@@ -151,7 +143,7 @@ module ulpi_axis (
       rx_counter <= 0;
       tx_counter <= 0;
     end else begin
-      rx_start_q <= ulpi_rx_tvalid_w && ulpi_rx_tlast_w; // ulpi_dir_i && !ulpi_nxt_i;
+      rx_start_q <= ulpi_rx_tvalid_w && ulpi_rx_tlast_w;  // ulpi_dir_i && !ulpi_nxt_i;
       tx_event_q <= !ulpi_dir_i && ulpi_nxt_i && ulpi_stp_o;
 
       if (tx_event_q) begin
@@ -168,8 +160,8 @@ module ulpi_axis (
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
   ) U_USB_ULPI0 (
-      .rst_n(1'b1), // ulpi_rst_nw
-      // .rst_n(ulpi_rst_nw),
+      // .rst_n(1'b1),  // ulpi_rst_nw
+      .rst_n(ulpi_rst_nw),
 
       .ulpi_clk(clock),
       .usb_reset_o(usb_reset_w),
@@ -192,7 +184,7 @@ module ulpi_axis (
       .axis_tx_tdata_i (ulpi_tx_tdata_w),
 
       .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
-      .usb_hs_enabled_o (usb_hs_enabled_o),
+      .usb_hs_enabled_o  (usb_hs_enabled_o),
       .usb_vbus_valid_o  (usb_vbus_valid_o),
       .usb_idle_o        (usb_idle_o),
       .usb_suspend_o     (usb_suspend_o)
@@ -201,17 +193,18 @@ module ulpi_axis (
 
   // -- Top-level USB Control Core -- //
 
-  protocol
-#( .VENDOR_ID(VENDOR_ID),
-   .VENDOR_LENGTH(VENDOR_LENGTH),
-   .VENDOR_STRING(VENDOR_STRING),
-   .PRODUCT_ID(PRODUCT_ID),
-   .PRODUCT_LENGTH(PRODUCT_LENGTH),
-   .PRODUCT_STRING(PRODUCT_STRING)
-) U_USB_CTRL0
-    (
-      .clock       (clock),
-      .reset       (reset),
+  protocol #(
+      .VENDOR_ID(VENDOR_ID),
+      .VENDOR_LENGTH(VENDOR_LENGTH),
+      .VENDOR_STRING(VENDOR_STRING),
+      .PRODUCT_ID(PRODUCT_ID),
+      .PRODUCT_LENGTH(PRODUCT_LENGTH),
+      .PRODUCT_STRING(PRODUCT_STRING),
+      .SERIAL_LENGTH(SERIAL_LENGTH),
+      .SERIAL_STRING(SERIAL_STRING)
+  ) U_USB_CTRL0 (
+      .clock(clock),
+      .reset(reset),
 
       .configured_o(configured_o),
       .usb_addr_o  (),
@@ -234,9 +227,9 @@ module ulpi_axis (
       .usb_tready_i(ulpi_tx_tready_w),
       .usb_tlast_o (ulpi_tx_tlast_w),
       .usb_tdata_o (ulpi_tx_tdata_w)
-     );
+  );
 
-/*
+  /*
 
   // -- Route Bulk IN Signals -- //
 

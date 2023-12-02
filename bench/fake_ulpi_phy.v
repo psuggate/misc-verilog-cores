@@ -46,13 +46,13 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
   // -- Signals & State -- //
 
-  reg dir_q, nxt_q, rdy_q;
+  reg dir_q, nxt_q, rdy_q, reg_q;
   reg [7:0] dat_q;
 
   reg tvalid;
   reg [7:0] tdata;
 
-  wire pid_vld_w, non_pid_w, tx_start_w, rx_start_w;
+  wire pid_vld_w, non_pid_w, reg_pid_w, tx_start_w, rx_start_w;
 
 
   // -- Output Signal Assignments -- //
@@ -78,6 +78,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
   assign pid_vld_w = dir_q == 1'b0 && ulpi_data_io[7:4] == 4'b0100;
   assign non_pid_w = dir_q == 1'b0 && ulpi_data_io[7:4] != 4'b0100 && ulpi_data_io != 8'h00;
+  assign reg_pid_w = !dir_q && ulpi_data_io[7];
 
 
   // -- Rx Datapath -- //
@@ -108,12 +109,13 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
   // -- ULPI FSM -- //
 
-  localparam ST_IDLE = 3'b000;
-  localparam ST_SEND = 3'b001;
-  localparam ST_RECV = 3'b010;
-  localparam ST_STOP = 3'b100;
+  localparam [3:0] ST_IDLE = 4'b0000;
+  localparam [3:0] ST_SEND = 4'b0001;
+  localparam [3:0] ST_RECV = 4'b0010;
+  localparam [3:0] ST_STOP = 4'b0100;
+  localparam [3:0] ST_WAIT = 4'b1000;
 
-  reg [2:0] state;
+  reg [3:0] state, snext;
 
   always @(posedge clock) begin
     if (reset || !ulpi_rst_ni) begin
@@ -123,6 +125,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
       nxt_q <= 1'b0;
       rdy_q <= 1'b0;
       dat_q <= 'bx;
+      reg_q <= 1'b0;
     end else begin
       case (state)
         default: begin  // ST_IDLE
@@ -130,20 +133,39 @@ module fake_ulpi_phy (  /*AUTOARG*/
           nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
           rdy_q <= tx_start_w;
           dat_q <= 'bz;
+          reg_q <= reg_pid_w;
 
-          if (rx_start_w) begin
+          if (reg_q) begin
+            state <= ST_WAIT;
+            snext <= ST_IDLE;
+          end else
+          if (!reg_q && rx_start_w) begin
             // ULPI data is coming in over the wire
             state <= ST_RECV;
+
+            // state <= ST_WAIT;
+            // snext <= ST_RECV;
           end else if (tx_start_w) begin
             // We need to push data onto the wire
             state <= ST_SEND;
+
+            // state <= ST_STOP;
+            // snext <= ST_SEND;
           end else begin
             state <= ST_IDLE;
+            snext <= 'bx;
           end
+        end
+
+        ST_WAIT: begin
+          state <= snext;
+          nxt_q <= 1'b0;
+          reg_q <= 1'b0;
         end
 
         ST_SEND: begin
           state <= ulpi_stp_i ? ST_STOP : usb_tlast_i ? ST_IDLE : state;
+          snext <= ST_IDLE;
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
           nxt_q <= usb_tvalid_i && !ulpi_stp_i;
@@ -154,6 +176,7 @@ module fake_ulpi_phy (  /*AUTOARG*/
         ST_RECV: begin
           // The PHY receives a 'STOP' command to indicate end
           state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
+          snext <= ST_IDLE;
 
           dir_q <= 1'b0;
           nxt_q <= !ulpi_stp_i;
@@ -163,10 +186,12 @@ module fake_ulpi_phy (  /*AUTOARG*/
 
         ST_STOP: begin
           // todo: Dump the remainder of the packet in the FIFO ??
-          state <= ST_IDLE;
-          // state <= usb_tvalid_i && !usb_tlast_i ? state : ST_IDLE;
+          // state <= ST_IDLE;
+          state <= snext;
+          snext <= 'bx;
 
-          dir_q <= 1'b0;
+          // dir_q <= 1'b0;
+          dir_q <= snext == ST_SEND;
           nxt_q <= 1'b0;
           rdy_q <= 1'b0;  // usb_tvalid_i && !usb_tlast_i;
           dat_q <= usb_tdata_i;
@@ -174,6 +199,26 @@ module fake_ulpi_phy (  /*AUTOARG*/
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_SEND: dbg_state = "SEND";
+      ST_RECV: dbg_state = "RECV";
+      ST_STOP: dbg_state = "STOP";
+      ST_WAIT: dbg_state = "WAIT";
+      default: dbg_state = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // fake_ulpi_phy

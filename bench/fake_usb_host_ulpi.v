@@ -117,10 +117,11 @@ module fake_usb_host_ulpi (
     // @(posedge clock);
 
     $display("%10t: FETCH device DESCRIPTOR", $time);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00});
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00}, 64);
 
     $display("%10t: FETCH config DESCRIPTOR", $time);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00});
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 9);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 32);
     desc_done_q <= 1'b1;
 
     @(posedge clock);
@@ -170,7 +171,7 @@ module fake_usb_host_ulpi (
     #80 while (state != ST_STR0) @(posedge clock);
 
     $display("%10t: FETCH device SERIAL#", $time);
-    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00});
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 64);
 
     $display("%10t: SERIAL from device ...", $time);
   end
@@ -469,10 +470,11 @@ module fake_usb_host_ulpi (
     input [7:0] rtype;
     input [7:0] rargs;
     input [15:0] value;
+    input [6:0] length;
     begin
       reg [63:0] data;
       // Note: Control Transfer IN packet-size is 64B (High-Speed)
-      send_setup(addr, endp, {16'h40, 16'h0, value, rargs, rtype});
+      send_setup(addr, endp, {{9'h0, length}, 16'h0, value, rargs, rtype});
 
       send_token(addr, endp, TOK_IN);  // Data Stage
       recv_data1();
