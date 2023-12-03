@@ -99,23 +99,26 @@ module axis_chop (
       end
 
 
-      reg fin_q;
+      reg final_q;
+    wire fnext_w;
       reg [LSB:0] remain_q;
       wire [LSB:0] source_w = active_i ? remain_q : length_i;
       wire [LSB:0] remain_w = source_w - 1;
 
-      assign final_o = fin_q;
+    assign fnext_w = s_tvalid && sready && !final_q && (remain_w == 0 || s_tlast)
+      || final_q && active_i;
+    assign final_o = final_q;
 
       always @(posedge clock) begin
         // if (!active_i || s_tvalid && sready) begin
-        if (!active_i || s_tvalid && sready && !fin_q) begin
+        if (!active_i || s_tvalid && sready && !final_q) begin
           remain_q <= remain_w;
         end
 
         if (reset || !active_i) begin
-          fin_q <= 1'b0;
-        end else if (s_tvalid && sready && !fin_q) begin
-          fin_q <= remain_w == 0 || s_tlast;
+          final_q <= 1'b0;
+        end else if (s_tvalid && sready && !final_q) begin
+          final_q <= remain_w == 0 || s_tlast;
         end
       end
 
@@ -143,7 +146,8 @@ module axis_chop (
       // assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
       // assign mvalid_next = s_tvalid && sready || tvalid || mvalid && !m_tready;
 
-      assign sready_next = remain_q != 0 && active_i &&
+      assign sready_next = !final_q && active_i &&
+      // assign sready_next = remain_q != 0 && active_i &&
           // assign sready_next = cnext < length_i && active_i &&
           (!(s_tvalid && mvalid || tvalid) || m_tready);
       assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);

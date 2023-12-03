@@ -46,7 +46,7 @@ module fake_ulpi_phy (
 
   // -- Signals & State -- //
 
-  reg dir_q, nxt_q, rdy_q, reg_q;
+  reg dir_q, nxt_q, rdy_q;
   reg [7:0] dat_q;
 
   reg tvalid;
@@ -87,6 +87,7 @@ module fake_ulpi_phy (
   localparam [3:0] ST_IDLE = 4'b0000;
   localparam [3:0] ST_SEND = 4'b0001;
   localparam [3:0] ST_RECV = 4'b0010;
+  localparam [3:0] ST_REGW = 4'b0011;
   localparam [3:0] ST_STOP = 4'b0100;
   localparam [3:0] ST_WAIT = 4'b1000;
 
@@ -102,19 +103,21 @@ module fake_ulpi_phy (
         tvalid <= 1'b0;
       end
 
-      ST_IDLE: begin
-        tdata  <= ulpi_data_io;
-        tvalid <= rx_start_w && nxt_q;
+      ST_WAIT: begin
+        if (nxt_q && !dir_q) begin
+          tvalid <= 1'b1;
+          tdata <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
+        end
       end
 
       ST_RECV: begin
-        // if (!tvalid) begin
-        if (!tvalid && rx_start_w) begin
-          tdata <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
-        end else begin
+        if (nxt_q && !ulpi_stp_i) begin
+          tvalid <= 1'b1;
           tdata <= ulpi_data_io;
+        end else begin
+          tvalid <= 1'b0;
+          tdata <= tdata;
         end
-        tvalid <= nxt_q && !ulpi_stp_i;
       end
     endcase
   end
@@ -138,45 +141,58 @@ module fake_ulpi_phy (
       nxt_q <= 1'b0;
       rdy_q <= 1'b0;
       dat_q <= 'bx;
-      reg_q <= 1'b0;
     end else begin
       case (state)
         default: begin  // ST_IDLE
-          dir_q <= tx_start_w;  //
-          // nxt_q <= rx_start_w || non_pid_w;  // Pause after PID is standard
-          nxt_q <= rx_start_w || non_pid_w || !dir_q && tx_start_w;
-          rdy_q <= tx_start_w && dir_q;
+          // dir_q <= tx_start_w;  //
+
+          // nxt_q <= rx_start_w || non_pid_w || !dir_q && tx_start_w;
+          // nxt_q <= !dir_q && tx_start_w;
+          // rdy_q <= tx_start_w && dir_q;
+          rdy_q <= 1'b0;
           dat_q <= 'bz;
-          reg_q <= reg_pid_w;
 
-          if (reg_q) begin
-            state <= ST_WAIT;
+          if (reg_pid_w || non_pid_w) begin
+            nxt_q <= 1'b1;
+            dir_q <= 1'b0;
+            state <= ST_REGW;
             snext <= ST_IDLE;
-          end else if (!reg_q && rx_start_w) begin
+          end else if (rx_start_w) begin
             // ULPI data is coming in over the wire
-            state <= ST_RECV;
-
-            // state <= ST_WAIT;
-            // snext <= ST_RECV;
+            nxt_q <= 1'b1;
+            dir_q <= 1'b0;
+            state <= ST_WAIT;
+            snext <= ST_RECV;
           end else if (tx_start_w) begin
             // We need to push data onto the wire
-            // state <= ST_SEND;
-
+            nxt_q <= 1'b1;
+            dir_q <= 1'b1;
             state <= ST_WAIT;
             snext <= ST_SEND;
           end else begin
+            nxt_q <= 1'b0;
+            dir_q <= 1'b0;
             state <= ST_IDLE;
             snext <= 'bx;
+          end
+        end
+
+        ST_REGW: begin
+          if (ulpi_stp_i) begin
+            state <= ST_IDLE;
+            nxt_q <= 1'b0;
+          end else begin
+            nxt_q <= 1'b1;
           end
         end
 
         ST_WAIT: begin
           state <= snext;
           snext <= 'bx;
+
           nxt_q <= 1'b0;
-          rdy_q <= tx_start_w && dir_q;
-          dat_q <= tx_start_w ? rx_cmd_w : dat_q;
-          reg_q <= 1'b0;
+          rdy_q <= snext == ST_SEND;
+          dat_q <= snext == ST_SEND ? rx_cmd_w : dat_q;
         end
 
         ST_SEND: begin
@@ -184,10 +200,12 @@ module fake_ulpi_phy (
           snext <= ST_IDLE;
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
-          nxt_q <= usb_tvalid_i && !ulpi_stp_i;
+          // nxt_q <= usb_tvalid_i && !ulpi_stp_i;
           // nxt_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111);
-          rdy_q <= usb_tvalid_i && !ulpi_stp_i && !usb_tlast_i;
-          dat_q <= usb_tdata_i;
+          nxt_q <= usb_tvalid_i && !ulpi_stp_i && rdy_q;
+          rdy_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111) && !usb_tlast_i;
+          // dat_q <= !rdy_q ? rx_cmd_w : usb_tdata_i;
+          dat_q <= !rdy_q ? dat_q : usb_tdata_i;
         end
 
         ST_RECV: begin
@@ -231,6 +249,7 @@ module fake_ulpi_phy (
       ST_IDLE: dbg_state = "IDLE";
       ST_SEND: dbg_state = "SEND";
       ST_RECV: dbg_state = "RECV";
+      ST_REGW: dbg_state = "REGW";
       ST_STOP: dbg_state = "STOP";
       ST_WAIT: dbg_state = "WAIT";
       default: dbg_state = "XXXX";

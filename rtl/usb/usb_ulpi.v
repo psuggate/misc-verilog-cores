@@ -265,6 +265,109 @@ module usb_ulpi #(
 
   // -- Capture Incoming USB Packets -- //
 
+  localparam [3:0] RX_IDLE = 4'b0001;
+  localparam [3:0] RX_TURN = 4'b0010;
+  localparam [3:0] RX_RECV = 4'b0100;
+  localparam [3:0] RX_DONE = 4'b1000;
+
+  reg vld_q;  
+  reg [3:0] xrecv;
+  reg [7:0] dat_q;
+
+  always @(posedge ulpi_clk) begin
+    if (!rst_n) begin
+      vld_q     <= 1'b0;
+      dat_q     <= 'bx;
+      xrecv     <= RX_IDLE;
+
+      rx_tvalid <= 1'b0;
+      rx_tlast  <= 1'b0;
+      rx_tdata  <= 'bx;
+    end else begin
+      case (xrecv)
+        RX_IDLE: begin
+          vld_q     <= 1'b0;
+          dat_q     <= 'bx;
+
+          rx_tvalid <= 1'b0;
+          rx_tlast  <= 1'b0;
+          rx_tdata  <= 'bx;
+
+          if (!dir_q && ulpi_dir && ulpi_nxt) begin
+            xrecv   <= RX_TURN; // Bus turnaround, followed by RECV
+          end else if (dir_q && ulpi_dir && !ulpi_nxt && ulpi_data_in[5:4] == 2'b01) begin
+            xrecv   <= RX_RECV; // 'RxActive' event signalled
+          end
+        end
+
+        RX_TURN: begin
+          // todo: 'RX CMD' to process ...
+          // todo: if 'nxt', then rx-err, and signal this !?
+          vld_q     <= 1'b0;
+          dat_q     <= 'bx;
+          xrecv     <= RX_RECV;
+
+          rx_tvalid <= 1'b0;
+          rx_tlast  <= 1'b0;
+          rx_tdata  <= 'bx;
+        end
+
+        RX_RECV: begin
+          if (vld_q && ulpi_dir && ulpi_nxt) begin
+            // Have valid data, and received another byte
+            vld_q     <= 1'b1;
+            dat_q     <= ulpi_data_in;
+            xrecv     <= xrecv;
+
+            rx_tvalid <= 1'b1;
+            rx_tlast  <= 1'b0;
+            rx_tdata  <= dat_q;
+          end else if (vld_q && !ulpi_dir) begin
+            // End of packet, so assert 'tlast'
+            vld_q     <= 1'b0;
+            dat_q     <= 'bx;
+            xrecv     <= RX_DONE;
+
+            rx_tvalid <= 1'b1;
+            rx_tlast  <= 1'b1;
+            rx_tdata  <= dat_q;
+          end else if (!ulpi_nxt) begin
+            // Only load data when receiving
+            // todo: 'RX CMD' to process ...
+            vld_q     <= vld_q;
+            dat_q     <= dat_q;
+            xrecv     <= xrecv;
+
+            rx_tvalid <= 1'b0;
+            rx_tlast  <= 1'b0;
+            rx_tdata  <= rx_tdata;
+          end else if (!vld_q && ulpi_dir && ulpi_nxt) begin
+            vld_q     <= 1'b1;
+            dat_q     <= ulpi_data_in;
+            xrecv     <= xrecv;
+
+            rx_tvalid <= 1'b0;
+            rx_tlast  <= 1'b0;
+            rx_tdata  <= rx_tdata;
+          end else begin
+            $error("%10t: UNEXPECTED", $time);
+          end
+        end
+
+        default: begin // RX_DONE
+          vld_q     <= 1'b0;
+          dat_q     <= 'bx;
+          xrecv     <= RX_IDLE;
+
+          rx_tvalid <= 1'b0;
+          rx_tlast  <= 1'b0;
+          rx_tdata  <= 'bx;
+        end
+      endcase
+    end
+  end
+
+/*
   always @(posedge ulpi_clk) begin
     if (dir_q && ulpi_dir && ulpi_nxt) begin
       packet_buf <= ulpi_data_in;
@@ -286,6 +389,7 @@ module usb_ulpi #(
       rx_tlast  <= 1'b0;
     end
   end
+*/
 
 
   // -- ULPI FSM -- //
@@ -478,6 +582,25 @@ module usb_ulpi #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [39:0] dbg_xrecv;
+
+  always @* begin
+    case (xrecv)
+      RX_IDLE: dbg_xrecv = "IDLE";
+      RX_TURN: dbg_xrecv = "TURN";
+      RX_RECV: dbg_xrecv = "RECV";
+      RX_DONE: dbg_xrecv = "DONE";
+      default: dbg_xrecv = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // usb_ulpi

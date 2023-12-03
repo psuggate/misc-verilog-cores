@@ -116,7 +116,7 @@ module decode_packet (
       {rx_vld1, rx_vld0} <= {rx_vld0, 1'b1};
     end
 
-    if (ulpi_tvalid_i) begin
+    if (ulpi_tvalid_i && ulpi_tready_o) begin
       {rx_buf1, rx_buf0} <= {rx_buf0, ulpi_tdata_i};
     end else begin
       // {rx_buf1, rx_buf0} <= {rx_buf1, 8'hxx};
@@ -140,7 +140,7 @@ module decode_packet (
   assign crc16_w = crc16(rx_buf0, crc16_q);
 
   always @(posedge clock) begin
-    vld_q <= ulpi_tvalid_i;
+    vld_q <= ulpi_tvalid_i && ulpi_tready_o;
 
     if (!rx_vld0) begin
       crc16_q <= 16'hffff;

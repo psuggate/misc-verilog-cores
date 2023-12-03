@@ -235,8 +235,8 @@ module ctl_pipe0 #(
 
   reg [2:0] state;
   reg err_q;
-  reg [$clog2(DESC_SIZE)-1:0] mem_addr;
-  wire [$clog2(DESC_SIZE)-1:0] mem_next;
+  reg [$clog2(DESC_SIZE+1)-1:0] mem_addr;
+  wire [$clog2(DESC_SIZE+1)-1:0] mem_next;
 
   wire is_std_req;
   wire is_dev_req;

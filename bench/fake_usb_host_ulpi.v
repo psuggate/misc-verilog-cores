@@ -560,6 +560,29 @@ module fake_usb_host_ulpi (
   endtask  // recv_data1
 
 
+  // -- Basic, Flow-Control Rules-Checkers -- //
+
+  // Check the output to ULPI-interface module //
+  axis_flow_check U_AXIS_FLOW6 (
+      .clock(clock),
+      .reset(reset),
+      .axis_tvalid(usb_tx_tvalid_w),
+      .axis_tready(usb_tx_tready_w),
+      .axis_tlast(usb_tx_tlast_w),
+      .axis_tdata(usb_tx_tdata_w)
+  );
+
+  // Check the output from ULPI-interface module //
+  axis_flow_check U_AXIS_FLOW7 (
+      .clock(clock),
+      .reset(reset),
+      .axis_tvalid(ulpi_rx_tvalid_w),
+      .axis_tready(ulpi_rx_tready_w),
+      .axis_tlast(ulpi_rx_tlast_w),
+      .axis_tdata(ulpi_rx_tdata_w)
+  );
+
+
   // -- Simulation Only -- //
 
 `ifdef __icarus

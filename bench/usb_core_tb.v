@@ -113,6 +113,7 @@ module usb_core_tb;
   );
 
 
+  // Monitor for ULPI flow-control rules violations
   ulpi_flow_check U_ULPI_FLOW0 (
       .ulpi_clk  (usb_clock),
       .ulpi_rst_n(usb_rst_n),
