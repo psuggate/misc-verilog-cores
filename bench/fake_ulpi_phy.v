@@ -126,8 +126,8 @@ module fake_ulpi_phy (
   reg [2:0] rnd_q;
 
   always @(posedge clock) begin
-    // rnd_q <= 3'd0;
-    rnd_q <= $urandom;
+    rnd_q <= 3'd0;
+    // rnd_q <= $urandom;
   end
 
 

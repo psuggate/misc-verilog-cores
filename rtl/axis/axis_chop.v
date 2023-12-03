@@ -146,7 +146,7 @@ module axis_chop (
       // assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
       // assign mvalid_next = s_tvalid && sready || tvalid || mvalid && !m_tready;
 
-      assign sready_next = !final_q && active_i &&
+      assign sready_next = active_i && (!final_q || final_q && !sready) &&
       // assign sready_next = remain_q != 0 && active_i &&
           // assign sready_next = cnext < length_i && active_i &&
           (!(s_tvalid && mvalid || tvalid) || m_tready);

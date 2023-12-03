@@ -274,6 +274,7 @@ module usb_ulpi #(
   reg [3:0] xrecv;
   reg [7:0] dat_q;
 
+/*
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       vld_q     <= 1'b0;
@@ -366,8 +367,8 @@ module usb_ulpi #(
       endcase
     end
   end
+*/
 
-/*
   always @(posedge ulpi_clk) begin
     if (dir_q && ulpi_dir && ulpi_nxt) begin
       packet_buf <= ulpi_data_in;
@@ -389,7 +390,6 @@ module usb_ulpi #(
       rx_tlast  <= 1'b0;
     end
   end
-*/
 
 
   // -- ULPI FSM -- //
