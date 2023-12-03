@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Dec  3 03:03:59 2023
+[*] Sun Dec  3 08:26:47 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Dec  3 02:52:38 2023"
-[dumpfile_size] 150789
+[dumpfile_mtime] "Sun Dec  3 08:26:39 2023"
+[dumpfile_size] 283442
 [savefile] "./usb_core_encoder.gtkw"
-[timestart] 1983100
+[timestart] 1616000
 [size] 1920 1043
 [pos] -1 -1
-*-16.945190 2550000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.945190 2550000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.
@@ -72,15 +72,10 @@ U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w[7:0]
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.fnext_w
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.sready
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.sready_next
-@24
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.count[6:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.clast
 @22
+[color] 7
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.source_w[6:0]
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.remain_w[6:0]
-@23
 U_ULPI_USB0.U_USB_CTRL0.axis_skid_inst.g_chop.remain_q[6:0]
 @1000200
 -Internal

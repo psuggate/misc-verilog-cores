@@ -106,17 +106,17 @@ module fake_ulpi_phy (
       ST_WAIT: begin
         if (nxt_q && !dir_q) begin
           tvalid <= 1'b1;
-          tdata <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
+          tdata  <= {~ulpi_data_io[3:0], ulpi_data_io[3:0]};
         end
       end
 
       ST_RECV: begin
         if (nxt_q && !ulpi_stp_i) begin
           tvalid <= 1'b1;
-          tdata <= ulpi_data_io;
+          tdata  <= ulpi_data_io;
         end else begin
           tvalid <= 1'b0;
-          tdata <= tdata;
+          tdata  <= tdata;
         end
       end
     endcase
@@ -125,9 +125,11 @@ module fake_ulpi_phy (
   // Fake Flow-Control //
   reg [2:0] rnd_q;
 
+  // Randomly de-asserts 'nxt' to test how the flow-control of the upstream and
+  // downstream functional-units behave.
   always @(posedge clock) begin
-    rnd_q <= 3'd0;
-    // rnd_q <= $urandom;
+    // rnd_q <= 3'd0; // Disables random flow-stoppages
+    rnd_q <= $urandom;
   end
 
 
@@ -144,11 +146,6 @@ module fake_ulpi_phy (
     end else begin
       case (state)
         default: begin  // ST_IDLE
-          // dir_q <= tx_start_w;  //
-
-          // nxt_q <= rx_start_w || non_pid_w || !dir_q && tx_start_w;
-          // nxt_q <= !dir_q && tx_start_w;
-          // rdy_q <= tx_start_w && dir_q;
           rdy_q <= 1'b0;
           dat_q <= 'bz;
 
@@ -196,26 +193,21 @@ module fake_ulpi_phy (
         end
 
         ST_SEND: begin
-          state <= ulpi_stp_i ? ST_STOP : usb_tlast_i ? ST_IDLE : state;
+          state <= ulpi_stp_i ? ST_STOP : usb_tvalid_i && usb_tlast_i && rdy_q ? ST_IDLE : state;
           snext <= ST_IDLE;
 
           dir_q <= usb_tvalid_i && !ulpi_stp_i;
-          // nxt_q <= usb_tvalid_i && !ulpi_stp_i;
-          // nxt_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111);
           nxt_q <= usb_tvalid_i && !ulpi_stp_i && rdy_q;
-          rdy_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111) && !usb_tlast_i;
-          // dat_q <= !rdy_q ? rx_cmd_w : usb_tdata_i;
-          dat_q <= !rdy_q ? dat_q : usb_tdata_i;
+          rdy_q <= usb_tvalid_i && !ulpi_stp_i && !(rnd_q == 3'b111) && !(usb_tlast_i && rdy_q);
+          dat_q <= !rdy_q ? rx_cmd_w : usb_tdata_i;
         end
 
         ST_RECV: begin
           // The PHY receives a 'STOP' command to indicate end
-          // state <= nxt_q && ulpi_stp_i ? ST_IDLE : state;
           state <= ulpi_stp_i ? ST_IDLE : state;
           snext <= ST_IDLE;
 
           dir_q <= 1'b0;
-          // nxt_q <= !ulpi_stp_i && !(rnd_q == 3'b111);
           nxt_q <= !ulpi_stp_i && !(rnd_q >= 5);
           rdy_q <= 1'b0;
           dat_q <= dat_q;
@@ -224,13 +216,10 @@ module fake_ulpi_phy (
         ST_STOP: begin
           // todo: Dump the remainder of the packet in the FIFO ??
           state <= ST_IDLE;
-          // state <= snext;
-          // snext <= 'bx;
 
           dir_q <= 1'b0;
-          // dir_q <= snext == ST_SEND;
           nxt_q <= 1'b0;
-          rdy_q <= 1'b0;  // usb_tvalid_i && !usb_tlast_i;
+          rdy_q <= 1'b0;
           dat_q <= usb_tdata_i;
         end
       endcase

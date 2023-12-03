@@ -1,27 +1,26 @@
 `timescale 1ns / 100ps
-module ulpi_axis
- #(
-  parameter EP1_BULK_IN = 1,
-  parameter EP1_BULK_OUT = 1,
-  parameter EP1_CONTROL = 0,
+module ulpi_axis #(
+    parameter EP1_BULK_IN  = 1,
+    parameter EP1_BULK_OUT = 1,
+    parameter EP1_CONTROL  = 0,
 
-  parameter EP2_BULK_IN = 1,
-  parameter EP2_BULK_OUT = 0,
-  parameter EP2_CONTROL = 1,
+    parameter EP2_BULK_IN  = 1,
+    parameter EP2_BULK_OUT = 0,
+    parameter EP2_CONTROL  = 1,
 
-  parameter ENDPOINT1 = 1,  // set to '0' to disable
-  parameter ENDPOINT2 = 2,  // set to '0' to disable
+    parameter ENDPOINT1 = 1,  // set to '0' to disable
+    parameter ENDPOINT2 = 2,  // set to '0' to disable
 
-  parameter integer SERIAL_LENGTH = 8,
-  parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
+    parameter integer SERIAL_LENGTH = 8,
+    parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
 
-  parameter [15:0] VENDOR_ID = 16'hF4CE,
-  parameter integer VENDOR_LENGTH = 19,
-  parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago",
+    parameter [15:0] VENDOR_ID = 16'hF4CE,
+    parameter integer VENDOR_LENGTH = 19,
+    parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago",
 
-  parameter [15:0] PRODUCT_ID = 16'h0003,
-  parameter integer PRODUCT_LENGTH = 8,
-  parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
+    parameter [15:0] PRODUCT_ID = 16'h0003,
+    parameter integer PRODUCT_LENGTH = 8,
+    parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
 ) (
     // Global, asynchronous reset
     input areset_n,

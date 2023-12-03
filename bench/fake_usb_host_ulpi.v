@@ -422,7 +422,7 @@ module fake_usb_host_ulpi (
       send_token(num[6:0], num[10:7], TOK_SOF);
       $display("%10t: SOF token sent", $time);
     end
-  endtask // send_sof
+  endtask  // send_sof
 
 
   // -- USB Control Transfers -- //
@@ -553,7 +553,7 @@ module fake_usb_host_ulpi (
         end
       end
       sready <= 1'b0;
-      count <= count + (svalid && slast);
+      count  <= count + (svalid && slast);
       @(posedge clock);
       $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
     end

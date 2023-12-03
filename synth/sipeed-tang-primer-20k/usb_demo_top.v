@@ -97,9 +97,9 @@ module usb_demo_top (
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
       .EP1_CONTROL(0),
-      .ENDPOINT1  (0),
+      .ENDPOINT1(0),
       .EP2_CONTROL(0),
-      .ENDPOINT2  (0)
+      .ENDPOINT2(0)
   ) U_ULPI_USB0 (
       .areset_n(rst_cnt[4]),
 
@@ -155,7 +155,7 @@ module usb_demo_top (
 
   localparam [1:0] TOK_SETUP = 2'b11;
 
-  wire [3:0] cbits;
+  wire [ 3:0] cbits;
 
   // assign cbits = {dev_crc_err_w, U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[2:0]};
   // assign cbits = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl[3:0];
@@ -163,7 +163,7 @@ module usb_demo_top (
   // assign cbits = U_ULPI_USB0.rx_counter[9:6];
 
   // Miscellaneous
-  reg [23:0] count;
+  reg  [23:0] count;
   reg sof_q, ctl_latch_q = 0;
   reg [2:0] err_code_q;
 
@@ -186,9 +186,9 @@ module usb_demo_top (
   // assign leds = {~count[10], ~ctl_latch_q, ~device_usb_idle_w, ~usb_hs_enabled_w, 2'b11};
   // assign leds = {~count[7], ~configured, ~device_usb_idle_w, ~flag_hsk_sent_w, 2'b11};
   // assign leds = {~count[7], ~flag_tok_recv_w, ~flag_hsk_recv_w, ~flag_hsk_sent_w, 2'b11};
-  assign leds = {~cbits[3:0], 2'b11};
+  assign leds  = {~cbits[3:0], 2'b11};
   assign cbits = {ctl_latch_q, err_code_q};
-/*
+  /*
                   U_ULPI_USB0.U_USB_CTRL0.ctl_sel_q,
                   // U_ULPI_USB0.U_USB_CTRL0.usb_sof_q,
                   U_ULPI_USB0.U_USB_CTRL0.hsk_recv_q,

@@ -46,7 +46,7 @@ module ctl_pipe0 #(
 
     input  select_i,
     input  start_i,
-   input stop_i,
+    input  stop_i,
     output error_o,
 
     output configured_o,
@@ -167,7 +167,7 @@ module ctl_pipe0 #(
   localparam DESC_HAS_STRINGS = MANUFACTURER_LEN > 0 || PRODUCT_LEN > 0 || SERIAL_LEN > 0 ? 1 : 0;
 
   localparam integer DESC_SIZE = (DESC_HAS_STRINGS == 1) ? {DESC_SIZE_STR} : {DESC_SIZE_NOSTR};
-  localparam integer DSB = DESC_SIZE*8 - 1;
+  localparam integer DSB = DESC_SIZE * 8 - 1;
   localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {CONFIG_DESC, DEVICE_DESC};
 
   localparam integer DESC_CONFIG_START = DEVICE_DESC_LEN;
@@ -203,7 +203,7 @@ module ctl_pipe0 #(
 
   endgenerate
 
-/*
+  /*
   assign descriptor[0] = 8'h12;
   assign descriptor[1] = 8'h01;
   assign descriptor[2] = 8'h00;
@@ -336,7 +336,7 @@ module ctl_pipe0 #(
 
   // reg [5:0] tx_count;
   // wire [5:0] tx_cnext = tx_count - 1;
-  
+
   always @(posedge clock) begin
     if (reset) begin
       state <= STATE_IDLE;

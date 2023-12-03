@@ -267,7 +267,7 @@ module usb_ulpi #(
   localparam [3:0] RX_RECV = 4'b0100;
   localparam [3:0] RX_DONE = 4'b1000;
 
-  reg vld_q;  
+  reg vld_q;
   reg [3:0] xrecv;
   reg [7:0] dat_q;
   wire stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
@@ -292,9 +292,9 @@ module usb_ulpi #(
           rx_tdata  <= 'bx;
 
           if (!dir_q && ulpi_dir && ulpi_nxt) begin
-            xrecv   <= RX_TURN; // Bus turnaround, followed by RECV
+            xrecv <= RX_TURN;  // Bus turnaround, followed by RECV
           end else if (dir_q && ulpi_dir && !ulpi_nxt && ulpi_data_in[5:4] == 2'b01) begin
-            xrecv   <= RX_TURN; // 'RxActive' event signalled
+            xrecv <= RX_TURN;  // 'RxActive' event signalled
           end
         end
 
@@ -316,7 +316,6 @@ module usb_ulpi #(
         end
 
         RX_RECV: begin
-          // if (vld_q && ulpi_dir && ulpi_nxt) begin
           if (ulpi_dir && ulpi_nxt) begin
             // Have valid data, and received another byte
             vld_q     <= 1'b1;
@@ -326,7 +325,6 @@ module usb_ulpi #(
             rx_tvalid <= 1'b1;
             rx_tlast  <= 1'b0;
             rx_tdata  <= dat_q;
-          // end else if (vld_q && stp_w) begin
           end else if (stp_w) begin
             // End of packet, so assert 'tlast'
             vld_q     <= 1'b0;
@@ -336,10 +334,8 @@ module usb_ulpi #(
             rx_tvalid <= 1'b1;
             rx_tlast  <= 1'b1;
             rx_tdata  <= dat_q;
-          // end else if (!ulpi_nxt) begin
           end else begin
             // Only load data when receiving
-            // todo: 'RX CMD' to process ...
             vld_q     <= vld_q;
             dat_q     <= dat_q;
             xrecv     <= xrecv;
@@ -347,24 +343,10 @@ module usb_ulpi #(
             rx_tvalid <= 1'b0;
             rx_tlast  <= 1'b0;
             rx_tdata  <= rx_tdata;
-          // end else if (!vld_q && ulpi_dir && ulpi_nxt) begin
-            /*
-          end else begin
-            vld_q     <= 1'b1;
-            dat_q     <= ulpi_data_in;
-            xrecv     <= xrecv;
-
-            rx_tvalid <= 1'b0;
-            rx_tlast  <= 1'b0;
-            rx_tdata  <= rx_tdata;
-             */
-          // end else begin
-          //   $error("%10t: UNEXPECTED", $time);
-             
           end
         end
 
-        default: begin // RX_DONE
+        default: begin  // RX_DONE
           vld_q     <= 1'b0;
           dat_q     <= 'bx;
           xrecv     <= RX_IDLE;
@@ -377,7 +359,7 @@ module usb_ulpi #(
     end
   end
 
-/*
+  /*
   reg cyc_q;
 
   always @(posedge ulpi_clk) begin
@@ -406,32 +388,6 @@ module usb_ulpi #(
         rx_tvalid <= 1'b0;
         rx_tlast  <= 1'b0;
       end
-    end
-  end
-
-  reg packet = 1'b0;
-  reg [7:0] packet_buf;
-
-  always @(posedge ulpi_clk) begin
-    if (dir_q && ulpi_dir && ulpi_nxt) begin
-      packet_buf <= ulpi_data_in;
-
-      if (!packet) begin
-        rx_tvalid <= 1'b0;
-        packet <= 1'b1;
-      end else begin
-        rx_tdata  <= packet_buf;
-        rx_tvalid <= 1'b1;
-      end
-      rx_tlast <= 1'b0;
-    end else if (packet && dir_q && (ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir)) begin
-      rx_tdata <= packet_buf;
-      rx_tvalid <= 1'b1;
-      rx_tlast <= 1'b1;
-      packet <= 1'b0;
-    end else begin
-      rx_tvalid <= 1'b0;
-      rx_tlast  <= 1'b0;
     end
   end
 */

@@ -119,7 +119,6 @@ module decode_packet (
     if (ulpi_tvalid_i && ulpi_tready_o) begin
       {rx_buf1, rx_buf0} <= {rx_buf0, ulpi_tdata_i};
     end else begin
-      // {rx_buf1, rx_buf0} <= {rx_buf1, 8'hxx};
       {rx_buf1, rx_buf0} <= {rx_buf1, rx_buf0};
     end
   end
@@ -151,26 +150,12 @@ module decode_packet (
     end
   end
 
-/*
-  assign crc16_w = crc16(rx_buf0, crc16_q);
-
-  always @(posedge clock) begin
-    if (!rx_vld0) begin
-      crc16_q <= 16'hffff;
-    end else begin
-      crc16_q <= crc16_w;
-    end
-  end
-*/
-
 
   // -- CRC-Error, Start-Of-Frame, and Token-Received Signals -- //
 
   // Strobes that indicate the start and end of a (received) packet.
   // todo: unify the SOF and TOKEN states !?
   always @(posedge clock) begin
-    // tok_recv_q <= state[4] && trn_type_q != TOK_SOF && token_crc5 == rx_crc5_w;
-    // sof_flag_q <= state[2] && trn_type_q == TOK_SOF && token_crc5 == rx_crc5_w;
     tok_recv_q <= state[4] && token_crc5 == rx_crc5_w;
     sof_flag_q <= state[2] && token_crc5 == rx_crc5_w;
   end

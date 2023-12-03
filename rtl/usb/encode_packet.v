@@ -167,13 +167,9 @@ module encode_packet (
     end
   end
 
+  // Signals that a packet has been encoded (to the ULPI interface)
   always @(posedge clock) begin
-    if (`ST_DATA && tvalid && tlast && tx_tready_i) begin
-      done_q <= 1'b1;
-    end else begin  // if (!trn_tsend_i) begin
-      done_q <= 1'b0;
-    end
-    // done_q <= `ST_DATA & tvalid & tlast & tx_tready_i;
+    done_q <= `ST_DATA & tvalid & tlast & tx_tready_i;
   end
 
 

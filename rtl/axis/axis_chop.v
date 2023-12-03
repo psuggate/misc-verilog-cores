@@ -6,7 +6,6 @@ module axis_chop (
     active_i,
     length_i,
     final_o,
-    chopped_o,
 
     s_tvalid,
     s_tready,
@@ -19,6 +18,11 @@ module axis_chop (
     m_tdata
 );
 
+  //
+  // Chops a transfer at 'length_i'.
+  //
+  // Note: the chopped transfer cannot be resumed.
+  ///
   parameter BYPASS = 0;
 
   parameter MAXLEN = 64;
@@ -36,7 +40,6 @@ module axis_chop (
   input active_i;
   input [LSB:0] length_i;
   output final_o;
-  output chopped_o;
 
   input s_tvalid;
   output s_tready;
@@ -52,8 +55,6 @@ module axis_chop (
   generate
     if (BYPASS == 1) begin : g_bypass
 
-      assign chopped_o = 1'b0;
-
       // No registers
       assign m_tvalid  = s_tvalid;
       assign s_tready  = m_tready;
@@ -63,6 +64,7 @@ module axis_chop (
       initial begin
         $display("=> Bypassing AXI-S chop-register");
       end
+
     end // g_bypass
   else begin : g_chop
 
@@ -78,39 +80,18 @@ module axis_chop (
 
       // -- Burst Chopper -- //
 
-      reg clast;
-      reg [LSB:0] count;
-      wire [LSB:0] cnext = count + 1;
-      // wire [LSB:0] cprev = count - 1;
-      wire clast_w = active_i & cnext == length_i | s_tlast;
-
-      assign chopped_o = clast;
-
-      always @(posedge clock) begin
-        if (reset || !active_i) begin
-          clast <= 1'b0;
-          count <= LZERO;
-        end else begin
-          if (s_tvalid && sready) begin
-            clast <= clast | clast_w;
-            count <= cnext;
-          end
-        end
-      end
-
-
       reg final_q;
-    wire fnext_w;
-      reg [LSB:0] remain_q;
+      wire fnext_w, tlast_w;
+      reg  [LSB:0] remain_q;
       wire [LSB:0] source_w = active_i ? remain_q : length_i;
       wire [LSB:0] remain_w = source_w - 1;
 
-    assign fnext_w = s_tvalid && sready && !final_q && (remain_w == 0 || s_tlast)
+      assign tlast_w = final_q && s_tvalid && sready || s_tlast;
+      assign fnext_w = s_tvalid && sready && !final_q && (remain_w == 0 || s_tlast)
       || final_q && active_i;
-    assign final_o = final_q;
+      assign final_o = final_q;
 
       always @(posedge clock) begin
-        // if (!active_i || s_tvalid && sready) begin
         if (!active_i || s_tvalid && sready && !final_q) begin
           remain_q <= remain_w;
         end
@@ -124,31 +105,8 @@ module axis_chop (
 
 
       // -- Control -- //
-      /*
-      function src_ready(input svalid, input tvalid, input dvalid, input dready);
-        src_ready = dready || !(tvalid || (dvalid && svalid));
-      endfunction
-
-      function tmp_valid(input svalid, input tvalid, input dvalid, input dready);
-        tmp_valid = !src_ready(svalid, tvalid, dvalid, dready);
-      endfunction
-
-      function dst_valid(input svalid, input tvalid, input dvalid, input dready);
-        dst_valid = tvalid || svalid || (dvalid && !dready);
-      endfunction
-
-      assign sready_next = src_ready(s_tvalid, tvalid, mvalid, m_tready);
-      assign tvalid_next = tmp_valid(s_tvalid, tvalid, mvalid, m_tready);
-      assign mvalid_next = dst_valid(s_tvalid, tvalid, mvalid, m_tready);
-    */
-
-      // assign sready_next = !(s_tvalid && mvalid || tvalid) || m_tready;
-      // assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
-      // assign mvalid_next = s_tvalid && sready || tvalid || mvalid && !m_tready;
 
       assign sready_next = active_i && (!final_q || final_q && !sready) &&
-      // assign sready_next = remain_q != 0 && active_i &&
-          // assign sready_next = cnext < length_i && active_i &&
           (!(s_tvalid && mvalid || tvalid) || m_tready);
       assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
       assign mvalid_next = s_tvalid && sready || tvalid || mvalid && !m_tready;
@@ -187,7 +145,7 @@ module axis_chop (
         end else begin
           if (src_to_dst(sready, mvalid, m_tready)) begin
             mdata <= s_tdata;
-            mlast <= clast_w;  // s_tlast;
+            mlast <= tlast_w;
           end else if (tmp_to_dst(tvalid, m_tready)) begin
             mdata <= tdata;
             mlast <= tlast;
@@ -196,7 +154,7 @@ module axis_chop (
           if (src_to_tmp(sready, mvalid, m_tready)) begin
             tdata <= s_tdata;
             tlast <= s_tlast;
-            tlast <= clast_w;  // s_tlast;
+            tlast <= tlast_w;
           end
         end
       end

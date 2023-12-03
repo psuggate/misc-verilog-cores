@@ -305,11 +305,8 @@ module protocol #(
 
 
   //
-  //  T O D O
-  //
-  //  Add a skid-buffer, and see what happens !?
-  //
-
+  // Burst-Chopper for Descriptor Data
+  ///
   reg act_q;
   reg [6:0] len_q;
   wire ctl0_stop_w;
@@ -318,7 +315,7 @@ module protocol #(
     act_q <= ctl0_cycle_w && !(ask_tvalid_w && ask_tready_w && ask_tlast_w);
     len_q <= {ctl_length_w[15:6] != 0, ctl_length_w[5:0]};
   end
-  
+
   axis_chop #(
       .WIDTH (8),
       .MAXLEN(64),
@@ -329,10 +326,7 @@ module protocol #(
 
       .active_i(act_q),
       .length_i(len_q),
-      // .active_i(ctl0_cycle_w),
-      // .length_i(ctl_length_w),
-      // .length_i({ctl_length_w[15:6] != 0, ctl_length_w[5:0]}),
-      .final_o(ctl0_stop_w),
+      .final_o (ctl0_stop_w),
 
       .s_tvalid(ctl0_tvalid_w),
       .s_tready(ctl0_tready_w),
@@ -357,14 +351,17 @@ module protocol #(
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID),
       // .MANUFACTURER_LEN(VENDOR_LENGTH),
+      // .MANUFACTURER(VENDOR_STRING),
       .MANUFACTURER_LEN(0),
-      .MANUFACTURER(VENDOR_STRING),
+      .MANUFACTURER(""),
       // .PRODUCT_LEN(PRODUCT_LENGTH),
+      // .PRODUCT(PRODUCT_STRING),
       .PRODUCT_LEN(0),
-      .PRODUCT(PRODUCT_STRING),
+      .PRODUCT(""),
       // .SERIAL_LEN(SERIAL_LENGTH),
+      // .SERIAL(SERIAL_STRING),
       .SERIAL_LEN(0),
-      .SERIAL(SERIAL_STRING),
+      .SERIAL(""),
       .CONFIG_DESC_LEN(CONF_DESC_SIZE),
       .CONFIG_DESC(CONF_DESC_VALS),
       .HIGH_SPEED(1)
@@ -374,17 +371,17 @@ module protocol #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
-      .stop_i(ctl0_stop_w),
+      .stop_i  (ctl0_stop_w),
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
       .usb_conf_o  (usb_conf_o[7:0]),
       .usb_addr_o  (usb_addr_w),
 
-      .req_type_i (ctl_rtype_w),
-      .req_args_i (ctl_rargs_w),
-      .req_value_i(ctl_value_w),
-      .req_index_i(ctl_index_w),
+      .req_type_i  (ctl_rtype_w),
+      .req_args_i  (ctl_rargs_w),
+      .req_value_i (ctl_value_w),
+      .req_index_i (ctl_index_w),
       .req_length_i(ctl_length_w),
 
       // AXI4-Stream for device descriptors

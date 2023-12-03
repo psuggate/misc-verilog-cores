@@ -148,9 +148,11 @@ module control_transfer
   // condition indicates that the received packet contains no data.
   always @(posedge clock) begin
     if (reset) begin
-      usb_recv_q <= 2'b0;
-    end else begin
-      usb_recv_q <= usb_recv_i;
+      usb_recv_q <= 1'b0;
+    end else if (usb_recv_i) begin
+      usb_recv_q <= 1'b1;
+    end else if (usb_tvalid_i || usb_tlast_i) begin
+      usb_recv_q <= 1'b0;
     end
   end
 
