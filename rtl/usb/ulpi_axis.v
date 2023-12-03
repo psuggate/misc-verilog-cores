@@ -111,8 +111,6 @@ module ulpi_axis #(
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
-  wire flag_tok_recv_w, flag_hsk_recv_w, flag_hsk_sent_w;
-
 
   assign clock = ulpi_clock_i;
   assign reset = ~rst_nq;
@@ -129,32 +127,6 @@ module ulpi_axis #(
 
 
   // -- AXI4 stream to/from ULPI stream -- //
-
-  reg rx_start_q, tx_event_q;
-  reg [15:0] rx_counter = 0;
-  reg [15:0] tx_counter = 0;
-
-  always @(posedge clock) begin
-    if (!ulpi_rst_nw) begin
-      rx_start_q <= 1'b0;
-      tx_event_q <= 1'b0;
-
-      rx_counter <= 0;
-      tx_counter <= 0;
-    end else begin
-      rx_start_q <= ulpi_rx_tvalid_w && ulpi_rx_tlast_w;  // ulpi_dir_i && !ulpi_nxt_i;
-      tx_event_q <= !ulpi_dir_i && ulpi_nxt_i && ulpi_stp_o;
-
-      if (tx_event_q) begin
-        tx_counter <= tx_counter + 1;
-      end
-
-      if (rx_start_q) begin
-        rx_counter <= rx_counter + 1;
-      end
-    end
-  end
-
 
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
@@ -209,10 +181,6 @@ module ulpi_axis #(
       .usb_conf_o  (),
       .usb_sof_o   (usb_sof_o),
       .crc_err_o   (crc_err_o),
-
-      .flag_tok_recv_o(flag_tok_recv_w),
-      .flag_hsk_recv_o(flag_hsk_recv_w),
-      .flag_hsk_sent_o(flag_hsk_sent_w),
 
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),

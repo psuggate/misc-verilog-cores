@@ -272,6 +272,7 @@ module usb_ulpi #(
   reg [7:0] dat_q;
   wire stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
 
+/*
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       vld_q     <= 1'b0;
@@ -358,39 +359,46 @@ module usb_ulpi #(
       endcase
     end
   end
+*/
 
-  /*
   reg cyc_q;
 
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       cyc_q <= 1'b0;
+      dat_q <= 8'bx;
+
+      rx_tvalid <= 1'b0;
+      rx_tlast  <= 1'bx;
+      rx_tdata  <= 8'bx;
     end else begin
       if (dir_q && ulpi_dir && ulpi_nxt) begin
+        cyc_q <= 1'b1;
         dat_q <= ulpi_data_in;
 
         if (!cyc_q) begin
           rx_tvalid <= 1'b0;
-          cyc_q <= 1'b1;
+          rx_tlast  <= 1'bx;
+          rx_tdata  <= 8'bx;
         end else begin
-          rx_tdata  <= dat_q;
           rx_tvalid <= 1'b1;
+          rx_tlast  <= 1'b0;
+          rx_tdata  <= dat_q;
         end
-
-        rx_tlast <= 1'b0;
       end else if (cyc_q && dir_q && stp_w) begin
-        rx_tdata <= dat_q;
-        rx_tvalid <= 1'b1;
-        rx_tlast <= 1'b1;
-
         cyc_q <= 1'b0;
+        dat_q <= 8'bx;
+
+        rx_tvalid <= 1'b1;
+        rx_tlast  <= 1'b1;
+        rx_tdata  <= dat_q;
       end else begin
         rx_tvalid <= 1'b0;
         rx_tlast  <= 1'b0;
+        rx_tdata  <= 8'bx;
       end
     end
   end
-*/
 
 
   // -- ULPI FSM -- //
@@ -402,8 +410,8 @@ module usb_ulpi #(
     end else if (dir_q || ulpi_dir) begin
       // We are not driving //
       state <= state;
-      snext <= 'bx;
-      reg_data <= 'bx;
+      snext <= 4'bx;
+      reg_data <= 8'bx;
     end else begin
       // We are driving //
       case (state)
@@ -419,7 +427,7 @@ module usb_ulpi #(
           if (ulpi_nxt) begin
             state <= STATE_WRITE_REGD;
             ulpi_data_out_buf <= reg_data;
-            reg_data <= 'bx;
+            reg_data <= 8'bx;
           end else begin
             state <= STATE_WRITE_REGA;
             ulpi_data_out_buf <= ulpi_data_out_buf;
@@ -436,7 +444,7 @@ module usb_ulpi #(
             ulpi_data_out_buf <= ulpi_data_out_buf;
           end
           snext <= snext;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_RESET: begin
@@ -447,23 +455,23 @@ module usb_ulpi #(
           end else begin
             state <= state;
           end
-          snext <= 'bx;
+          snext <= 4'bx;
           ulpi_data_out_buf <= 8'h00;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_SUSPEND: begin
           state <= usb_line_state != 2'b01 ? STATE_IDLE : STATE_SUSPEND;
-          snext <= 'bx;
+          snext <= 4'bx;
           ulpi_data_out_buf <= 8'h00;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_STP: begin
           state <= snext;
-          snext <= 'bx;
+          snext <= 4'bx;
           ulpi_data_out_buf <= 8'h00;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_IDLE: begin
@@ -482,8 +490,8 @@ module usb_ulpi #(
               state <= STATE_TX;
             end
           end
-          snext <= 'bx;
-          reg_data <= 'bx;
+          snext <= 4'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_TX: begin
@@ -502,8 +510,8 @@ module usb_ulpi #(
             state <= state;
             ulpi_data_out_buf <= ulpi_data_out_buf;
           end
-          snext <= 'bx;
-          reg_data <= 'bx;
+          snext <= 4'bx;
+          reg_data <= 8'bx;
         end
         STATE_TX_LAST: begin
           if (ulpi_nxt) begin
@@ -512,10 +520,10 @@ module usb_ulpi #(
             ulpi_data_out_buf <= 8'h00;
           end else begin
             state <= STATE_TX_LAST;
-            snext <= 'bx;
+            snext <= 4'bx;
             ulpi_data_out_buf <= ulpi_data_out_buf;
           end
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
 
         STATE_CHIRP_START: begin
@@ -532,8 +540,8 @@ module usb_ulpi #(
             state <= STATE_CHIRP_STARTK;
             ulpi_data_out_buf <= 8'h40;
           end
-          snext <= 'bx;
-          reg_data <= 'bx;
+          snext <= 4'bx;
+          reg_data <= 8'bx;
         end
         STATE_CHIRPK: begin
           if (state_counter > CHIRP_K_TIME) begin
@@ -541,10 +549,10 @@ module usb_ulpi #(
             snext <= STATE_CHIRPKJ;
           end else begin
             state <= state;
-            snext <= 'bx;
+            snext <= 4'bx;
           end
           ulpi_data_out_buf <= 8'h00;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
         STATE_CHIRPKJ: begin
           if (chirp_kj_counter > 3 && state_counter > CHIRP_KJ_TIME) begin
@@ -554,9 +562,9 @@ module usb_ulpi #(
             reg_data <= 8'b0_1_0_00_0_00;
           end else begin
             state <= state;
-            snext <= 'bx;
+            snext <= 4'bx;
             ulpi_data_out_buf <= 8'h00;
-            reg_data <= 'bx;
+            reg_data <= 8'bx;
           end
         end
 
@@ -576,9 +584,9 @@ module usb_ulpi #(
           end else begin
             state <= state;
           end
-          snext <= 'bx;
+          snext <= 4'bx;
           ulpi_data_out_buf <= 8'h00;
-          reg_data <= 'bx;
+          reg_data <= 8'bx;
         end
       endcase
     end

@@ -19,10 +19,6 @@ module protocol #(
     output usb_sof_o,
     output crc_err_o,
 
-    output flag_tok_recv_o,
-    output flag_hsk_recv_o,
-    output flag_hsk_sent_o,
-
     // USB control & bulk data received from host
     input usb_tvalid_i,
     output usb_tready_o,
@@ -128,22 +124,6 @@ module protocol #(
 
 
   // -- Status & Debug Flags -- //
-
-  reg tok_recv_q, hsk_recv_q, hsk_sent_q;
-
-  assign flag_tok_recv_o = tok_recv_q;
-  assign flag_hsk_recv_o = hsk_recv_q;
-  assign flag_hsk_sent_o = hsk_sent_q;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      {tok_recv_q, hsk_recv_q, hsk_sent_q} <= 3'h0;
-    end else begin
-      tok_recv_q <= tok_recv_q | tok_rx_recv_w;
-      hsk_recv_q <= hsk_recv_q | hsk_rx_recv_w;
-      hsk_sent_q <= hsk_sent_q | hsk_tx_sent_w;
-    end
-  end
 
   always @(posedge clock) begin
     if (reset) begin
