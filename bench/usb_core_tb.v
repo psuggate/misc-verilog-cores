@@ -242,6 +242,14 @@ module usb_core_tb;
       .usb_sof_o(dev_usb_sof_w),
       .crc_err_o(dev_crc_err_w),
 
+      // USB bulk endpoint data-paths
+      .blk_in_ready_i(1'b0),
+      .blk_out_ready_i(1'b0),
+      .blk_start_o(),
+      .blk_cycle_o(),
+      .blk_endpt_o(),
+      .blk_error_i(1'b0),
+
       .s_axis_tvalid_i(svalid),
       .s_axis_tready_o(sready),
       .s_axis_tlast_i (slast),

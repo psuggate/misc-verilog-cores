@@ -119,6 +119,14 @@ module usb_demo_top (
       .usb_sof_o(usb_sof),
       .crc_err_o(dev_crc_err_w),
 
+      // USB bulk endpoint data-paths
+      .blk_in_ready_i(m_tvalid),
+      .blk_out_ready_i(s_tready),
+      .blk_start_o(),
+      .blk_cycle_o(),
+      .blk_endpt_o(),
+      .blk_error_i(1'b0),
+
       .s_axis_tvalid_i(m_tvalid),
       .s_axis_tready_o(m_tready),
       .s_axis_tlast_i (m_tlast),

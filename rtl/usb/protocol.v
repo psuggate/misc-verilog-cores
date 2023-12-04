@@ -51,7 +51,25 @@ module protocol #(
     output usb_tvalid_o,
     input usb_tready_i,
     output usb_tlast_o,
-    output [7:0] usb_tdata_o
+    output [7:0] usb_tdata_o,
+
+  // USB Bulk Transfer parameters and data-streams
+   input blk_in_ready_i,
+   input blk_out_ready_i,
+   output blk_start_o,
+   output blk_cycle_o,
+   output [3:0] blk_endpt_o,
+   input blk_error_i,
+
+  output blk_tvalid_o,
+  input blk_tready_i,
+  output blk_tlast_o,
+  output [7:0] blk_tdata_o,
+
+   input blk_tvalid_i,
+   output blk_tready_o,
+   input blk_tlast_i,
+   input [7:0] blk_tdata_i
 );
 
 
@@ -200,11 +218,6 @@ module protocol #(
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
-      /*
-   .fsm_ctrl_i(fsm_ctrl_w),
-   .fsm_idle_i(fsm_idle_w),
-   .ctl_done_o(ctl_done_w),
-*/
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
@@ -236,6 +249,24 @@ module protocol #(
       .usb_tready_i(usb_tx_tready_w),
       .usb_tlast_o (usb_tx_tlast_w),
       .usb_tdata_o (usb_tx_tdata_w),
+
+      // USB bulk endpoint data-paths
+      .blk_in_ready_i(blk_in_ready_i),
+      .blk_out_ready_i(blk_out_ready_i),
+      .blk_start_o(blk_start_o),
+      .blk_cycle_o(blk_cycle_o),
+      .blk_endpt_o(blk_endpt_o),
+      .blk_error_i(blk_error_i),
+
+      .blk_tvalid_i(blk_tvalid_i),
+      .blk_tready_o(blk_tready_o),
+      .blk_tlast_i (blk_tlast_i),
+      .blk_tdata_i (blk_tdata_i),
+
+      .blk_tvalid_o(blk_tvalid_o),
+      .blk_tready_i(blk_tready_i),
+      .blk_tlast_o (blk_tlast_o),
+      .blk_tdata_o (blk_tdata_o),
 
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),

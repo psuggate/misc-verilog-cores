@@ -52,6 +52,14 @@ module ulpi_axis #(
     output usb_suspend_o,  // USB core has been suspended
     output ulpi_rx_overflow_o,
 
+  // USB Bulk Transfer parameters and data-streams
+   input blk_in_ready_i,
+   input blk_out_ready_i,
+   output blk_start_o,
+   output blk_cycle_o,
+   output [3:0] blk_endpt_o,
+   input blk_error_i,
+
     // AXI4-stream slave-port signals (IN: EP -> host)
     // Note: USB clock-domain
     input s_axis_tvalid_i,
@@ -140,8 +148,6 @@ module ulpi_axis #(
 
   assign usb_clock_o = clock;
   assign usb_reset_o = reset;
-
-  assign s_axis_tready_o = 1'b1;
 
 
   // -- Local Signals and Assignments -- //
@@ -245,6 +251,24 @@ module ulpi_axis #(
       .usb_conf_o  (),
       .usb_sof_o   (usb_sof_o),
       .crc_err_o   (crc_err_o),
+
+      // USB bulk endpoint data-paths
+      .blk_in_ready_i(blk_in_ready_i),
+      .blk_out_ready_i(blk_out_ready_i),
+      .blk_start_o(blk_start_o),
+      .blk_cycle_o(blk_cycle_o),
+      .blk_endpt_o(blk_endpt_o),
+      .blk_error_i(blk_error_i),
+
+      .blk_tvalid_i(s_axis_tvalid_i),
+      .blk_tready_o(s_axis_tready_o),
+      .blk_tlast_i (s_axis_tlast_i),
+      .blk_tdata_i (s_axis_tdata_i),
+
+      .blk_tvalid_o(m_axis_tvalid_o),
+      .blk_tready_i(m_axis_tready_i),
+      .blk_tlast_o (m_axis_tlast_o),
+      .blk_tdata_o (m_axis_tdata_o),
 
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),

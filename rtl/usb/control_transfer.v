@@ -1,6 +1,9 @@
 `timescale 1ns / 100ps
 module control_transfer
- (
+#( 
+   parameter ENDPOINT1 = 1,
+   parameter ENDPOINT2 = 0  // todo: ...
+) (
   input clock,
   input reset,
 
@@ -30,6 +33,24 @@ module control_transfer
   output ctl_tready_o,
   input ctl_tlast_i,
   input [7:0] ctl_tdata_i,
+
+  // USB Bulk Transfer parameters and data-streams
+   input blk_in_ready_i,
+   input blk_out_ready_i,
+   output blk_start_o,
+   output blk_cycle_o,
+   output [3:0] blk_endpt_o,
+   input blk_error_i,
+
+  output blk_tvalid_o,
+  input blk_tready_i,
+  output blk_tlast_o,
+  output [7:0] blk_tdata_o,
+
+   input blk_tvalid_i,
+   output blk_tready_o,
+   input blk_tlast_i,
+   input [7:0] blk_tdata_i,
 
   // Signals from the USB packet decoder (upstream)
   input tok_recv_i,
@@ -94,6 +115,28 @@ module control_transfer
   localparam CTL_STATUS_ACK = 4'hb;
 
 
+  localparam [6:0] BLK_IDLE     = 7'h01;
+  localparam [6:0] BLK_DATI_TX  = 7'h02;
+  localparam [6:0] BLK_DATI_ZDP = 7'h04;
+  localparam [6:0] BLK_DATI_ACK = 7'h08;
+  localparam [6:0] BLK_DATO_RX  = 7'h10;
+  localparam [6:0] BLK_DATO_ACK = 7'h20;
+  localparam [6:0] BLK_DATO_NAK = 7'h40;
+
+  localparam ST_IDLE = 4'h1;
+  localparam ST_CTRL = 4'h2;  // USB Control Transfer
+  localparam ST_BULK = 4'h4;  // USB Bulk Transfer
+  localparam ST_DUMP = 4'h8;  // ignoring xfer, or bad shit happened
+
+  localparam ER_NONE = 3'h0;
+  localparam ER_BLKI = 3'h1;
+  localparam ER_BLKO = 3'h2;
+  localparam ER_TOKN = 3'h3;
+  localparam ER_ADDR = 3'h4;
+  localparam ER_ENDP = 3'h5;
+  localparam ER_CONF = 3'h6;
+
+
   // -- Module State and Signals -- //
 
   reg ctl_start_q, ctl_cycle_q, ctl_error_q;
@@ -103,16 +146,38 @@ module control_transfer
   reg [7:0] ctl_idxhi_q, ctl_idxlo_q;
   reg [7:0] ctl_lenhi_q, ctl_lenlo_q;
 
+  reg [3:0] state;
+  reg err_start_q = 1'b0;
+  reg [2:0] err_code_q = ER_NONE;
+  wire mux_tready_w;
+
   reg odd_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] xctrl; //  = CTL_SETUP_RX;
 
-  reg [9:0] tx_count;
-  wire [9:0] tx_cnext = tx_count + 10'd1;
+  reg [6:0] xbulk;
+  reg bodd_q;
+
+  reg trn_zero_q;  // zero-size data transfer ??
+  reg trn_send_q;
+  reg [1:0] trn_type_q;
+
+  reg hsend_q;
+  reg [1:0] htype_q;
 
 
   // -- Input and Output Signal Assignments -- //
+
+  assign usb_send_o = trn_send_q;
+  assign usb_type_o = trn_type_q;
+
+  assign hsk_send_o = hsend_q;
+  assign hsk_type_o = htype_q;
+
+  assign blk_start_o = state == ST_BULK && xbulk == BLK_IDLE;
+  assign blk_cycle_o = state == ST_BULK;
+  assign blk_endpt_o = tok_endp_i; // todo: ??
 
   assign ctl_done_o = xctrl == CTL_DONE;
 
@@ -126,14 +191,21 @@ module control_transfer
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
   assign ctl_tvalid_o = 1'b0; // usb_tready_i;
-  assign usb_tready_o = 1'b1;  // todo: ...
   assign ctl_tlast_o  = 1'b0;
   assign ctl_tdata_o  = 8'h00;
 
-  assign usb_tvalid_o = ctl_tvalid_i;
-  assign ctl_tready_o = usb_tready_i;
-  assign usb_tlast_o  = ctl_tlast_i;
-  assign usb_tdata_o  = ctl_tdata_i;
+  // assign usb_tvalid_o = ctl_tvalid_i;
+  // assign ctl_tready_o = usb_tready_i;
+  // assign usb_tlast_o  = ctl_tlast_i;
+  // assign usb_tdata_o  = ctl_tdata_i;
+
+  assign blk_tready_o = mux_tready_w && state == ST_BULK;
+  assign ctl_tready_o = mux_tready_w && state == ST_CTRL;
+
+  assign blk_tvalid_o = usb_tvalid_i;
+  assign usb_tready_o = state == ST_BULK ? blk_tready_i : 1'b1; // todo: ...
+  assign blk_tlast_o  = usb_tlast_i;
+  assign blk_tdata_o  = usb_tdata_i;
 
 
   // -- Datapath from the USB Packet Decoder -- //
@@ -159,22 +231,33 @@ module control_transfer
 
   // -- FSM to Issue Handshake Packets -- //
 
-  reg hsend_q;
-  reg [1:0] htype_q;
-
-  assign hsk_send_o = hsend_q;
-  assign hsk_type_o = htype_q;
-
   // Control transfer handshakes
   always @(posedge clock) begin
     if (reset) begin
       hsend_q <= 1'b0;
       htype_q <= 2'bx;
-    end else if (!hsend_q && state != ST_IDLE) begin
+    end else if (!hsend_q && state == ST_CTRL) begin
       case (xctrl)
         CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
           hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i ||
                      usb_zero_w && usb_type_i == DATA1;
+          htype_q <= HSK_ACK;
+        end
+        default: begin
+          hsend_q <= 1'b0;
+          htype_q <= 2'bx;
+        end
+      endcase
+    end else if (!hsend_q && state == ST_BULK) begin
+      case (xbulk)
+        BLK_IDLE: begin
+          if (tok_type_i == TOK_OUT && !blk_out_ready_i) begin
+            hsend_q <= 1'b1;
+            htype_q <= HSK_NAK;
+          end
+        end
+        BLK_DATO_RX: begin
+          hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i;
           htype_q <= HSK_ACK;
         end
         default: begin
@@ -193,17 +276,6 @@ module control_transfer
 
 
   // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
-
-  assign usb_send_o = trn_send_q;
-  assign usb_type_o = trn_type_q;
-
-
-  reg trn_zero_q;  // zero-size data transfer ??
-  reg trn_send_q;
-  reg [1:0] trn_type_q;
-
-  assign usb_send_o   = trn_send_q;
-  assign usb_type_o   = trn_type_q;
 
   always @(posedge clock) begin
     if (reset || usb_busy_i) begin
@@ -224,12 +296,47 @@ module control_transfer
         trn_send_q <= trn_send_q;
         trn_type_q <= trn_type_q;
       end
+    end else if (state == ST_BULK) begin
+      if (xbulk == BLK_DATI_ZDP) begin
+        trn_zero_q <= 1'b1;
+        trn_send_q <= 1'b1;
+        trn_type_q <= bodd_q ? DATA1 : DATA0;  // todo: odd/even
+      end else if (xbulk == BLK_DATI_TX && blk_tvalid_i) begin
+        trn_zero_q <= 1'b0;
+        trn_send_q <= 1'b1;
+        trn_type_q <= bodd_q ? DATA1 : DATA0;  // todo: odd/even
+      end else begin
+        trn_zero_q <= trn_zero_q;
+        trn_send_q <= trn_send_q;
+        trn_type_q <= trn_type_q;
+      end
     end else begin
       trn_zero_q <= trn_zero_q;
       trn_send_q <= trn_send_q;
       trn_type_q <= trn_type_q;
     end
   end
+
+
+  // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
+
+  axis_skid #(
+      .WIDTH (8),
+      .BYPASS(0)
+  ) U_AXIS_SKID1 (
+      .clock(clock),
+      .reset(reset),
+
+      .s_tvalid(state == ST_BULK ? blk_tvalid_i : ctl_tvalid_i),
+      .s_tready(mux_tready_w),
+      .s_tlast (state == ST_BULK ? blk_tlast_i : ctl_tlast_i),
+      .s_tdata (state == ST_BULK ? blk_tdata_i : ctl_tdata_i),
+
+      .m_tvalid(usb_tvalid_o),
+      .m_tready(usb_tready_i),
+      .m_tlast (usb_tlast_o),
+      .m_tdata (usb_tdata_o)
+  );
 
 
   // -- Transaction FSM -- //
@@ -240,21 +347,6 @@ module control_transfer
   //
   // Todo: should this FSM handle no-data responses ??
   //
-  localparam ST_IDLE = 3'h1;
-  localparam ST_CTRL = 3'h2;  // USB Control Transfer
-  localparam ST_DUMP = 3'h4;  // ignoring xfer, or bad shit happened
-
-  localparam ER_NONE = 3'h0;
-  localparam ER_BLKI = 3'h1;
-  localparam ER_BLKO = 3'h2;
-  localparam ER_TOKN = 3'h3;
-  localparam ER_ADDR = 3'h4;
-  localparam ER_ENDP = 3'h5;
-  localparam ER_CONF = 3'h6;
-
-  reg [2:0] state;
-  reg err_start_q = 1'b0;
-  reg [2:0] err_code_q = ER_NONE;
 
   // todo: control the input MUX, and the output CE's
   always @(posedge clock) begin
@@ -270,17 +362,20 @@ module control_transfer
           ///
           if (tok_recv_i && tok_addr_i == usb_addr_i) begin
             if (tok_type_i == TOK_IN || tok_type_i == TOK_OUT) begin
-              state <= ST_DUMP;
-              err_start_q <= 1'b1;
+              state <= ST_BULK;
+
+              err_start_q <= tok_endp_i != ENDPOINT1;
               err_code_q <= tok_type_i == TOK_IN ? ER_BLKI : ER_BLKO;
             end else if (tok_type_i == TOK_SETUP) begin
               state <= ST_CTRL;
+
               err_start_q <= tok_endp_i != 4'h0;
               err_code_q <= tok_endp_i != 4'h0 ? ER_ENDP : ER_NONE;
             end else begin
               // Either invalid endpoint, or unsupported transfer-type for the
               // requested endpoint.
               state <= ST_DUMP;
+
               err_start_q <= 1'b1;
               err_code_q <= ER_TOKN;
             end
@@ -304,12 +399,106 @@ module control_transfer
           end
         end
 
+        ST_BULK: begin
+          if (xbulk == BLK_IDLE) begin
+            state <= ST_IDLE;
+          end
+        end
+
         ST_DUMP: begin
           //
           // todo: Wait for the USB to finish, and then return to IDLE
           ///
           state <= ST_DUMP;
           err_start_q <= 1'b1;
+        end
+      endcase
+    end
+  end
+
+
+  // -- Bulk Transfer FSM -- //
+
+  // DATA0/1 management //
+  // todo: needs to be per-endpoint ...
+  always @(posedge clock) begin
+    if (reset) begin
+      bodd_q <= 1'b0;
+    end else begin
+      case (xbulk)
+        BLK_DATI_ACK: begin
+          if (hsk_recv_i) begin
+            bodd_q <= ~bodd_q;
+          end
+        end
+
+        BLK_DATO_ACK: begin
+          if (hsk_sent_i) begin
+            bodd_q <= ~bodd_q;
+          end
+        end
+
+        default: begin
+          bodd_q <= bodd_q;
+        end
+      endcase
+    end
+  end
+
+
+  // Bulk-Transfer Main FSM //
+  always @(posedge clock) begin
+    if (state == ST_IDLE) begin
+      xbulk <= BLK_IDLE;
+    end else begin
+      case (xbulk)
+        default: begin
+          // If the main FSM has found a relevant token, start a Bulk Transfer
+          if (state == ST_BULK) begin
+            if (tok_type_i == TOK_IN) begin
+              xbulk <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+            end else begin
+              xbulk <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_NAK;
+            end
+          end
+        end
+
+        // Tx states for BULK IN data //
+        BLK_DATI_TX: begin
+          // Transfer a data-packet from the source attached to BULK IN
+          // todo: ...
+          if (blk_tvalid_i && blk_tready_o && blk_tlast_i) begin
+            xbulk <= BLK_DATI_ACK;
+          end
+        end
+
+        BLK_DATI_ZDP: begin
+          // Send a zero-data packet, because we do not have a full packet, and
+          // a ZDP will avoid timing-out 'libusb' ??
+          if (usb_sent_i) begin
+            xbulk <= BLK_DATI_ACK;
+          end
+        end
+
+        BLK_DATI_ACK: begin
+          // Wait for the host to 'ACK' the packet
+          if (hsk_recv_i) begin
+            xbulk <= BLK_IDLE;
+          end
+        end
+
+        // Rx states for BULK OUT data //
+        BLK_DATO_RX: begin
+          if (blk_tvalid_o && blk_tready_i && blk_tlast_o) begin
+            xbulk <= BLK_DATO_ACK;
+          end
+        end
+
+        BLK_DATO_ACK, BLK_DATO_NAK: begin
+          // todo: implement the PING protocol ...
+          if (hsk_sent_i) begin
+            xbulk <= BLK_IDLE;
+          end
         end
       endcase
     end
@@ -400,22 +589,7 @@ module control_transfer
   //   for Bulk Transfers, during the "Data Stage," but the first data packet is
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
-
-  always @(posedge clock) begin
-    if (reset) begin
-      tx_count <= 0;
-    end else begin
-      if (xctrl == CTL_DATI_TX && usb_tvalid_o && usb_tready_i) begin
-        tx_count <= tx_cnext;
-      end else if (xctrl == CTL_DONE || xctrl == CTL_SETUP_RX) begin
-        tx_count <= 0;
-      end
-    end
-  end
   
-
-  // todo: recognise control requests to PIPE0
-  // todo: then extract the relevant fields
   always @(posedge clock) begin
     // if (fsm_ctrl_i) begin
     if (state == ST_CTRL) begin
@@ -471,8 +645,6 @@ module control_transfer
         CTL_DATI_TX: begin  // Tx IN to USB Host
           if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
             xctrl <= CTL_DATI_ACK;
-          // end else if (tx_cnext == ctl_length_o[9:0]) begin
-          //   xctrl <= CTL_DATI_ACK;
           end
         end
 
