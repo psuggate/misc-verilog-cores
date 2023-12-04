@@ -8,8 +8,8 @@ module ulpi_axis #(
     parameter EP2_BULK_OUT = 0,
     parameter EP2_CONTROL  = 1,
 
-    parameter ENDPOINT1 = 1,  // set to '0' to disable
-    parameter ENDPOINT2 = 2,  // set to '0' to disable
+    parameter ENDPOINT1 = 1,  // todo: set to '0' to disable
+    parameter ENDPOINT2 = 2,  // todo: set to '0' to disable
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -71,6 +71,57 @@ module ulpi_axis #(
   // -- Constants -- //
 
   localparam HIGH_SPEED = 1;
+
+  localparam CONFIG_DESC_LEN = 9;
+  localparam INTERFACE_DESC_LEN = 9;
+  localparam EP1_IN_DESC_LEN = 7;
+  localparam EP1_OUT_DESC_LEN = 7;
+
+  localparam CONFIG_DESC = {
+    8'h32,  // bMaxPower = 100 mA
+    8'hC0,  // bmAttributes = Self-powered
+    8'h00,  // iConfiguration
+    8'h01,  // bConfigurationValue
+    8'h01,  // bNumInterfaces = 1
+    16'h0020,  // wTotalLength = 32
+    8'h02,  // bDescriptionType = Configuration Descriptor
+    8'h09  // bLength = 9
+  };
+
+  localparam INTERFACE_DESC = {
+    8'h00,  // iInterface
+    8'h00,  // bInterfaceProtocol
+    8'h00,  // bInterfaceSubClass
+    8'h00,  // bInterfaceClass
+    8'h02,  // bNumEndpoints = 2
+    8'h00,  // bAlternateSetting
+    8'h00,  // bInterfaceNumber = 0
+    8'h04,  // bDescriptorType = Interface Descriptor
+    8'h09  // bLength = 9
+  };
+
+  localparam EP1_IN_DESC = {
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h81,  // bEndpointAddress = IN1
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
+  };
+
+  localparam EP1_OUT_DESC = {
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h01,  // bEndpointAddress = OUT1
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
+  };
+
+  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN;
+  localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
+  localparam integer CSB = CONF_DESC_BITS - 1;
+  localparam [CSB:0] CONF_DESC_VALS = {EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
 
   // -- Global Signals and Assignments -- //
@@ -163,13 +214,26 @@ module ulpi_axis #(
 
   // -- Top-level USB Control Core -- //
 
+// `define __use_no_strings
+
   protocol #(
+      .CONFIG_DESC_LEN(CONF_DESC_SIZE),
+      .CONFIG_DESC(CONF_DESC_VALS),
+`ifdef __use_no_strings
+      .VENDOR_LENGTH(0),
+      .VENDOR_STRING(""),
+      .PRODUCT_LENGTH(0),
+      .PRODUCT_STRING(""),
+      .SERIAL_LENGTH(0),
+      .SERIAL_STRING(""),
+`else
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
       .PRODUCT_LENGTH(PRODUCT_LENGTH),
       .PRODUCT_STRING(PRODUCT_STRING),
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
+`endif
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID)
   ) U_USB_CTRL0 (

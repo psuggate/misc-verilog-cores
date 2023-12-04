@@ -1,5 +1,27 @@
 `timescale 1ns / 100ps
 module protocol #(
+    parameter CONFIG_DESC_LEN = 18,
+    parameter CONFIG_DESC = {
+      /* Interface descriptor */
+      8'h00,  /* iInterface */
+      8'h00,  /* bInterfaceProtocol */
+      8'h00,  /* bInterfaceSubClass */
+      8'h00,  /* bInterfaceClass */
+      8'h00,  /* bNumEndpoints = 0 */
+      8'h00,  /* bAlternateSetting */
+      8'h00,  /* bInterfaceNumber = 0 */
+      8'h04,  /* bDescriptorType = Interface Descriptor */
+      8'h09,  /* bLength = 9 */
+      /* Configuration Descriptor */
+      8'h32,  /* bMaxPower = 100 mA */
+      8'hC0,  /* bmAttributes = Self-powered */
+      8'h00,  /* iConfiguration */
+      8'h01,  /* bConfigurationValue */
+      8'h01,  /* bNumInterfaces = 1 */
+      16'h0012,  /* wTotalLength = 18 */
+      8'h02,  /* bDescriptionType = Configuration Descriptor */
+      8'h09  /* bLength = 9 */
+    },
     parameter [15:0] VENDOR_ID = 16'hFACE,
     parameter VENDOR_LENGTH = 7,
     parameter VENDOR_STRING = "Potatoe",
@@ -36,52 +58,6 @@ module protocol #(
   // -- Constants -- //
 
   localparam HIGH_SPEED = 1;
-
-  localparam CONFIG_DESC_LEN = 9;
-  localparam INTERFACE_DESC_LEN = 9;
-  localparam EP1_IN_DESC_LEN = 7;
-  localparam EP1_OUT_DESC_LEN = 7;
-
-  localparam CONFIG_DESC = {
-    8'h32,  // bMaxPower = 100 mA
-    8'hC0,  // bmAttributes = Self-powered
-    8'h00,  // iConfiguration
-    8'h01,  // bConfigurationValue
-    8'h01,  // bNumInterfaces = 1
-    16'h0020,  // wTotalLength = 32
-    8'h02,  // bDescriptionType = Configuration Descriptor
-    8'h09  // bLength = 9
-  };
-
-  localparam INTERFACE_DESC = {
-    8'h00,  // iInterface
-    8'h00,  // bInterfaceProtocol
-    8'h00,  // bInterfaceSubClass
-    8'h00,  // bInterfaceClass
-    8'h02,  // bNumEndpoints = 2
-    8'h00,  // bAlternateSetting
-    8'h00,  // bInterfaceNumber = 0
-    8'h04,  // bDescriptorType = Interface Descriptor
-    8'h09  // bLength = 9
-  };
-
-  localparam EP1_IN_DESC = {
-    8'h00,  // bInterval
-    16'h0200,  // wMaxPacketSize = 512 bytes
-    8'h02,  // bmAttributes = Bulk
-    8'h81,  // bEndpointAddress = IN1
-    8'h05,  // bDescriptorType = Endpoint Descriptor
-    8'h07  // bLength = 7
-  };
-
-  localparam EP1_OUT_DESC = {
-    8'h00,  // bInterval
-    16'h0200,  // wMaxPacketSize = 512 bytes
-    8'h02,  // bmAttributes = Bulk
-    8'h01,  // bEndpointAddress = OUT1
-    8'h05,  // bDescriptorType = Endpoint Descriptor
-    8'h07  // bLength = 7
-  };
 
 
   // -- Signals and Assignments -- //
@@ -322,33 +298,24 @@ module protocol #(
 
   // -- USB Default (PIPE0) Configuration Endpoint -- //
 
-  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN;
-  localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
-  localparam integer CSB = CONF_DESC_BITS - 1;
-  localparam [CSB:0] CONF_DESC_VALS = {EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
-
-`define __use_strings
-
   ctl_pipe0 #(
-      .VENDOR_ID(VENDOR_ID),
-      .PRODUCT_ID(PRODUCT_ID),
-`ifdef __use_strings
+      // Device string descriptors [Optional]
       .MANUFACTURER_LEN(VENDOR_LENGTH),
       .MANUFACTURER(VENDOR_STRING),
       .PRODUCT_LEN(PRODUCT_LENGTH),
       .PRODUCT(PRODUCT_STRING),
       .SERIAL_LEN(SERIAL_LENGTH),
       .SERIAL(SERIAL_STRING),
-`else
-      .MANUFACTURER_LEN(0),
-      .MANUFACTURER(""),
-      .PRODUCT_LEN(0),
-      .PRODUCT(""),
-      .SERIAL_LEN(0),
-      .SERIAL(""),
-`endif
-      .CONFIG_DESC_LEN(CONF_DESC_SIZE),
-      .CONFIG_DESC(CONF_DESC_VALS),
+
+      // Configuration for the device endpoints
+      .CONFIG_DESC_LEN(CONFIG_DESC_LEN),
+      .CONFIG_DESC(CONFIG_DESC),
+
+      // Product info
+      .VENDOR_ID(VENDOR_ID),
+      .PRODUCT_ID(PRODUCT_ID),
+
+      // Of course
       .HIGH_SPEED(1)
   ) U_CFG_PIPE0 (
       .clock(clock),

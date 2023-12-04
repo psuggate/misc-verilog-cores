@@ -171,7 +171,6 @@ module ctl_pipe0 #(
   localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {CONFIG_DESC, DEVICE_DESC};
 
   localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE+1);
-  // localparam integer DESC_ROM_SIZE = DESC_SIZE;
   localparam integer ABITS = $clog2(DESC_SIZE+1);
   localparam integer ASB = ABITS - 1;
 
@@ -200,56 +199,20 @@ module ctl_pipe0 #(
 
   // -- Local Control-Transfer State and Signals -- //
 
-  localparam [3:0]
-	ST_IDLE = 4'd1,
-	ST_GET_DESC = 4'd2,
-	ST_SET_CONF = 4'd4,
-	ST_SET_ADDR = 4'd8;
-
-`define GET_DESC state[1]
-
-  reg [3:0] state;
-  reg err_q;
+  reg err_q, get_desc_q;
   reg [ASB:0] mem_addr;
   wire [ASB:0] mem_next;
-
-  wire is_std_req;
-  wire is_dev_req;
-  wire handle_req;
-
-
-  /**
-   * Request types:
-   *	000 - None
-   *	001 - Get device descriptor
-   *	010 - Set address
-   *	011 - Get configuration descriptor
-   *	100 - Set configuration
-   *	101 - Get string descriptor
-   */
-  localparam [2:0] REQ_NONE = 3'b000;
-  localparam [2:0] GET_DESC = 3'b001;
-  localparam [2:0] SET_ADDR = 3'b010;
-  localparam [2:0] GET_CONF = 3'b011;
-  localparam [2:0] SET_CONF = 3'b100;
-  localparam [2:0] GET_DSTR = 3'b101;
-
-  reg [2:0] req_type;
 
 
   // -- Descriptor ROM -- //
 
-  // reg [7:0] descriptor[0:DESC_SIZE-1];
-  // reg desc_tlast[0:DESC_SIZE-1];
   reg [7:0] descriptor[0:DESC_ROM_SIZE-1];
   reg desc_tlast[0:DESC_ROM_SIZE-1];
 
   genvar ii;
   generate
 
-    // for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
     for (ii = 0; ii < DESC_ROM_SIZE; ii++) begin : g_set_descriptor_rom
-      // assign descriptor[ii] = ii[7:0];
       assign descriptor[ii] = ii < DESC_SIZE ? USB_DESC[ii*8+7:ii*8] : ii;
       assign desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
                               ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ;
@@ -257,34 +220,99 @@ module ctl_pipe0 #(
 
   endgenerate
 
-/*
-  assign descriptor[0] = 8'h12;
-  assign descriptor[1] = 8'h01;
-  assign descriptor[2] = 8'h00;
-  assign descriptor[3] = 8'h02;
-  assign descriptor[4] = 8'hff;
-  assign descriptor[5] = 8'h00;
-  assign descriptor[6] = 8'h00;
-  assign descriptor[7] = 8'h40;
-  assign descriptor[8] = 8'hce;
-  assign descriptor[9] = 8'hf4;
-  assign descriptor[10] = 8'h03;
-  assign descriptor[11] = 8'h00;
-  assign descriptor[12] = 8'h00;
-  assign descriptor[13] = 8'h00;
-  assign descriptor[14] = 8'h01;
-  assign descriptor[15] = 8'h02;
-  assign descriptor[16] = 8'h03;
-  assign descriptor[17] = 8'h01;
 
-  integer jj;
+  // -- Signal Output Assignments -- //
 
-  initial begin : g_set_cfg_rom
-    for (jj=0; jj<DESC_SIZE; jj++) begin
-      descriptor[jj] = USB_DESC[jj*8+7:jj*8];
+  assign error_o = err_q;
+  assign usb_addr_o = adr_q;
+  assign usb_conf_o = cfg_q;
+  assign configured_o = set_q;
+
+  // AXI4-Stream master port for descriptor values
+  assign m_tvalid_o = get_desc_q;
+  assign m_tdata_o = descriptor[mem_addr];
+  assign m_tlast_o = desc_tlast[mem_addr];
+
+
+  // -- Error & Status Flags -- //
+
+  always @(posedge clock) begin
+    if (select_i && start_i) begin
+      err_q <= ~sel_q;
+    end else if (!select_i) begin
+      err_q <= 1'b0;
     end
   end
-*/
+
+
+  // -- Pipelined Configuration-Request Decoder -- //
+
+  reg sel_q, set_addr_q, set_conf_q;
+
+  // Pipelined configuration-request decoder
+  always @(posedge clock) begin
+    sel_q <= req_type_i[6:0] == {2'b00, 5'b00000};
+
+    // Only be fussy on writes
+    set_addr_q <= select_i && start_i && sel_q && req_args_i == 8'h05;
+    set_conf_q <= select_i && start_i && sel_q && req_args_i == 8'h09;
+  end
+
+
+  // -- Configuration Control PIPE0 Logic -- //
+
+  assign mem_next = mem_addr + 1;
+
+  always @(posedge clock) begin
+    if (select_i && start_i) begin
+      if (req_value_i[9:8] == 2'h2) begin
+        mem_addr <= DESC_CONFIG_START;
+      end else if (req_value_i[9:8] == 2'h3 && DESC_HAS_STRINGS) begin
+        case (req_value_i[1:0])
+          2'd0: mem_addr <= DESC_START0;
+          2'd1: mem_addr <= DESC_START1;
+          2'd2: mem_addr <= DESC_START2;
+          default: mem_addr <= DESC_START3;
+        endcase
+      end else begin
+        mem_addr <= 0;
+      end
+    end else if (m_tready_i && get_desc_q) begin
+      mem_addr <= mem_next;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      get_desc_q <= 1'b0;
+
+      adr_q <= 7'd0;
+      cfg_q <= 8'd0;
+      set_q <= 1'b0;
+    end else begin
+
+      if (get_desc_q && m_tready_i) begin
+        get_desc_q <= !(m_tlast_o || stop_i);
+      end else if (start_i && select_i) begin
+        get_desc_q <= req_args_i == 8'h06;
+      end
+
+      if (set_addr_q) begin
+        adr_q <= req_value_i[6:0];
+      end
+
+      if (set_conf_q) begin
+        set_q <= 1'b1;
+        cfg_q <= req_value_i[7:0];
+      end
+
+    end
+  end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
 
   initial begin : i_cfg_info
     $display("Total descriptor size:         %3d (bytes)", DESC_SIZE);
@@ -298,136 +326,6 @@ module ctl_pipe0 #(
     end
     $display("Control PIPE0 config ROM size: %3d (bytes)", DESC_ROM_SIZE);
     $display("Control PIPE0 address bits:    %3d (bits)", ABITS);
-  end
-
-
-  // -- Signal Output Assignments -- //
-
-  assign error_o = err_q;
-  assign usb_addr_o = adr_q;
-  assign usb_conf_o = cfg_q;
-  assign configured_o = set_q;
-
-  // AXI4-Stream master port for descriptor values
-  assign m_tvalid_o = `GET_DESC;
-  assign m_tdata_o = descriptor[mem_addr];
-  assign m_tlast_o = desc_tlast[mem_addr];
-
-
-  // -- Internal Combinational Assignments -- //
-
-  assign is_std_req = req_type_i[6:5] == 2'b00;
-  assign is_dev_req = req_type_i[4:0] == 5'b00000;
-  assign handle_req = is_std_req & is_dev_req;
-
-
-  // todo: can I improve this !?
-  always @(*) begin
-    if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h01) begin
-      req_type = GET_DESC;
-    end else if (handle_req && req_args_i == 8'h05) begin
-      req_type = SET_ADDR;
-    end else if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h02) begin
-      req_type = GET_CONF;
-    end else if (handle_req && req_args_i == 8'h09) begin
-      req_type = SET_CONF;
-    end else if (handle_req && req_args_i == 8'h06 && req_value_i[15:8] == 8'h03) begin
-      req_type = GET_DSTR;
-    end else begin
-      req_type = REQ_NONE;
-    end
-  end
-
-
-  // -- Configuration Control PIPE0 Logic -- //
-
-  assign mem_next = mem_addr + 1;
-
-  always @(posedge clock) begin
-    if (select_i && start_i) begin
-      err_q <= !handle_req || req_type == REQ_NONE;
-    end else if (!select_i) begin
-      err_q <= 1'b0;
-    end
-  end
-
-  always @(posedge clock) begin
-    if (select_i && start_i) begin
-      if (req_type == GET_CONF) begin
-        mem_addr <= DESC_CONFIG_START;
-      end else if (DESC_HAS_STRINGS && req_type == GET_DSTR) begin
-        if (req_value_i[7:0] == 8'h00) begin
-          mem_addr <= DESC_START0;
-        end else if (req_value_i[7:0] == 8'h01) begin
-          mem_addr <= DESC_START1;
-        end else if (req_value_i[7:0] == 8'h02) begin
-          mem_addr <= DESC_START2;
-        end else if (req_value_i[7:0] == 8'h03) begin
-          mem_addr <= DESC_START3;
-        end
-      end else begin
-        mem_addr <= 0;
-      end
-    end else if (m_tready_i && `GET_DESC) begin
-      mem_addr <= mem_next;
-    end
-  end
-
-  always @(posedge clock) begin
-    if (reset) begin
-      state <= ST_IDLE;
-      adr_q <= 0;
-      set_q <= 1'b0;
-    end else if (select_i) begin
-      case (state)
-        default: begin  // ST_IDLE
-          if (start_i) begin
-
-            // todo: only 'req_type[0]' needs to be asserted !?
-            if (req_type_i[7]) begin
-            // if (req_type == GET_DESC || req_type == GET_CONF || req_type == GET_DSTR) begin
-              state <= ST_GET_DESC;
-            end else if (req_type == SET_ADDR) begin
-              adr_q <= req_value_i[6:0];
-              state <= ST_SET_ADDR;
-            end else if (req_type == SET_CONF) begin
-              set_q <= 1'b1;
-              cfg_q <= req_value_i[7:0];
-              state <= ST_SET_CONF;
-            end
-          end
-        end
-
-        ST_GET_DESC: begin
-          if (m_tready_i) begin
-          // if (m_tvalid_o && m_tready_i) begin
-            state <= m_tlast_o || stop_i ? ST_IDLE : state;
-          end
-        end
-
-        ST_SET_ADDR: state <= select_i ? state : ST_IDLE;
-        ST_SET_CONF: state <= select_i ? state : ST_IDLE;
-      endcase
-    end else begin
-      state <= ST_IDLE;
-    end
-  end
-
-
-  // -- Simulation Only -- //
-
-`ifdef __icarus
-
-  reg [63:0] dbg_state;
-
-  always @* begin
-    case (state)
-      ST_IDLE: dbg_state = "IDLE";
-      ST_GET_DESC: dbg_state = "GET_DESC";
-      ST_SET_ADDR: dbg_state = "SET_ADDR";
-      ST_SET_CONF: dbg_state = "SET_CONF";
-      default: dbg_state = "XXXX";
-    endcase
   end
 
 `endif
