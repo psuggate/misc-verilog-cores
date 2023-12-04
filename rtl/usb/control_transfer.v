@@ -1,8 +1,9 @@
 `timescale 1ns / 100ps
 module control_transfer
-#( 
-   parameter ENDPOINT1 = 1,
-   parameter ENDPOINT2 = 0  // todo: ...
+#(
+  parameter ENDPOINT1 = 1,
+  parameter ENDPOINT2 = 0,  // todo: ...
+  parameter PIPELINED = 0
 ) (
   input clock,
   input reset,
@@ -194,11 +195,6 @@ module control_transfer
   assign ctl_tlast_o  = 1'b0;
   assign ctl_tdata_o  = 8'h00;
 
-  // assign usb_tvalid_o = ctl_tvalid_i;
-  // assign ctl_tready_o = usb_tready_i;
-  // assign usb_tlast_o  = ctl_tlast_i;
-  // assign usb_tdata_o  = ctl_tdata_i;
-
   assign blk_tready_o = mux_tready_w && state == ST_BULK;
   assign ctl_tready_o = mux_tready_w && state == ST_CTRL;
 
@@ -322,7 +318,7 @@ module control_transfer
 
   axis_skid #(
       .WIDTH (8),
-      .BYPASS(0)
+      .BYPASS(PIPELINED == 0)
   ) U_AXIS_SKID1 (
       .clock(clock),
       .reset(reset),

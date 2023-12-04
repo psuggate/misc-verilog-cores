@@ -165,7 +165,6 @@ module usb_demo_top (
   wire [ 3:0] cbits;
   reg  [23:0] count;
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
-  // reg [2:0] err_code_q;
 
   wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
 
@@ -175,7 +174,6 @@ module usb_demo_top (
   always @(posedge usb_clock) begin
     if (ctl0_error_w) begin
       ctl_latch_q <= 1'b1;
-      // err_code_q <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_code_q;
     end
 
     if (usb_reset) begin
