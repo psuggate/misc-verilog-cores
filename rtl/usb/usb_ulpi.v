@@ -118,7 +118,7 @@ module usb_ulpi #(
   assign ulpi_rx_overflow_o = rx_err;
 
   always @(posedge ulpi_clk) begin
-    if (rst_n) begin
+    if (!rst_n) begin
       rx_err <= 1'b0;
     end else if (rx_tvalid && !axis_rx_tready_i) begin
       rx_err <= 1'b1;
@@ -359,6 +359,25 @@ module usb_ulpi #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [39:0] dbg_xrecv;
+
+  always @* begin
+    case (xrecv)
+      RX_IDLE: dbg_xrecv = "IDLE";
+      RX_TURN: dbg_xrecv = "TURN";
+      RX_RECV: dbg_xrecv = "RECV";
+      RX_DONE: dbg_xrecv = "DONE";
+      default: dbg_xrecv = "XXXX";
+    endcase
+  end
+
+`endif
 */
 
   reg cyc_q;
@@ -591,25 +610,6 @@ module usb_ulpi #(
       endcase
     end
   end
-
-
-  // -- Simulation Only -- //
-
-`ifdef __icarus
-
-  reg [39:0] dbg_xrecv;
-
-  always @* begin
-    case (xrecv)
-      RX_IDLE: dbg_xrecv = "IDLE";
-      RX_TURN: dbg_xrecv = "TURN";
-      RX_RECV: dbg_xrecv = "RECV";
-      RX_DONE: dbg_xrecv = "DONE";
-      default: dbg_xrecv = "XXXX";
-    endcase
-  end
-
-`endif
 
 
 endmodule  // usb_ulpi

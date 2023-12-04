@@ -153,66 +153,31 @@ module usb_demo_top (
 
   // -- LEDs Stuffs -- //
 
-  localparam [1:0] TOK_SETUP = 2'b11;
-
-  wire [ 3:0] cbits;
-
-  // assign cbits = {dev_crc_err_w, U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[2:0]};
-  // assign cbits = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl[3:0];
-  // assign cbits = U_ULPI_USB0.tx_counter[6:3];
-  // assign cbits = U_ULPI_USB0.rx_counter[9:6];
-
   // Miscellaneous
+  wire [ 3:0] cbits;
   reg  [23:0] count;
-  reg sof_q, ctl_latch_q = 0;
-  reg [2:0] err_code_q;
+  reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
+  // reg [2:0] err_code_q;
 
-  wire tok_setup_w = U_ULPI_USB0.U_USB_CTRL0.tok_rx_recv_w && U_ULPI_USB0.U_USB_CTRL0.tok_rx_type_w == TOK_SETUP;
-  reg [6:0] usb_addr_q;
-  always @(posedge usb_clock) begin
-    if (usb_reset) begin
-      usb_addr_q <= 7'h7c;
-    end else begin
-      if (tok_setup_w) begin
-        usb_addr_q <= U_ULPI_USB0.U_USB_CTRL0.tok_rx_addr_w;
-      end
-    end
-  end
+  wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
 
-
-  // wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.state[1];
-  wire ctl_select_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_start_q;
-
-  // assign leds = {~count[10], ~ctl_latch_q, ~device_usb_idle_w, ~usb_hs_enabled_w, 2'b11};
-  // assign leds = {~count[7], ~configured, ~device_usb_idle_w, ~flag_hsk_sent_w, 2'b11};
-  // assign leds = {~count[7], ~flag_tok_recv_w, ~flag_hsk_recv_w, ~flag_hsk_sent_w, 2'b11};
   assign leds  = {~cbits[3:0], 2'b11};
-  assign cbits = {ctl_latch_q, err_code_q};
-  /*
-                  U_ULPI_USB0.U_USB_CTRL0.ctl_sel_q,
-                  // U_ULPI_USB0.U_USB_CTRL0.usb_sof_q,
-                  U_ULPI_USB0.U_USB_CTRL0.hsk_recv_q,
-                  U_ULPI_USB0.U_USB_CTRL0.hsk_sent_q
-                  };
+  assign cbits = {count[12], ctl_latch_q, crc_error_q, device_usb_idle_w};
 
   always @(posedge usb_clock) begin
-    if (ctl_select_w) begin
+    if (ctl0_error_w) begin
       ctl_latch_q <= 1'b1;
-      err_code_q <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_code_q;
+      // err_code_q <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.err_code_q;
     end
-  end
-*/
 
-  reg lst_reset;
-  always @(posedge usb_clock) begin
-    lst_reset <= usb_reset;
-
-    if (usb_reset && !lst_reset) begin
-      {ctl_latch_q, err_code_q} <= U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xctrl;
+    if (usb_reset) begin
+      crc_error_q <= 1'b0;
+    end else if (dev_crc_err_w) begin
+      crc_error_q <= 1'b1;
     end
   end
 
-  // always @(posedge usb_sof) begin
+
   always @(posedge usb_clock) begin
     if (usb_reset) begin
       count <= 0;

@@ -327,21 +327,26 @@ module protocol #(
   localparam integer CSB = CONF_DESC_BITS - 1;
   localparam [CSB:0] CONF_DESC_VALS = {EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
+`define __use_strings
+
   ctl_pipe0 #(
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID),
-      // .MANUFACTURER_LEN(VENDOR_LENGTH),
-      // .MANUFACTURER(VENDOR_STRING),
+`ifdef __use_strings
+      .MANUFACTURER_LEN(VENDOR_LENGTH),
+      .MANUFACTURER(VENDOR_STRING),
+      .PRODUCT_LEN(PRODUCT_LENGTH),
+      .PRODUCT(PRODUCT_STRING),
+      .SERIAL_LEN(SERIAL_LENGTH),
+      .SERIAL(SERIAL_STRING),
+`else
       .MANUFACTURER_LEN(0),
       .MANUFACTURER(""),
-      // .PRODUCT_LEN(PRODUCT_LENGTH),
-      // .PRODUCT(PRODUCT_STRING),
       .PRODUCT_LEN(0),
       .PRODUCT(""),
-      // .SERIAL_LEN(SERIAL_LENGTH),
-      // .SERIAL(SERIAL_STRING),
       .SERIAL_LEN(0),
       .SERIAL(""),
+`endif
       .CONFIG_DESC_LEN(CONF_DESC_SIZE),
       .CONFIG_DESC(CONF_DESC_VALS),
       .HIGH_SPEED(1)

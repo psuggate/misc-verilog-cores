@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Dec  3 08:26:45 2023
+[*] Sun Dec  3 22:41:58 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Dec  3 08:26:39 2023"
-[dumpfile_size] 283442
+[dumpfile_mtime] "Sun Dec  3 22:40:50 2023"
+[dumpfile_size] 284750
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-19.550285 7100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.550285 6790000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] usb_core_tb.
@@ -230,11 +230,11 @@ U_ULPI_USB0.ulpi_tx_tdata_w[7:0]
 @800200
 -Rx
 -Internal
-@820
-[color] 7
-U_ULPI_USB0.U_USB_ULPI0.dbg_xrecv[39:0]
 @28
+[color] 3
 U_ULPI_USB0.U_USB_ULPI0.dir_q
+[color] 7
+U_ULPI_USB0.U_USB_ULPI0.cyc_q
 @22
 U_ULPI_USB0.U_USB_ULPI0.dat_q[7:0]
 @1000200
@@ -250,22 +250,26 @@ U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 @800200
 -Control
 -Internal
-@29
+@28
 [color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.select_i
 [color] 3
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.start_i
+@821
+[color] 7
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.dbg_state[63:0]
+@28
 [color] 2
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.handle_req
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.req_type[2:0]
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tvalid_o
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
-@23
+@22
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
 @1000200
 -Internal
-@c00200
+@800200
 -Transfer
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rtype_o[7:0]
@@ -273,9 +277,8 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rargs_o[7:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_value_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
-@1401200
--Transfer
 @1000200
+-Transfer
 -Control
 -Device
 [pattern_trace] 1

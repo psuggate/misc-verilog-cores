@@ -171,7 +171,7 @@ module fake_usb_host_ulpi (
     #80 while (state != ST_STR0) @(posedge clock);
 
     $display("%10t: FETCH device SERIAL#", $time);
-    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 64);
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h03}, 64);
 
     $display("%10t: SERIAL from device ...", $time);
   end

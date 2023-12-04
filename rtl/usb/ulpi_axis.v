@@ -164,14 +164,14 @@ module ulpi_axis #(
   // -- Top-level USB Control Core -- //
 
   protocol #(
-      .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
-      .PRODUCT_ID(PRODUCT_ID),
       .PRODUCT_LENGTH(PRODUCT_LENGTH),
       .PRODUCT_STRING(PRODUCT_STRING),
       .SERIAL_LENGTH(SERIAL_LENGTH),
-      .SERIAL_STRING(SERIAL_STRING)
+      .SERIAL_STRING(SERIAL_STRING),
+      .VENDOR_ID(VENDOR_ID),
+      .PRODUCT_ID(PRODUCT_ID)
   ) U_USB_CTRL0 (
       .clock(clock),
       .reset(reset),
