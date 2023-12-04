@@ -1,4 +1,10 @@
 `timescale 1ns / 100ps
+//
+//  TODO:
+//   - this design is bad!
+//   - just write a 'bulk_transfer' module, and add it to the 'control_transfer' 
+//     module !?
+//
 module transactor
 #(
   parameter ENDPOINT1 = 1,
