@@ -7,8 +7,8 @@ module control_transfer
   // Configured device address (or all zero)
   input [6:0] usb_addr_i,
 
-  // input fsm_ctrl_i,
-  // input fsm_idle_i,
+  input fsm_ctrl_i,
+  input fsm_idle_i,
   output ctl_done_o,
 
   // USB Control Transfer parameters and data-streams
@@ -108,9 +108,6 @@ module control_transfer
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] xctrl; //  = CTL_SETUP_RX;
 
-  reg [9:0] tx_count;
-  wire [9:0] tx_cnext = tx_count + 10'd1;
-
 
   // -- Input and Output Signal Assignments -- //
 
@@ -170,7 +167,7 @@ module control_transfer
     if (reset) begin
       hsend_q <= 1'b0;
       htype_q <= 2'bx;
-    end else if (!hsend_q && state != ST_IDLE) begin
+    end else if (!hsend_q && !fsm_idle_i) begin
       case (xctrl)
         CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
           hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i ||
@@ -194,23 +191,19 @@ module control_transfer
 
   // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
 
-  assign usb_send_o = trn_send_q;
-  assign usb_type_o = trn_type_q;
-
-
   reg trn_zero_q;  // zero-size data transfer ??
   reg trn_send_q;
   reg [1:0] trn_type_q;
 
-  assign usb_send_o   = trn_send_q;
-  assign usb_type_o   = trn_type_q;
+  assign usb_send_o = trn_send_q;
+  assign usb_type_o = trn_type_q;
 
   always @(posedge clock) begin
     if (reset || usb_busy_i) begin
       trn_zero_q <= 1'b0;
       trn_send_q <= 1'b0;
       trn_type_q <= 2'bxx;
-    end else if (state == ST_CTRL) begin
+    end else if (fsm_ctrl_i) begin
       if (xctrl == CTL_STATUS_TX && ctl_length_o == 0) begin
         trn_zero_q <= 1'b1;
         trn_send_q <= 1'b1;
@@ -233,6 +226,8 @@ module control_transfer
 
 
   // -- Transaction FSM -- //
+
+`ifdef __hoes_before_potatoes
 
   //
   // Hierarchical, pipelined FSM that just enables the relevant lower-level FSM,
@@ -315,6 +310,8 @@ module control_transfer
     end
   end
 
+`endif
+
 
   // -- Parser for Control Transfer Parameters -- //
 
@@ -325,7 +322,7 @@ module control_transfer
   //  - if there is more data after the 8th byte, then forward that out (via
   //    an AXI4-Stream skid-register) !?
   always @(posedge clock) begin
-    if (reset || state == ST_IDLE) begin
+    if (reset || fsm_idle_i) begin
       xcptr <= 3'b000;
       ctl_lenlo_q <= 0;
       ctl_lenhi_q <= 0;
@@ -400,25 +397,13 @@ module control_transfer
   //   for Bulk Transfers, during the "Data Stage," but the first data packet is
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
-
-  always @(posedge clock) begin
-    if (reset) begin
-      tx_count <= 0;
-    end else begin
-      if (xctrl == CTL_DATI_TX && usb_tvalid_o && usb_tready_i) begin
-        tx_count <= tx_cnext;
-      end else if (xctrl == CTL_DONE || xctrl == CTL_SETUP_RX) begin
-        tx_count <= 0;
-      end
-    end
-  end
   
 
   // todo: recognise control requests to PIPE0
   // todo: then extract the relevant fields
   always @(posedge clock) begin
     // if (fsm_ctrl_i) begin
-    if (state == ST_CTRL) begin
+    if (fsm_ctrl_i) begin
       case (xctrl)
         //
         // Setup Stage
@@ -541,8 +526,7 @@ module control_transfer
         CTL_DONE: begin
           // Wait for the main FSM to return to IDLE, and then get ready for the
           // next Control Transfer.
-          if (state == ST_IDLE) begin
-          // if (fsm_idle_i) begin
+          if (fsm_idle_i) begin
             xctrl <= CTL_SETUP_RX;
           end
         end
@@ -558,17 +542,6 @@ module control_transfer
   // -- Simulation Only -- //
 
 `ifdef __icarus
-
-  reg [39:0] dbg_state;
-
-  always @* begin
-    case (state)
-      ST_IDLE: dbg_state = "IDLE";
-      ST_CTRL: dbg_state = "CTRL";
-      ST_DUMP: dbg_state = "DUMP";
-      default: dbg_state = "XXXX";
-    endcase
-  end
 
   reg [119:0] dbg_xctrl;
 

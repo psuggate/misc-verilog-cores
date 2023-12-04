@@ -64,21 +64,31 @@ module protocol #(
 
   wire [6:0] usb_addr_w;
 
-  wire ctl0_start_w, ctl0_cycle_w, ctl0_error_w;
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w;
+  // Handshakes
+  wire usb_hsk_rx_recv_w, usb_hsk_tx_send_w, usb_hsk_tx_sent_w;
+  wire [1:0] usb_hsk_rx_type_w, usb_hsk_tx_type_w;
+  wire blk_hsk_rx_recv_w, blk_hsk_tx_send_w, blk_hsk_tx_sent_w;
+  wire [1:0] blk_hsk_rx_type_w, blk_hsk_tx_type_w;
+  wire ctl_hsk_rx_recv_w, ctl_hsk_tx_send_w, ctl_hsk_tx_sent_w;
+  wire [1:0] ctl_hsk_rx_type_w, ctl_hsk_tx_type_w;
 
-  wire [7:0] ctl_rtype_w, ctl_rargs_w;
-  wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
+  // Tokens
+  wire usb_tok_rx_recv_w;
+  wire [1:0] usb_tok_rx_type_w;
+  wire [6:0] usb_tok_rx_addr_w;
+  wire [3:0] usb_tok_rx_endp_w;
 
-  wire hsk_rx_recv_w, hsk_tx_send_w, hsk_tx_sent_w;
-  wire [1:0] hsk_rx_type_w, hsk_tx_type_w;
+  wire blk_tok_rx_recv_w;
+  wire [1:0] blk_tok_rx_type_w;
+  wire [6:0] blk_tok_rx_addr_w;
+  wire [3:0] blk_tok_rx_endp_w;
 
-  wire tok_rx_recv_w;
-  wire [1:0] tok_rx_type_w;
-  wire [6:0] tok_rx_addr_w;
-  wire [3:0] tok_rx_endp_w;
+  wire ctl_tok_rx_recv_w;
+  wire [1:0] ctl_tok_rx_type_w;
+  wire [6:0] ctl_tok_rx_addr_w;
+  wire [3:0] ctl_tok_rx_endp_w;
 
+  // To/from USB encoders/decoders
   wire usb_rx_trecv_w, usb_tx_tsend_w, usb_tx_tbusy_w, usb_tx_tdone_w;
   wire [1:0] usb_rx_ttype_w, usb_tx_ttype_w;
 
@@ -86,10 +96,20 @@ module protocol #(
   wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
   wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
 
+  // ULPI interface signals
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
+  // Control transfer-specific signals
+  wire ctl0_start_w, ctl0_cycle_w, ctl0_error_w;
+  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
+  wire [7:0] ctl0_tdata_w;
+
+  wire [7:0] ctl_rtype_w, ctl_rargs_w;
+  wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
+
+  // Status and error signals
   reg crc_err_q, ctl_err_q, ctl_sel_q, usb_sof_q;
   wire crc_err_w;
 
@@ -137,9 +157,9 @@ module protocol #(
       .tx_tlast_o (usb_tlast_o),
       .tx_tdata_o (usb_tdata_o),
 
-      .hsk_send_i(hsk_tx_send_w),
-      .hsk_done_o(hsk_tx_sent_w),
-      .hsk_type_i(hsk_tx_type_w),
+      .hsk_send_i(usb_hsk_tx_send_w),
+      .hsk_done_o(usb_hsk_tx_sent_w),
+      .hsk_type_i(usb_hsk_tx_type_w),
 
       .tok_send_i(1'b0),  // Only used by USB hosts
       .tok_done_o(),
@@ -170,14 +190,14 @@ module protocol #(
       .crc_err_o(crc_err_w),
 
       // Handshake packet information
-      .hsk_recv_o(hsk_rx_recv_w),
-      .hsk_type_o(hsk_rx_type_w),
+      .hsk_recv_o(usb_hsk_rx_recv_w),
+      .hsk_type_o(usb_hsk_rx_type_w),
 
       // Indicates that a (OUT/IN/SETUP) token was received
-      .tok_recv_o(tok_rx_recv_w),  // Start strobe
-      .tok_type_o(tok_rx_type_w),  // Token-type (OUT/IN/SETUP)
-      .tok_addr_o(tok_rx_addr_w),
-      .tok_endp_o(tok_rx_endp_w),
+      .tok_recv_o(usb_tok_rx_recv_w),  // Start strobe
+      .tok_type_o(usb_tok_rx_type_w),  // Token-type (OUT/IN/SETUP)
+      .tok_addr_o(usb_tok_rx_addr_w),
+      .tok_endp_o(usb_tok_rx_endp_w),
 
       // Data packet (OUT, DATA0/1/2 MDATA) received
       .out_recv_o(usb_rx_trecv_w),
@@ -189,34 +209,47 @@ module protocol #(
       .out_tdata_o (usb_rx_tdata_w)
   );
 
+  
+  //
+  // Top-level USB transaction coordinator (or, "transactor")
+  ///
 
-  // -- FSM for USB packets, handshakes, etc. -- //
+  wire trax_idle_w, trax_bulk_w, trax_ctrl_w;
+  wire bulk_done_w, ctrl_done_w;
 
   wire ask_tvalid_w, ask_tready_w, ask_tlast_w;
   wire [7:0] ask_tdata_w;
 
-  control_transfer U_USB_TRN0 (
+  wire ctl_rx_tvalid_w, ctl_rx_tready_w, ctl_rx_tlast_w;
+  wire ctl_tx_tvalid_w, ctl_tx_tready_w, ctl_tx_tlast_w;
+  wire [7:0] ctl_rx_tdata_w, ctl_tx_tdata_w;
+
+transactor
+#( .ENDPOINT1(0),
+   .ENDPOINT2(0)
+) U_USB_TRAX0 (
       .clock(clock),
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
-      /*
-   .fsm_ctrl_i(fsm_ctrl_w),
-   .fsm_idle_i(fsm_idle_w),
-   .ctl_done_o(ctl_done_w),
-*/
+
+   .fsm_idle_o(trax_idle_w),
+   .fsm_bulk_o(trax_bulk_w),
+   .blk_done_i(bulk_done_w),
+   .fsm_ctrl_o(trax_ctrl_w),
+   .ctl_done_i(ctrl_done_w),
 
       // Signals from the USB packet decoder (upstream)
-      .tok_recv_i(tok_rx_recv_w),
-      .tok_type_i(tok_rx_type_w),
-      .tok_addr_i(tok_rx_addr_w),
-      .tok_endp_i(tok_rx_endp_w),
+      .tok_recv_i(usb_tok_rx_recv_w),
+      .tok_type_i(usb_tok_rx_type_w),
+      .tok_addr_i(usb_tok_rx_addr_w),
+      .tok_endp_i(usb_tok_rx_endp_w),
 
-      .hsk_recv_i(hsk_rx_recv_w),
-      .hsk_type_i(hsk_rx_type_w),
-      .hsk_send_o(hsk_tx_send_w),
-      .hsk_sent_i(hsk_tx_sent_w),
-      .hsk_type_o(hsk_tx_type_w),
+      .hsk_recv_i(usb_hsk_rx_recv_w),
+      .hsk_type_i(usb_hsk_rx_type_w),
+      .hsk_send_o(usb_hsk_tx_send_w),
+      .hsk_sent_i(usb_hsk_tx_sent_w),
+      .hsk_type_o(usb_hsk_tx_type_w),
 
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_trecv_w),
@@ -236,6 +269,81 @@ module protocol #(
       .usb_tready_i(usb_tx_tready_w),
       .usb_tlast_o (usb_tx_tlast_w),
       .usb_tdata_o (usb_tx_tdata_w),
+
+      // To/from USB control transfer endpoints
+      .blk_start_o(ctl0_start_w),
+      .blk_cycle_o(ctl0_cycle_w),
+      .blk_error_i(ctl0_error_w),
+
+      .blk_tvalid_o(),
+      .blk_tready_i(1'b1),
+      .blk_tlast_o (),
+      .blk_tdata_o (),
+
+      .blk_tvalid_i(ask_tvalid_w),
+      .blk_tready_o(ask_tready_w),
+      .blk_tlast_i (ask_tlast_w),
+      .blk_tdata_i (ask_tdata_w),
+
+      // To/from USB control transfer endpoints
+      .ctl_start_o(ctl0_start_w),
+      .ctl_cycle_o(ctl0_cycle_w),
+      .ctl_error_i(ctl0_error_w),
+
+      .ctl_tvalid_o(),
+      .ctl_tready_i(1'b1),
+      .ctl_tlast_o (),
+      .ctl_tdata_o (),
+
+      .ctl_tvalid_i(ctl_tx_tvalid_w),
+      .ctl_tready_o(ctl_tx_tready_w),
+      .ctl_tlast_i (ctl_tx_tlast_w),
+      .ctl_tdata_i (ctl_tx_tdata_w)
+                       );
+
+
+  // -- FSM for USB packets, handshakes, etc. -- //
+
+  control_transfer U_USB_TRN0 (
+      .clock(clock),
+      .reset(reset),
+
+      .usb_addr_i(usb_addr_w),
+
+   .fsm_idle_i(trax_idle_w),
+   .fsm_ctrl_i(trax_ctrl_w),
+   .ctl_done_o(ctrl_done_w),
+
+      // Signals from the USB packet decoder (upstream)
+      .tok_recv_i(ctl_tok_rx_recv_w),
+      .tok_type_i(ctl_tok_rx_type_w),
+      .tok_addr_i(ctl_tok_rx_addr_w),
+      .tok_endp_i(ctl_tok_rx_endp_w),
+
+      .hsk_recv_i(ctl_hsk_rx_recv_w),
+      .hsk_type_i(ctl_hsk_rx_type_w),
+      .hsk_send_o(ctl_hsk_tx_send_w),
+      .hsk_sent_i(ctl_hsk_tx_sent_w),
+      .hsk_type_o(ctl_hsk_tx_type_w),
+
+      // DATA0/1 info from the decoder, and to the encoder
+      .usb_recv_i(usb_rx_trecv_w),
+      .usb_type_i(usb_rx_ttype_w),
+      .usb_send_o(usb_tx_tsend_w),
+      .usb_busy_i(usb_tx_tbusy_w),
+      .usb_sent_i(usb_tx_tdone_w),
+      .usb_type_o(usb_tx_ttype_w),
+
+      // USB control & bulk data received from host (via decoder)
+      .usb_tvalid_i(ctl_rx_tvalid_w),
+      .usb_tready_o(ctl_rx_tready_w),
+      .usb_tlast_i (ctl_rx_tlast_w),
+      .usb_tdata_i (ctl_rx_tdata_w),
+
+      .usb_tvalid_o(ctl_tx_tvalid_w),
+      .usb_tready_i(ctl_tx_tready_w),
+      .usb_tlast_o (ctl_tx_tlast_w),
+      .usb_tdata_o (ctl_tx_tdata_w),
 
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),
