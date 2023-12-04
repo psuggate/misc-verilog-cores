@@ -1,89 +1,89 @@
 `timescale 1ns / 100ps
-module control_transfer
-#(
-  parameter ENDPOINT1 = 1,
-  parameter ENDPOINT2 = 0,  // todo: ...
-  parameter PIPELINED = 0
+module control_transfer #(
+    parameter ENDPOINT1 = 1,
+    parameter ENDPOINT2 = 0,  // todo: ...
+    parameter PIPELINED = 0
 ) (
-  input clock,
-  input reset,
+    input clock,
+    input reset,
 
-  // Configured device address (or all zero)
-  input [6:0] usb_addr_i,
+    // Configured device address (or all zero)
+    input [6:0] usb_addr_i,
 
-  // input fsm_ctrl_i,
-  // input fsm_idle_i,
-  output ctl_done_o,
+    // input fsm_ctrl_i,
+    // input fsm_idle_i,
+    output ctl_done_o,
 
-  // USB Control Transfer parameters and data-streams
-  output ctl_start_o,
-  output ctl_cycle_o,
-  input ctl_error_i,
-  output [7:0] ctl_rtype_o,  // todo:
-  output [7:0] ctl_rargs_o,  // todo:
-  output [15:0] ctl_value_o,
-  output [15:0] ctl_index_o,
-  output [15:0] ctl_length_o,
+    // USB Control Transfer parameters and data-streams
+    output ctl_start_o,
+    output ctl_cycle_o,
+    input ctl_error_i,
+    output [3:0] ctl_endpt_o,
+    output [7:0] ctl_rtype_o,
+    output [7:0] ctl_rargs_o,
+    output [15:0] ctl_value_o,
+    output [15:0] ctl_index_o,
+    output [15:0] ctl_length_o,
 
-  output ctl_tvalid_o,
-  input ctl_tready_i,
-  output ctl_tlast_o,
-  output [7:0] ctl_tdata_o,
+    output ctl_tvalid_o,
+    input ctl_tready_i,
+    output ctl_tlast_o,
+    output [7:0] ctl_tdata_o,
 
-  input ctl_tvalid_i,
-  output ctl_tready_o,
-  input ctl_tlast_i,
-  input [7:0] ctl_tdata_i,
+    input ctl_tvalid_i,
+    output ctl_tready_o,
+    input ctl_tlast_i,
+    input [7:0] ctl_tdata_i,
 
-  // USB Bulk Transfer parameters and data-streams
-   input blk_in_ready_i,
-   input blk_out_ready_i,
-   output blk_start_o,
-   output blk_cycle_o,
-   output [3:0] blk_endpt_o,
-   input blk_error_i,
+    // USB Bulk Transfer parameters and data-streams
+    input blk_in_ready_i,
+    input blk_out_ready_i,
+    output blk_start_o,
+    output blk_cycle_o,
+    output [3:0] blk_endpt_o,
+    input blk_error_i,
 
-  output blk_tvalid_o,
-  input blk_tready_i,
-  output blk_tlast_o,
-  output [7:0] blk_tdata_o,
+    output blk_tvalid_o,
+    input blk_tready_i,
+    output blk_tlast_o,
+    output [7:0] blk_tdata_o,
 
-   input blk_tvalid_i,
-   output blk_tready_o,
-   input blk_tlast_i,
-   input [7:0] blk_tdata_i,
+    input blk_tvalid_i,
+    output blk_tready_o,
+    input blk_tlast_i,
+    input [7:0] blk_tdata_i,
 
-  // Signals from the USB packet decoder (upstream)
-  input tok_recv_i,
-  input [1:0] tok_type_i,
-  input [6:0] tok_addr_i,
-  input [3:0] tok_endp_i,
+    // Signals from the USB packet decoder (upstream)
+    input tok_recv_i,
+    input [1:0] tok_type_i,
+    input [6:0] tok_addr_i,
+    input [3:0] tok_endp_i,
 
-  input hsk_recv_i,
-  input [1:0] hsk_type_i,
-  output hsk_send_o,
-  input hsk_sent_i,
-  output [1:0] hsk_type_o,
+    input hsk_recv_i,
+    input [1:0] hsk_type_i,
+    output hsk_send_o,
+    input hsk_sent_i,
+    output [1:0] hsk_type_o,
 
-  // DATA0/1 info from the decoder, and to the encoder
-  input usb_recv_i,
-  input [1:0] usb_type_i,
-  output usb_send_o,
-  input  usb_busy_i,
-  input usb_sent_i,
-  output [1:0] usb_type_o,
+    // DATA0/1 info from the decoder, and to the encoder
+    input usb_recv_i,
+    input [1:0] usb_type_i,
+    output usb_send_o,
+    input usb_busy_i,
+    input usb_sent_i,
+    output [1:0] usb_type_o,
 
-  // USB control & bulk data received from host
-  input usb_tvalid_i,
-  output usb_tready_o,
-  input usb_tlast_i,
-  input [7:0] usb_tdata_i,
+    // USB control & bulk data received from host
+    input usb_tvalid_i,
+    output usb_tready_o,
+    input usb_tlast_i,
+    input [7:0] usb_tdata_i,
 
-  output usb_tvalid_o,
-  input usb_tready_i,
-  output usb_tlast_o,
-  output [7:0] usb_tdata_o
- );
+    output usb_tvalid_o,
+    input usb_tready_i,
+    output usb_tlast_o,
+    output [7:0] usb_tdata_o
+);
 
 
   // -- Module Constants -- //
@@ -116,11 +116,11 @@ module control_transfer
   localparam CTL_STATUS_ACK = 4'hb;
 
 
-  localparam [6:0] BLK_IDLE     = 7'h01;
-  localparam [6:0] BLK_DATI_TX  = 7'h02;
+  localparam [6:0] BLK_IDLE = 7'h01;
+  localparam [6:0] BLK_DATI_TX = 7'h02;
   localparam [6:0] BLK_DATI_ZDP = 7'h04;
   localparam [6:0] BLK_DATI_ACK = 7'h08;
-  localparam [6:0] BLK_DATO_RX  = 7'h10;
+  localparam [6:0] BLK_DATO_RX = 7'h10;
   localparam [6:0] BLK_DATO_ACK = 7'h20;
   localparam [6:0] BLK_DATO_NAK = 7'h40;
 
@@ -155,7 +155,7 @@ module control_transfer
   reg odd_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
-  reg [3:0] xctrl; //  = CTL_SETUP_RX;
+  reg [3:0] xctrl;  //  = CTL_SETUP_RX;
 
   reg [6:0] xbulk;
   reg bodd_q;
@@ -170,28 +170,29 @@ module control_transfer
 
   // -- Input and Output Signal Assignments -- //
 
-  assign usb_send_o = trn_send_q;
-  assign usb_type_o = trn_type_q;
+  assign usb_send_o   = trn_send_q;
+  assign usb_type_o   = trn_type_q;
 
-  assign hsk_send_o = hsend_q;
-  assign hsk_type_o = htype_q;
+  assign hsk_send_o   = hsend_q;
+  assign hsk_type_o   = htype_q;
 
-  assign blk_start_o = state == ST_BULK && xbulk == BLK_IDLE;
-  assign blk_cycle_o = state == ST_BULK;
-  assign blk_endpt_o = tok_endp_i; // todo: ??
+  assign blk_start_o  = state == ST_BULK && xbulk == BLK_IDLE;
+  assign blk_cycle_o  = state == ST_BULK;
+  assign blk_endpt_o  = tok_endp_i;  // todo: ??
 
-  assign ctl_done_o = xctrl == CTL_DONE;
+  assign ctl_done_o   = xctrl == CTL_DONE;
 
-  assign ctl_cycle_o = ctl_cycle_q;
-  assign ctl_start_o = ctl_start_q;
+  assign ctl_cycle_o  = ctl_cycle_q;
+  assign ctl_start_o  = ctl_start_q;
+  assign ctl_endpt_o  = tok_endp_i;  // todo: ??
 
-  assign ctl_rtype_o = ctl_rtype_q;
-  assign ctl_rargs_o = ctl_rargs_q;
-  assign ctl_value_o = {ctl_valhi_q, ctl_vallo_q};
-  assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
+  assign ctl_rtype_o  = ctl_rtype_q;
+  assign ctl_rargs_o  = ctl_rargs_q;
+  assign ctl_value_o  = {ctl_valhi_q, ctl_vallo_q};
+  assign ctl_index_o  = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
-  assign ctl_tvalid_o = 1'b0; // usb_tready_i;
+  assign ctl_tvalid_o = 1'b0;  // usb_tready_i;
   assign ctl_tlast_o  = 1'b0;
   assign ctl_tdata_o  = 8'h00;
 
@@ -199,7 +200,7 @@ module control_transfer
   assign ctl_tready_o = mux_tready_w && state == ST_CTRL;
 
   assign blk_tvalid_o = usb_tvalid_i;
-  assign usb_tready_o = state == ST_BULK ? blk_tready_i : 1'b1; // todo: ...
+  assign usb_tready_o = state == ST_BULK ? blk_tready_i : 1'b1;  // todo: ...
   assign blk_tlast_o  = usb_tlast_i;
   assign blk_tdata_o  = usb_tdata_i;
 
@@ -385,12 +386,14 @@ module control_transfer
           //
           // Wait for the USB to finish, and then return to IDLE
           ///
+          /*
           if (ctl_error_q) begin
             // Control Transfer has failed, wait for the USB to settle down
             state <= ST_DUMP;
             err_start_q <= 1'b1;
             err_code_q <= ER_CONF;
-          end else if (xctrl == CTL_DONE) begin
+          */
+          if (xctrl == CTL_DONE) begin
             state <= ST_IDLE;
           end
         end
@@ -585,7 +588,7 @@ module control_transfer
   //   for Bulk Transfers, during the "Data Stage," but the first data packet is
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
-  
+
   always @(posedge clock) begin
     // if (fsm_ctrl_i) begin
     if (state == ST_CTRL) begin
@@ -663,7 +666,7 @@ module control_transfer
               odd_q <= ~odd_q;
             end
             */
-          end else if (hsk_recv_i || tok_recv_i) begin // Non-ACK
+          end else if (hsk_recv_i || tok_recv_i) begin  // Non-ACK
             xctrl <= CTL_DONE;
           end
         end
@@ -710,7 +713,7 @@ module control_transfer
           // Wait for the main FSM to return to IDLE, and then get ready for the
           // next Control Transfer.
           if (state == ST_IDLE) begin
-          // if (fsm_idle_i) begin
+            // if (fsm_idle_i) begin
             xctrl <= CTL_SETUP_RX;
           end
         end
@@ -764,4 +767,4 @@ module control_transfer
 `endif
 
 
-endmodule // control_transfer
+endmodule  // control_transfer

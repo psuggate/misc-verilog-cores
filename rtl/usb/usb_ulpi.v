@@ -272,7 +272,7 @@ module usb_ulpi #(
   reg [7:0] dat_q;
   wire stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
 
-/*
+  /*
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       vld_q     <= 1'b0;
@@ -388,8 +388,8 @@ module usb_ulpi #(
       dat_q <= 8'bx;
 
       rx_tvalid <= 1'b0;
-      rx_tlast  <= 1'bx;
-      rx_tdata  <= 8'bx;
+      rx_tlast <= 1'bx;
+      rx_tdata <= 8'bx;
     end else begin
       if (dir_q && ulpi_dir && ulpi_nxt) begin
         cyc_q <= 1'b1;
@@ -409,8 +409,8 @@ module usb_ulpi #(
         dat_q <= 8'bx;
 
         rx_tvalid <= 1'b1;
-        rx_tlast  <= 1'b1;
-        rx_tdata  <= dat_q;
+        rx_tlast <= 1'b1;
+        rx_tdata <= dat_q;
       end else begin
         rx_tvalid <= 1'b0;
         rx_tlast  <= 1'b0;

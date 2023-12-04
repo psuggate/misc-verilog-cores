@@ -53,23 +53,23 @@ module protocol #(
     output usb_tlast_o,
     output [7:0] usb_tdata_o,
 
-  // USB Bulk Transfer parameters and data-streams
-   input blk_in_ready_i,
-   input blk_out_ready_i,
-   output blk_start_o,
-   output blk_cycle_o,
-   output [3:0] blk_endpt_o,
-   input blk_error_i,
+    // USB Bulk Transfer parameters and data-streams
+    input blk_in_ready_i,
+    input blk_out_ready_i,
+    output blk_start_o,
+    output blk_cycle_o,
+    output [3:0] blk_endpt_o,
+    input blk_error_i,
 
-  output blk_tvalid_o,
-  input blk_tready_i,
-  output blk_tlast_o,
-  output [7:0] blk_tdata_o,
+    output blk_tvalid_o,
+    input blk_tready_i,
+    output blk_tlast_o,
+    output [7:0] blk_tdata_o,
 
-   input blk_tvalid_i,
-   output blk_tready_o,
-   input blk_tlast_i,
-   input [7:0] blk_tdata_i
+    input blk_tvalid_i,
+    output blk_tready_o,
+    input blk_tlast_i,
+    input [7:0] blk_tdata_i
 );
 
 
@@ -86,6 +86,7 @@ module protocol #(
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
   wire [7:0] ctl0_tdata_w;
 
+  wire [3:0] ctl_endpt_w;
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
 
@@ -273,6 +274,7 @@ module protocol #(
       .ctl_cycle_o(ctl0_cycle_w),
       .ctl_error_i(ctl0_error_w),
 
+      .ctl_endpt_o (ctl_endpt_w),
       .ctl_rtype_o (ctl_rtype_w),
       .ctl_rargs_o (ctl_rargs_w),
       .ctl_value_o (ctl_value_w),
@@ -343,7 +345,7 @@ module protocol #(
       .CONFIG_DESC(CONFIG_DESC),
 
       // Product info
-      .VENDOR_ID(VENDOR_ID),
+      .VENDOR_ID (VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID),
 
       // Of course
@@ -361,6 +363,7 @@ module protocol #(
       .usb_conf_o  (usb_conf_o[7:0]),
       .usb_addr_o  (usb_addr_w),
 
+      .req_endpt_i (ctl_endpt_w),
       .req_type_i  (ctl_rtype_w),
       .req_args_i  (ctl_rargs_w),
       .req_value_i (ctl_value_w),

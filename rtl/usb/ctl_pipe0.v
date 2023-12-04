@@ -53,6 +53,7 @@ module ctl_pipe0 #(
     output [6:0] usb_addr_o,
     output [7:0] usb_conf_o,
 
+    input [ 3:0] req_endpt_i,
     input [ 7:0] req_type_i,
     input [ 7:0] req_args_i,
     input [15:0] req_value_i,
@@ -170,8 +171,8 @@ module ctl_pipe0 #(
   localparam integer DSB = DESC_SIZE * 8 - 1;
   localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {CONFIG_DESC, DEVICE_DESC};
 
-  localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE+1);
-  localparam integer ABITS = $clog2(DESC_SIZE+1);
+  localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
+  localparam integer ABITS = $clog2(DESC_SIZE + 1);
   localparam integer ASB = ABITS - 1;
 
   localparam [ASB:0] DESC_CONFIG_START = DEVICE_DESC_LEN;
@@ -234,28 +235,28 @@ module ctl_pipe0 #(
   assign m_tlast_o = desc_tlast[mem_addr];
 
 
-  // -- Error & Status Flags -- //
-
-  always @(posedge clock) begin
-    if (select_i && start_i) begin
-      err_q <= ~sel_q;
-    end else if (!select_i) begin
-      err_q <= 1'b0;
-    end
-  end
-
-
   // -- Pipelined Configuration-Request Decoder -- //
 
   reg sel_q, set_addr_q, set_conf_q;
 
   // Pipelined configuration-request decoder
   always @(posedge clock) begin
-    sel_q <= req_type_i[6:0] == {2'b00, 5'b00000};
+    sel_q <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
 
     // Only be fussy on writes
     set_addr_q <= select_i && start_i && sel_q && req_args_i == 8'h05;
     set_conf_q <= select_i && start_i && sel_q && req_args_i == 8'h09;
+  end
+
+
+  // -- Error & Status Flags -- //
+
+  always @(posedge clock) begin
+    if (select_i && start_i && sel_q) begin
+      err_q <= ~get_desc_q | ~set_addr_q | ~set_conf_q;
+    end else if (!select_i) begin
+      err_q <= 1'b0;
+    end
   end
 
 

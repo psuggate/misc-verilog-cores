@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
-module axis_flow_check
-#( parameter WIDTH = 8
+module axis_flow_check #(
+    parameter WIDTH = 8
 ) (
     input clock,
     input reset,
@@ -9,7 +9,7 @@ module axis_flow_check
     input axis_tready,
     input axis_tlast,
     input [WIDTH-1:0] axis_tdata
- );
+);
 
   localparam MSB = WIDTH - 1;
 
@@ -17,13 +17,13 @@ module axis_flow_check
   reg prev_tvalid, prev_tlast, prev_tready;
   reg [MSB:0] prev_tdata;
 
-   
+
   always @(posedge clock) begin
     if (reset) begin
       prev_tvalid <= 1'b0;
       prev_tready <= 1'b0;
-      prev_tlast <= 1'b0;
-      prev_tdata <= 'bx;
+      prev_tlast  <= 1'b0;
+      prev_tdata  <= 'bx;
     end else begin
       prev_tvalid <= axis_tvalid;
       prev_tready <= axis_tready;
@@ -36,7 +36,8 @@ module axis_flow_check
       //    can change until 'tready' is asserted
       //
       if (prev_tvalid && !prev_tready) begin
-        if (axis_tvalid != prev_tvalid) $error("%10t: 'tvalid' de-asserted without 'tready'", $time);
+        if (axis_tvalid != prev_tvalid)
+          $error("%10t: 'tvalid' de-asserted without 'tready'", $time);
         if (axis_tlast != prev_tlast) $error("%10t: 'tlast' changed without 'tready'", $time);
         if (axis_tdata != prev_tdata) $error("%10t: 'tdata' changed without 'tready'", $time);
       end
@@ -44,24 +45,23 @@ module axis_flow_check
   end
 `endif
 
-   
-endmodule // axis_flow_check
 
-module ulpi_flow_check
-(
+endmodule  // axis_flow_check
+
+module ulpi_flow_check (
     input ulpi_clk,
     input ulpi_rst_n,
     input ulpi_dir,
     input ulpi_nxt,
     input ulpi_stp,
     input [7:0] ulpi_data
- );
+);
 
 `ifdef __icarus
   reg prev_dir, prev_nxt, prev_stp;
   reg [7:0] prev_data;
 
-   
+
   always @(posedge ulpi_clk) begin
     if (!ulpi_rst_n) begin
       prev_dir  <= 1'b0;
@@ -83,7 +83,7 @@ module ulpi_flow_check
       //  - link "idles" the bus by driving 'data = 8'h00' onto the bus, when
       //    'dir' is low -- how to check !?
       //
-      if (!prev_dir && !ulpi_dir) begin // RECV
+      if (!prev_dir && !ulpi_dir) begin  // RECV
         if (!prev_nxt && prev_data != 8'h00 && prev_data != ulpi_data)
           $error("%10t: Rx 'data' changed while 'nxt' de-asserted", $time);
       end
@@ -104,5 +104,5 @@ module ulpi_flow_check
   end
 `endif
 
-   
-endmodule // ulpi_flow_check
+
+endmodule  // ulpi_flow_check

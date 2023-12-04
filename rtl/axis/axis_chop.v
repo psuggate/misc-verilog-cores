@@ -56,10 +56,10 @@ module axis_chop (
     if (BYPASS == 1) begin : g_bypass
 
       // No registers
-      assign m_tvalid  = s_tvalid;
-      assign s_tready  = m_tready;
-      assign m_tlast   = s_tlast;
-      assign m_tdata   = s_tdata;
+      assign m_tvalid = s_tvalid;
+      assign s_tready = m_tready;
+      assign m_tlast  = s_tlast;
+      assign m_tdata  = s_tdata;
 
       initial begin
         $display("=> Bypassing AXI-S chop-register");

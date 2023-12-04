@@ -4,12 +4,12 @@ module ulpi_axis #(
     parameter EP1_BULK_OUT = 1,
     parameter EP1_CONTROL  = 0,
 
-    parameter EP2_BULK_IN  = 1,
+    parameter EP2_BULK_IN  = 0,
     parameter EP2_BULK_OUT = 0,
-    parameter EP2_CONTROL  = 1,
+    parameter EP2_CONTROL  = 0,
 
     parameter ENDPOINT1 = 1,  // todo: set to '0' to disable
-    parameter ENDPOINT2 = 2,  // todo: set to '0' to disable
+    parameter ENDPOINT2 = 0,  // todo: set to '0' to disable
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -52,13 +52,13 @@ module ulpi_axis #(
     output usb_suspend_o,  // USB core has been suspended
     output ulpi_rx_overflow_o,
 
-  // USB Bulk Transfer parameters and data-streams
-   input blk_in_ready_i,
-   input blk_out_ready_i,
-   output blk_start_o,
-   output blk_cycle_o,
-   output [3:0] blk_endpt_o,
-   input blk_error_i,
+    // USB Bulk Transfer parameters and data-streams
+    input blk_in_ready_i,
+    input blk_out_ready_i,
+    output blk_start_o,
+    output blk_cycle_o,
+    output [3:0] blk_endpt_o,
+    input blk_error_i,
 
     // AXI4-stream slave-port signals (IN: EP -> host)
     // Note: USB clock-domain
@@ -146,8 +146,8 @@ module ulpi_axis #(
   assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
 
-  assign usb_clock_o = clock;
-  assign usb_reset_o = reset;
+  assign usb_clock_o  = clock;
+  assign usb_reset_o  = reset;
 
 
   // -- Local Signals and Assignments -- //
@@ -220,7 +220,7 @@ module ulpi_axis #(
 
   // -- Top-level USB Control Core -- //
 
-// `define __use_no_strings
+  // `define __use_no_strings
 
   protocol #(
       .CONFIG_DESC_LEN(CONF_DESC_SIZE),
