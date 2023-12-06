@@ -244,7 +244,7 @@ module usb_core_tb;
 
       // USB bulk endpoint data-paths
       .blk_in_ready_i(1'b0),
-      .blk_out_ready_i(1'b0),
+      .blk_out_ready_i(configured), // 1'b0),
       .blk_start_o(),
       .blk_cycle_o(),
       .blk_endpt_o(),
@@ -256,7 +256,7 @@ module usb_core_tb;
       .s_axis_tdata_i (sdata),
 
       .m_axis_tvalid_o(mvalid),
-      .m_axis_tready_i(mready),
+      .m_axis_tready_i(mready | configured),
       .m_axis_tlast_o (mlast),
       .m_axis_tdata_o (mdata)
   );

@@ -237,23 +237,40 @@ module ctl_pipe0 #(
 
   // -- Pipelined Configuration-Request Decoder -- //
 
-  reg sel_q, set_addr_q, set_conf_q;
+  reg sel_q, start_q, set_addr_q, set_conf_q, set_face_q;
 
   // Pipelined configuration-request decoder
   always @(posedge clock) begin
     sel_q <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
+    start_q <= start_i;
+
+    /*
+     clr_feat_q <= 1'b0;
+     set_feat_q <= 1'b0;
+
+     get_conf_q <= 1'b0;
+     get_face_q <= 1'b0;
+     get_stat_q <= 1'b0;
+     */
 
     // Only be fussy on writes
-    set_addr_q <= select_i && start_i && sel_q && req_args_i == 8'h05;
-    set_conf_q <= select_i && start_i && sel_q && req_args_i == 8'h09;
+    if (select_i && start_i && sel_q) begin
+      set_addr_q <= req_args_i == 8'h05;
+      set_conf_q <= req_args_i == 8'h09;
+      set_face_q <= req_args_i == 8'h0b;
+    end else begin
+      set_addr_q <= 1'b0;
+      set_conf_q <= 1'b0;
+      set_face_q <= 1'b0;
+    end
   end
 
 
   // -- Error & Status Flags -- //
 
   always @(posedge clock) begin
-    if (select_i && start_i && sel_q) begin
-      err_q <= ~get_desc_q | ~set_addr_q | ~set_conf_q;
+    if (select_i && start_q && sel_q) begin
+      err_q <= ~get_desc_q & ~set_addr_q & ~set_conf_q & ~set_face_q;
     end else if (!select_i) begin
       err_q <= 1'b0;
     end

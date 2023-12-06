@@ -116,13 +116,14 @@ module control_transfer #(
   localparam CTL_STATUS_ACK = 4'hb;
 
 
-  localparam [6:0] BLK_IDLE = 7'h01;
-  localparam [6:0] BLK_DATI_TX = 7'h02;
-  localparam [6:0] BLK_DATI_ZDP = 7'h04;
-  localparam [6:0] BLK_DATI_ACK = 7'h08;
-  localparam [6:0] BLK_DATO_RX = 7'h10;
-  localparam [6:0] BLK_DATO_ACK = 7'h20;
-  localparam [6:0] BLK_DATO_NAK = 7'h40;
+  localparam [7:0] BLK_IDLE = 8'h01;
+  localparam [7:0] BLK_DATI_TX = 8'h02;
+  localparam [7:0] BLK_DATI_ZDP = 8'h04;
+  localparam [7:0] BLK_DATI_ACK = 8'h08;
+  localparam [7:0] BLK_DATO_RX = 8'h10;
+  localparam [7:0] BLK_DATO_ACK = 8'h20;
+  localparam [7:0] BLK_DATO_NAK = 8'h40;
+  localparam [7:0] BLK_DONE = 8'h80;
 
   localparam ST_IDLE = 4'h1;
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
@@ -157,7 +158,7 @@ module control_transfer #(
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] xctrl;  //  = CTL_SETUP_RX;
 
-  reg [6:0] xbulk;
+  reg [7:0] xbulk;
   reg bodd_q;
 
   reg trn_zero_q;  // zero-size data transfer ??
@@ -247,12 +248,14 @@ module control_transfer #(
       endcase
     end else if (!hsend_q && state == ST_BULK) begin
       case (xbulk)
+        /*
         BLK_IDLE: begin
           if (tok_type_i == TOK_OUT && !blk_out_ready_i) begin
             hsend_q <= 1'b1;
             htype_q <= HSK_NAK;
           end
         end
+         */
         BLK_DATO_RX: begin
           hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i;
           htype_q <= HSK_ACK;
@@ -399,7 +402,8 @@ module control_transfer #(
         end
 
         ST_BULK: begin
-          if (xbulk == BLK_IDLE) begin
+          if (xbulk == BLK_DONE) begin
+          // if (hsk_sent_i || hsk_recv_i) begin
             state <= ST_IDLE;
           end
         end
@@ -482,7 +486,7 @@ module control_transfer #(
         BLK_DATI_ACK: begin
           // Wait for the host to 'ACK' the packet
           if (hsk_recv_i) begin
-            xbulk <= BLK_IDLE;
+            xbulk <= BLK_DONE;
           end
         end
 
@@ -496,6 +500,12 @@ module control_transfer #(
         BLK_DATO_ACK, BLK_DATO_NAK: begin
           // todo: implement the PING protocol ...
           if (hsk_sent_i) begin
+            xbulk <= BLK_DONE;
+          end
+        end
+
+        BLK_DONE: begin
+          if (state == ST_IDLE) begin
             xbulk <= BLK_IDLE;
           end
         end
@@ -735,6 +745,7 @@ module control_transfer #(
   always @* begin
     case (state)
       ST_IDLE: dbg_state = "IDLE";
+      ST_BULK: dbg_state = "BULK";
       ST_CTRL: dbg_state = "CTRL";
       ST_DUMP: dbg_state = "DUMP";
       default: dbg_state = "XXXX";
@@ -761,6 +772,25 @@ module control_transfer #(
       CTL_STATUS_ACK: dbg_xctrl = "STATUS_ACK";
 
       default: dbg_xctrl = "UNKNOWN";
+    endcase
+  end
+
+  reg [119:0] dbg_xbulk;
+
+  always @* begin
+    case (xbulk)
+      BLK_IDLE: dbg_xbulk = "IDLE";
+      BLK_DONE: dbg_xbulk = "DONE";
+
+      BLK_DATI_TX:  dbg_xbulk = "DATI_TX";
+      BLK_DATI_ZDP: dbg_xbulk = "DATI_ZDP";
+      BLK_DATI_ACK: dbg_xbulk = "DATI_ACK";
+
+      BLK_DATO_RX:  dbg_xbulk = "DATO_RX";
+      BLK_DATO_ACK: dbg_xbulk = "DATO_ACK";
+      BLK_DATO_NAK: dbg_xbulk = "DATO_NAK";
+
+      default: dbg_xbulk = "UNKNOWN";
     endcase
   end
 

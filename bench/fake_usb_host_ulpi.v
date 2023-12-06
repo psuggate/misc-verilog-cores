@@ -63,7 +63,7 @@ module fake_usb_host_ulpi (
 
   // -- State & Signals -- //
 
-  reg enum_done_q, desc_done_q, conf_done_q;
+  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q;
   wire [6:0] dev_addr_w;
 
   reg mvalid, sready, hsend, tstart, tvalid, tlast;
@@ -172,8 +172,23 @@ module fake_usb_host_ulpi (
 
     $display("%10t: FETCH device SERIAL#", $time);
     recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h03}, 64);
+    str0_done_q <= 1'b1;
 
     $display("%10t: SERIAL from device ...", $time);
+  end
+
+  initial begin : g_bulk_out
+    enabled();
+    // #80 while (!str0_done_q) @(posedge clock);
+    #80 while (state != ST_BLKO) @(posedge clock);
+
+    #80 $display("%10t: BULK data OUT", $time);
+    send_token(DEV_ADDR, 4'h1, TOK_OUT);
+    send_data({$urandom, $urandom}, 3'd7, 0);
+    recv_ack();
+    // bulk_out(DEV_ADDR, 4'h1);
+
+    $display("%10t: BULK data OUT finished ...", $time);
   end
 
 
@@ -184,6 +199,7 @@ module fake_usb_host_ulpi (
   localparam ST_ENUM = 4'h2;
   localparam ST_CONF = 4'h3;
   localparam ST_STR0 = 4'h4;
+  localparam ST_BLKO = 4'h5;
   localparam ST_IDLE = 4'hf;
 
   reg [3:0] state;
@@ -194,6 +210,7 @@ module fake_usb_host_ulpi (
       desc_done_q <= 1'b0;
       enum_done_q <= 1'b0;
       conf_done_q <= 1'b0;
+      str0_done_q <= 1'b0;
 
       sready <= 1'b0;
       mvalid <= 1'b0;
@@ -226,7 +243,13 @@ module fake_usb_host_ulpi (
         end
 
         ST_STR0: begin
-          if (svalid && sready && slast) begin
+          if (str0_done_q) begin
+            state <= ST_BLKO;
+          end
+        end
+
+        ST_BLKO: begin
+          if (tvalid && tready && tlast) begin
             state <= ST_IDLE;
           end
         end
@@ -596,6 +619,7 @@ module fake_usb_host_ulpi (
       ST_ENUM: dbg_state = "ENUM";
       ST_CONF: dbg_state = "CONF";
       ST_STR0: dbg_state = "STR0";
+      ST_BLKO: dbg_state = "BLKO";
       ST_IDLE: dbg_state = "IDLE";
 
       default: dbg_state = "UNKNOWN";
