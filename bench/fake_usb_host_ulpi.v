@@ -63,7 +63,7 @@ module fake_usb_host_ulpi (
 
   // -- State & Signals -- //
 
-  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q;
+  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q, blki_done_q;
   wire [6:0] dev_addr_w;
 
   reg mvalid, sready, hsend, tstart, tvalid, tlast;
@@ -186,9 +186,21 @@ module fake_usb_host_ulpi (
     send_token(DEV_ADDR, 4'h1, TOK_OUT);
     send_data({$urandom, $urandom}, 3'd7, 0);
     recv_ack();
-    // bulk_out(DEV_ADDR, 4'h1);
+    blko_done_q <= 1'b1;
 
     $display("%10t: BULK data OUT finished ...", $time);
+  end
+
+  initial begin : g_bulk_in
+    enabled();
+    #80 while (state != ST_BLKI) @(posedge clock);
+
+    #80 $display("%10t: BULK data IN", $time);
+    send_token(DEV_ADDR, 4'h1, TOK_IN);
+    recv_data1();
+    send_ack();
+
+    $display("%10t: BULK data IN finished ...", $time);
   end
 
 
@@ -200,6 +212,7 @@ module fake_usb_host_ulpi (
   localparam ST_CONF = 4'h3;
   localparam ST_STR0 = 4'h4;
   localparam ST_BLKO = 4'h5;
+  localparam ST_BLKI = 4'h6;
   localparam ST_IDLE = 4'hf;
 
   reg [3:0] state;
@@ -211,49 +224,20 @@ module fake_usb_host_ulpi (
       enum_done_q <= 1'b0;
       conf_done_q <= 1'b0;
       str0_done_q <= 1'b0;
+      blko_done_q <= 1'b0;
+      blki_done_q <= 1'b0;
 
       sready <= 1'b0;
       mvalid <= 1'b0;
     end else begin
       case (state)
-        ST_INIT: begin
-          if (dev_enum_start_i) begin
-            state <= ST_DESC;
-          end
-        end
-
-        ST_DESC: begin
-          // if (svalid && sready && slast) begin
-          if (desc_done_q) begin
-            state <= ST_ENUM;
-          end
-        end
-
-        ST_ENUM: begin
-          if (enum_done_q) begin
-            state <= ST_CONF;
-          end
-        end
-
-        ST_CONF: begin
-          // if (dev_configured_i && hdone_w) begin
-          if (conf_done_q) begin
-            state <= ST_STR0;
-          end
-        end
-
-        ST_STR0: begin
-          if (str0_done_q) begin
-            state <= ST_BLKO;
-          end
-        end
-
-        ST_BLKO: begin
-          if (tvalid && tready && tlast) begin
-            state <= ST_IDLE;
-          end
-        end
-
+        ST_INIT: state <= dev_enum_start_i ? ST_DESC : state;
+        ST_DESC: state <= desc_done_q ? ST_ENUM : state;
+        ST_ENUM: state <= enum_done_q ? ST_CONF : state;
+        ST_CONF: state <= conf_done_q ? ST_STR0 : state;
+        ST_STR0: state <= str0_done_q ? ST_BLKO : state;
+        ST_BLKO: state <= blko_done_q ? ST_BLKI : state;
+        ST_BLKI: state <= blki_done_q ? ST_IDLE : state;
         default: begin
           // $display("%10t: Hello!", $time);
         end
@@ -620,6 +604,7 @@ module fake_usb_host_ulpi (
       ST_CONF: dbg_state = "CONF";
       ST_STR0: dbg_state = "STR0";
       ST_BLKO: dbg_state = "BLKO";
+      ST_BLKI: dbg_state = "BLKI";
       ST_IDLE: dbg_state = "IDLE";
 
       default: dbg_state = "UNKNOWN";

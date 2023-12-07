@@ -30,8 +30,12 @@ module usb_core_tb;
 
   // -- Simulation Signals -- //
 
+/*
   reg svalid, slast, mready;
   reg [7:0] sdata;
+*/
+  wire svalid, slast, mready;
+  wire [7:0] sdata;
   wire mvalid, mlast, sready;
   wire [7:0] mdata;
 
@@ -54,9 +58,11 @@ module usb_core_tb;
     while (reset) begin
       @(posedge clock);
 
+/*
       svalid <= 1'b0;
       slast <= 1'b0;
       mready <= 1'b0;
+*/
 
       enumerate <= 1'b0;
     end
@@ -215,6 +221,26 @@ module usb_core_tb;
   );
 
 
+  // -- Loop-back FIFO for Testing -- //
+
+  sync_fifo #(
+      .WIDTH (9),
+      .ABITS (11),
+      .OUTREG(3)
+  ) rddata_fifo_inst (
+      .clock(dev_clock),
+      .reset(dev_reset),
+
+      .valid_i(mvalid),
+      .ready_o(mready),
+      .data_i ({mlast, mdata}),
+
+      .valid_o(svalid),
+      .ready_i(sready),
+      .data_o ({slast, sdata})
+  );
+
+
   //
   // Core Under New Tests
   ///
@@ -243,8 +269,8 @@ module usb_core_tb;
       .crc_err_o(dev_crc_err_w),
 
       // USB bulk endpoint data-paths
-      .blk_in_ready_i(1'b0),
-      .blk_out_ready_i(configured), // 1'b0),
+      .blk_in_ready_i(configured && svalid),
+      .blk_out_ready_i(configured && mready),
       .blk_start_o(),
       .blk_cycle_o(),
       .blk_endpt_o(),
@@ -256,7 +282,7 @@ module usb_core_tb;
       .s_axis_tdata_i (sdata),
 
       .m_axis_tvalid_o(mvalid),
-      .m_axis_tready_i(mready | configured),
+      .m_axis_tready_i(mready),
       .m_axis_tlast_o (mlast),
       .m_axis_tdata_o (mdata)
   );

@@ -214,7 +214,7 @@ module protocol #(
   wire ask_tvalid_w, ask_tready_w, ask_tlast_w;
   wire [7:0] ask_tdata_w;
 
-  control_transfer U_USB_TRN0 (
+  control_transfer #( .PIPELINED(1) ) U_USB_TRN0 (
       .clock(clock),
       .reset(reset),
 

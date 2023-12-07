@@ -200,7 +200,7 @@ module control_transfer #(
   assign blk_tready_o = mux_tready_w && state == ST_BULK;
   assign ctl_tready_o = mux_tready_w && state == ST_CTRL;
 
-  assign blk_tvalid_o = usb_tvalid_i;
+  assign blk_tvalid_o = state == ST_BULK ? usb_tvalid_i : 1'b0;
   assign usb_tready_o = state == ST_BULK ? blk_tready_i : 1'b1;  // todo: ...
   assign blk_tlast_o  = usb_tlast_i;
   assign blk_tdata_o  = usb_tdata_i;
@@ -478,7 +478,8 @@ module control_transfer #(
         BLK_DATI_ZDP: begin
           // Send a zero-data packet, because we do not have a full packet, and
           // a ZDP will avoid timing-out 'libusb' ??
-          if (usb_sent_i) begin
+          if (!trn_send_q && usb_busy_i) begin
+          // if (usb_sent_i) begin
             xbulk <= BLK_DATI_ACK;
           end
         end

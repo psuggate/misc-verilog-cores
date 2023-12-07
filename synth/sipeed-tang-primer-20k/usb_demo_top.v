@@ -120,8 +120,8 @@ module usb_demo_top (
       .crc_err_o(dev_crc_err_w),
 
       // USB bulk endpoint data-paths
-      .blk_in_ready_i(m_tvalid),
-      .blk_out_ready_i(s_tready),
+      .blk_in_ready_i(configured && m_tvalid),
+      .blk_out_ready_i(configured && s_tready),
       .blk_start_o(),
       .blk_cycle_o(),
       .blk_endpt_o(),
