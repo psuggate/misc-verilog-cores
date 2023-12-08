@@ -356,7 +356,6 @@ module ctl_pipe0 #(
 
       if (get_desc_q && chop_ready_w) begin
         get_desc_q <= !(chop_last_w || chop_stop_w);
-        // get_desc_q <= !(m_tlast_o || chop_stop_w);
       end else if (start_i && select_i) begin
         get_desc_q <= req_args_i == 8'h06;
       end

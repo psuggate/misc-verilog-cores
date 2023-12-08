@@ -105,10 +105,6 @@ module protocol #(
   wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
   wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
 
-  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
-  wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
-  wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
-
   reg crc_err_q, ctl_err_q, ctl_sel_q, usb_sof_q;
   wire crc_err_w;
 
@@ -313,7 +309,7 @@ module protocol #(
       .PRODUCT_ID(PRODUCT_ID),
 
       // Of course
-      .HIGH_SPEED(1)
+      .HIGH_SPEED(HIGH_SPEED)
   ) U_CFG_PIPE0 (
       .clock(clock),
       .reset(reset),

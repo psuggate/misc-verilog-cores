@@ -164,18 +164,6 @@ module ulpi_axis #(
 
   // -- Local Signals and Assignments -- //
 
-  wire ctl_start_w;
-  wire [7:0] ctl_rtype_w, ctl_rargs_w;
-  wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
-
-  wire cto_tvalid_w, cto_tready_w, cto_tlast_w;
-  wire cti_tvalid_w, cti_tready_w, cti_tlast_w;
-  wire [7:0] cto_tdata_w, cti_tdata_w;
-
-  wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
-  wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
-  wire [7:0] blko_tdata_w, blki_tdata_w;
-
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
@@ -218,26 +206,15 @@ module ulpi_axis #(
 
   // -- Top-level USB Control Core -- //
 
-  // `define __use_no_strings
-
   protocol #(
       .CONFIG_DESC_LEN(CONF_DESC_SIZE),
       .CONFIG_DESC(CONF_DESC_VALS),
-`ifdef __use_no_strings
-      .VENDOR_LENGTH(0),
-      .VENDOR_STRING(""),
-      .PRODUCT_LENGTH(0),
-      .PRODUCT_STRING(""),
-      .SERIAL_LENGTH(0),
-      .SERIAL_STRING(""),
-`else
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
       .PRODUCT_LENGTH(PRODUCT_LENGTH),
       .PRODUCT_STRING(PRODUCT_STRING),
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
-`endif
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID)
   ) U_USB_CTRL0 (

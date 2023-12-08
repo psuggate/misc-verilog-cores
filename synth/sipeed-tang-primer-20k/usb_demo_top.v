@@ -79,7 +79,22 @@ module usb_demo_top (
   wire [7:0] s_tdata;
 
   wire m_tvalid, m_tready, m_tlast;
-  wire [7:0] m_tdata;
+  wire [ 7:0] m_tdata;
+
+  // FIFO state //
+  wire [10:0] level_w;
+  reg bulk_in_ready_q, bulk_out_ready_q;
+
+  assign level_w = m_tvalid && s_tready ? 64 : 0;
+
+  always @(posedge usb_clock) begin
+    if (usb_reset) begin
+      bulk_in_ready_q <= 1'b0;
+    end else begin
+      bulk_in_ready_q  <= configured && level_w > 4;
+      bulk_out_ready_q <= configured && level_w < 1024;
+    end
+  end
 
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
@@ -120,20 +135,20 @@ module usb_demo_top (
       .crc_err_o(dev_crc_err_w),
 
       // USB bulk endpoint data-paths
-      .blk_in_ready_i(configured && m_tvalid),
-      .blk_out_ready_i(configured && s_tready),
+      .blk_in_ready_i(bulk_in_ready_q),
+      .blk_out_ready_i(bulk_out_ready_q),
       .blk_start_o(),
-      .blk_cycle_o(),
+      .blk_cycle_o(blk_cycle_w),
       .blk_endpt_o(),
       .blk_error_i(1'b0),
 
-      .s_axis_tvalid_i(m_tvalid),
+      .s_axis_tvalid_i(m_tvalid && blk_cycle_w),
       .s_axis_tready_o(m_tready),
       .s_axis_tlast_i (m_tlast),
       .s_axis_tdata_i (m_tdata),
 
       .m_axis_tvalid_o(s_tvalid),
-      .m_axis_tready_i(s_tready),
+      .m_axis_tready_i(s_tready && blk_cycle_w),
       .m_axis_tlast_o (s_tlast),
       .m_axis_tdata_o (s_tdata)
   );
@@ -152,12 +167,14 @@ module usb_demo_top (
           .clock(usb_clock),
           .reset(usb_reset),
 
-          .valid_i(s_tvalid),
+          .level_o(level_w),
+
+          .valid_i(s_tvalid && blk_cycle_w),
           .ready_o(s_tready),
           .data_i ({s_tlast, s_tdata}),
 
           .valid_o(m_tvalid),
-          .ready_i(m_tready),
+          .ready_i(m_tready && blk_cycle_w),
           .data_o ({m_tlast, m_tdata})
       );
 
@@ -225,9 +242,13 @@ module usb_demo_top (
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
   reg  blk_valid_q = 0;
 
-  wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
-  wire xfer_state_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_idle_w;
   wire blinky_w = crc_error_q ? count[10] & count[11] : count[12];
+  wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
+
+  wire xfer_state_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_idle_w;
+  wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w;
+  // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
+  // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
   assign leds  = {~cbits[3:0], 2'b11};
   assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
@@ -235,7 +256,8 @@ module usb_demo_top (
   always @(posedge usb_clock) begin
     if (usb_reset) begin
       ctl_latch_q <= 1'b0;
-    end else if (U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_ping_q) begin
+      // end else if (U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_ping_q) begin
+    end else if (xfer_error_w) begin
       ctl_latch_q <= 1'b1;
     end
 
@@ -248,7 +270,7 @@ module usb_demo_top (
     if (usb_reset) begin
       blk_valid_q <= 1'b0;
     end else begin
-      blk_valid_q <= m_tvalid;
+      blk_valid_q <= bulk_in_ready_q || bulk_out_ready_q;  // m_tvalid;
     end
 
     if (usb_reset) begin

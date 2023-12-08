@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Dec  8 07:43:26 2023
+[*] Fri Dec  8 09:21:35 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Fri Dec  8 07:42:22 2023"
-[dumpfile_size] 336548
+[dumpfile_mtime] "Fri Dec  8 09:12:10 2023"
+[dumpfile_size] 336814
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
@@ -50,6 +50,9 @@ usb_core_tb.U_FAKE_USB0.dbg_state[119:0]
 @22
 [color] 2
 U_ULPI_USB0.U_USB_CTRL0.usb_addr_w[6:0]
+@29
+[color] 3
+U_ULPI_USB0.blk_cycle_o
 @c00200
 -Host
 @28
@@ -170,7 +173,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xcptr[2:0]
 @820
 [color] 7
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xbulk[119:0]
-@c00200
+@800200
 -Trn
 @28
 [color] 3
@@ -251,7 +254,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_sent_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_recv_i
 @1401200
 -Hsk
-@c00200
+@800200
 -Dat
 @28
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_send_q
@@ -261,7 +264,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_sent_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_busy_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_zero_q
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_type_q[1:0]
-@1401200
+@1000200
 -Dat
 @800200
 -Tok
@@ -274,7 +277,6 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_addr_i[6:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_endp_i[3:0]
 @1000200
 -Tok
-@1401200
 -Trn
 @c00200
 -Tx
