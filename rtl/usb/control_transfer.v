@@ -203,7 +203,8 @@ module control_transfer #(
   assign blk_tready_o = mux_tready_w && xbulk == BLK_DATI_TX;
   assign ctl_tready_o = mux_tready_w && xctrl == CTL_DATI_TX;
 
-  assign blk_tvalid_o = state == ST_BULK ? usb_tvalid_i : 1'b0;
+  // assign blk_tvalid_o = state == ST_BULK ? usb_tvalid_i : 1'b0;
+  assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   // assign usb_tready_o = state == ST_BULK ? blk_tready_i || xbulk == BLK_DATO_ERR : 1'b1;  // todo: ...
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
   assign blk_tlast_o  = usb_tlast_i;

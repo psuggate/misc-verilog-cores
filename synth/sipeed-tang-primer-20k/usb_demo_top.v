@@ -206,7 +206,7 @@ module usb_demo_top (
           // AXI input
           .s_axis_tdata(s_tdata),
           .s_axis_tkeep(0),
-          .s_axis_tvalid(s_tvalid),
+          .s_axis_tvalid(s_tvalid && blk_cycle_w),
           .s_axis_tready(s_tready),
           .s_axis_tlast(s_tlast),
           .s_axis_tid(0),
@@ -219,7 +219,7 @@ module usb_demo_top (
           .m_axis_tdata(m_tdata),
           .m_axis_tkeep(),
           .m_axis_tvalid(m_tvalid),
-          .m_axis_tready(m_tready),
+          .m_axis_tready(m_tready && blk_cycle_w),
           .m_axis_tlast(m_tlast),
           .m_axis_tid(),
           .m_axis_tdest(),
@@ -246,7 +246,7 @@ module usb_demo_top (
   wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
 
   wire xfer_state_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_idle_w;
-  wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w;
+  wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w && bulk_in_ready_q;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
