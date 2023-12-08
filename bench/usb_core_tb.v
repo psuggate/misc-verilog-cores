@@ -223,6 +223,8 @@ module usb_core_tb;
 
   // -- Loop-back FIFO for Testing -- //
 
+  wire [10:0] flevel;
+
   sync_fifo #(
       .WIDTH (9),
       .ABITS (11),
@@ -230,6 +232,8 @@ module usb_core_tb;
   ) rddata_fifo_inst (
       .clock(dev_clock),
       .reset(dev_reset),
+
+      .level_o(flevel),
 
       .valid_i(mvalid),
       .ready_o(mready),

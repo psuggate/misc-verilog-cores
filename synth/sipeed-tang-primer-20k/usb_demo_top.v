@@ -141,22 +141,80 @@ module usb_demo_top (
 
   // -- Loop-back FIFO for Testing -- //
 
-  sync_fifo #(
-      .WIDTH (9),
-      .ABITS (11),
-      .OUTREG(3)
-  ) rddata_fifo_inst (
-      .clock(usb_clock),
-      .reset(usb_reset),
+  generate
+    if (1) begin : g_sync_fifo
 
-      .valid_i(s_tvalid),
-      .ready_o(s_tready),
-      .data_i ({s_tlast, s_tdata}),
+      sync_fifo #(
+          .WIDTH (9),
+          .ABITS (11),
+          .OUTREG(3)
+      ) U_BULK_FIFO0 (
+          .clock(usb_clock),
+          .reset(usb_reset),
 
-      .valid_o(m_tvalid),
-      .ready_i(m_tready),
-      .data_o ({m_tlast, m_tdata})
-  );
+          .valid_i(s_tvalid),
+          .ready_o(s_tready),
+          .data_i ({s_tlast, s_tdata}),
+
+          .valid_o(m_tvalid),
+          .ready_i(m_tready),
+          .data_o ({m_tlast, m_tdata})
+      );
+
+    end else begin : g_axis_fifo
+
+      axis_fifo #(
+          .DEPTH(2048),
+          .DATA_WIDTH(8),
+          .KEEP_ENABLE(0),
+          .KEEP_WIDTH(1),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(0),
+          .ID_WIDTH(1),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(1),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(0),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_BULK_FIFO0 (
+          .clk(usb_clock),
+          .rst(usb_reset),
+
+          // AXI input
+          .s_axis_tdata(s_tdata),
+          .s_axis_tkeep(0),
+          .s_axis_tvalid(s_tvalid),
+          .s_axis_tready(s_tready),
+          .s_axis_tlast(s_tlast),
+          .s_axis_tid(0),
+          .s_axis_tdest(0),
+          .s_axis_tuser(0),
+
+          .pause_req(0),
+
+          // AXI output
+          .m_axis_tdata(m_tdata),
+          .m_axis_tkeep(),
+          .m_axis_tvalid(m_tvalid),
+          .m_axis_tready(m_tready),
+          .m_axis_tlast(m_tlast),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+          // Status
+          .status_overflow(),
+          .status_bad_frame(),
+          .status_good_frame()
+      );
+
+    end
+  endgenerate
 
 
   // -- LEDs Stuffs -- //
@@ -165,15 +223,22 @@ module usb_demo_top (
   wire [ 3:0] cbits;
   reg  [23:0] count;
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
+  reg blk_valid_q = 0;
 
   wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
 
   assign leds  = {~cbits[3:0], 2'b11};
-  assign cbits = {count[12], ctl_latch_q, crc_error_q, device_usb_idle_w};
+  assign cbits = {count[12], ctl_latch_q, crc_error_q, blk_valid_q}; // device_usb_idle_w};
 
   always @(posedge usb_clock) begin
     if (ctl0_error_w) begin
       ctl_latch_q <= 1'b1;
+    end
+
+    if (usb_reset) begin
+      blk_valid_q <= 1'b0;
+    end else begin
+      blk_valid_q <= m_tvalid;
     end
 
     if (usb_reset) begin

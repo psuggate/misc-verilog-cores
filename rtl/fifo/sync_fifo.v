@@ -132,11 +132,21 @@ module sync_fifo (
 
   // -- FIFO Status -- //
 
+  wire incr_w = valid_i && wready;
+  wire decr_w = valid_o && ready_i;
+
   always @(posedge clock) begin
     if (reset) begin
       level_q <= AZERO;
     end else begin
-      level_q <= level_w[ASB:0];
+      if (incr_w && !decr_w) begin
+        level_q <= level_q + 1;
+      end else if (!incr_w && decr_w) begin
+        level_q <= level_q - 1;
+      end else begin // incr_w == decr_w
+        level_q <= level_q;
+      end
+      // level_q <= level_w[ASB:0];
     end
   end
 

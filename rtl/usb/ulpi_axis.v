@@ -139,15 +139,27 @@ module ulpi_axis #(
   reg rst_nq, rst_nr, rst_n1, rst_n0;
   wire clock, reset;
 
+  assign usb_clock_o  = clock;
+  assign usb_reset_o  = reset;
+
+  assign clock = ulpi_clock_i;
+  assign reset = ~rst_nq;
+  assign ulpi_rst_nw = rst_n1;
+
+  // Compute the reset signals
+  always @(posedge clock or negedge areset_n) begin
+    if (!areset_n) begin
+      {rst_nq, rst_nr, rst_n1, rst_n0} <= 4'h0;
+    end else begin
+      {rst_nq, rst_nr, rst_n1, rst_n0} <= {rst_nr & ~usb_reset_w, rst_n1, rst_n0, areset_n};
+    end
+  end
+
   // ULPI signals
   wire [7:0] ulpi_data_iw, ulpi_data_ow;
 
-
   assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
-
-  assign usb_clock_o  = clock;
-  assign usb_reset_o  = reset;
 
 
   // -- Local Signals and Assignments -- //
@@ -167,20 +179,6 @@ module ulpi_axis #(
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
   wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
-
-
-  assign clock = ulpi_clock_i;
-  assign reset = ~rst_nq;
-  assign ulpi_rst_nw = rst_n1;
-
-
-  always @(posedge clock or negedge areset_n) begin
-    if (!areset_n) begin
-      {rst_nq, rst_nr, rst_n1, rst_n0} <= 4'h0;
-    end else begin
-      {rst_nq, rst_nr, rst_n1, rst_n0} <= {rst_nr & ~usb_reset_w, rst_n1, rst_n0, areset_n};
-    end
-  end
 
 
   // -- AXI4 stream to/from ULPI stream -- //
