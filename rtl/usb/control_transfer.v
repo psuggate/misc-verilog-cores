@@ -55,6 +55,7 @@ module control_transfer #(
 
     // Signals from the USB packet decoder (upstream)
     input tok_recv_i,
+    input tok_ping_i,
     input [1:0] tok_type_i,
     input [6:0] tok_addr_i,
     input [3:0] tok_endp_i,
@@ -120,6 +121,7 @@ module control_transfer #(
   localparam [7:0] BLK_DATI_TX = 8'h02;
   localparam [7:0] BLK_DATI_ZDP = 8'h04;
   localparam [7:0] BLK_DATI_ACK = 8'h08;
+  localparam [7:0] BLK_DATI_NAK = 8'h08;
   localparam [7:0] BLK_DATO_RX = 8'h10;
   localparam [7:0] BLK_DATO_ACK = 8'h20;
   localparam [7:0] BLK_DATO_NAK = 8'h40;
@@ -208,6 +210,9 @@ module control_transfer #(
   assign blk_tdata_o  = usb_tdata_i;
 
 
+  wire xfer_idle_w = state[0];
+
+
   // -- Datapath from the USB Packet Decoder -- //
 
   reg  usb_recv_q;
@@ -252,16 +257,20 @@ module control_transfer #(
       case (xbulk)
         /*
         BLK_IDLE: begin
+          // todo: this is naughty, and leads to timeouts ??
+          // todo: it caused the host to start using 'PING' packets ??
           if (tok_type_i == TOK_OUT && !blk_out_ready_i) begin
             hsend_q <= 1'b1;
             htype_q <= HSK_NAK;
           end
         end
-         */
+        */
+
         BLK_DATO_RX: begin
           hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i;
           htype_q <= HSK_ACK;
         end
+
         default: begin
           hsend_q <= 1'b0;
           htype_q <= 2'bx;
@@ -415,7 +424,7 @@ module control_transfer #(
 
         ST_BULK: begin
           if (xbulk == BLK_DONE) begin
-          // if (hsk_sent_i || hsk_recv_i) begin
+            // if (hsk_sent_i || hsk_recv_i) begin
             state <= ST_IDLE;
           end
         end
@@ -442,7 +451,7 @@ module control_transfer #(
     end else begin
       case (xbulk)
         BLK_DATI_ACK: begin
-          if (hsk_recv_i) begin
+          if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
             bodd_q <= ~bodd_q;
           end
         end
@@ -472,6 +481,8 @@ module control_transfer #(
           if (state == ST_BULK) begin
             if (tok_type_i == TOK_IN) begin
               xbulk <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+              // todo: this is naughty, and leads to timeouts ??
+              // xbulk <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_NAK;
             end else begin
               xbulk <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_NAK;
             end
@@ -491,7 +502,7 @@ module control_transfer #(
           // Send a zero-data packet, because we do not have a full packet, and
           // a ZDP will avoid timing-out 'libusb' ??
           if (!trn_send_q && usb_busy_i) begin
-          // if (usb_sent_i) begin
+            // if (usb_sent_i) begin
             xbulk <= BLK_DATI_ACK;
           end
         end
@@ -536,12 +547,13 @@ module control_transfer #(
   //  - if there is more data after the 8th byte, then forward that out (via
   //    an AXI4-Stream skid-register) !?
   always @(posedge clock) begin
-    if (reset || state == ST_IDLE) begin
+    if (reset || state == ST_IDLE || state == ST_BULK) begin
       xcptr <= 3'b000;
       ctl_lenlo_q <= 0;
       ctl_lenhi_q <= 0;
       ctl_start_q <= 1'b0;
       ctl_cycle_q <= 1'b0;
+    // end else if (xctrl == CTL_SETUP_RX && usb_tvalid_i && usb_tready_o) begin
     end else if (xctrl == CTL_SETUP_RX && usb_tvalid_i && usb_tready_o) begin
       ctl_rtype_q <= xcptr == 3'b000 ? usb_tdata_i : ctl_rtype_q;
       ctl_rargs_q <= xcptr == 3'b001 ? usb_tdata_i : ctl_rargs_q;

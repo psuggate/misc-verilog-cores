@@ -93,7 +93,7 @@ module protocol #(
   wire hsk_rx_recv_w, hsk_tx_send_w, hsk_tx_sent_w;
   wire [1:0] hsk_rx_type_w, hsk_tx_type_w;
 
-  wire tok_rx_recv_w;
+  wire tok_rx_recv_w, tok_rx_ping_w;
   wire [1:0] tok_rx_type_w;
   wire [6:0] tok_rx_addr_w;
   wire [3:0] tok_rx_endp_w;
@@ -211,10 +211,9 @@ module protocol #(
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  wire ask_tvalid_w, ask_tready_w, ask_tlast_w;
-  wire [7:0] ask_tdata_w;
-
-  control_transfer #( .PIPELINED(1) ) U_USB_TRN0 (
+  control_transfer #(
+      .PIPELINED(1)
+  ) U_USB_TRN0 (
       .clock(clock),
       .reset(reset),
 
@@ -222,6 +221,7 @@ module protocol #(
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
+      .tok_ping_i(tok_rx_ping_w),
       .tok_type_i(tok_rx_type_w),
       .tok_addr_i(tok_rx_addr_w),
       .tok_endp_i(tok_rx_endp_w),
@@ -286,46 +286,10 @@ module protocol #(
       .ctl_tlast_o (),
       .ctl_tdata_o (),
 
-      .ctl_tvalid_i(ask_tvalid_w),
-      .ctl_tready_o(ask_tready_w),
-      .ctl_tlast_i (ask_tlast_w),
-      .ctl_tdata_i (ask_tdata_w)
-  );
-
-
-  //
-  // Burst-Chopper for Descriptor Data
-  ///
-  reg act_q;
-  reg [6:0] len_q;
-  wire ctl0_stop_w;
-
-  always @(posedge clock) begin
-    act_q <= ctl0_cycle_w && !(ask_tvalid_w && ask_tready_w && ask_tlast_w);
-    len_q <= {ctl_length_w[15:6] != 0, ctl_length_w[5:0]};
-  end
-
-  axis_chop #(
-      .WIDTH (8),
-      .MAXLEN(64),
-      .BYPASS(0)
-  ) axis_skid_inst (
-      .clock(clock),
-      .reset(reset),
-
-      .active_i(act_q),
-      .length_i(len_q),
-      .final_o (ctl0_stop_w),
-
-      .s_tvalid(ctl0_tvalid_w),
-      .s_tready(ctl0_tready_w),
-      .s_tlast (ctl0_tlast_w),
-      .s_tdata (ctl0_tdata_w),
-
-      .m_tvalid(ask_tvalid_w),
-      .m_tready(ask_tready_w),
-      .m_tlast (ask_tlast_w),
-      .m_tdata (ask_tdata_w)
+      .ctl_tvalid_i(ctl0_tvalid_w),
+      .ctl_tready_o(ctl0_tready_w),
+      .ctl_tlast_i (ctl0_tlast_w),
+      .ctl_tdata_i (ctl0_tdata_w)
   );
 
 
@@ -356,7 +320,6 @@ module protocol #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
-      .stop_i  (ctl0_stop_w),
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),

@@ -139,8 +139,8 @@ module ulpi_axis #(
   reg rst_nq, rst_nr, rst_n1, rst_n0;
   wire clock, reset;
 
-  assign usb_clock_o  = clock;
-  assign usb_reset_o  = reset;
+  assign usb_clock_o = clock;
+  assign usb_reset_o = reset;
 
   assign clock = ulpi_clock_i;
   assign reset = ~rst_nq;
@@ -281,8 +281,41 @@ module ulpi_axis #(
       .usb_tdata_o (ulpi_tx_tdata_w)
   );
 
-  /*
 
+  /*
+  // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
+
+  wire mux_tvalid_w, mux_tlast_w;
+  wire [7:0] mux_tdata_w;
+
+  wire blk_sel_w = xbulk == BLK_DATI_TX;
+  wire ctl_sel_w = xctrl == CTL_DATI_TX;
+
+  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : 1'b0;
+  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_tlast_i;
+  assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_tdata_i;
+
+  axis_skid #(
+      .WIDTH (8),
+      .BYPASS(PIPELINED == 0)
+  ) U_AXIS_SKID1 (
+      .clock(clock),
+      .reset(reset),
+
+      .s_tvalid(mux_tvalid_w),
+      .s_tready(mux_tready_w),
+      .s_tlast (mux_tlast_w),
+      .s_tdata (mux_tdata_w),
+
+      .m_tvalid(usb_tvalid_o),
+      .m_tready(usb_tready_i),
+      .m_tlast (usb_tlast_o),
+      .m_tdata (usb_tdata_o)
+  );
+*/
+
+
+  /*
   // -- Route Bulk IN Signals -- //
 
   generate

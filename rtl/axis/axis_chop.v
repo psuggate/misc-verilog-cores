@@ -21,9 +21,11 @@ module axis_chop (
   //
   // Chops a transfer at 'length_i'.
   //
-  // Note: the chopped transfer cannot be resumed.
+  // Note: to resumer a chopped transfer, assert 'active_i' with a suitable
+  //   'length_i' at least one cycle before asserting 'm_tready' & 's_tvalid'.
   ///
-  parameter BYPASS = 0;
+
+  parameter BYPASS = 0;  // Disable the chopper, and pass all signals through
 
   parameter MAXLEN = 64;
   localparam LBITS = $clog2(MAXLEN + 1);
@@ -104,10 +106,35 @@ module axis_chop (
       end
 
 
+      // -- Burst Framer -- //
+
+      reg frame_q, active_q;
+
+      // Will there be space in either register ('T', or 'M') ??
+      assign sready_next = active_i && frame_q && 
+                         (!(s_tvalid && mvalid) && !tvalid || m_tready) &&
+                         (!final_q || final_q && !sready) &&
+                         !(s_tvalid && sready && s_tlast);
+
+      always @(posedge clock) begin
+        if (reset) begin
+          {frame_q, active_q} <= 2'b00;
+        end else begin
+          if (active_i && !frame_q && !active_q) begin
+            {frame_q, active_q} <= 2'b11;
+          end else if ((final_q || s_tlast) && s_tvalid && sready) begin
+            {frame_q, active_q} <= {1'b0, active_i};
+          end else if (!active_i) begin
+            {frame_q, active_q} <= 2'b00;
+          end
+        end
+      end
+
+
       // -- Control -- //
 
-      assign sready_next = active_i && (!final_q || final_q && !sready) &&
-          (!(s_tvalid && mvalid || tvalid) || m_tready);
+      // assign sready_next = active_i && (!final_q || final_q && !sready) &&
+      //                      (!(s_tvalid && mvalid || tvalid) || m_tready);
       assign tvalid_next = !m_tready && mvalid && (tvalid || s_tvalid && sready);
       assign mvalid_next = s_tvalid && sready || tvalid || mvalid && !m_tready;
 

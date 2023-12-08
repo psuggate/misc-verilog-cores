@@ -142,7 +142,7 @@ module usb_demo_top (
   // -- Loop-back FIFO for Testing -- //
 
   generate
-    if (1) begin : g_sync_fifo
+    if (0) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (9),
@@ -223,17 +223,27 @@ module usb_demo_top (
   wire [ 3:0] cbits;
   reg  [23:0] count;
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
-  reg blk_valid_q = 0;
+  reg  blk_valid_q = 0;
 
   wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
+  wire xfer_state_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_idle_w;
+  wire blinky_w = crc_error_q ? count[10] & count[11] : count[12];
 
   assign leds  = {~cbits[3:0], 2'b11};
-  assign cbits = {count[12], ctl_latch_q, crc_error_q, blk_valid_q}; // device_usb_idle_w};
+  assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
 
   always @(posedge usb_clock) begin
+    if (usb_reset) begin
+      ctl_latch_q <= 1'b0;
+    end else if (U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_ping_q) begin
+      ctl_latch_q <= 1'b1;
+    end
+
+    /*
     if (ctl0_error_w) begin
       ctl_latch_q <= 1'b1;
     end
+     */
 
     if (usb_reset) begin
       blk_valid_q <= 1'b0;

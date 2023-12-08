@@ -143,7 +143,7 @@ module sync_fifo (
         level_q <= level_q + 1;
       end else if (!incr_w && decr_w) begin
         level_q <= level_q - 1;
-      end else begin // incr_w == decr_w
+      end else begin  // incr_w == decr_w
         level_q <= level_q;
       end
       // level_q <= level_w[ASB:0];
@@ -198,7 +198,7 @@ module sync_fifo (
 
       assign tvalid_w = !rvalid && xvalid && valid_i && wready;
       assign svalid_w = xvalid || !xvalid && !rvalid && valid_i && OUTREG > 1;
-      assign sdata_w  = !xvalid && valid_i && sready && OUTREG > 1 ? data_i : xdata;
+      assign sdata_w = !xvalid && valid_i && sready && OUTREG > 1 ? data_i : xdata;
 
 
       // -- SRAM Output-Register -- //
@@ -232,8 +232,8 @@ module sync_fifo (
           .s_tlast (1'b0),
           .s_tdata (sdata_w),
 
-          .t_tvalid(tvalid_w), // If OUTREG > 2, allow the temp-register to be
-          .t_tready(tready),   // explicitly loaded
+          .t_tvalid(tvalid_w),  // If OUTREG > 2, allow the temp-register to be
+          .t_tready(tready),    // explicitly loaded
           .t_tlast (1'b0),
           .t_tdata (data_i),
 

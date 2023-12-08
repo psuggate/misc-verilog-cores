@@ -46,7 +46,6 @@ module ctl_pipe0 #(
 
     input  select_i,
     input  start_i,
-    input  stop_i,
     output error_o,
 
     output configured_o,
@@ -229,10 +228,56 @@ module ctl_pipe0 #(
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
 
-  // AXI4-Stream master port for descriptor values
-  assign m_tvalid_o = get_desc_q;
-  assign m_tdata_o = descriptor[mem_addr];
-  assign m_tlast_o = desc_tlast[mem_addr];
+
+  //
+  // Burst-Chopper for Descriptor Data
+  ///
+
+  reg act_q;
+  reg [6:0] len_q;
+  wire chop_valid_w, chop_ready_w, chop_stop_w, chop_last_w;
+  wire [7:0] chop_data_w;
+
+  assign chop_valid_w = get_desc_q;
+  assign chop_last_w  = desc_tlast[mem_addr];
+  assign chop_data_w  = descriptor[mem_addr];
+
+  always @(posedge clock) begin
+    if (reset) begin
+      act_q <= 1'b0;
+    end else begin
+      if (select_i && start_i && req_endpt_i == 4'h0) begin
+        act_q <= 1'b1;
+      end else if (m_tready_i && m_tvalid_o && m_tlast_o || !select_i) begin
+        act_q <= 1'b0;
+      end
+    end
+
+    len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
+  end
+
+  axis_chop #(
+      .WIDTH (8),
+      .MAXLEN(64),
+      .BYPASS(0)
+  ) axis_skid_inst (
+      .clock(clock),
+      .reset(reset),
+
+      .active_i(act_q),
+      .length_i(len_q),
+      .final_o (chop_stop_w),
+
+      .s_tvalid(chop_valid_w),
+      .s_tready(chop_ready_w),
+      .s_tlast (chop_last_w),
+      .s_tdata (chop_data_w),
+
+      .m_tvalid(m_tvalid_o),
+      .m_tready(m_tready_i),
+      .m_tlast (m_tlast_o),
+      .m_tdata (m_tdata_o)
+  );
 
 
   // -- Pipelined Configuration-Request Decoder -- //
@@ -241,7 +286,7 @@ module ctl_pipe0 #(
 
   // Pipelined configuration-request decoder
   always @(posedge clock) begin
-    sel_q <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
+    sel_q   <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
     start_q <= start_i;
 
     /*
@@ -295,7 +340,7 @@ module ctl_pipe0 #(
       end else begin
         mem_addr <= 0;
       end
-    end else if (m_tready_i && get_desc_q) begin
+    end else if (chop_ready_w && get_desc_q) begin
       mem_addr <= mem_next;
     end
   end
@@ -309,8 +354,9 @@ module ctl_pipe0 #(
       set_q <= 1'b0;
     end else begin
 
-      if (get_desc_q && m_tready_i) begin
-        get_desc_q <= !(m_tlast_o || stop_i);
+      if (get_desc_q && chop_ready_w) begin
+        get_desc_q <= !(chop_last_w || chop_stop_w);
+        // get_desc_q <= !(m_tlast_o || chop_stop_w);
       end else if (start_i && select_i) begin
         get_desc_q <= req_args_i == 8'h06;
       end

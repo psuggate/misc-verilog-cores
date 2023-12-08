@@ -30,7 +30,7 @@ module usb_core_tb;
 
   // -- Simulation Signals -- //
 
-/*
+  /*
   reg svalid, slast, mready;
   reg [7:0] sdata;
 */
@@ -58,7 +58,7 @@ module usb_core_tb;
     while (reset) begin
       @(posedge clock);
 
-/*
+      /*
       svalid <= 1'b0;
       slast <= 1'b0;
       mready <= 1'b0;
@@ -131,10 +131,10 @@ module usb_core_tb;
 
 
   // Check the output from the Control PIPE0 //
-  wire ctl0_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tvalid_w;
-  wire ctl0_tready_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tready_w;
-  wire ctl0_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tdata_w;
+  wire ctl0_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.get_desc_q;
+  wire ctl0_tready_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_ready_w;
+  wire ctl0_tlast_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_last_w;
+  wire [7:0] ctl0_tdata_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_data_w;
 
   axis_flow_check U_AXIS_FLOW0 (
       .clock(usb_clock),
@@ -146,10 +146,10 @@ module usb_core_tb;
   );
 
   // Check the output from the AXI4-Stream burst-chopper //
-  wire ask_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ask_tvalid_w;
-  wire ask_tready_w = U_ULPI_USB0.U_USB_CTRL0.ask_tready_w;
-  wire ask_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ask_tlast_w;
-  wire [7:0] ask_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ask_tdata_w;
+  wire ask_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tvalid_w;
+  wire ask_tready_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tready_w;
+  wire ask_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tlast_w;
+  wire [7:0] ask_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tdata_w;
 
   axis_flow_check U_AXIS_FLOW1 (
       .clock(usb_clock),

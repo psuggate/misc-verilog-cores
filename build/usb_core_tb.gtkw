@@ -1,23 +1,24 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Dec  7 22:51:27 2023
+[*] Fri Dec  8 07:43:26 2023
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
-[dumpfile_mtime] "Thu Dec  7 22:17:15 2023"
-[dumpfile_size] 337379
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
-[timestart] 5996100
+[dumpfile] "./usb_core_tb.vcd"
+[dumpfile_mtime] "Fri Dec  8 07:42:22 2023"
+[dumpfile_size] 336548
+[savefile] "./usb_core_tb.gtkw"
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-17.550285 7520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.528301 1590000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
-[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.
+[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
+[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.U_AXIS_SKID1.
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 190
+[signals_width] 158
 [sst_expanded] 1
 [sst_vpaned_height] 575
 @28
@@ -169,7 +170,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xcptr[2:0]
 @820
 [color] 7
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xbulk[119:0]
-@800200
+@c00200
 -Trn
 @28
 [color] 3
@@ -181,17 +182,17 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tvalid_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tready_o
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tlast_i
 U_ULPI_USB0.U_USB_CTRL0.usb_tvalid_o
-@800200
+@c00200
 -Bulk
-@800201
+@800200
 -OUT
-@29
+@28
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tvalid_o
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tlast_o
-@23
+@22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tdata_o[7:0]
-@1000201
+@1000200
 -OUT
 @800200
 -IN
@@ -203,6 +204,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tlast_i
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tdata_i[7:0]
 @1000200
 -IN
+@1401200
 -Bulk
 @c00200
 -Mux
@@ -272,10 +274,10 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_addr_i[6:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_endp_i[3:0]
 @1000200
 -Tok
+@1401200
 -Trn
-@800200
--Tx
 @c00200
+-Tx
 -Enc
 @22
 [color] 2
@@ -316,7 +318,7 @@ U_ULPI_USB0.ulpi_tx_tready_w
 U_ULPI_USB0.ulpi_tx_tlast_w
 @22
 U_ULPI_USB0.ulpi_tx_tdata_w[7:0]
-@1000200
+@1401200
 -Tx
 @c00200
 -Rx
@@ -341,7 +343,6 @@ U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 -Rx
 @800200
 -Control
-@c00200
 -Internal
 @28
 [color] 3
@@ -356,7 +357,31 @@ U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tready_i
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
+@c00200
+-Chop
+@28
+[color] 7
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.active_i
+[color] 3
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.frame_q
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_valid_w
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_ready_w
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_last_w
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_stop_w
+@800200
+-Internal
+@28
+[color] 3
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.sready_next
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.sready
+@22
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.remain_w[6:0]
+U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.remain_q[6:0]
+@1000200
+-Internal
 @1401200
+-Chop
+@1000200
 -Internal
 @c00200
 -Transfer

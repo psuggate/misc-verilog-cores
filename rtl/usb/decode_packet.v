@@ -18,6 +18,7 @@ module decode_packet (
     input [7:0] ulpi_tdata_i,
 
     output tok_recv_o,
+    output tok_ping_o,
     output [1:0] tok_type_o,
     output [6:0] tok_addr_o,
     output [3:0] tok_endp_o,
@@ -160,6 +161,20 @@ module decode_packet (
     sof_flag_q <= state[2] && token_crc5 == rx_crc5_w;
   end
 
+  reg tok_ping_q;
+
+  assign tok_ping_o = tok_ping_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      tok_ping_q <= 1'b0;
+    end else if (state == ST_IDLE) begin
+      if (ulpi_tvalid_i && rx_pid_pw == rx_pid_nw && rx_pid_pw[3:0] == 4'b0100) begin
+        tok_ping_q <= 1'b1;
+      end
+    end
+  end
+
   always @(posedge clock) begin
     if (reset) begin
       crc_err_flag <= 1'b0;
@@ -202,7 +217,7 @@ module decode_packet (
           if (ulpi_tvalid_i && rx_pid_pw == rx_pid_nw) begin
             if (rx_pid_pw == 4'b0101) begin
               state <= ST_SOF;
-            end else if (rx_pid_pw[1:0] == 2'b01) begin
+            end else if (rx_pid_pw[1:0] == 2'b01 || rx_pid_pw[3:0] == 4'b0100) begin
               state <= ST_TOKEN;
             end else if (rx_pid_pw[1:0] == 2'b11) begin
               state <= ST_DATA;
