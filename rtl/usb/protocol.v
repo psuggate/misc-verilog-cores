@@ -207,7 +207,7 @@ module protocol #(
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  control_transfer #(
+  transactor #(
       .PIPELINED(1)
   ) U_USB_TRN0 (
       .clock(clock),

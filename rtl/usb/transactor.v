@@ -1,5 +1,5 @@
 `timescale 1ns / 100ps
-module control_transfer #(
+module transactor #(
     parameter ENDPOINT1 = 1,
     parameter ENDPOINT2 = 0,  // todo: ...
     parameter PIPELINED = 0
@@ -800,4 +800,4 @@ module control_transfer #(
 `endif
 
 
-endmodule  // control_transfer
+endmodule  // transactor
