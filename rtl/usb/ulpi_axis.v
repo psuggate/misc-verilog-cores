@@ -44,6 +44,7 @@ module ulpi_axis #(
     output fifo_has_data_o,
 
     output configured_o,
+    output has_telemetry_o,
     output usb_sof_o,
     output crc_err_o,
     output usb_vbus_valid_o,
@@ -222,6 +223,7 @@ module ulpi_axis #(
       .reset(reset),
 
       .configured_o(configured_o),
+      .has_telemetry_o(has_telemetry_o),
       .usb_addr_o  (),
       .usb_conf_o  (),
       .usb_sof_o   (usb_sof_o),

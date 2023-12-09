@@ -62,6 +62,10 @@ module decode_packet (
   wire [3:0] rx_pid_pw, rx_pid_nw;
   reg [15:0] crc16_q;
 
+  reg [6:0] tok_addr_q;
+  reg [3:0] tok_endp_q;
+  reg tok_ping_q;
+
   reg sof_flag_q, crc_err_flag;
   reg tok_recv_q, hsk_recv_q, out_recv_q;
   reg [1:0] trn_type_q;
@@ -85,8 +89,8 @@ module decode_packet (
 
   assign tok_recv_o = tok_recv_q;
   assign tok_type_o = trn_type_q;  // OUT/IN/SETUP
-  assign tok_addr_o = token_data[6:0];
-  assign tok_endp_o = token_data[10:7];
+  assign tok_addr_o = tok_addr_q;
+  assign tok_endp_o = tok_endp_q;
 
   // Rx data-path (from USB host) to either USB config OR bulk EP cores
   assign out_recv_o = out_recv_q;
@@ -157,11 +161,22 @@ module decode_packet (
   // Strobes that indicate the start and end of a (received) packet.
   // todo: unify the SOF and TOKEN states !?
   always @(posedge clock) begin
-    tok_recv_q <= state[4] && token_crc5 == rx_crc5_w;
+    if (reset) begin
+      tok_recv_q <= 1'b0;
+      tok_addr_q <= 7'd0;
+      tok_endp_q <= 4'd0;
+    end else begin
+      if (state[4] && token_crc5 == rx_crc5_w) begin
+        tok_recv_q <= 1'b1;
+        tok_addr_q <= token_data[6:0];
+        tok_endp_q <= token_data[10:7];
+      end else begin
+        tok_recv_q <= 1'b0;
+      end
+    end
+
     sof_flag_q <= state[2] && token_crc5 == rx_crc5_w;
   end
-
-  reg tok_ping_q;
 
   assign tok_ping_o = tok_ping_q;
 

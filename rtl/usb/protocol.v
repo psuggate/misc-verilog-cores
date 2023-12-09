@@ -36,6 +36,7 @@ module protocol #(
 
     // Debug & status signals
     output configured_o,
+    output has_telemetry_o,
     output [6:0] usb_addr_o,
     output [7:0] usb_conf_o,
     output usb_sof_o,
@@ -80,6 +81,7 @@ module protocol #(
 
   // -- Signals and Assignments -- //
 
+  wire usb_enum_w;
   wire [6:0] usb_addr_w;
 
   wire ctl0_start_w, ctl0_cycle_w, ctl0_error_w;
@@ -190,6 +192,7 @@ module protocol #(
 
       // Indicates that a (OUT/IN/SETUP) token was received
       .tok_recv_o(tok_rx_recv_w),  // Start strobe
+      .tok_ping_o(tok_rx_ping_w),  // Special 'PING' token-type
       .tok_type_o(tok_rx_type_w),  // Token-type (OUT/IN/SETUP)
       .tok_addr_o(tok_rx_addr_w),
       .tok_endp_o(tok_rx_endp_w),
@@ -206,6 +209,12 @@ module protocol #(
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
+
+  wire ctlx_tvalid_w, ctlx_tlast_w, ctlx_tready_w;
+  wire [7:0] ctlx_tdata_w;
+
+  wire ctl1_tvalid_w, ctl1_tlast_w, ctl1_tready_w;
+  wire [7:0] ctl1_tdata_w;
 
   transactor #(
       .PIPELINED(1)
@@ -282,10 +291,44 @@ module protocol #(
       .ctl_tlast_o (),
       .ctl_tdata_o (),
 
-      .ctl_tvalid_i(ctl0_tvalid_w),
-      .ctl_tready_o(ctl0_tready_w),
-      .ctl_tlast_i (ctl0_tlast_w),
-      .ctl_tdata_i (ctl0_tdata_w)
+      .ctl_tvalid_i(ctlx_tvalid_w),
+      .ctl_tready_o(ctlx_tready_w),
+      .ctl_tlast_i (ctlx_tlast_w),
+      .ctl_tdata_i (ctlx_tdata_w)
+  );
+
+
+  // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
+
+  wire mux_tvalid_w, mux_tlast_w, mux_tready_w;
+  wire [7:0] mux_tdata_w;
+
+  wire ep1_sel_w = ctl_endpt_w[0];
+
+  assign mux_tvalid_w  = ep1_sel_w ? ctl1_tvalid_w : ctl0_tvalid_w;
+  assign mux_tlast_w   = ep1_sel_w ? ctl1_tlast_w : ctl0_tlast_w;
+  assign mux_tdata_w   = ep1_sel_w ? ctl1_tdata_w : ctl0_tdata_w;
+
+  assign ctl0_tready_w = ~ep1_sel_w & mux_tready_w;
+  assign ctl1_tready_w = ep1_sel_w & mux_tready_w;
+
+
+  axis_skid #(
+      .WIDTH (8),
+      .BYPASS(0)
+  ) U_AXIS_SKID2 (
+      .clock(clock),
+      .reset(reset),
+
+      .s_tvalid(mux_tvalid_w),
+      .s_tready(mux_tready_w),
+      .s_tlast (mux_tlast_w),
+      .s_tdata (mux_tdata_w),
+
+      .m_tvalid(ctlx_tvalid_w),
+      .m_tready(ctlx_tready_w),
+      .m_tlast (ctlx_tlast_w),
+      .m_tdata (ctlx_tdata_w)
   );
 
 
@@ -320,6 +363,7 @@ module protocol #(
 
       .configured_o(configured_o),
       .usb_conf_o  (usb_conf_o[7:0]),
+      .usb_enum_o  (usb_enum_w),
       .usb_addr_o  (usb_addr_w),
 
       .req_endpt_i (ctl_endpt_w),
@@ -334,6 +378,65 @@ module protocol #(
       .m_tlast_o (ctl0_tlast_w),
       .m_tdata_o (ctl0_tdata_w),
       .m_tready_i(ctl0_tready_w)
+  );
+
+
+  // -- USB Telemetry Control Endpoint -- //
+
+  wire [3:0] usb_state_w, ctl_state_w;
+  wire [7:0] blk_state_w;
+
+  wire [9:0] ctl1_level_w;
+  wire ctl1_start_w, ctl1_cycle_w, ctl1_error_w;
+
+
+  assign has_telemetry_o = ctl1_level_w[9:2] != 0;
+
+  assign ctl1_start_w = ctl0_start_w;
+  assign ctl1_cycle_w = ctl0_cycle_w;
+
+  assign usb_state_w = U_USB_TRN0.xfer_state_w;
+  assign ctl_state_w = U_USB_TRN0.xctrl;
+  assign blk_state_w = U_USB_TRN0.xbulk;
+
+
+  // Capture telemetry, so that it can be read back from EP1
+  control_endpoint #(
+      .ENDPOINT(1)
+  ) U_CTL_PIPE1 (
+      .clock(clock),
+      .reset(reset),
+
+      .usb_enum_i(usb_enum_w),
+
+      .crc_error_i(crc_err_w),
+      .usb_state_i(usb_state_w),
+      .ctl_state_i(ctl_state_w),
+      .blk_state_i(blk_state_w),
+
+      .start_i (ctl1_start_w),
+      .select_i(ctl1_cycle_w),
+      .error_o (ctl1_error_w),
+      .level_o (ctl1_level_w),
+
+      .req_endpt (ctl_endpt_w),
+      .req_type  (ctl_rtype_w),
+      .req_args  (ctl_rargs_w),
+      .req_value (ctl_value_w),
+      .req_index (ctl_index_w),
+      .req_length(ctl_length_w),
+
+      // Unused
+      .s_tvalid(1'b0),
+      .s_tready(),
+      .s_tlast (1'b0),
+      .s_tdata (8'hx),
+
+      // AXI4-Stream for telemetry data
+      .m_tvalid(ctl1_tvalid_w),
+      .m_tlast (ctl1_tlast_w),
+      .m_tdata (ctl1_tdata_w),
+      .m_tready(ctl1_tready_w)
   );
 
 

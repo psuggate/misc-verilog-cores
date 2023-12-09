@@ -8,7 +8,7 @@ module usb_core_tb;
     $dumpfile("usb_core_tb.vcd");
     $dumpvars(0, usb_core_tb);
 
-    #8000 $finish;  // todo ...
+    #12000 $finish;  // todo ...
   end
 
 

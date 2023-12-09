@@ -72,7 +72,7 @@ module usb_demo_top (
 
   // Local Signals //
   wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
-  wire usb_sof, configured;
+  wire usb_sof, configured, blk_cycle_w, has_telemetry_w;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast;
@@ -129,6 +129,7 @@ module usb_demo_top (
       .usb_reset_o(usb_reset),
 
       .configured_o(configured),
+      .has_telemetry_o(has_telemetry_w),
       .usb_hs_enabled_o(usb_hs_enabled_w),
       .usb_idle_o(device_usb_idle_w),
       .usb_sof_o(usb_sof),
@@ -190,7 +191,7 @@ module usb_demo_top (
           .ID_WIDTH(1),
           .DEST_ENABLE(0),
           .DEST_WIDTH(1),
-          .USER_ENABLE(1),
+          .USER_ENABLE(0),
           .USER_WIDTH(1),
           .RAM_PIPELINE(1),
           .OUTPUT_FIFO_ENABLE(0),
@@ -205,13 +206,13 @@ module usb_demo_top (
 
           // AXI input
           .s_axis_tdata(s_tdata),
-          .s_axis_tkeep(0),
+          .s_axis_tkeep(1'b1),
           .s_axis_tvalid(s_tvalid && blk_cycle_w),
           .s_axis_tready(s_tready),
           .s_axis_tlast(s_tlast),
-          .s_axis_tid(0),
-          .s_axis_tdest(0),
-          .s_axis_tuser(0),
+          .s_axis_tid(1'b0),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(1'b0),
 
           .pause_req(0),
 
@@ -265,13 +266,15 @@ module usb_demo_top (
     if (ctl0_error_w) begin
       ctl_latch_q <= 1'b1;
     end
-     */
 
     if (usb_reset) begin
       blk_valid_q <= 1'b0;
     end else begin
       blk_valid_q <= bulk_in_ready_q || bulk_out_ready_q;  // m_tvalid;
     end
+     */
+
+    blk_valid_q <= has_telemetry_w;
 
     if (usb_reset) begin
       crc_error_q <= 1'b0;

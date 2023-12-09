@@ -6,16 +6,17 @@
     <Device name="GW2A-18C" pn="GW2A-LV18PG256C8/I7">gw2a18c-011</Device>
     <FileList>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/arch/gw2a_rpll.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/axis_adapter.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/axis_chop.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/axis_skid.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/skid_loader.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/control_transfer.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/control_endpoint.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ctl_pipe0.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/decode_packet.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/encode_packet.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/protocol.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/transaction.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/transactor.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_axis.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_control.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_ulpi.v" type="file.verilog" enable="1"/>

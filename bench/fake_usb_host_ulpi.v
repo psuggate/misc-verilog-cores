@@ -63,7 +63,7 @@ module fake_usb_host_ulpi (
 
   // -- State & Signals -- //
 
-  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q, blki_done_q;
+  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q, blki_done_q, tele_done_q;
   wire [6:0] dev_addr_w;
 
   reg mvalid, sready, hsend, tstart, tvalid, tlast;
@@ -199,8 +199,20 @@ module fake_usb_host_ulpi (
     send_token(DEV_ADDR, 4'h1, TOK_IN);
     recv_data1();
     send_ack();
+    blki_done_q <= 1'b1;
 
     $display("%10t: BULK data IN finished ...", $time);
+  end
+
+  initial begin : g_telemetry
+    enabled();
+    #80 while (state != ST_TELE) @(posedge clock);
+
+    #80 $display("%10t: Telemetry data IN", $time);
+    recv_control(DEV_ADDR, 4'h1, 8'd0, 8'd0, 16'd0, 64);
+    tele_done_q <= 1'b1;
+
+    $display("%10t: Telemetry data IN finished ...", $time);
   end
 
 
@@ -213,6 +225,7 @@ module fake_usb_host_ulpi (
   localparam ST_STR0 = 4'h4;
   localparam ST_BLKO = 4'h5;
   localparam ST_BLKI = 4'h6;
+  localparam ST_TELE = 4'h7;
   localparam ST_IDLE = 4'hf;
 
   reg [3:0] state;
@@ -226,6 +239,7 @@ module fake_usb_host_ulpi (
       str0_done_q <= 1'b0;
       blko_done_q <= 1'b0;
       blki_done_q <= 1'b0;
+      tele_done_q <= 1'b0;
 
       sready <= 1'b0;
       mvalid <= 1'b0;
@@ -237,7 +251,8 @@ module fake_usb_host_ulpi (
         ST_CONF: state <= conf_done_q ? ST_STR0 : state;
         ST_STR0: state <= str0_done_q ? ST_BLKO : state;
         ST_BLKO: state <= blko_done_q ? ST_BLKI : state;
-        ST_BLKI: state <= blki_done_q ? ST_IDLE : state;
+        ST_BLKI: state <= blki_done_q ? ST_TELE : state;
+        ST_TELE: state <= tele_done_q ? ST_IDLE : state;
         default: begin
           // $display("%10t: Hello!", $time);
         end
@@ -605,6 +620,7 @@ module fake_usb_host_ulpi (
       ST_STR0: dbg_state = "STR0";
       ST_BLKO: dbg_state = "BLKO";
       ST_BLKI: dbg_state = "BLKI";
+      ST_TELE: dbg_state = "TELE";
       ST_IDLE: dbg_state = "IDLE";
 
       default: dbg_state = "UNKNOWN";

@@ -151,18 +151,16 @@ module transactor #(
   reg [7:0] ctl_idxhi_q, ctl_idxlo_q;
   reg [7:0] ctl_lenhi_q, ctl_lenlo_q;
 
-  reg [3:0] state;
   reg err_start_q = 1'b0;
   reg [2:0] err_code_q = ER_NONE;
   wire mux_tready_w;
 
-  reg odd_q;
+  // State variables
+  reg [2:0] odds_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
-  reg [3:0] xctrl;  //  = CTL_SETUP_RX;
-
+  reg [3:0] state, xctrl;
   reg [7:0] xbulk;
-  reg bodd_q;
 
   reg trn_zero_q;  // zero-size data transfer ??
   reg trn_send_q;
@@ -203,7 +201,6 @@ module transactor #(
   assign blk_tready_o = mux_tready_w && xbulk == BLK_DATI_TX;
   assign ctl_tready_o = mux_tready_w && xctrl == CTL_DATI_TX;
 
-  // assign blk_tvalid_o = state == ST_BULK ? usb_tvalid_i : 1'b0;
   assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   // assign usb_tready_o = state == ST_BULK ? blk_tready_i || xbulk == BLK_DATO_ERR : 1'b1;  // todo: ...
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
@@ -211,9 +208,18 @@ module transactor #(
   assign blk_tdata_o  = usb_tdata_i;
 
 
-  wire xfer_idle_w = state == ST_IDLE; // state[0]
+  // -- Monitoring & Telemetry -- //
+
+  wire [3:0] xfer_state_w, ctrl_state_w;
+  wire [7:0] bulk_state_w;
+
+  wire xfer_idle_w = state == ST_IDLE;  // state[0]
   wire xfer_dzdp_w = xbulk == BLK_DATI_ZDP;
   wire xfer_derr_w = xbulk == BLK_DATO_ERR;
+
+  assign xfer_state_w = state;
+  assign ctrl_state_w = xctrl;
+  assign bulk_state_w = xbulk;
 
 
   // -- Datapath from the USB Packet Decoder -- //
@@ -233,6 +239,49 @@ module transactor #(
       usb_recv_q <= 1'b1;
     end else if (usb_tvalid_i || usb_tlast_i) begin
       usb_recv_q <= 1'b0;
+    end
+  end
+
+
+  // -- DATA0/1/2 DATAM Logic -- //
+
+  wire odd_w = odds_q[tok_endp_i];
+
+  wire odd0_w = odds_q[0];
+  wire odd1_w = odds_q[1];
+  wire odd2_w = odds_q[2];
+
+  // DATA0/1 management //
+  // todo: needs to be per-endpoint ...
+  always @(posedge clock) begin
+    if (reset) begin
+      odds_q <= 3'b000;
+    end else begin
+      if (hsk_sent_i) begin
+        // ACK sent in response to OUT data xfer (from host)
+        // todo: if we ever sent 'NAK', 'NYET', or 'STALL', will need more
+        //   logics
+        if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK || xctrl == CTL_STATUS_ACK) begin
+          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
+        end else if (xctrl == CTL_SETUP_ACK) begin
+          odds_q[tok_endp_i] <= 1'b1;
+        end
+
+      end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
+        // ACK received in response to IN data xfer (to host)
+        if (xbulk == BLK_DATI_ACK) begin
+          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
+        end else if (xctrl == CTL_DATI_ACK) begin
+          odds_q[tok_endp_i] <= 1'b1;
+        end else if (xctrl == CTL_STATUS_ACK) begin
+          odds_q[tok_endp_i] <= 1'b0;
+        end
+        // todo: the cases where we send/recv multiple data-stage packets,
+        //   during a control-transfer ...
+        // else if (xctrl == CTL_DATI_ACK && ) begin
+        //   odds_q[tok_endp_i] <= 1'b1;
+        // end
+      end
     end
   end
 
@@ -298,7 +347,7 @@ module transactor #(
       end else if ((xctrl == CTL_DATI_TX || xctrl == CTL_STATUS_TX) && ctl_tvalid_i) begin
         trn_zero_q <= 1'b0;
         trn_send_q <= 1'b1;
-        trn_type_q <= odd_q ? DATA1 : DATA0;  // todo: odd/even
+        trn_type_q <= odd_w ? DATA1 : DATA0;  // todo: odd/even
       end else begin
         trn_zero_q <= trn_zero_q;
         trn_send_q <= trn_send_q;
@@ -308,11 +357,11 @@ module transactor #(
       if (xbulk == BLK_DATI_ZDP) begin
         trn_zero_q <= 1'b1;
         trn_send_q <= 1'b1;
-        trn_type_q <= bodd_q ? DATA1 : DATA0;  // todo: odd/even
+        trn_type_q <= odd_w ? DATA1 : DATA0;  // todo: odd/even
       end else if (xbulk == BLK_DATI_TX && blk_tvalid_i) begin
         trn_zero_q <= 1'b0;
         trn_send_q <= 1'b1;
-        trn_type_q <= bodd_q ? DATA1 : DATA0;  // todo: odd/even
+        trn_type_q <= odd_w ? DATA1 : DATA0;  // todo: odd/even
       end else begin
         trn_zero_q <= trn_zero_q;
         trn_send_q <= trn_send_q;
@@ -387,7 +436,7 @@ module transactor #(
             end else if (tok_type_i == TOK_SETUP) begin
               state <= ST_CTRL;
 
-              err_start_q <= tok_endp_i != 4'h0;
+              err_start_q <= tok_endp_i != 4'h0 && tok_endp_i != ENDPOINT1;
               err_code_q <= tok_endp_i != 4'h0 ? ER_ENDP : ER_NONE;
             end else begin
               // Either invalid endpoint, or unsupported transfer-type for the
@@ -424,35 +473,6 @@ module transactor #(
           ///
           state <= ST_DUMP;
           err_start_q <= 1'b1;
-        end
-      endcase
-    end
-  end
-
-
-  // -- Bulk Transfer FSM -- //
-
-  // DATA0/1 management //
-  // todo: needs to be per-endpoint ...
-  always @(posedge clock) begin
-    if (reset) begin
-      bodd_q <= 1'b0;
-    end else begin
-      case (xbulk)
-        BLK_DATI_ACK: begin
-          if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
-            bodd_q <= ~bodd_q;
-          end
-        end
-
-        BLK_DATO_ACK: begin
-          if (hsk_sent_i) begin
-            bodd_q <= ~bodd_q;
-          end
-        end
-
-        default: begin
-          bodd_q <= bodd_q;
         end
       endcase
     end
@@ -635,7 +655,6 @@ module transactor #(
         CTL_SETUP_ACK: begin
           if (hsk_sent_i) begin
             xctrl <= ctl_length_o == 0 ? CTL_STATUS_TOK : CTL_DATA_TOK;
-            odd_q <= 1'b1;  // Toggles after each DATA0/1
           end
         end
 
@@ -661,10 +680,8 @@ module transactor #(
         CTL_DATO_ACK: begin
           if (hsk_recv_i) begin
             xctrl <= hsk_type_i == HSK_ACK ? CTL_STATUS_TOK : CTL_DONE;
-            odd_q <= hsk_type_i == HSK_ACK ? 1'b1 : odd_q;
           end else if (hsk_sent_i) begin
             xctrl <= CTL_DATA_TOK;
-            odd_q <= ~odd_q;
           end
         end
 
@@ -678,7 +695,6 @@ module transactor #(
         CTL_DATI_ACK: begin
           if (hsk_recv_i) begin
             xctrl <= hsk_type_i == HSK_ACK ? CTL_STATUS_TOK : CTL_DONE;
-            odd_q <= hsk_type_i == HSK_ACK ? 1'b1 : odd_q;
           end else if (tok_recv_i) begin  // Non-ACK
             xctrl <= CTL_DONE;
           end
@@ -689,8 +705,8 @@ module transactor #(
         // Packets: {IN/OUT, DATA1, ACK}
         ///
         CTL_STATUS_TOK: begin
-          if (!odd_q) begin
-            $error("%10t: INCORRECT DATA0/1 BIT");
+          if (!odd_w) begin
+            $error("%10t: INCORRECT DATA0/1 BIT", $time);
           end
 
           if (tok_recv_i) begin
@@ -719,7 +735,6 @@ module transactor #(
         CTL_STATUS_ACK: begin
           if (hsk_recv_i || hsk_sent_i) begin
             xctrl <= CTL_DONE;
-            odd_q <= 1'b0;
           end
         end
 

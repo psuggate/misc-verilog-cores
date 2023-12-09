@@ -49,6 +49,7 @@ module ctl_pipe0 #(
     output error_o,
 
     output configured_o,
+    output usb_enum_o,
     output [6:0] usb_addr_o,
     output [7:0] usb_conf_o,
 
@@ -159,16 +160,16 @@ module ctl_pipe0 #(
   localparam integer PRODUCT_STR_DESC_LEN = 2 + 2 * PRODUCT_LEN;
   localparam integer SERIAL_STR_DESC_LEN = 2 + 2 * SERIAL_LEN;
 
-  localparam integer DESC_SIZE_NOSTR = DEVICE_DESC_LEN + CONFIG_DESC_LEN;
+  localparam integer DESC_SIZE_NOSTR = DEVICE_DESC_LEN + CONFIG_DESC_LEN + 6;
   localparam integer DESC_SIZE_STR   =
              DESC_SIZE_NOSTR + STR_DESC_LEN + MANUFACTURER_STR_DESC_LEN +
-             PRODUCT_STR_DESC_LEN + SERIAL_STR_DESC_LEN;
+             PRODUCT_STR_DESC_LEN + SERIAL_STR_DESC_LEN + 6;
 
   localparam DESC_HAS_STRINGS = MANUFACTURER_LEN > 0 || PRODUCT_LEN > 0 || SERIAL_LEN > 0 ? 1 : 0;
 
   localparam integer DESC_SIZE = (DESC_HAS_STRINGS == 1) ? {DESC_SIZE_STR} : {DESC_SIZE_NOSTR};
   localparam integer DSB = DESC_SIZE * 8 - 1;
-  localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {CONFIG_DESC, DEVICE_DESC};
+  localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {{16'h0, 16'h0, 16'h1}, SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {{16'h0, 16'h0, 16'h1}, CONFIG_DESC, DEVICE_DESC};
 
   localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
   localparam integer ABITS = $clog2(DESC_SIZE + 1);
@@ -189,12 +190,17 @@ module ctl_pipe0 #(
   localparam [ASB:0] DESC_END4 = DESC_START3 - 1;
   localparam [ASB:0] DESC_END5 = DESC_START3 + SERIAL_STR_DESC_LEN - 1;
 
+  localparam [ASB:0] DESC_STATUS_START = DESC_START3 + SERIAL_STR_DESC_LEN;
+  localparam [ASB:0] DESC_END6 = DESC_END5 + 2;
+  localparam [ASB:0] DESC_END7 = DESC_END5 + 4;
+  localparam [ASB:0] DESC_END8 = DESC_END5 + 6;
+
 
   // -- Current USB Configuration State -- //
 
   reg [6:0] adr_q = 7'h00;
   reg [7:0] cfg_q = 8'h00;
-  reg set_q = 1'b0;
+  reg enm_q = 1'b0, set_q = 1'b0;
 
 
   // -- Local Control-Transfer State and Signals -- //
@@ -215,7 +221,8 @@ module ctl_pipe0 #(
     for (ii = 0; ii < DESC_ROM_SIZE; ii++) begin : g_set_descriptor_rom
       assign descriptor[ii] = ii < DESC_SIZE ? USB_DESC[ii*8+7:ii*8] : ii;
       assign desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
-                              ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ;
+                              ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
+                              ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
     end
 
   endgenerate
@@ -224,6 +231,8 @@ module ctl_pipe0 #(
   // -- Signal Output Assignments -- //
 
   assign error_o = err_q;
+
+  assign usb_enum_o = enm_q;
   assign usb_addr_o = adr_q;
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
@@ -282,11 +291,11 @@ module ctl_pipe0 #(
 
   // -- Pipelined Configuration-Request Decoder -- //
 
-  reg sel_q, start_q, set_addr_q, set_conf_q, set_face_q;
+  reg std_req, start_q, set_addr_q, set_conf_q, set_face_q;
 
   // Pipelined configuration-request decoder
   always @(posedge clock) begin
-    sel_q   <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
+    std_req <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
     start_q <= start_i;
 
     /*
@@ -295,11 +304,11 @@ module ctl_pipe0 #(
 
      get_conf_q <= 1'b0;
      get_face_q <= 1'b0;
-     get_stat_q <= 1'b0;
      */
+    // get_stat_q <= 1'b0;
 
     // Only be fussy on writes
-    if (select_i && start_i && sel_q) begin
+    if (select_i && start_i && std_req) begin
       set_addr_q <= req_args_i == 8'h05;
       set_conf_q <= req_args_i == 8'h09;
       set_face_q <= req_args_i == 8'h0b;
@@ -314,7 +323,7 @@ module ctl_pipe0 #(
   // -- Error & Status Flags -- //
 
   always @(posedge clock) begin
-    if (select_i && start_q && sel_q) begin
+    if (select_i && start_q && std_req) begin
       err_q <= ~get_desc_q & ~set_addr_q & ~set_conf_q & ~set_face_q;
     end else if (!select_i) begin
       err_q <= 1'b0;
@@ -322,7 +331,7 @@ module ctl_pipe0 #(
   end
 
 
-  // -- Configuration Control PIPE0 Logic -- //
+  // -- Read Address for Fetching Descriptors -- //
 
   assign mem_next = mem_addr + 1;
 
@@ -337,6 +346,13 @@ module ctl_pipe0 #(
           2'd2: mem_addr <= DESC_START2;
           default: mem_addr <= DESC_START3;
         endcase
+      end else if (req_args_i[7:0] == 8'd0) begin
+        case (req_type_i[1:0])
+          2'd0: mem_addr <= DESC_STATUS_START;
+          2'd1: mem_addr <= DESC_STATUS_START + 2;
+          2'd2: mem_addr <= DESC_STATUS_START + 4;
+          default: mem_addr <= 0;
+        endcase
       end else begin
         mem_addr <= 0;
       end
@@ -345,22 +361,27 @@ module ctl_pipe0 #(
     end
   end
 
+
+  // -- Configuration & Control PIPE0 State Registers -- //
+
   always @(posedge clock) begin
     if (reset) begin
       get_desc_q <= 1'b0;
 
       adr_q <= 7'd0;
+      enm_q <= 1'b0;
       cfg_q <= 8'd0;
       set_q <= 1'b0;
     end else begin
 
       if (get_desc_q && chop_ready_w) begin
         get_desc_q <= !(chop_last_w || chop_stop_w);
-      end else if (start_i && select_i) begin
-        get_desc_q <= req_args_i == 8'h06;
+      end else if (start_i && select_i && req_endpt_i == 4'h0) begin
+        get_desc_q <= req_args_i == 8'h06 || req_args_i == 8'd0;
       end
 
       if (set_addr_q) begin
+        enm_q <= 1'b1;
         adr_q <= req_value_i[6:0];
       end
 
