@@ -1,5 +1,7 @@
 `timescale 1ns / 100ps
 module protocol #(
+    parameter [3:0] ENDPOINT1 = 1,
+    parameter [3:0] ENDPOINT2 = 2,
     parameter CONFIG_DESC_LEN = 18,
     parameter CONFIG_DESC = {
       /* Interface descriptor */
@@ -141,6 +143,19 @@ module protocol #(
   end
 
 
+  // -- Bulk IN Status -- //
+
+  reg blk_in_ready_q, tele_sel_q;
+  wire [9:0] tele_level_w;
+
+  assign blk_tready_o = ~tele_sel_q & mux_tready_w;
+
+  always @(posedge clock) begin
+    tele_sel_q <= blk_endpt_o == ENDPOINT2;
+    blk_in_ready_q <= blk_in_ready_i || tele_level_w[9:4] != 0;
+  end
+
+
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 
   encode_packet #(
@@ -210,11 +225,12 @@ module protocol #(
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  wire ctlx_tvalid_w, ctlx_tlast_w, ctlx_tready_w;
-  wire [7:0] ctlx_tdata_w;
+  wire blkx_tvalid_w, blkx_tlast_w, blkx_tready_w;
+  wire [7:0] blkx_tdata_w;
 
-  wire ctl1_tvalid_w, ctl1_tlast_w, ctl1_tready_w;
-  wire [7:0] ctl1_tdata_w;
+  wire tel_tvalid_w, tel_tlast_w, tel_tready_w;
+  wire [7:0] tel_tdata_w;
+
 
   transactor #(
       .PIPELINED(1)
@@ -257,17 +273,17 @@ module protocol #(
       .usb_tdata_o (usb_tx_tdata_w),
 
       // USB bulk endpoint data-paths
-      .blk_in_ready_i(blk_in_ready_i),
+      .blk_in_ready_i(blk_in_ready_q),
       .blk_out_ready_i(blk_out_ready_i),
       .blk_start_o(blk_start_o),
       .blk_cycle_o(blk_cycle_o),
       .blk_endpt_o(blk_endpt_o),
       .blk_error_i(blk_error_i),
 
-      .blk_tvalid_i(blk_tvalid_i),
-      .blk_tready_o(blk_tready_o),
-      .blk_tlast_i (blk_tlast_i),
-      .blk_tdata_i (blk_tdata_i),
+      .blk_tvalid_i(blkx_tvalid_w),
+      .blk_tready_o(blkx_tready_w),
+      .blk_tlast_i (blkx_tlast_w),
+      .blk_tdata_i (blkx_tdata_w),
 
       .blk_tvalid_o(blk_tvalid_o),
       .blk_tready_i(blk_tready_i),
@@ -291,10 +307,10 @@ module protocol #(
       .ctl_tlast_o (),
       .ctl_tdata_o (),
 
-      .ctl_tvalid_i(ctlx_tvalid_w),
-      .ctl_tready_o(ctlx_tready_w),
-      .ctl_tlast_i (ctlx_tlast_w),
-      .ctl_tdata_i (ctlx_tdata_w)
+      .ctl_tvalid_i(ctl0_tvalid_w),
+      .ctl_tready_o(ctl0_tready_w),
+      .ctl_tlast_i (ctl0_tlast_w),
+      .ctl_tdata_i (ctl0_tdata_w)
   );
 
 
@@ -303,14 +319,11 @@ module protocol #(
   wire mux_tvalid_w, mux_tlast_w, mux_tready_w;
   wire [7:0] mux_tdata_w;
 
-  wire ep1_sel_w = ctl_endpt_w[0];
+  assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : blk_tvalid_i;
+  assign mux_tlast_w  = tele_sel_q ? tel_tlast_w : blk_tlast_i;
+  assign mux_tdata_w  = tele_sel_q ? tel_tdata_w : blk_tdata_i;
 
-  assign mux_tvalid_w  = ep1_sel_w ? ctl1_tvalid_w : ctl0_tvalid_w;
-  assign mux_tlast_w   = ep1_sel_w ? ctl1_tlast_w : ctl0_tlast_w;
-  assign mux_tdata_w   = ep1_sel_w ? ctl1_tdata_w : ctl0_tdata_w;
-
-  assign ctl0_tready_w = ~ep1_sel_w & mux_tready_w;
-  assign ctl1_tready_w = ep1_sel_w & mux_tready_w;
+  assign tel_tready_w = tele_sel_q & mux_tready_w;
 
 
   axis_skid #(
@@ -325,10 +338,10 @@ module protocol #(
       .s_tlast (mux_tlast_w),
       .s_tdata (mux_tdata_w),
 
-      .m_tvalid(ctlx_tvalid_w),
-      .m_tready(ctlx_tready_w),
-      .m_tlast (ctlx_tlast_w),
-      .m_tdata (ctlx_tdata_w)
+      .m_tvalid(blkx_tvalid_w),
+      .m_tready(blkx_tready_w),
+      .m_tlast (blkx_tlast_w),
+      .m_tdata (blkx_tdata_w)
   );
 
 
@@ -386,14 +399,8 @@ module protocol #(
   wire [3:0] usb_state_w, ctl_state_w;
   wire [7:0] blk_state_w;
 
-  wire [9:0] ctl1_level_w;
-  wire ctl1_start_w, ctl1_cycle_w, ctl1_error_w;
 
-
-  assign has_telemetry_o = ctl1_level_w[9:2] != 0;
-
-  assign ctl1_start_w = ctl0_start_w;
-  assign ctl1_cycle_w = ctl0_cycle_w;
+  assign has_telemetry_o = tele_level_w[9:2] != 0;
 
   assign usb_state_w = U_USB_TRN0.xfer_state_w;
   assign ctl_state_w = U_USB_TRN0.xctrl;
@@ -401,30 +408,28 @@ module protocol #(
 
 
   // Capture telemetry, so that it can be read back from EP1
-  control_endpoint #(
-      .ENDPOINT(1)
-  ) U_CTL_PIPE1 (
+  bulk_telemetry #(
+      .ENDPOINT(ENDPOINT2)
+  ) U_TELEMETRY2 (
       .clock(clock),
+`ifdef __icarus
       .reset(reset),
-
       .usb_enum_i(usb_enum_w),
+`else
+      .reset(1'b0),
+      .usb_enum_i(1'b1),
+`endif
 
       .crc_error_i(crc_err_w),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),
 
-      .start_i (ctl1_start_w),
-      .select_i(ctl1_cycle_w),
-      .error_o (ctl1_error_w),
-      .level_o (ctl1_level_w),
-
-      .req_endpt (ctl_endpt_w),
-      .req_type  (ctl_rtype_w),
-      .req_args  (ctl_rargs_w),
-      .req_value (ctl_value_w),
-      .req_index (ctl_index_w),
-      .req_length(ctl_length_w),
+      .start_i (blk_start_o),
+      .select_i(blk_cycle_o),
+      .endpt_i (blk_endpt_o),
+      .error_o (),
+      .level_o (tele_level_w),
 
       // Unused
       .s_tvalid(1'b0),
@@ -433,10 +438,10 @@ module protocol #(
       .s_tdata (8'hx),
 
       // AXI4-Stream for telemetry data
-      .m_tvalid(ctl1_tvalid_w),
-      .m_tlast (ctl1_tlast_w),
-      .m_tdata (ctl1_tdata_w),
-      .m_tready(ctl1_tready_w)
+      .m_tvalid(tel_tvalid_w),
+      .m_tlast (tel_tlast_w),
+      .m_tdata (tel_tdata_w),
+      .m_tready(tel_tready_w)
   );
 
 

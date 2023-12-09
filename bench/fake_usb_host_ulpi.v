@@ -121,7 +121,7 @@ module fake_usb_host_ulpi (
 
     $display("%10t: FETCH config DESCRIPTOR", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 9);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 32);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 39);
     desc_done_q <= 1'b1;
 
     @(posedge clock);
@@ -209,7 +209,9 @@ module fake_usb_host_ulpi (
     #80 while (state != ST_TELE) @(posedge clock);
 
     #80 $display("%10t: Telemetry data IN", $time);
-    recv_control(DEV_ADDR, 4'h1, 8'd0, 8'd0, 16'd0, 64);
+    send_token(DEV_ADDR, 4'h2, TOK_IN);
+    recv_data0();
+    send_ack();
     tele_done_q <= 1'b1;
 
     $display("%10t: Telemetry data IN finished ...", $time);
@@ -580,6 +582,34 @@ module fake_usb_host_ulpi (
       $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
     end
   endtask  // recv_data1
+
+  // Receive and decode a USB 'DATA1' packet
+  task recv_data0;
+    begin
+      integer count;
+      count  <= 0;
+      sready <= 1'b1;
+      while (!srecv) @(posedge clock);
+      @(posedge clock);
+
+      if (stype != DATA0) begin
+        $error("%10t: Not a DATA0 packet: 0x%02x", $time, stype);
+        #100 $fatal;
+      end
+
+      while (!slast) begin
+        @(posedge clock);
+        if (svalid) begin
+          resp[count] <= {slast, sdata};
+          count <= count + 1;
+        end
+      end
+      sready <= 1'b0;
+      count  <= count + (svalid && slast);
+      @(posedge clock);
+      $display("%10t: DATA0 packet received (bytes: %2d)", $time, count);
+    end
+  endtask  // recv_data0
 
 
   // -- Basic, Flow-Control Rules-Checkers -- //

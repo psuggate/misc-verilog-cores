@@ -4,12 +4,12 @@ module ulpi_axis #(
     parameter EP1_BULK_OUT = 1,
     parameter EP1_CONTROL  = 0,
 
-    parameter EP2_BULK_IN  = 0,
+    parameter EP2_BULK_IN  = 1,
     parameter EP2_BULK_OUT = 0,
     parameter EP2_CONTROL  = 0,
 
     parameter ENDPOINT1 = 1,  // todo: set to '0' to disable
-    parameter ENDPOINT2 = 0,  // todo: set to '0' to disable
+    parameter ENDPOINT2 = 2,  // todo: set to '0' to disable
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -85,6 +85,7 @@ module ulpi_axis #(
   localparam INTERFACE_DESC_LEN = 9;
   localparam EP1_IN_DESC_LEN = 7;
   localparam EP1_OUT_DESC_LEN = 7;
+  localparam EP2_IN_DESC_LEN = 7;
 
   localparam CONFIG_DESC = {
     8'h32,  // bMaxPower = 100 mA
@@ -92,7 +93,7 @@ module ulpi_axis #(
     8'h00,  // iConfiguration
     8'h01,  // bConfigurationValue
     8'h01,  // bNumInterfaces = 1
-    16'h0020,  // wTotalLength = 32
+    16'h0027,  // wTotalLength = 39
     8'h02,  // bDescriptionType = Configuration Descriptor
     8'h09  // bLength = 9
   };
@@ -102,7 +103,7 @@ module ulpi_axis #(
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
     8'h00,  // bInterfaceClass
-    8'h02,  // bNumEndpoints = 2
+    8'h03,  // bNumEndpoints = 2
     8'h00,  // bAlternateSetting
     8'h00,  // bInterfaceNumber = 0
     8'h04,  // bDescriptorType = Interface Descriptor
@@ -127,10 +128,19 @@ module ulpi_axis #(
     8'h07  // bLength = 7
   };
 
-  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN;
+  localparam EP2_IN_DESC = {
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h82,  // bEndpointAddress = IN2
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
+  };
+
+  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN + EP2_IN_DESC_LEN;
   localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
   localparam integer CSB = CONF_DESC_BITS - 1;
-  localparam [CSB:0] CONF_DESC_VALS = {EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
+  localparam [CSB:0] CONF_DESC_VALS = {EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
 
   // -- Global Signals and Assignments -- //

@@ -11,7 +11,7 @@
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/axis_skid.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/skid_loader.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/control_endpoint.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/bulk_telemetry.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ctl_pipe0.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/decode_packet.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/encode_packet.v" type="file.verilog" enable="1"/>

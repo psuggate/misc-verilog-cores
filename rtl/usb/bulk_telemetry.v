@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
-module control_endpoint #(
-    parameter [3:0] ENDPOINT = 4'd1
+module bulk_telemetry #(
+    parameter [3:0] ENDPOINT = 4'd2
 ) (
     input clock,
     input reset,
@@ -14,15 +14,9 @@ module control_endpoint #(
 
     input select_i,
     input start_i,
+    input [3:0] endpt_i,
     output error_o,
     output [9:0] level_o,
-
-    input [ 3:0] req_endpt,
-    input [ 7:0] req_type,
-    input [ 7:0] req_args,
-    input [15:0] req_value,
-    input [15:0] req_index,
-    input [15:0] req_length,
 
     input s_tvalid,
     output s_tready,
@@ -103,7 +97,7 @@ module control_endpoint #(
     if (reset) begin
       sel_q <= 1'b0;
     end else begin
-      if (usb_enum_i && start_i && select_i && req_endpt == ENDPOINT) begin
+      if (usb_enum_i && start_i && select_i && endpt_i == ENDPOINT) begin
         sel_q <= 1'b1;
       end else if (m_tvalid && m_tready && m_tlast) begin
         sel_q <= 1'b0;
@@ -117,24 +111,83 @@ module control_endpoint #(
   wire x_tvalid, x_tready, x_tlast;
   wire [16:0] x_tdata;
 
-  sync_fifo #(
-      .WIDTH (18),
-      .ABITS (10),
-      .OUTREG(3)
-  ) U_TELEMETRY0 (
-      .clock(clock),
-      .reset(reset),
+  generate
+    if (1) begin : g_sync_fifo
 
-      .level_o(level_o),
+      sync_fifo #(
+          .WIDTH (18),
+          .ABITS (10),
+          .OUTREG(3)
+      ) U_TELEMETRY0 (
+          .clock(clock),
+          .reset(reset),
 
-      .valid_i(changed_w),
-      .ready_o(ready_w),
-      .data_i ({last_w, current_w}),
+          .level_o(level_o),
 
-      .valid_o(x_tvalid),
-      .ready_i(x_tready),
-      .data_o ({x_tlast, x_tdata})
-  );
+          .valid_i(changed_w),
+          .ready_o(ready_w),
+          .data_i ({last_w, current_w}),
+
+          .valid_o(x_tvalid),
+          .ready_i(x_tready),
+          .data_o ({x_tlast, x_tdata})
+      );
+
+    end else begin : g_axis_fifo
+
+      axis_fifo #(
+          .DEPTH(1024),
+          .DATA_WIDTH(16),
+          .KEEP_ENABLE(0),
+          .KEEP_WIDTH(2),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(0),
+          .ID_WIDTH(1),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(0),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_BULK_FIFO0 (
+          .clk(clock),
+          .rst(reset),
+
+          // AXI input
+          .s_axis_tdata(current_w[15:0]),
+          .s_axis_tkeep(2'b11),
+          .s_axis_tvalid(changed_w),
+          .s_axis_tready(ready_w),
+          .s_axis_tlast(last_w),
+          .s_axis_tid(1'b0),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(1'b0),
+
+          .pause_req(0),
+
+          // AXI output
+          .m_axis_tdata(x_tdata),
+          .m_axis_tkeep(),
+          .m_axis_tvalid(x_tvalid),
+          .m_axis_tready(x_tready),
+          .m_axis_tlast(x_tlast),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+          // Status
+          .status_depth(level_o),
+          .status_overflow(),
+          .status_bad_frame(),
+          .status_good_frame()
+      );
+
+    end
+  endgenerate
 
   axis_adapter #(
       .S_DATA_WIDTH(16),
@@ -175,4 +228,4 @@ module control_endpoint #(
   );
 
 
-endmodule  // control_endpoint
+endmodule  // bulk_telemetry

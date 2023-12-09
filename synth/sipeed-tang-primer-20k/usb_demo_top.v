@@ -85,7 +85,7 @@ module usb_demo_top (
   wire [10:0] level_w;
   reg bulk_in_ready_q, bulk_out_ready_q;
 
-  assign level_w = m_tvalid && s_tready ? 64 : 0;
+  // assign level_w = m_tvalid && s_tready ? 64 : 0;
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin
@@ -226,6 +226,7 @@ module usb_demo_top (
           .m_axis_tdest(),
           .m_axis_tuser(),
           // Status
+          .status_depth(level_w),
           .status_overflow(),
           .status_bad_frame(),
           .status_good_frame()

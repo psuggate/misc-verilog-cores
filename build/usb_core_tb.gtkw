@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Dec  9 05:02:27 2023
+[*] Sat Dec  9 06:26:46 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Dec  9 05:01:38 2023"
-[dumpfile_size] 419316
+[dumpfile_mtime] "Sat Dec  9 06:26:09 2023"
+[dumpfile_size] 383215
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 8054100
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.528301 8190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.724380 8190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -18,13 +18,13 @@
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 174
 [sst_expanded] 1
 [sst_vpaned_height] 799
 @28
 usb_core_tb.clock
 usb_core_tb.reset
-@800200
+@c00201
 -Globals
 @28
 usb_core_tb.arst_n
@@ -35,7 +35,7 @@ usb_core_tb.usb_rst_n
 usb_core_tb.U_FAKE_USB0.dev_configured_i
 usb_core_tb.enumerate
 U_ULPI_USB0.usb_sof_o
-@1000200
+@1401201
 -Globals
 @28
 [color] 1
@@ -349,32 +349,16 @@ U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
 -Control
 -EP1
 @28
-U_ULPI_USB0.U_USB_CTRL0.ctl1_start_w
-U_ULPI_USB0.U_USB_CTRL0.ctl1_cycle_w
-U_ULPI_USB0.U_USB_CTRL0.ctl1_error_w
-U_ULPI_USB0.U_USB_CTRL0.ctl1_tvalid_w
-U_ULPI_USB0.U_USB_CTRL0.ctl1_tready_w
-U_ULPI_USB0.U_USB_CTRL0.ctl1_tlast_w
-@22
-U_ULPI_USB0.U_USB_CTRL0.ctl1_tdata_w[7:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_CTL_PIPE1.changed_w
-@25
-U_ULPI_USB0.U_USB_CTRL0.U_CTL_PIPE1.level_o[9:0]
+U_ULPI_USB0.U_USB_CTRL0.has_telemetry_o
 @1000200
 -EP1
 @c00200
 -Mux
 @28
 U_ULPI_USB0.U_USB_CTRL0.mux_tready_w
-U_ULPI_USB0.U_USB_CTRL0.ctlx_tvalid_w
-U_ULPI_USB0.U_USB_CTRL0.ctlx_tready_w
-U_ULPI_USB0.U_USB_CTRL0.ctlx_tlast_w
-@22
-U_ULPI_USB0.U_USB_CTRL0.ctlx_tdata_w[7:0]
 @1401200
 -Mux
-@c00200
+@800200
 -Internal
 @28
 [color] 3
@@ -413,8 +397,9 @@ U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.remain_q[6:0]
 -Internal
 @1401200
 -Chop
+@1000200
 -Internal
-@c00200
+@800200
 -Transfer
 @22
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rtype_o[7:0]
@@ -422,9 +407,8 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rargs_o[7:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_value_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
 U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
-@1401200
--Transfer
 @1000200
+-Transfer
 -Control
 -Device
 [pattern_trace] 1
