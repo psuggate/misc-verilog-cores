@@ -1,63 +1,35 @@
 `timescale 1ns / 100ps
-module encode_packet (
-    reset,
-    clock,
+module encode_packet #(
+    parameter TOKEN = 0
+) (
+    input reset,
+    input clock,
 
-    enc_busy_o,
+    output enc_busy_o,
 
-    tx_tvalid_o,
-    tx_tready_i,
-    tx_tlast_o,
-    tx_tdata_o,
+    output tx_tvalid_o,
+    input tx_tready_i,
+    output tx_tlast_o,
+    output [7:0] tx_tdata_o,
 
-    hsk_type_i,  // 00 - ACK, 10 - NAK, 11 - STALL, 01 - BLYAT //
-    hsk_send_i,
-    hsk_done_o,
+    input [1:0] hsk_type_i,  /* 00 - ACK, 10 - NAK, 11 - STALL, 01 - BLYAT */
+    input hsk_send_i,
+    output hsk_done_o,
 
-    tok_send_i,
-    tok_done_o,
-    tok_type_i,  // 00 - OUT, 01 - SOF, 10 - IN, 11 - SETUP //
-    tok_data_i,
+    input tok_send_i,
+    output tok_done_o,
+    input [1:0] tok_type_i,
+    input [15:0] tok_data_i,
 
-    trn_ttype_i,  // DATA0/1/2 MDATA //
-    trn_tsend_i,
-    trn_tdone_o,
+    input [1:0] trn_ttype_i,  /* DATA0/1/2 MDATA */
+    input trn_tsend_i,
+    output trn_tdone_o,
 
-    trn_tvalid_i,
-    trn_tready_o,
-    trn_tlast_i,
-    trn_tdata_i
+    input trn_tvalid_i,
+    output trn_tready_o,
+    input trn_tlast_i,
+    input [7:0] trn_tdata_i
 );
-
-  parameter TOKEN = 0;
-
-  input reset;
-  input clock;
-
-  output enc_busy_o;
-
-  output tx_tvalid_o;
-  input tx_tready_i;
-  output tx_tlast_o;
-  output [7:0] tx_tdata_o;
-
-  input [1:0] hsk_type_i;  /* 00 - ACK, 10 - NAK, 11 - STALL, 01 - BLYAT */
-  input hsk_send_i;
-  output hsk_done_o;
-
-  input tok_send_i;
-  output tok_done_o;
-  input [1:0] tok_type_i;
-  input [15:0] tok_data_i;
-
-  input [1:0] trn_ttype_i;  /* DATA0/1/2 MDATA */
-  input trn_tsend_i;
-  output trn_tdone_o;
-
-  input trn_tvalid_i;
-  output trn_tready_o;
-  input trn_tlast_i;
-  input [7:0] trn_tdata_i;
 
 
   // -- Module-Wide Definitions -- //

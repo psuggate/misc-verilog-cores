@@ -47,6 +47,7 @@ module ulpi_axis #(
     output has_telemetry_o,
     output usb_sof_o,
     output crc_err_o,
+    output timeout_o,
     output usb_vbus_valid_o,
     output usb_hs_enabled_o,
     output usb_idle_o,  // USB core is idling
@@ -140,7 +141,9 @@ module ulpi_axis #(
   localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN + EP2_IN_DESC_LEN;
   localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
   localparam integer CSB = CONF_DESC_BITS - 1;
-  localparam [CSB:0] CONF_DESC_VALS = {EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
+  localparam [CSB:0] CONF_DESC_VALS = {
+    EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC
+  };
 
 
   // -- Global Signals and Assignments -- //
@@ -232,12 +235,13 @@ module ulpi_axis #(
       .clock(clock),
       .reset(reset),
 
-      .configured_o(configured_o),
+      .configured_o   (configured_o),
       .has_telemetry_o(has_telemetry_o),
-      .usb_addr_o  (),
-      .usb_conf_o  (),
-      .usb_sof_o   (usb_sof_o),
-      .crc_err_o   (crc_err_o),
+      .usb_addr_o     (),
+      .usb_conf_o     (),
+      .usb_sof_o      (usb_sof_o),
+      .crc_err_o      (crc_err_o),
+      .timeout_o      (timeout_o),
 
       // USB bulk endpoint data-paths
       .blk_in_ready_i(blk_in_ready_i),

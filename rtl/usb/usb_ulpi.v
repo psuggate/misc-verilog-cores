@@ -33,6 +33,8 @@ module usb_ulpi #(
 
     output ulpi_rx_overflow_o,
     output usb_hs_enabled_o,
+    output usb_eop_o,
+    output usb_squelch_o,
 
     output wire usb_vbus_valid_o,  /* VBUS has valid voltage */
     output wire usb_reset_o,  /* USB bus is in reset state */
@@ -113,6 +115,29 @@ module usb_ulpi #(
   assign usb_hs_enabled_o = hs_enabled;
 
 
+  // Todo:
+  //  - detect 'RX CMD' 'LineState' transitions to 'squelch'
+
+  // reg [1:0] line_state_q;
+  reg squelch_q, usb_eop_q;
+  wire squelch_w;
+
+  assign usb_squelch_o = squelch_q;
+  assign usb_eop_o = usb_eop_q;
+
+  always @(posedge ulpi_clk) begin
+    if (!rst_n) begin
+      squelch_q <= 1'b0;
+      usb_eop_q <= 1'b0;
+    end else begin
+      if (dir_q && ulpi_dir && !ulpi_nxt) begin
+        squelch_q <= ulpi_data_in[1:0] == 2'b00;
+        usb_eop_q <= !squelch_q && ulpi_data_in[1:0] == 2'b00;
+      end
+    end
+  end
+
+
   // -- Status & Errors in this ULPI Core -- //
 
   assign ulpi_rx_overflow_o = rx_err;
@@ -133,7 +158,7 @@ module usb_ulpi #(
   end
 
 
-  // -- Chirping -- //
+  // -- Chirping & 'LineState' -- //
 
   always @(posedge ulpi_clk) begin
     if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
@@ -262,6 +287,51 @@ module usb_ulpi #(
 
   // -- Capture Incoming USB Packets -- //
 
+  reg cyc_q;
+  reg [7:0] dat_q;
+  wire stp_w;
+
+  // This signal goes high if 'RxActive' de-asserts during packet Rx
+  assign stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
+
+  always @(posedge ulpi_clk) begin
+    if (!rst_n) begin
+      cyc_q <= 1'b0;
+      dat_q <= 8'bx;
+
+      rx_tvalid <= 1'b0;
+      rx_tlast <= 1'bx;
+      rx_tdata <= 8'bx;
+    end else begin
+      if (dir_q && ulpi_dir && ulpi_nxt) begin
+        cyc_q <= 1'b1;
+        dat_q <= ulpi_data_in;
+
+        if (!cyc_q) begin
+          rx_tvalid <= 1'b0;
+          rx_tlast  <= 1'bx;
+          rx_tdata  <= 8'bx;
+        end else begin
+          rx_tvalid <= 1'b1;
+          rx_tlast  <= 1'b0;
+          rx_tdata  <= dat_q;
+        end
+      end else if (cyc_q && dir_q && stp_w) begin
+        cyc_q <= 1'b0;
+        dat_q <= 8'bx;
+
+        rx_tvalid <= 1'b1;
+        rx_tlast <= 1'b1;
+        rx_tdata <= dat_q;
+      end else begin
+        rx_tvalid <= 1'b0;
+        rx_tlast  <= 1'b0;
+        rx_tdata  <= 8'bx;
+      end
+    end
+  end
+
+  /*
   localparam [3:0] RX_IDLE = 4'b0001;
   localparam [3:0] RX_TURN = 4'b0010;
   localparam [3:0] RX_RECV = 4'b0100;
@@ -269,10 +339,7 @@ module usb_ulpi #(
 
   reg vld_q;
   reg [3:0] xrecv;
-  reg [7:0] dat_q;
-  wire stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
 
-  /*
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       vld_q     <= 1'b0;
@@ -379,45 +446,6 @@ module usb_ulpi #(
 
 `endif
 */
-
-  reg cyc_q;
-
-  always @(posedge ulpi_clk) begin
-    if (!rst_n) begin
-      cyc_q <= 1'b0;
-      dat_q <= 8'bx;
-
-      rx_tvalid <= 1'b0;
-      rx_tlast <= 1'bx;
-      rx_tdata <= 8'bx;
-    end else begin
-      if (dir_q && ulpi_dir && ulpi_nxt) begin
-        cyc_q <= 1'b1;
-        dat_q <= ulpi_data_in;
-
-        if (!cyc_q) begin
-          rx_tvalid <= 1'b0;
-          rx_tlast  <= 1'bx;
-          rx_tdata  <= 8'bx;
-        end else begin
-          rx_tvalid <= 1'b1;
-          rx_tlast  <= 1'b0;
-          rx_tdata  <= dat_q;
-        end
-      end else if (cyc_q && dir_q && stp_w) begin
-        cyc_q <= 1'b0;
-        dat_q <= 8'bx;
-
-        rx_tvalid <= 1'b1;
-        rx_tlast <= 1'b1;
-        rx_tdata <= dat_q;
-      end else begin
-        rx_tvalid <= 1'b0;
-        rx_tlast  <= 1'b0;
-        rx_tdata  <= 8'bx;
-      end
-    end
-  end
 
 
   // -- ULPI FSM -- //
@@ -532,6 +560,7 @@ module usb_ulpi #(
           snext <= 4'bx;
           reg_data <= 8'bx;
         end
+
         STATE_TX_LAST: begin
           if (ulpi_nxt) begin
             state <= STATE_STP;

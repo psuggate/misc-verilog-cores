@@ -10,9 +10,7 @@ module transactor #(
     // Configured device address (or all zero)
     input [6:0] usb_addr_i,
 
-    // input fsm_ctrl_i,
-    // input fsm_idle_i,
-    output ctl_done_o,
+    output usb_timeout_error_o,
 
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
@@ -182,8 +180,6 @@ module transactor #(
   assign blk_cycle_o  = state == ST_BULK;
   assign blk_endpt_o  = tok_endp_i;  // todo: ??
 
-  assign ctl_done_o   = xctrl == CTL_DONE;
-
   assign ctl_cycle_o  = ctl_cycle_q;
   assign ctl_start_o  = ctl_start_q;
   assign ctl_endpt_o  = tok_endp_i;  // todo: ??
@@ -338,7 +334,7 @@ module transactor #(
     if (reset || usb_busy_i) begin
       trn_zero_q <= 1'b0;
       trn_send_q <= 1'b0;
-      trn_type_q <= 2'bxx;
+      trn_type_q <= trn_type_q;
     end else if (state == ST_CTRL) begin
       if (xctrl == CTL_STATUS_TX && ctl_length_o == 0) begin
         trn_zero_q <= 1'b1;
@@ -750,6 +746,47 @@ module transactor #(
     end else begin
       // Just wait and Rx SETUP data
       xctrl <= CTL_SETUP_RX;
+    end
+  end
+
+
+  // -- Turnaround Timer -- //
+
+  localparam [6:0] MAX_TURNAROUND = 7'd91;
+
+  reg [6:0] tcount;
+  reg actv_q, terr_q;
+  wire [7:0] tcnext;
+
+  assign usb_timeout_error_o = terr_q;
+
+  assign tcnext = tcount - 7'd1;
+
+  wire we_are_waiting;
+  assign we_are_waiting = tok_recv_i && (tok_type_i == TOK_OUT || tok_type_i == TOK_SETUP) ||
+                          usb_sent_i && (trn_type_q == DATA0 || trn_type_q == DATA1);
+
+  always @(posedge clock) begin
+    if (reset) begin
+      tcount <= 7'd0;
+      actv_q <= 1'b0;
+      terr_q <= 1'b0;
+    end else begin
+      if (xctrl == CTL_STATUS_TX && usb_sent_i || we_are_waiting) begin
+        tcount <= MAX_TURNAROUND;
+        actv_q <= 1'b1;
+      end else if (usb_recv_i || tok_recv_i || hsk_recv_i) begin
+        actv_q <= 1'b0;
+        terr_q <= 1'b0;
+      end else if (actv_q) begin
+        tcount <= tcnext[6:0];
+        if (tcnext[7]) begin
+          actv_q <= 1'b0;
+          terr_q <= 1'b1;
+        end
+      end else if (xctrl == CTL_DONE || state == ST_IDLE) begin
+        terr_q <= 1'b0;
+      end
     end
   end
 

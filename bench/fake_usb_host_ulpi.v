@@ -555,8 +555,9 @@ module fake_usb_host_ulpi (
     end
   endtask  // send_data1
 
-  // Receive and decode a USB 'DATA1' packet
-  task recv_data1;
+  // Receive and decode USB 'DATA0/1' packets
+  task recv_data;
+    input odd;
     begin
       integer count;
       count  <= 0;
@@ -564,8 +565,8 @@ module fake_usb_host_ulpi (
       while (!srecv) @(posedge clock);
       @(posedge clock);
 
-      if (stype != DATA1) begin
-        $error("%10t: Not a DATA1 packet: 0x%02x", $time, stype);
+      if (odd && stype != DATA1 || !odd && stype != DATA0) begin
+        $error("%10t: Not a DATA%1d packet: 0x%02x", $time, odd, stype);
         #100 $fatal;
       end
 
@@ -579,35 +580,21 @@ module fake_usb_host_ulpi (
       sready <= 1'b0;
       count  <= count + (svalid && slast);
       @(posedge clock);
-      $display("%10t: DATA1 packet received (bytes: %2d)", $time, count);
+      $display("%10t: DATA%1d packet received (bytes: %2d)", $time, odd, count);
+    end
+  endtask  // recv_data
+
+  // Receive and decode a USB 'DATA1' packet
+  task recv_data1;
+    begin
+      recv_data(1);
     end
   endtask  // recv_data1
 
   // Receive and decode a USB 'DATA1' packet
   task recv_data0;
     begin
-      integer count;
-      count  <= 0;
-      sready <= 1'b1;
-      while (!srecv) @(posedge clock);
-      @(posedge clock);
-
-      if (stype != DATA0) begin
-        $error("%10t: Not a DATA0 packet: 0x%02x", $time, stype);
-        #100 $fatal;
-      end
-
-      while (!slast) begin
-        @(posedge clock);
-        if (svalid) begin
-          resp[count] <= {slast, sdata};
-          count <= count + 1;
-        end
-      end
-      sready <= 1'b0;
-      count  <= count + (svalid && slast);
-      @(posedge clock);
-      $display("%10t: DATA0 packet received (bytes: %2d)", $time, count);
+      recv_data(0);
     end
   endtask  // recv_data0
 

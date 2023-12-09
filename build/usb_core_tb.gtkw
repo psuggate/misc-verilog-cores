@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Dec  9 06:26:46 2023
+[*] Sat Dec  9 08:46:26 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Dec  9 06:26:09 2023"
-[dumpfile_size] 383215
+[dumpfile_mtime] "Sat Dec  9 08:44:34 2023"
+[dumpfile_size] 404366
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-19.724380 8190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.744019 4070000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -24,7 +24,7 @@
 @28
 usb_core_tb.clock
 usb_core_tb.reset
-@c00201
+@c00200
 -Globals
 @28
 usb_core_tb.arst_n
@@ -35,15 +35,13 @@ usb_core_tb.usb_rst_n
 usb_core_tb.U_FAKE_USB0.dev_configured_i
 usb_core_tb.enumerate
 U_ULPI_USB0.usb_sof_o
-@1401201
+@1401200
 -Globals
 @28
 [color] 1
 usb_core_tb.U_FAKE_USB0.crc_err_o
 [color] 1
 U_ULPI_USB0.U_USB_CTRL0.crc_err_o
-@420
-usb_core_tb.recv_data1.count
 @820
 [color] 7
 usb_core_tb.U_FAKE_USB0.dbg_state[119:0]
@@ -53,6 +51,16 @@ U_ULPI_USB0.U_USB_CTRL0.usb_addr_w[6:0]
 @28
 [color] 3
 U_ULPI_USB0.blk_cycle_o
+@29
+[color] 2
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.we_are_waiting
+@22
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tcount[6:0]
+@28
+[color] 1
+U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.terr_q
+@420
+usb_core_tb.recv_data.count
 @c00200
 -Host
 @28

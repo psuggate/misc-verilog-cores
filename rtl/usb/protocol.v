@@ -43,6 +43,7 @@ module protocol #(
     output [7:0] usb_conf_o,
     output usb_sof_o,
     output crc_err_o,
+    output timeout_o,
 
     // USB control & bulk data received from host
     input usb_tvalid_i,
@@ -239,6 +240,7 @@ module protocol #(
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
+      .usb_timeout_error_o(timeout_o),
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),

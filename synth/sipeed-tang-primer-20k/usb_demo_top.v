@@ -72,7 +72,7 @@ module usb_demo_top (
 
   // Local Signals //
   wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
-  wire usb_sof, configured, blk_cycle_w, has_telemetry_w;
+  wire usb_sof, configured, blk_cycle_w, has_telemetry_w, timeout_w;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast;
@@ -134,6 +134,7 @@ module usb_demo_top (
       .usb_idle_o(device_usb_idle_w),
       .usb_sof_o(usb_sof),
       .crc_err_o(dev_crc_err_w),
+      .timeout_o(timeout_w),
 
       // USB bulk endpoint data-paths
       .blk_in_ready_i(bulk_in_ready_q),
@@ -259,7 +260,8 @@ module usb_demo_top (
     if (usb_reset) begin
       ctl_latch_q <= 1'b0;
       // end else if (U_ULPI_USB0.U_USB_CTRL0.U_DECODER0.tok_ping_q) begin
-    end else if (xfer_error_w) begin
+      // end else if (xfer_error_w) begin
+    end else if (timeout_w) begin
       ctl_latch_q <= 1'b1;
     end
 
