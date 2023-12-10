@@ -34,6 +34,7 @@ module usb_demo_top (
   localparam FPGA_FAMILY = "gw2a";
 
   localparam HIGH_SPEED = 1'b1;
+  localparam ULPI_DDR_MODE = 1;
 
 
   input clk_26;
@@ -51,24 +52,31 @@ module usb_demo_top (
 
   // -- Signals -- //
 
-  // todo: what? how? where?
-  // GSR GSR ();
-
   // Globalists //
-  reg [4:0] rst_cnt = 0;
-  wire clock, usb_clock, usb_reset;
+  wire clock, reset, usb_clock, usb_reset;
+  wire ddr_clock, locked;
+  wire [3:0] cbits;
 
-  assign clock = ~ulpi_clk;
+  assign leds = {~cbits[3:0], 2'b11};
 
-  always @(posedge clock or negedge rst_n) begin
-    if (!rst_n) begin
-      rst_cnt <= 5'd0;
-    end else begin
-      if (!rst_cnt[4]) begin
-        rst_cnt <= rst_cnt + 5'd1;
-      end
-    end
-  end
+
+  // -- System Clocks & Resets -- //
+
+  ulpi_reset #(
+      .PHASE("1000")
+  ) U_RESET0 (
+      .areset_n (rst_n),
+      .ulpi_clk (ulpi_clk),
+      .sys_clock(clk_26),
+
+      .ulpi_rst_n(ulpi_rst),  // Active LO
+      .pll_locked(locked),
+
+      .usb_clock(clock),  // 60 MHz, PLL output, phase-shifted
+      .usb_reset(reset),  // Active HI
+      .ddr_clock(ddr_clock)  // 120 MHz, PLL output, phase-shifted
+  );
+
 
   // Local Signals //
   wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
@@ -84,17 +92,6 @@ module usb_demo_top (
   // FIFO state //
   wire [10:0] level_w;
   reg bulk_in_ready_q, bulk_out_ready_q;
-
-  // assign level_w = m_tvalid && s_tready ? 64 : 0;
-
-  always @(posedge usb_clock) begin
-    if (usb_reset) begin
-      bulk_in_ready_q <= 1'b0;
-    end else begin
-      bulk_in_ready_q  <= configured && level_w > 4;
-      bulk_out_ready_q <= configured && level_w < 1024;
-    end
-  end
 
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
@@ -116,10 +113,10 @@ module usb_demo_top (
       .EP2_CONTROL(0),
       .ENDPOINT2(0)
   ) U_ULPI_USB0 (
-      .areset_n(rst_cnt[4]),
+      .areset_n(~reset),
 
       .ulpi_clock_i(clock),
-      .ulpi_reset_o(ulpi_rst),
+      // .ulpi_reset_o(ulpi_rst),
       .ulpi_dir_i  (ulpi_dir),
       .ulpi_nxt_i  (ulpi_nxt),
       .ulpi_stp_o  (ulpi_stp),
@@ -237,11 +234,23 @@ module usb_demo_top (
   endgenerate
 
 
+  // --Bulk Endpoint Status -- //
+
+  always @(posedge usb_clock) begin
+    if (usb_reset) begin
+      bulk_in_ready_q <= 1'b0;
+    end else begin
+      bulk_in_ready_q  <= configured && level_w > 4;
+      bulk_out_ready_q <= configured && level_w < 1024;
+    end
+  end
+
+
   // -- LEDs Stuffs -- //
 
   // Miscellaneous
-  wire [ 3:0] cbits;
-  reg  [23:0] count;
+  reg [23:0] count;
+  reg [31:0] ucount, pcount, dcount;
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
   reg  blk_valid_q = 0;
 
@@ -253,8 +262,8 @@ module usb_demo_top (
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
-  assign leds  = {~cbits[3:0], 2'b11};
-  assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  assign cbits = {ucount[24], pcount[24], dcount[25], locked};
+  // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin
@@ -298,6 +307,19 @@ module usb_demo_top (
         count <= count + 1;
       end
     end
+  end
+
+
+  always @(posedge ddr_clock) begin
+    dcount <= dcount + 1;
+  end
+
+  always @(posedge ulpi_clk) begin
+    ucount <= ucount + 1;
+  end
+
+  always @(posedge clock) begin
+    pcount <= pcount + 1;
   end
 
 

@@ -2,6 +2,7 @@
 module gw2a_rpll (
     clkout,  // 120 MHz by default
     clockd,
+    clockp,
     lock,
     clkin
 );
@@ -14,7 +15,7 @@ module gw2a_rpll (
   parameter DYN_ODIV_SEL = "false";
   parameter ODIV_SEL = 8;
   parameter PSDA_SEL = "0000";
-  parameter DYN_DA_EN = "true";
+  parameter DYN_DA_EN = "false";
   parameter DUTYDA_SEL = "1000";
   parameter CLKOUT_FT_DIR = 1'b1;
   parameter CLKOUTP_FT_DIR = 1'b1;
@@ -31,11 +32,10 @@ module gw2a_rpll (
 
   output clkout;
   output clockd;
+  output clockp;
   output lock;
   input clkin;
 
-  wire clkoutp_o;
-  wire clkoutd_o;
   wire clkoutd3_o;
   wire gw_gnd;
 
@@ -67,7 +67,7 @@ module gw2a_rpll (
   ) rpll_inst (
       .CLKOUT(clkout),
       .LOCK(lock),
-      .CLKOUTP(clkoutp_o),
+      .CLKOUTP(clockp),
       .CLKOUTD(clockd),
       .CLKOUTD3(clkoutd3_o),
       .RESET(gw_gnd),

@@ -9,9 +9,9 @@ module usb_control (
     usb_sof_o,
     crc_err_o,
 
-   flag_tok_recv_o,
-   flag_hsk_recv_o,
-   flag_hsk_sent_o,
+    flag_tok_recv_o,
+    flag_hsk_recv_o,
+    flag_hsk_sent_o,
 
     usb_tvalid_i,
     usb_tready_o,
@@ -287,13 +287,12 @@ module usb_control (
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  control_transfer
-  U_USB_TRN0 (
+  control_transfer U_USB_TRN0 (
       .clock(clock),
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
-/*
+      /*
    .fsm_ctrl_i(fsm_ctrl_w),
    .fsm_idle_i(fsm_idle_w),
    // .ctl_done_o(ctl_done_w),
@@ -356,7 +355,7 @@ module usb_control (
       .ctl_tdata_i (ctl0_tdata_w)
   );
 
-/*
+  /*
   transaction #(
       .EP1_BULK_IN(EP1_BULK_IN),  // IN- & OUT- for TART raw (antenna) samples
       .EP1_BULK_OUT(EP1_BULK_OUT),

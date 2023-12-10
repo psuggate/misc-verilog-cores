@@ -185,6 +185,8 @@ module ulpi_axis #(
 
   // -- AXI4 stream to/from ULPI stream -- //
 
+  // assign ulpi_reset_o = 1'b1;
+
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
   ) U_USB_ULPI0 (

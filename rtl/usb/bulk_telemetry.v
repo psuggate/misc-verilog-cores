@@ -112,7 +112,7 @@ module bulk_telemetry #(
   wire [16:0] x_tdata;
 
   generate
-    if (1) begin : g_sync_fifo
+    if (0) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (18),
