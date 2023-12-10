@@ -24,10 +24,10 @@ module ulpi_axis #(
 ) (
     // Global, asynchronous reset
     input areset_n,
+    output reset_no,
 
     // UTMI Low Pin Interface (ULPI)
     input ulpi_clock_i,
-    output ulpi_reset_o,
     input ulpi_dir_i,
     input ulpi_nxt_i,
     output ulpi_stp_o,
@@ -159,6 +159,7 @@ module ulpi_axis #(
   assign clock = ulpi_clock_i;
   assign reset = ~rst_nq;
   assign ulpi_rst_nw = rst_n1;
+  assign reset_no = ulpi_rst_nw;
 
   // Compute the reset signals
   always @(posedge clock or negedge areset_n) begin
@@ -185,8 +186,6 @@ module ulpi_axis #(
 
   // -- AXI4 stream to/from ULPI stream -- //
 
-  // assign ulpi_reset_o = 1'b1;
-
   usb_ulpi #(
       .HIGH_SPEED(HIGH_SPEED)
   ) U_USB_ULPI0 (
@@ -200,7 +199,6 @@ module ulpi_axis #(
       .ulpi_dir(ulpi_dir_i),
       .ulpi_nxt(ulpi_nxt_i),
       .ulpi_stp(ulpi_stp_o),
-      .ulpi_reset(ulpi_reset_o),
 
       .axis_rx_tvalid_o(ulpi_rx_tvalid_w),
       .axis_rx_tready_i(ulpi_rx_tready_w),

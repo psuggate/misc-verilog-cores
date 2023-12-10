@@ -255,8 +255,9 @@ module usb_core_tb;
       .ENDPOINT2  (0)
   ) U_ULPI_USB0 (
       .areset_n(arst_n),
+      .reset_no(usb_rst_n),
+
       .ulpi_clock_i(usb_clock),
-      .ulpi_reset_o(usb_rst_n),
       .ulpi_dir_i(ulpi_dir),
       .ulpi_nxt_i(ulpi_nxt),
       .ulpi_stp_o(ulpi_stp),

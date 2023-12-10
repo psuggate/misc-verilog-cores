@@ -12,7 +12,6 @@ module usb_ulpi #(
 
     /* ULPI PHY signals */
     input wire ulpi_clk,
-    output wire ulpi_reset,
     input wire [7:0] ulpi_data_in,
     output wire [7:0] ulpi_data_out,
     input wire ulpi_dir,
@@ -105,7 +104,6 @@ module usb_ulpi #(
   assign axis_tx_tready_o = tx_ready;
 
   assign ulpi_stp = stp_q;
-  assign ulpi_reset = rst_n;
   assign ulpi_data_out = ulpi_data_out_buf;
 
   assign usb_vbus_valid_o = usb_vbus_valid_out;

@@ -112,7 +112,7 @@ module bulk_telemetry #(
   wire [16:0] x_tdata;
 
   generate
-    if (0) begin : g_sync_fifo
+    if (1) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (18),
@@ -168,10 +168,10 @@ module bulk_telemetry #(
           .s_axis_tdest(1'b0),
           .s_axis_tuser(1'b0),
 
-          .pause_req(0),
+          .pause_req(1'b0),
 
           // AXI output
-          .m_axis_tdata(x_tdata),
+          .m_axis_tdata(x_tdata[15:0]),
           .m_axis_tkeep(),
           .m_axis_tvalid(x_tvalid),
           .m_axis_tready(x_tready),

@@ -63,7 +63,8 @@ module usb_demo_top (
   // -- System Clocks & Resets -- //
 
   ulpi_reset #(
-      .PHASE("1000")
+      .PHASE("1000"),
+      .PLLEN(ULPI_DDR_MODE)
   ) U_RESET0 (
       .areset_n (rst_n),
       .ulpi_clk (ulpi_clk),
@@ -116,7 +117,6 @@ module usb_demo_top (
       .areset_n(~reset),
 
       .ulpi_clock_i(clock),
-      // .ulpi_reset_o(ulpi_rst),
       .ulpi_dir_i  (ulpi_dir),
       .ulpi_nxt_i  (ulpi_nxt),
       .ulpi_stp_o  (ulpi_stp),
@@ -156,7 +156,7 @@ module usb_demo_top (
   // -- Loop-back FIFO for Testing -- //
 
   generate
-    if (0) begin : g_sync_fifo
+    if (1) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (9),
@@ -262,7 +262,7 @@ module usb_demo_top (
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
-  assign cbits = {ucount[24], pcount[24], dcount[25], locked};
+  assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
   // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
 
   always @(posedge usb_clock) begin
