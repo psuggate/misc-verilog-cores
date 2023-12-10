@@ -34,7 +34,7 @@ module usb_demo_top (
   localparam FPGA_FAMILY = "gw2a";
 
   localparam HIGH_SPEED = 1'b1;
-  localparam ULPI_DDR_MODE = 1;
+  localparam ULPI_DDR_MODE = 0; // todo: '1' is way too fussy
 
 
   input clk_26;
@@ -63,7 +63,7 @@ module usb_demo_top (
   // -- System Clocks & Resets -- //
 
   ulpi_reset #(
-      .PHASE("1000"),
+      .PHASE("0111"),
       .PLLEN(ULPI_DDR_MODE)
   ) U_RESET0 (
       .areset_n (rst_n),
@@ -262,8 +262,8 @@ module usb_demo_top (
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
-  assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
-  // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
+  assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin

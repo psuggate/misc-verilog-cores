@@ -119,8 +119,9 @@ module fake_usb_host_ulpi (
     $display("%10t: FETCH device DESCRIPTOR", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00}, 64);
 
-    $display("%10t: FETCH config DESCRIPTOR", $time);
+    $display("%10t: FETCH config DESCRIPTOR (9 bytes)", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 9);
+    $display("%10t: FETCH config DESCRIPTOR (32 bytes)", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 39);
     desc_done_q <= 1'b1;
 
@@ -470,6 +471,7 @@ module fake_usb_host_ulpi (
     input [6:0] addr;
     begin
       send_setup(7'h00, 4'h0, {16'h0, 16'h0, {9'h000, addr}, 8'h05, 8'h00});
+      $display("%10t: ADDRESS enumeration ('%02x') sent", $time, addr);
       recv_status(addr, 4'h0);
     end
   endtask  // send_control

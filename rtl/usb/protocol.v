@@ -330,7 +330,7 @@ module protocol #(
 
   axis_skid #(
       .WIDTH (8),
-      .BYPASS(0)
+      .BYPASS(1)
   ) U_AXIS_SKID2 (
       .clock(clock),
       .reset(reset),

@@ -153,13 +153,18 @@ module encode_packet #(
 
   always @(posedge clock) begin
     // Asserts until we have received the desired data from upstream
-    if (reset || !trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
+    // if (reset || !trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
+    if (reset || trn_tvalid_i && trn_tlast_i && uready) begin
       xsrc_q <= 1'b0;
     end else if (trn_tsend_i && !tvalid) begin
       xsrc_q <= 1'b1;
+    end else if (!trn_tvalid_i) begin
+      // Starvation !!
+      xsrc_q <= 1'b0;
     end
 
-    if (!trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
+    if (!trn_tvalid_i && !trn_tsend_i || trn_tvalid_i && trn_tlast_i && uready) begin
+    // if (!trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
       uready <= 1'b0;
     end else if (xdat_q) begin
       uready <= xsrc_q && uready_next;

@@ -443,6 +443,39 @@ module usb_ulpi #(
   end
 
 `endif
+
+
+   // Start of trying to make the output more-suitable for DDR and OREG ...
+  reg osel_q, doce_q;
+  reg [7:0] dout_q, dreg_q;
+  wire [7:0] dout_w;
+
+  assign dout_w = osel_q ? ulpi_tdata_i : dreg_q;
+
+  always @(posedge ulpi_clk) begin
+    if (reset) begin
+      dout_q <= 8'd0;
+    end else if (doce_q) begin
+      dout_q <= dout_w;
+    end
+  end
+
+  always @(posedge ulpi_clk) begin
+    if (!rst_n) begin
+      dreg_q <= 8'h8A;
+      doce_q <= 1'b0;
+      osel_q <= 1'b0;
+    end else if (dir_q || ulpi_dir) begin
+    end else begin
+      case (state)
+        default: begin // STATE_INIT
+          osel_q <= 1'b0;
+          doce_q <= 1'b1;
+          dreg_q <= 8'd0;
+        end
+      endcase
+    end
+  end
 */
 
 
