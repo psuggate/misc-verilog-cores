@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Dec 15 09:18:36 2023
+[*] Fri Dec 15 12:11:10 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Fri Dec 15 09:18:07 2023"
-[dumpfile_size] 188351
+[dumpfile_mtime] "Fri Dec 15 10:55:01 2023"
+[dumpfile_size] 190324
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 797200
+[timestart] 854300
 [size] 2560 1376
 [pos] -1 -1
-*-15.753487 1090000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.753487 1940000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -421,9 +421,17 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 -Control
 @1000200
 -Device
+@800200
+-ULPI_Dec
 @28
+[color] 3
+U_ULPI_USB0.U_DECODER1.crc_valid_flag
 [color] 1
-U_ULPI_USB0.U_DECODER1.crc_err_flag
+U_ULPI_USB0.U_DECODER1.crc_error_flag
+@22
+[color] 2
+U_ULPI_USB0.U_DECODER1.tok_addr_o[6:0]
+U_ULPI_USB0.U_DECODER1.tok_endp_o[3:0]
 @800200
 -IOB
 @28
@@ -434,15 +442,19 @@ U_ULPI_USB0.U_DECODER1.dat_iob[7:0]
 @1000200
 -IOB
 @28
+U_ULPI_USB0.U_DECODER1.pid_vld_w
 [color] 3
 U_ULPI_USB0.U_DECODER1.cyc_q
 [color] 3
 U_ULPI_USB0.U_DECODER1.end_w
+U_ULPI_USB0.U_DECODER1.tok_q
+U_ULPI_USB0.U_DECODER1.hsk_q
 @22
 U_ULPI_USB0.U_DECODER1.dat_q[7:0]
+[color] 7
+U_ULPI_USB0.U_DECODER1.xrecv[4:0]
 [color] 2
 U_ULPI_USB0.U_DECODER1.crc16_q[15:0]
-U_ULPI_USB0.U_DECODER1.xrecv[3:0]
 @800200
 -Out
 @28
@@ -463,5 +475,13 @@ U_ULPI_USB0.U_DECODER1.m_tuser[3:0]
 U_ULPI_USB0.U_DECODER1.m_tdata[7:0]
 @1000200
 -AXIS Master
+@22
+U_ULPI_USB0.U_DECODER1.token_data[10:0]
+@23
+U_ULPI_USB0.U_DECODER1.token_crc5[4:0]
+@22
+U_ULPI_USB0.U_DECODER1.rx_crc5_w[4:0]
+@1000200
+-ULPI_Dec
 [pattern_trace] 1
 [pattern_trace] 0

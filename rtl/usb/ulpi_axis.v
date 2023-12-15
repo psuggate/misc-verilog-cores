@@ -23,7 +23,7 @@ module ulpi_axis #(
     parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
 ) (
     // Global, asynchronous reset
-    input areset_n,
+    input  areset_n,
     output reset_no,
 
     // UTMI Low Pin Interface (ULPI)
@@ -275,22 +275,23 @@ module ulpi_axis #(
   );
 
 
- ulpi_decoder U_DECODER1
- (
-  .clock(ulpi_clock_i),
-  .reset(~areset_n),
-  .ulpi_dir(ulpi_dir_i),
-  .ulpi_nxt(ulpi_nxt_i),
-  .ulpi_data(ulpi_data_io),
+  ulpi_decoder U_DECODER1 (
+      .clock(ulpi_clock_i),
+      .reset(~areset_n),
 
-  .crc_err_o(),
+      .ulpi_dir (ulpi_dir_i),
+      .ulpi_nxt (ulpi_nxt_i),
+      .ulpi_data(ulpi_data_io),
 
-  .m_tvalid(),
-  .m_tready(1'b1),
-  .m_tkeep(),
-  .m_tlast(),
-  .m_tdata()
- );
+      .crc_error_o(),
+      .crc_valid_o(),
+
+      .m_tvalid(),
+      .m_tready(1'b1),
+      .m_tkeep (),
+      .m_tlast (),
+      .m_tdata ()
+  );
 
 
   /*
