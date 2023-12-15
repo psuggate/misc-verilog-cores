@@ -75,11 +75,13 @@ module transactor #(
     // USB control & bulk data received from host
     input usb_tvalid_i,
     output usb_tready_o,
+    input usb_tkeep_i,
     input usb_tlast_i,
     input [7:0] usb_tdata_i,
 
     output usb_tvalid_o,
     input usb_tready_i,
+    output usb_tkeep_o,
     output usb_tlast_o,
     output [7:0] usb_tdata_o
 );
@@ -226,7 +228,7 @@ module transactor #(
   wire usb_zero_w;
 
   // Zero-size data transfers (typically for STATUS messages)
-  assign usb_zero_w = usb_recv_q && !usb_tvalid_i && usb_tlast_i;
+  assign usb_zero_w = usb_recv_q && usb_tvalid_i && !usb_tkeep_i && usb_tlast_i;
 
   // Delay the 'RECV' signal to align with 'tlast' (and '!tvalid'), as this
   // condition indicates that the received packet contains no data.

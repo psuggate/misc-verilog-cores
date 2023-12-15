@@ -106,8 +106,8 @@ module protocol #(
   wire usb_rx_trecv_w, usb_tx_tsend_w, usb_tx_tbusy_w, usb_tx_tdone_w;
   wire [1:0] usb_rx_ttype_w, usb_tx_ttype_w;
 
-  wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tlast_w;
-  wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
+  wire usb_rx_tvalid_w, usb_rx_tready_w, usb_rx_tkeep_w, usb_rx_tlast_w;
+  wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tkeep_w, usb_tx_tlast_w;
   wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
 
   reg crc_err_q, ctl_err_q, ctl_sel_q, usb_sof_q;
@@ -179,13 +179,14 @@ module protocol #(
       .tok_type_i(2'bx),
       .tok_data_i(16'bx),
 
-      .trn_tsend_i(usb_tx_tsend_w),
-      .trn_ttype_i(usb_tx_ttype_w),
-      .enc_busy_o (usb_tx_tbusy_w),
-      .trn_tdone_o(usb_tx_tdone_w),
+      .dat_send_i(usb_tx_tsend_w),
+      .dat_type_i(usb_tx_ttype_w),
+      .enc_busy_o(usb_tx_tbusy_w),
+      .dat_done_o(usb_tx_tdone_w),
 
       .trn_tvalid_i(usb_tx_tvalid_w),
       .trn_tready_o(usb_tx_tready_w),
+      .trn_tkeep_i (usb_tx_tkeep_w),
       .trn_tlast_i (usb_tx_tlast_w),
       .trn_tdata_i (usb_tx_tdata_w)
   );
@@ -219,6 +220,7 @@ module protocol #(
 
       .out_tvalid_o(usb_rx_tvalid_w),
       .out_tready_i(usb_rx_tready_w),
+      .out_tkeep_o (usb_rx_tkeep_w),
       .out_tlast_o (usb_rx_tlast_w),
       .out_tdata_o (usb_rx_tdata_w)
   );
@@ -266,11 +268,13 @@ module protocol #(
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(usb_rx_tvalid_w),
       .usb_tready_o(usb_rx_tready_w),
+      .usb_tkeep_i (usb_rx_tkeep_w),
       .usb_tlast_i (usb_rx_tlast_w),
       .usb_tdata_i (usb_rx_tdata_w),
 
       .usb_tvalid_o(usb_tx_tvalid_w),
       .usb_tready_i(usb_tx_tready_w),
+      .usb_tkeep_o (usb_tx_tkeep_w),
       .usb_tlast_o (usb_tx_tlast_w),
       .usb_tdata_o (usb_tx_tdata_w),
 

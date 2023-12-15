@@ -29,6 +29,7 @@ module decode_packet (
 
     output out_tvalid_o,
     input out_tready_i,  // todo
+    output out_tkeep_o,
     output out_tlast_o,
     output [7:0] out_tdata_o,
 
@@ -70,7 +71,7 @@ module decode_packet (
   reg tok_recv_q, hsk_recv_q, out_recv_q;
   reg [1:0] trn_type_q;
 
-  reg rx_vld0, rx_vld1, tvalid_q;
+  reg rx_vld0, rx_vld1, tvalid_q, tkeep_q;
   wire third_w;
 
 
@@ -97,6 +98,7 @@ module decode_packet (
   assign out_type_o = trn_type_q;  // DATA0/1/2 MDATA
 
   assign out_tvalid_o = tvalid_q;
+  assign out_tkeep_o = tkeep_q;
   assign out_tlast_o = ulpi_tlast_i;
   assign out_tdata_o = rx_buf1;
 
@@ -131,8 +133,10 @@ module decode_packet (
   always @(posedge clock) begin
     if (state == ST_DATA) begin
       tvalid_q <= ulpi_tvalid_i && !ulpi_tlast_i && rx_vld0;
+      tkeep_q  <= ulpi_tvalid_i && rx_vld0;
     end else begin
       tvalid_q <= 1'b0;
+      tkeep_q  <= 1'b0;
     end
   end
 

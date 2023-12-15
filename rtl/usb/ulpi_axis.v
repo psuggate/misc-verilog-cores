@@ -275,6 +275,24 @@ module ulpi_axis #(
   );
 
 
+ ulpi_decoder U_DECODER1
+ (
+  .clock(ulpi_clock_i),
+  .reset(~areset_n),
+  .ulpi_dir(ulpi_dir_i),
+  .ulpi_nxt(ulpi_nxt_i),
+  .ulpi_data(ulpi_data_io),
+
+  .crc_err_o(),
+
+  .m_tvalid(),
+  .m_tready(1'b1),
+  .m_tkeep(),
+  .m_tlast(),
+  .m_tdata()
+ );
+
+
   /*
   // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
 

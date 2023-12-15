@@ -21,13 +21,16 @@ module encode_packet #(
     input [1:0] tok_type_i,
     input [15:0] tok_data_i,
 
-    input [1:0] trn_ttype_i,  /* DATA0/1/2 MDATA */
-    input trn_tsend_i,
-    output trn_tdone_o,
+    // Data transfer properties
+    input [1:0] dat_type_i,  /* DATA0/1/2 MDATA */
+    input dat_send_i,
+    output dat_done_o,
 
+    // AXI4-Stream slave port
     input trn_tvalid_i,
     output trn_tready_o,
     input trn_tlast_i,
+    input trn_tkeep_i,
     input [7:0] trn_tdata_i
 );
 
@@ -93,7 +96,7 @@ module encode_packet #(
   assign tx_tlast_o   = tlast;
   assign tx_tdata_o   = tdata;
 
-  assign trn_tdone_o  = done_q;
+  assign dat_done_o  = done_q;
   assign trn_tready_o = uready;
 
 
@@ -156,19 +159,19 @@ module encode_packet #(
     // if (reset || !trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
     if (reset || trn_tvalid_i && trn_tlast_i && uready) begin
       xsrc_q <= 1'b0;
-    end else if (trn_tsend_i && !tvalid) begin
+    end else if (dat_send_i && !tvalid) begin
       xsrc_q <= 1'b1;
     end else if (!trn_tvalid_i) begin
       // Starvation !!
       xsrc_q <= 1'b0;
     end
 
-    if (!trn_tvalid_i && !trn_tsend_i || trn_tvalid_i && trn_tlast_i && uready) begin
-    // if (!trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
+    if (!trn_tvalid_i && !dat_send_i || trn_tvalid_i && trn_tlast_i && uready) begin
+      // if (!trn_tvalid_i || trn_tvalid_i && trn_tlast_i && uready) begin
       uready <= 1'b0;
     end else if (xdat_q) begin
       uready <= xsrc_q && uready_next;
-    end else if (trn_tsend_i) begin
+    end else if (dat_send_i) begin
       uready <= !trn_tlast_i;
     end
     xvalid <= xvalid_next;
@@ -183,6 +186,8 @@ module encode_packet #(
   // -- FSM -- //
 
   wire [2:0] state = {xdat_q, xtok_q, xhsk_q};
+
+  wire zero_data_xfer = trn_tlast_i && trn_tvalid_i && !trn_tkeep_i;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -212,14 +217,14 @@ module encode_packet #(
             tvalid <= 1'b1;
             tlast <= 1'b0;
             tdata <= {~{tok_type_i, 2'b01}, {tok_type_i, 2'b01}};
-          end else if (trn_tsend_i) begin
+          end else if (dat_send_i) begin
             // Send a DATA0/1/2 MDATA packet
             {xdat_q, xtok_q, xhsk_q} <= ST_DATA;
-            {zero_q, xcrc_q} <= {trn_tlast_i && !trn_tvalid_i, 1'b0};  // PID-only packet ??
+            {zero_q, xcrc_q} <= {zero_data_xfer, 1'b0};  // PID-only packet ??
 
             tvalid <= 1'b1;
             tlast <= 1'b0;
-            tdata <= {~{trn_ttype_i, 2'b11}, {trn_ttype_i, 2'b11}};
+            tdata <= {~{dat_type_i, 2'b11}, {dat_type_i, 2'b11}};
           end else begin
             {xdat_q, xtok_q, xhsk_q} <= ST_IDLE;
             {zero_q, xcrc_q} <= 2'b00;
@@ -320,6 +325,22 @@ module encode_packet #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+  `ifdef __icarus
+
+  always @(posedge clock) begin
+    if (reset) begin
+    end else begin
+      if (trn_tvalid_i && !trn_tkeep_i && trn_tlast_i) begin
+        $error("USB encoder only supports TKEEP=0 for zero-data packets");
+      end
+    end
+  end
+
+  `endif
 
 
 endmodule  // encode_packet

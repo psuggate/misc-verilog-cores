@@ -287,10 +287,10 @@ module usb_ulpi #(
 
   reg cyc_q;
   reg [7:0] dat_q;
-  wire stp_w;
+  wire eop_w;
 
   // This signal goes high if 'RxActive' de-asserts during packet Rx
-  assign stp_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
+  assign eop_w = ulpi_dir && ulpi_data_in[5:4] != 2'b01 || !ulpi_dir;
 
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
@@ -314,7 +314,7 @@ module usb_ulpi #(
           rx_tlast  <= 1'b0;
           rx_tdata  <= dat_q;
         end
-      end else if (cyc_q && dir_q && stp_w) begin
+      end else if (cyc_q && dir_q && eop_w) begin
         cyc_q <= 1'b0;
         dat_q <= 8'bx;
 
@@ -370,7 +370,7 @@ module usb_ulpi #(
             vld_q <= 1'b1;
             dat_q <= ulpi_data_in;
             xrecv <= RX_RECV;
-          end else if (stp_w) begin
+          end else if (eop_w) begin
             vld_q <= 1'b0;
             dat_q <= 'bx;
             xrecv <= RX_IDLE;
@@ -391,7 +391,7 @@ module usb_ulpi #(
             rx_tvalid <= 1'b1;
             rx_tlast  <= 1'b0;
             rx_tdata  <= dat_q;
-          end else if (stp_w) begin
+          end else if (eop_w) begin
             // End of packet, so assert 'tlast'
             vld_q     <= 1'b0;
             dat_q     <= 'bx;

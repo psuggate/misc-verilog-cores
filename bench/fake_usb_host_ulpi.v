@@ -66,7 +66,7 @@ module fake_usb_host_ulpi (
   reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q, blki_done_q, tele_done_q;
   wire [6:0] dev_addr_w;
 
-  reg mvalid, sready, hsend, tstart, tvalid, tlast;
+  reg mvalid, sready, hsend, tstart, tvalid, tkeep, tlast;
   wire srecv, svalid, mready, slast, hdone, tready;
   reg [1:0] htype, ttype;
   reg  [7:0] tdata;
@@ -315,12 +315,13 @@ module fake_usb_host_ulpi (
       .tok_type_i(ktype_q),
       .tok_data_i(kdata_q),
 
-      .trn_tsend_i(tstart),
-      .trn_ttype_i(ttype),
-      .trn_tdone_o(tdone),
+      .dat_send_i(tstart),
+      .dat_type_i(ttype),
+      .dat_done_o(tdone),
 
       .trn_tvalid_i(tvalid),
       .trn_tready_o(tready),
+      .trn_tkeep_i (tkeep),
       .trn_tlast_i (tlast),
       .trn_tdata_i (tdata)
   );
