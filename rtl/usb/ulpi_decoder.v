@@ -10,7 +10,9 @@ module ulpi_decoder (
     output crc_error_o,
     output crc_valid_o,
 
-    output [1:0] LineState,
+    input [1:0] LineState,
+    input [1:0] VbusState,
+    input [1:0] RxEvent,
 
     output [6:0] tok_addr_o,
     output [3:0] tok_endp_o,
@@ -88,8 +90,6 @@ module ulpi_decoder (
   reg  [ 4:0] token_crc5;
   wire [ 4:0] rx_crc5_w;
 
-  reg  [ 1:0] LineStateQ;
-
 
   // -- Output Assignments -- //
 
@@ -114,18 +114,6 @@ module ulpi_decoder (
     dir_iob <= ulpi_dir;
     nxt_iob <= ulpi_nxt;  // note: can't be an IOB register (due to Tx. reqs)
     dat_iob <= ulpi_data;
-  end
-
-
-  // -- USB Line State -- //
-
-  // Todo: Gross !?
-  assign LineState = dir_q && ulpi_dir && !ulpi_nxt ? ulpi_data[5:4] : LineStateQ;
-
-  always @(posedge clock) begin
-    if (dir_q && ulpi_dir && !ulpi_nxt) begin
-      LineStateQ <= ulpi_data[5:4];
-    end
   end
 
 
