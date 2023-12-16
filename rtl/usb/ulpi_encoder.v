@@ -3,6 +3,10 @@ module ulpi_encoder (
     input clock,
     input reset,
 
+    output ulpi_enabled_o,
+
+    input [1:0] LineState,
+
     input s_tvalid,
     output s_tready,
     input s_tkeep,
@@ -21,7 +25,7 @@ module ulpi_encoder (
   // -- Constants -- //
 
   // FSM states
-  localparam [6:0] TX_INIT = 7'h01;
+  localparam [6:0] TX_REGW = 7'h01;
   localparam [6:0] TX_IDLE = 7'h02;
   localparam [6:0] TX_XPID = 7'h04;
   localparam [6:0] TX_DATA = 7'h08;
@@ -33,6 +37,11 @@ module ulpi_encoder (
   // -- Signals & State -- //
 
   reg [6:0] xsend;
+  wire HighSpeed;
+
+  // Signals for sending initialisation commands & settings to the PHY.
+  wire phy_set_w, phy_get_w, phy_stp_w, phy_chp_w, phy_bsy_w, phy_ack_w;
+  wire [7:0] phy_adr_w, phy_val_w;
 
 
   // -- ULPI Encoder FSM -- //
@@ -42,19 +51,14 @@ module ulpi_encoder (
 
   always @(posedge clock) begin
     if (dir_q || ulpi_dir) begin
-      xsend <= state == STATE_IDLE ? TX_IDLE : TX_INIT;
+      xsend <= TX_IDLE;
     end else begin
       case (xsend)
-        default: begin  // TX_INIT
-          // todo: this state not required, just use the 'if'-statement above ??
-          xsend <= state == STATE_IDLE ? TX_IDLE : TX_INIT;
-        end
-
-        TX_IDLE: begin
-          xsend <= s_tvalid ? TX_XPID : TX_IDLE;
+        default: begin  // TX_IDLE
+          xsend <= phy_cmd_w ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
 
           // Upstream TREADY signal
-          s_tready <= s_tvalid ? 1'b0 : 1'b1;
+          s_tready <= phy_cmd_w || s_tvalid ? 1'b0 : HighSpeed;
 
           // Latch the first byte (using temp. reg.)
           tvalid <= s_tready && s_tvalid;
@@ -62,8 +66,15 @@ module ulpi_encoder (
           tdata <= s_tdata;
 
           // Output the PID byte
-          ulpi_stp <= 1'b0;
-          ulpi_data <= pid_w;
+          ulpi_stp <= phy_cmd_w && phy_stp_w ? 1'b1 : 1'b0;
+          ulpi_data <= phy_cmd_w ? phy_adr_w : pid_w;
+        end
+
+        TX_REGW: begin
+          if (ulpi_nxt) begin
+            xsend <= TX_LAST;
+            ulpi_data <= phy_val_w;
+          end
         end
 
         TX_XPID: begin
@@ -117,7 +128,7 @@ module ulpi_encoder (
           // Todo: should get the current 'LineState' from the ULPI decoder
           //   module, as this module is Tx-only ??
           //
-          xsend     <= dir_q && ulpi_dir && !ulpi_nxt && line_state == LS_EOP ? TX_IDLE : xsend;
+          xsend     <= dir_q && ulpi_dir && !ulpi_nxt && LineState == LS_EOP ? TX_IDLE : xsend;
 
           s_tready  <= 1'b0;
 
@@ -132,196 +143,25 @@ module ulpi_encoder (
 
   // -- ULPI Initialisation FSM -- //
 
-  always @(posedge ulpi_clk) begin
-    if (reset) begin
-      state <= STATE_INIT;
-      ulpi_data_out_buf <= 8'h00;
-    end else if (dir_q || ulpi_dir) begin
-      // We are not driving //
-      state <= state;
-      snext <= 4'bx;
-      reg_data <= 8'bx;
-    end else begin
-      // We are driving //
-      case (state)
-        default: begin  // STATE_INIT
-          state <= STATE_WRITE_REGA;
-          snext <= STATE_SWITCH_FSSTART;
-          ulpi_data_out_buf <= 8'h8A;
-          reg_data <= 8'h00;
-        end
+  ulpi_line_state #(
+      .HIGH_SPEED(1)
+  ) U_ULPI_LS0 (
+      .clock(clock),
+      .reset(reset),
 
-        // Update ULPI registers
-        STATE_WRITE_REGA: begin
-          if (ulpi_nxt) begin
-            state <= STATE_WRITE_REGD;
-            ulpi_data_out_buf <= reg_data;
-            reg_data <= 8'bx;
-          end else begin
-            state <= STATE_WRITE_REGA;
-            ulpi_data_out_buf <= ulpi_data_out_buf;
-            reg_data <= reg_data;
-          end
-          snext <= snext;
-        end
+      .ulpi_dir (ulpi_dir),
+      .LineState(LineState),
+      .HighSpeed(HighSpeed),
 
-        STATE_WRITE_REGD: begin
-          if (ulpi_nxt) begin
-            state <= STATE_STP;
-            ulpi_data_out_buf <= 8'h00;
-          end else begin
-            state <= STATE_WRITE_REGD;
-            ulpi_data_out_buf <= ulpi_data_out_buf;
-          end
-          snext <= snext;
-          reg_data <= 8'bx;
-        end
-
-        STATE_RESET: begin
-          if (HIGH_SPEED == 1) begin
-            state <= hs_enabled ? STATE_SWITCH_FSSTART : STATE_CHIRP_START;
-          end else if (usb_line_state != 2'b00) begin
-            state <= STATE_IDLE;
-          end else begin
-            state <= state;
-          end
-          snext <= 4'bx;
-          ulpi_data_out_buf <= 8'h00;
-          reg_data <= 8'bx;
-        end
-
-        STATE_SUSPEND: begin
-          state <= usb_line_state != 2'b01 ? STATE_IDLE : STATE_SUSPEND;
-          snext <= 4'bx;
-          ulpi_data_out_buf <= 8'h00;
-          reg_data <= 8'bx;
-        end
-
-        STATE_STP: begin
-          state <= snext;
-          snext <= 4'bx;
-          ulpi_data_out_buf <= 8'h00;
-          reg_data <= 8'bx;
-        end
-
-        STATE_IDLE: begin
-          if (usb_line_state == 2'b00 && state_counter > RESET_TIME) begin
-            state <= STATE_RESET;
-            ulpi_data_out_buf <= 8'h00;
-          end else if (!hs_enabled && usb_line_state == 2'b01 && state_counter > SUSPEND_TIME) begin
-            state <= STATE_SUSPEND;
-            ulpi_data_out_buf <= 8'h00;
-          end else if (axis_tx_tvalid_i) begin
-            ulpi_data_out_buf <= {4'b0100, axis_tx_tdata_i[3:0]};
-
-            if (axis_tx_tlast_i) begin
-              state <= STATE_TX_LAST;
-            end else begin
-              state <= STATE_TX;
-            end
-          end
-          snext <= 4'bx;
-          reg_data <= 8'bx;
-        end
-
-        STATE_TX: begin
-          if (ulpi_nxt) begin
-            if (axis_tx_tvalid_i && !buf_valid) begin
-              state <= axis_tx_tlast_i ? STATE_TX_LAST : STATE_TX;
-              ulpi_data_out_buf <= axis_tx_tdata_i;
-            end else if (buf_valid) begin
-              state <= buf_last ? STATE_TX_LAST : STATE_TX;
-              ulpi_data_out_buf <= buf_data;
-            end else begin
-              state <= state;
-              ulpi_data_out_buf <= 8'h00;
-            end
-          end else begin
-            state <= state;
-            ulpi_data_out_buf <= ulpi_data_out_buf;
-          end
-          snext <= 4'bx;
-          reg_data <= 8'bx;
-        end
-
-        STATE_TX_LAST: begin
-          if (ulpi_nxt) begin
-            state <= STATE_STP;
-            snext <= STATE_IDLE;
-            ulpi_data_out_buf <= 8'h00;
-          end else begin
-            state <= STATE_TX_LAST;
-            snext <= 4'bx;
-            ulpi_data_out_buf <= ulpi_data_out_buf;
-          end
-          reg_data <= 8'bx;
-        end
-
-        STATE_CHIRP_START: begin
-          state <= STATE_WRITE_REGA;
-          snext <= STATE_CHIRP_STARTK;
-          ulpi_data_out_buf <= 8'h84;
-          reg_data <= 8'b0_1_0_10_1_00;
-        end
-        STATE_CHIRP_STARTK: begin
-          if (ulpi_nxt) begin
-            state <= STATE_CHIRPK;
-            ulpi_data_out_buf <= 8'h00;
-          end else begin
-            state <= STATE_CHIRP_STARTK;
-            ulpi_data_out_buf <= 8'h40;
-          end
-          snext <= 4'bx;
-          reg_data <= 8'bx;
-        end
-        STATE_CHIRPK: begin
-          if (state_counter > CHIRP_K_TIME) begin
-            state <= STATE_STP;
-            snext <= STATE_CHIRPKJ;
-          end else begin
-            state <= state;
-            snext <= 4'bx;
-          end
-          ulpi_data_out_buf <= 8'h00;
-          reg_data <= 8'bx;
-        end
-        STATE_CHIRPKJ: begin
-          if (chirp_kj_counter > 3 && state_counter > CHIRP_KJ_TIME) begin
-            state <= STATE_WRITE_REGA;
-            snext <= STATE_IDLE;
-            ulpi_data_out_buf <= 8'h84;
-            reg_data <= 8'b0_1_0_00_0_00;
-          end else begin
-            state <= state;
-            snext <= 4'bx;
-            ulpi_data_out_buf <= 8'h00;
-            reg_data <= 8'bx;
-          end
-        end
-
-        STATE_SWITCH_FSSTART: begin
-          state <= STATE_WRITE_REGA;
-          snext <= STATE_SWITCH_FS;
-          reg_data <= 8'b0_1_0_00_1_01;
-          ulpi_data_out_buf <= 8'h84;
-        end
-        STATE_SWITCH_FS: begin
-          if (state_counter > SWITCH_TIME) begin
-            if (usb_line_state == 2'b00 && HIGH_SPEED == 1) begin
-              state <= STATE_CHIRP_START;
-            end else begin
-              state <= STATE_IDLE;
-            end
-          end else begin
-            state <= state;
-          end
-          snext <= 4'bx;
-          ulpi_data_out_buf <= 8'h00;
-          reg_data <= 8'bx;
-        end
-      endcase
-    end
-  end
+      .phy_write_o(phy_set_w),
+      .phy_read_o (phy_get_w),
+      .phy_chirp_o(phy_chp_w),
+      .phy_stop_o (phy_stp_w),
+      .phy_busy_i (phy_bsy_w),
+      .phy_done_i (phy_ack_w),
+      .phy_addr_o (phy_adr_w),
+      .phy_data_o (phy_val_w)
+  );
 
 
 endmodule  // ulpi_encoder

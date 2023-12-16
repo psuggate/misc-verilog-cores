@@ -19,7 +19,6 @@ module usb_demo_top (
 
   parameter integer SERIAL_LENGTH = 8;
   parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001";
-  // localparam [63:0] SERIAL_NUMBER = "GULP0123";
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
@@ -34,7 +33,7 @@ module usb_demo_top (
   localparam FPGA_FAMILY = "gw2a";
 
   localparam HIGH_SPEED = 1'b1;
-  localparam ULPI_DDR_MODE = 0; // todo: '1' is way too fussy
+  localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
 
 
   input clk_26;
