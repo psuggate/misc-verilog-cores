@@ -5,18 +5,27 @@ module ulpi_line_state #(
     input clock,
     input reset,
 
+    // Raw FPGA IOB values from the ULPI PHY
+    input ulpi_dir,
+    input ulpi_nxt,
+    input [7:0] ulpi_data,
+
+    // USB-core status and control-signals
+    output high_speed_o,
+    output usb_reset_o,
+
+    // UTMI+ equivalent state-signals
     output [1:0] LineState,
     output [1:0] VbusState,
     output [1:0] RxEvent,
     // output [1:0] OpMode,
 
-    output high_speed_o,
-    output usb_reset_o,
+    // IOB-registered signals to the ULPI decoder
+    output iob_dir_o,
+    output iob_nxt_o,
+    output [7:0] iob_dat_o,
 
-    input ulpi_dir,
-    input ulpi_nxt,
-    input [7:0] ulpi_data,
-
+    // Signals for controlling the ULPI PHY
     output phy_write_o,
     output phy_nopid_o,
     output phy_stop_o,
@@ -33,13 +42,13 @@ module ulpi_line_state #(
   localparam integer RESET_TIME = 190;  // ~3 ms
   localparam integer CHIRP_K_TIME = 660;  // ~1 ms
   localparam integer CHIRP_KJ_TIME = 12;  // ~2 us
-  localparam integer SWITCH_TIME = 60;  // ~100 us 
+  localparam integer SWITCH_TIME = 60;  // ~100 us
 `else
   localparam integer SUSPEND_TIME = 190000;  // ~3 ms
   localparam integer RESET_TIME = 190000;  // ~3 ms
   localparam integer CHIRP_K_TIME = 66000;  // ~1 ms
   localparam integer CHIRP_KJ_TIME = 120;  // ~2 us
-  localparam integer SWITCH_TIME = 6000;  // ~100 us 
+  localparam integer SWITCH_TIME = 6000;  // ~100 us
 `endif
 
   localparam [3:0]
@@ -60,34 +69,47 @@ module ulpi_line_state #(
   // -- State & Signals -- //
 
   reg [3:0] xinit, xnext;
-  reg dir_q, set_q, stp_q;
+  reg dir_q, nxt_q, set_q, stp_q;
   reg [7:0] adr_q, val_q;
+  reg rx_cmd_q;
+  reg [7:0] dat_q;
 
   reg hs_mode_q, usb_rst_q;
 
 
   // -- Output Assignments -- //
 
-  assign phy_write_o  = set_q;
-  assign phy_nopid_o  = 1'b0;
-  assign phy_stop_o   = stp_q;
-  assign phy_addr_o   = adr_q;
-  assign phy_data_o   = val_q;
+  assign iob_dir_o = dir_q;
+  assign iob_nxt_o = nxt_q;
+  assign iob_dat_o = dat_q;
+
+  assign phy_write_o = set_q;
+  assign phy_nopid_o = 1'b0;
+  assign phy_stop_o = stp_q;
+  assign phy_addr_o = adr_q;
+  assign phy_data_o = val_q;
 
   assign high_speed_o = hs_mode_q;
-  assign usb_reset_o  = usb_rst_q;
+  assign usb_reset_o = usb_rst_q;
+
+
+  // -- IOB Registers -- //
+
+  always @(posedge clock) begin
+    dir_q <= ulpi_dir;
+    nxt_q <= ulpi_nxt;
+    dat_q <= ulpi_data;
+  end
 
 
   // -- USB Line State & PHY Events -- //
 
   wire [1:0] LineStateW, VbusStateW, RxEventW, OpModeW;
   reg [1:0] LineStateQ, VbusStateQ, RxEventQ, OpModeQ;
-  reg rx_cmd_q;
-  reg [7:0] rx_dat_q;
 
-  assign LineStateW = rx_dat_q[1:0];
-  assign VbusStateW = rx_dat_q[3:2];
-  assign RxEventW = rx_dat_q[5:4];
+  assign LineStateW = dat_q[1:0];
+  assign VbusStateW = dat_q[3:2];
+  assign RxEventW = dat_q[5:4];
 
   // Todo: Gross !?
   assign LineState = rx_cmd_q ? LineStateW : LineStateQ;
@@ -97,7 +119,6 @@ module ulpi_line_state #(
   // Pipeline the LineState changes, so that IOB registers can be used
   always @(posedge clock) begin
     rx_cmd_q <= dir_q && ulpi_dir && !ulpi_nxt;
-    rx_dat_q <= ulpi_data;
 
     if (rx_cmd_q) begin
       LineStateQ <= LineStateW;
@@ -174,10 +195,6 @@ module ulpi_line_state #(
 
 
   // -- USB & PHY Line States -- //
-
-  always @(posedge clock) begin
-    dir_q <= ulpi_dir;
-  end
 
   always @(posedge clock) begin
     if (reset || dir_q || ulpi_dir) begin

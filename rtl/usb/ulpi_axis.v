@@ -283,6 +283,9 @@ module ulpi_axis #(
   wire [1:0] LineState, VbusState, RxEvent;
   wire high_speed_w;
 
+  wire iob_dir_w, iob_nxt_w;
+  wire [7:0] iob_dat_w;
+
   ulpi_decoder U_DECODER1 (
       .clock(ulpi_clock_i),
       .reset(~areset_n),
@@ -291,9 +294,12 @@ module ulpi_axis #(
       .VbusState(VbusState),
       .RxEvent  (RxEvent),
 
-      .ulpi_dir (ulpi_dir_i),
-      .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_data(ulpi_data_io),
+      .ibuf_dir(ulpi_dir_i),
+      .ibuf_nxt(ulpi_nxt_i),
+
+      .ulpi_dir (iob_dir_w),
+      .ulpi_nxt (iob_nxt_w),
+      .ulpi_data(iob_dat_w),
 
       .crc_error_o(),
       .crc_valid_o(),
@@ -318,6 +324,10 @@ module ulpi_axis #(
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
       .ulpi_data(ulpi_data_io),
+
+      .iob_dir_o(iob_dir_w),
+      .iob_nxt_o(iob_nxt_w),
+      .iob_dat_o(iob_dat_w),
 
       .high_speed_o(high_speed_w),
       .usb_reset_o (),

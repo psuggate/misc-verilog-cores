@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Dec 15 12:11:10 2023
+[*] Sat Dec 16 09:51:53 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Fri Dec 15 10:55:01 2023"
-[dumpfile_size] 190324
+[dumpfile_mtime] "Sat Dec 16 09:47:05 2023"
+[dumpfile_size] 212906
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 854300
 [size] 2560 1376
 [pos] -1 -1
-*-16.753487 1940000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.753487 1085000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -434,11 +434,6 @@ U_ULPI_USB0.U_DECODER1.tok_addr_o[6:0]
 U_ULPI_USB0.U_DECODER1.tok_endp_o[3:0]
 @800200
 -IOB
-@28
-U_ULPI_USB0.U_DECODER1.dir_iob
-U_ULPI_USB0.U_DECODER1.nxt_iob
-@22
-U_ULPI_USB0.U_DECODER1.dat_iob[7:0]
 @1000200
 -IOB
 @28

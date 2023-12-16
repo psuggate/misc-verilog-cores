@@ -3,11 +3,19 @@ module ulpi_encoder (
     input clock,
     input reset,
 
-    output ulpi_enabled_o,
-    output high_speed_o,
-    output usb_reset_o,
+    input high_speed_i,
 
-    // input [1:0] LineState,
+    input [1:0] LineState,
+    input [1:0] VbusState,
+
+    // Signals for controlling the ULPI PHY
+    input phy_write_i,
+    input phy_nopid_i,
+    input phy_stop_i,
+    output phy_busy_o,
+    output phy_done_o,
+    input [7:0] phy_addr_i,
+    input [7:0] phy_data_i,
 
     input s_tvalid,
     output s_tready,
@@ -40,22 +48,30 @@ module ulpi_encoder (
   // -- Signals & State -- //
 
   reg [7:0] xsend;
-  wire HighSpeed;
-
-  wire [1:0] LineState, VbusState, RxEvent;
-
-  // Signals for sending initialisation commands & settings to the PHY.
-  reg phy_done_q, stp_q;
-  wire phy_write_w, phy_stop_w, phy_chirp_w, phy_busy_w;
-  wire [7:0] phy_addr_w, phy_data_w;
 
   // Transmit datapath MUX signals
   wire [1:0] mux_sel_w;
   wire ulpi_stp_w;
   wire [7:0] usb_pid_w, usb_dat_w, axi_dat_w, crc_dat_w, phy_dat_w, ulpi_dat_w;
 
+  reg tvalid, tlast;
+  reg [7:0] tdata;
+  wire tvalid_w;
   wire tlast_w = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
   wire [7:0] tdata_w = tvalid ? tdata : s_tdata;
+
+
+  // -- ULPI Initialisation FSM -- //
+
+  // Signals for sending initialisation commands & settings to the PHY.
+  reg phy_done_q, stp_q;
+
+  assign phy_busy_o = xsend != TX_IDLE;
+  assign phy_done_o = phy_done_q;
+
+  always @(posedge clock) begin
+    phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
+  end
 
 
   // -- ULPI Data-Out MUX -- //
@@ -70,10 +86,10 @@ module ulpi_encoder (
   assign crc_dat_w = xsend == TX_CRC0 ? crc16_nw[15:8] : crc16_nw[7:0];
 
   // 2:1 MUX for request-data to the PHY
-  assign phy_dat_w = phy_chirp_w ? 8'h40 : xsend == TX_REGW ? phy_data_w : phy_addr_w;
+  assign phy_dat_w = phy_nopid_i ? 8'h40 : xsend == TX_REGW ? phy_data_i : phy_addr_i;
 
   // Determine the data-source for the 4:1 MUX
-  assign mux_sel_w = xsend == TX_IDLE ? (phy_write_w || phy_chirp_w ? 2'd2 :
+  assign mux_sel_w = xsend == TX_IDLE ? (phy_write_i || phy_nopid_i ? 2'd2 :
                                          tvalid_w ? 2'd1 : 2'd3) :
                      xsend == TX_DATA || xsend == TX_LAST ? 2'd0 :
                      xsend == TX_REGW ? 2'd2 :
@@ -114,7 +130,7 @@ module ulpi_encoder (
           xsend  <= phy_cmd_w ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
 
           // Upstream TREADY signal
-          rdy_q  <= phy_cmd_w || s_tvalid ? 1'b0 : HighSpeed;
+          rdy_q  <= phy_cmd_w || s_tvalid ? 1'b0 : high_speed_i;
 
           // Latch the first byte (using temp. reg.)
           // todo: move to dedicated AXI datapath
@@ -175,42 +191,6 @@ module ulpi_encoder (
       endcase
     end
   end
-
-
-  // -- ULPI Initialisation FSM -- //
-
-  assign phy_busy_w = xsend != TX_IDLE;
-
-  always @(posedge clock) begin
-    phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
-  end
-
-
-  ulpi_line_state #(
-      .HIGH_SPEED(1)
-  ) U_ULPI_LS0 (
-      .clock(clock),
-      .reset(reset),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ulpi_dir (ulpi_dir),
-      .ulpi_nxt (ulpi_nxt),
-      .ulpi_data(ulpi_data),
-
-      .high_speed_o(high_speed_o),
-      .usb_reset_o (usb_reset_o),
-
-      .phy_write_o(phy_write_w),
-      .phy_nopid_o(phy_chirp_w),
-      .phy_stop_o (phy_stop_w),
-      .phy_busy_i (phy_busy_w),
-      .phy_done_i (phy_done_q),
-      .phy_addr_o (phy_addr_w),
-      .phy_data_o (phy_data_w)
-  );
 
 
 endmodule  // ulpi_encoder

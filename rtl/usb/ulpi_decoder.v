@@ -3,6 +3,11 @@ module ulpi_decoder (
     input clock,
     input reset,
 
+    // Raw ULPI IOB inputs
+    input ibuf_dir,
+    input ibuf_nxt,
+
+    // Registered ULPI IOB inputs
     input ulpi_dir,
     input ulpi_nxt,
     input [7:0] ulpi_data,
@@ -62,10 +67,6 @@ module ulpi_decoder (
   // State register
   reg [4:0] xrecv;
 
-  // IOB registers
-  reg dir_iob, nxt_iob;
-  reg [7:0] dat_iob;
-
   // Output datapath registers
   reg rx_tvalid, rx_tlast;
   reg [7:0] rx_tdata;
@@ -108,24 +109,17 @@ module ulpi_decoder (
   assign m_tlast = xrecv == RX_LAST;
 
 
-  // -- IOB Registers -- //
-
-  always @(posedge clock) begin
-    dir_iob <= ulpi_dir;
-    nxt_iob <= ulpi_nxt;  // note: can't be an IOB register (due to Tx. reqs)
-    dat_iob <= ulpi_data;
-  end
-
-
   // -- Capture Incoming USB Packets -- //
 
+  wire rx_cmd_w = ulpi_dir && ibuf_dir && !ibuf_nxt;
+
   always @(posedge clock) begin
-    dir_q <= dir_iob;
+    dir_q <= ulpi_dir;
   end
 
   // This signal goes high if 'RxActive' de-asserts during packet Rx
-  assign eop_w = dir_iob && dat_iob[5:4] != RxActive || !dir_iob;
-  assign end_w = dir_q && (cyc_q && !nxt_iob && dir_iob && dat_iob[5:4] != RxActive || !dir_iob);
+  assign eop_w = ulpi_dir && ulpi_data[5:4] != RxActive || !ulpi_dir;
+  assign end_w = dir_q && (cyc_q && !ulpi_nxt && ulpi_dir && ulpi_data[5:4] != RxActive || !ulpi_dir);
 
   always @(posedge clock) begin
     if (reset) begin
@@ -136,9 +130,9 @@ module ulpi_decoder (
       rx_tlast <= 1'bx;
       rx_tdata <= 8'bx;
     end else begin
-      if (dir_q && dir_iob && nxt_iob) begin
+      if (dir_q && ulpi_dir && ulpi_nxt) begin
         cyc_q <= 1'b1;
-        dat_q <= dat_iob;
+        dat_q <= ulpi_data;
 
         if (!cyc_q) begin
           rx_tvalid <= 1'b0;
@@ -168,9 +162,9 @@ module ulpi_decoder (
   // -- USB PID Parser -- //
 
   assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN || rx_pid_pw == {SPC_PING, PID_SPECIAL};
-  assign pid_vld_w = dir_iob && nxt_iob && dir_q && rx_pid_pw == rx_pid_nw;
-  assign rx_pid_pw = dat_iob[3:0];
-  assign rx_pid_nw = ~dat_iob[7:4];
+  assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_pw == rx_pid_nw;
+  assign rx_pid_pw = ulpi_data[3:0];
+  assign rx_pid_nw = ~ulpi_data[7:4];
 
   always @(posedge clock) begin
     if (reset) begin
@@ -188,7 +182,7 @@ module ulpi_decoder (
   // -- Early CRC16 calculation -- //
 
   assign rx_crc5_w = crc5(token_data);
-  assign crc16_w   = crc16(dat_iob, crc16_q);
+  assign crc16_w   = crc16(ulpi_data, crc16_q);
 
   // Note: these data are also used for the USB device address & endpoint
   always @(posedge clock) begin
@@ -198,10 +192,10 @@ module ulpi_decoder (
     end else if (end_w) begin
       tok_q <= 1'b0;
       low_q <= 1'bx;
-    end else if (tok_q && nxt_iob) begin
-      token_data[7:0] <= low_q ? dat_iob : token_data[7:0];
-      token_data[10:8] <= low_q ? token_data[10:8] : dat_iob[2:0];
-      token_crc5 <= low_q ? token_crc5 : dat_iob[7:3];
+    end else if (tok_q && ulpi_nxt) begin
+      token_data[7:0] <= low_q ? ulpi_data : token_data[7:0];
+      token_data[10:8] <= low_q ? token_data[10:8] : ulpi_data[2:0];
+      token_crc5 <= low_q ? token_crc5 : ulpi_data[7:3];
       low_q <= ~low_q;
     end else begin
       token_data <= token_data;
@@ -213,7 +207,7 @@ module ulpi_decoder (
   always @(posedge clock) begin
     if (!cyc_q) begin
       crc16_q <= 16'hffff;
-    end else if (cyc_q && nxt_iob) begin
+    end else if (cyc_q && ulpi_nxt) begin
       crc16_q <= crc16_w;
     end else begin
       crc16_q <= crc16_q;
