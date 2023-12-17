@@ -96,7 +96,7 @@ module encode_packet #(
   assign tx_tlast_o   = tlast;
   assign tx_tdata_o   = tdata;
 
-  assign dat_done_o  = done_q;
+  assign dat_done_o   = done_q;
   assign trn_tready_o = uready;
 
 
@@ -329,7 +329,7 @@ module encode_packet #(
 
   // -- Simulation Only -- //
 
-  `ifdef __icarus
+`ifdef __icarus
 
   always @(posedge clock) begin
     if (reset) begin
@@ -340,7 +340,7 @@ module encode_packet #(
     end
   end
 
-  `endif
+`endif
 
 
 endmodule  // encode_packet

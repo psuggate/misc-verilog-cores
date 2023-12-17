@@ -68,7 +68,8 @@ module ulpi_decoder (
   reg [4:0] xrecv;
 
   // Output datapath registers
-  reg rx_tvalid, rx_tlast;
+  reg rx_tvalid, rx_tkeep, rx_tlast;
+  reg [3:0] rx_tuser;
   reg [7:0] rx_tdata;
 
   // ULPI parser signals
@@ -111,7 +112,11 @@ module ulpi_decoder (
 
   // -- Capture Incoming USB Packets -- //
 
+  reg pid_q;
   wire rx_cmd_w = ulpi_dir && ibuf_dir && !ibuf_nxt;
+  wire rx_end_w =
+       ibuf_dir && ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive ||
+       !ibuf_dir && ulpi_dir;
 
   always @(posedge clock) begin
     dir_q <= ulpi_dir;
@@ -119,40 +124,63 @@ module ulpi_decoder (
 
   // This signal goes high if 'RxActive' de-asserts during packet Rx
   assign eop_w = ulpi_dir && ulpi_data[5:4] != RxActive || !ulpi_dir;
-  assign end_w = dir_q && (cyc_q && !ulpi_nxt && ulpi_dir && ulpi_data[5:4] != RxActive || !ulpi_dir);
+  assign end_w = dir_q && cyc_q && (!ulpi_nxt && ulpi_dir && ulpi_data[5:4] != RxActive || !ulpi_dir);
 
   always @(posedge clock) begin
     if (reset) begin
       cyc_q <= 1'b0;
+      pid_q <= 1'b0;
       dat_q <= 8'bx;
 
       rx_tvalid <= 1'b0;
+      rx_tkeep <= 1'bx;
       rx_tlast <= 1'bx;
-      rx_tdata <= 8'bx;
+      rx_tuser <= 4'hx;
+      rx_tdata <= 8'hx;
     end else begin
-      if (dir_q && ulpi_dir && ulpi_nxt) begin
+      if (cyc_q && rx_end_w) begin
+        cyc_q <= 1'b0;
+        pid_q <= 1'b0;
+        dat_q <= 8'bx;
+
+        rx_tvalid <= 1'b1;
+        rx_tkeep  <= 1'b0;
+        rx_tlast  <= 1'b1;
+        rx_tuser  <= 4'hx;
+        rx_tdata  <= 8'bx;
+      end else if (dir_q && ulpi_dir && ulpi_nxt) begin
         cyc_q <= 1'b1;
+        pid_q <= cyc_q;
         dat_q <= ulpi_data;
+
+        rx_tuser <= cyc_q && !pid_q ? dat_q[3:0] : rx_tuser;
 
         if (!cyc_q) begin
           rx_tvalid <= 1'b0;
+          rx_tkeep  <= 1'bx;
           rx_tlast  <= 1'bx;
           rx_tdata  <= 8'bx;
         end else begin
           rx_tvalid <= 1'b1;
+          rx_tkeep  <= pid_q;
           rx_tlast  <= 1'b0;
           rx_tdata  <= dat_q;
         end
       end else if (cyc_q && dir_q && eop_w) begin
         cyc_q <= 1'b0;
+        pid_q <= 1'b0;
         dat_q <= 8'bx;
 
         rx_tvalid <= 1'b1;
+        rx_tkeep <= 1'b0;
         rx_tlast <= 1'b1;
+        rx_tuser <= rx_tuser;
         rx_tdata <= dat_q;
       end else begin
         rx_tvalid <= 1'b0;
+        rx_tkeep  <= 1'b0;
         rx_tlast  <= 1'b0;
+        rx_tuser  <= rx_tuser;
         rx_tdata  <= 8'bx;
       end
     end
@@ -181,7 +209,8 @@ module ulpi_decoder (
 
   // -- Early CRC16 calculation -- //
 
-  assign rx_crc5_w = crc5(token_data);
+  // assign rx_crc5_w = crc5(token_data);
+  assign rx_crc5_w = crc5({ulpi_data[2:0], token_data[7:0]});
   assign crc16_w   = crc16(ulpi_data, crc16_q);
 
   // Note: these data are also used for the USB device address & endpoint
@@ -189,14 +218,15 @@ module ulpi_decoder (
     if (!cyc_q && pid_vld_w && istoken_w) begin
       tok_q <= 1'b1;
       low_q <= 1'b1;
-    end else if (end_w) begin
-      tok_q <= 1'b0;
-      low_q <= 1'bx;
     end else if (tok_q && ulpi_nxt) begin
       token_data[7:0] <= low_q ? ulpi_data : token_data[7:0];
       token_data[10:8] <= low_q ? token_data[10:8] : ulpi_data[2:0];
       token_crc5 <= low_q ? token_crc5 : ulpi_data[7:3];
       low_q <= ~low_q;
+      tok_q <= ~rx_end_w;
+    end else if (rx_end_w) begin
+      tok_q <= 1'b0;
+      low_q <= 1'bx;
     end else begin
       token_data <= token_data;
       token_crc5 <= token_crc5;
@@ -218,12 +248,14 @@ module ulpi_decoder (
     if (reset) begin
       crc_error_flag <= 1'b0;
       crc_valid_flag <= 1'b0;
-    end else if (xrecv == RX_XPID && tok_q && end_w) begin
-      crc_error_flag <= rx_crc5_w != token_crc5;
-      crc_valid_flag <= rx_crc5_w == token_crc5;
-    end else if ((xrecv == RX_XPID || xrecv == RX_DATA) && end_w) begin
-      crc_error_flag <= crc16_q != 16'h800d;
-      crc_valid_flag <= crc16_q == 16'h800d;
+    // end else if (xrecv == RX_XPID && tok_q && end_w) begin
+    end else if (tok_q && cyc_q && rx_end_w) begin
+      crc_error_flag <= rx_crc5_w != ulpi_data[7:3]; // token_crc5;
+      crc_valid_flag <= rx_crc5_w == ulpi_data[7:3]; // token_crc5;
+    // end else if ((xrecv == RX_XPID || xrecv == RX_DATA) && end_w) begin
+    end else if (!tok_q && cyc_q && rx_end_w) begin
+      crc_error_flag <= crc16_w != 16'h800d;
+      crc_valid_flag <= crc16_w == 16'h800d;
     end else begin
       crc_valid_flag <= 1'b0;
     end

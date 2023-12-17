@@ -276,8 +276,7 @@ module ulpi_axis #(
 
 
   // Signals for sending initialisation commands & settings to the PHY.
-  reg phy_done_q, stp_q;
-  wire phy_write_w, phy_stop_w, phy_chirp_w, phy_busy_w;
+  wire phy_write_w, phy_stop_w, phy_chirp_w, phy_busy_w, phy_done_w;
   wire [7:0] phy_addr_w, phy_data_w;
 
   wire [1:0] LineState, VbusState, RxEvent;
@@ -287,8 +286,9 @@ module ulpi_axis #(
   wire [7:0] iob_dat_w;
 
   ulpi_decoder U_DECODER1 (
-      .clock(ulpi_clock_i),
+      .clock(clock),
       .reset(~areset_n),
+      // .reset(reset),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -304,6 +304,9 @@ module ulpi_axis #(
       .crc_error_o(),
       .crc_valid_o(),
 
+      .tok_addr_o(),
+      .tok_endp_o(),
+
       .m_tvalid(),
       .m_tready(1'b1),
       .m_tkeep (),
@@ -315,7 +318,7 @@ module ulpi_axis #(
       .HIGH_SPEED(1)
   ) U_ULPI_LS0 (
       .clock(clock),
-      .reset(reset),
+      .reset(~areset_n),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -336,9 +339,40 @@ module ulpi_axis #(
       .phy_nopid_o(phy_chirp_w),
       .phy_stop_o (phy_stop_w),
       .phy_busy_i (phy_busy_w),
-      .phy_done_i (phy_done_q),
+      .phy_done_i (phy_done_w),
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w)
+  );
+
+  ulpi_encoder U_ENCODER1 (
+      .clock(clock),
+      .reset(reset),
+
+      .high_speed_i(high_speed_w),
+
+      .LineState(LineState),
+      .VbusState(VbusState),
+
+      // Signals for controlling the ULPI PHY
+      .phy_write_i(phy_write_w),
+      .phy_nopid_i(phy_chirp_w),
+      .phy_stop_i (phy_stop_w),
+      .phy_busy_o (phy_busy_w),
+      .phy_done_o (phy_done_w),
+      .phy_addr_i (phy_addr_w),
+      .phy_data_i (phy_data_w),
+
+      .s_tvalid(1'b0),
+      .s_tready(),
+      .s_tkeep (1'b0),
+      .s_tlast (1'b0),
+      .s_tuser (4'h0),
+      .s_tdata (8'hx),
+
+      .ulpi_dir (ulpi_dir_i),
+      .ulpi_nxt (ulpi_nxt_i),
+      .ulpi_stp (),
+      .ulpi_data()
   );
 
 

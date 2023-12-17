@@ -26,11 +26,18 @@ module ulpi_encoder (
 
     input ulpi_dir,
     input ulpi_nxt,
-    output ulpi_stp,
-    output [7:0] ulpi_data
+    output reg ulpi_stp,
+    output reg [7:0] ulpi_data
 );
 
+  // -- Definitions -- //
+
   `include "usb_crc.vh"
+
+  function src_ready(input svalid, input tvalid, input dvalid, input dready);
+    src_ready = dready || !(tvalid || (dvalid && svalid));
+  endfunction
+
 
   // -- Constants -- //
 
@@ -44,10 +51,13 @@ module ulpi_encoder (
   localparam [7:0] TX_REGW = 8'h40;
   localparam [7:0] TX_WAIT = 8'h80;
 
+  localparam [1:0] LS_EOP = 2'b00;
+
 
   // -- Signals & State -- //
 
   reg [7:0] xsend;
+  reg dir_q, rdy_q;
 
   // Transmit datapath MUX signals
   wire [1:0] mux_sel_w;
@@ -61,6 +71,12 @@ module ulpi_encoder (
   wire [7:0] tdata_w = tvalid ? tdata : s_tdata;
 
 
+  reg dvalid;
+  wire sready_next;
+
+  assign sready_next = src_ready(s_tvalid, tvalid, dvalid, ulpi_nxt);
+
+
   // -- ULPI Initialisation FSM -- //
 
   // Signals for sending initialisation commands & settings to the PHY.
@@ -71,6 +87,27 @@ module ulpi_encoder (
 
   always @(posedge clock) begin
     phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
+  end
+
+
+  // -- Tx data CRC Calculation -- //
+
+  reg  [15:0] crc16_q;
+  wire [15:0] crc16_nw;
+
+  genvar ii;
+  generate
+    for (ii = 0; ii < 16; ii++) begin : g_crc16_revneg
+      assign crc16_nw[ii] = ~crc16_q[15-ii];
+    end  // g_crc16_revneg
+  endgenerate
+
+  always @(posedge clock) begin
+    if (TX_IDLE) begin
+      crc16_q <= 16'hffff;
+    end else if (s_tvalid && s_tready) begin
+      crc16_q <= crc16(s_tdata, crc16_q);
+    end
   end
 
 
@@ -118,6 +155,10 @@ module ulpi_encoder (
     end
   end
 
+  always @(posedge clock) begin
+    dir_q <= ulpi_dir;
+  end
+
 
   // -- ULPI Encoder FSM -- //
 
@@ -127,10 +168,10 @@ module ulpi_encoder (
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
-          xsend  <= phy_cmd_w ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
+          xsend  <= phy_write_i ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
 
           // Upstream TREADY signal
-          rdy_q  <= phy_cmd_w || s_tvalid ? 1'b0 : high_speed_i;
+          rdy_q  <= phy_write_i || phy_nopid_i || s_tvalid ? 1'b0 : high_speed_i;
 
           // Latch the first byte (using temp. reg.)
           // todo: move to dedicated AXI datapath

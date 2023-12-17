@@ -264,9 +264,9 @@ module transactor #(
         if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK) begin
           odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
         end else if (xctrl == CTL_STATUS_ACK) begin
-          odds_q[tok_endp_i] <= 1'b0; // Status is always '1'
+          odds_q[tok_endp_i] <= 1'b0;  // Status is always '1'
         end else if (xctrl == CTL_SETUP_ACK) begin
-          odds_q[tok_endp_i] <= 1'b1; // Setup is always '0'
+          odds_q[tok_endp_i] <= 1'b1;  // Setup is always '0'
         end
 
       end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
@@ -489,7 +489,7 @@ module transactor #(
       xbulk <= BLK_IDLE;
     end else begin
       case (xbulk)
-        default: begin // BLK_IDLE
+        default: begin  // BLK_IDLE
           // If the main FSM has found a relevant token, start a Bulk Transfer
           if (state == ST_BULK) begin
             if (tok_type_i == TOK_IN) begin
