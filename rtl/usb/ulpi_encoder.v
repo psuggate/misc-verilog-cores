@@ -26,7 +26,7 @@ module ulpi_encoder (
 
     input ulpi_dir,
     input ulpi_nxt,
-    output reg ulpi_stp,
+    output ulpi_stp,
     output reg [7:0] ulpi_data
 );
 
@@ -70,6 +70,7 @@ module ulpi_encoder (
   wire tlast_w = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
   wire [7:0] tdata_w = tvalid ? tdata : s_tdata;
 
+  assign tvalid_w = 1'b0;
 
   reg dvalid;
   wire sready_next;
@@ -84,6 +85,8 @@ module ulpi_encoder (
 
   assign phy_busy_o = xsend != TX_IDLE;
   assign phy_done_o = phy_done_q;
+
+  assign ulpi_stp = stp_q;
 
   always @(posedge clock) begin
     phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
@@ -133,25 +136,23 @@ module ulpi_encoder (
                      xsend == TX_CRC0 ? 2'd1 : 2'd3;
 
   mux4to1 #(
-      .WIDTH(9)
+      .WIDTH(8)
   ) U_DMUX0 (
       .S(mux_sel_w),
-      .O({ulpi_stp_w, ulpi_dat_w}),
+      .O(ulpi_dat_w),
 
-      .I0({1'b0, axi_dat_w}),
-      .I1({1'b0, crc_dat_w}),
-      .I2({1'b0, phy_dat_w}),
-      .I3({stp_q, usb_dat_w})  // NOP (or STOP)
+      .I0(axi_dat_w),
+      .I1(crc_dat_w),
+      .I2(phy_dat_w),
+      .I3(usb_dat_w)  // NOP (or STOP)
   );
 
 
   always @(posedge clock) begin
     if (reset) begin
       ulpi_data <= 8'd0;
-      ulpi_stp  <= 1'b0;
     end else begin
       ulpi_data <= ulpi_dat_w;
-      ulpi_stp  <= ulpi_stp_w;
     end
   end
 
@@ -169,6 +170,7 @@ module ulpi_encoder (
       case (xsend)
         default: begin  // TX_IDLE
           xsend  <= phy_write_i ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
+          stp_q  <= 1'b0;
 
           // Upstream TREADY signal
           rdy_q  <= phy_write_i || phy_nopid_i || s_tvalid ? 1'b0 : high_speed_i;
@@ -226,12 +228,36 @@ module ulpi_encoder (
         TX_WAIT: begin
           // Wait for the PHY to accept a 'ulpi_data' value
           xsend <= ulpi_nxt ? TX_IDLE : xsend;
+          stp_q <= ulpi_nxt ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
 
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [39:0] dbg_xsend;
+
+  always @* begin
+    case (xsend)
+      TX_IDLE: dbg_xsend = "IDLE";
+      TX_XPID: dbg_xsend = "XPID";
+      TX_DATA: dbg_xsend = "DATA";
+      TX_CRC0: dbg_xsend = "CRC0";
+      TX_LAST: dbg_xsend = "LAST";
+      TX_DONE: dbg_xsend = "DONE";
+      TX_REGW: dbg_xsend = "REGW";
+      TX_WAIT: dbg_xsend = "WAIT";
+      default: dbg_xsend = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // ulpi_encoder

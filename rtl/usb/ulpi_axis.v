@@ -344,9 +344,12 @@ module ulpi_axis #(
       .phy_data_o (phy_data_w)
   );
 
+  wire new_stp;
+  wire [7:0] new_data;
+
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
-      .reset(reset),
+      .reset(~areset_n),
 
       .high_speed_i(high_speed_w),
 
@@ -371,8 +374,8 @@ module ulpi_axis #(
 
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (),
-      .ulpi_data()
+      .ulpi_stp (new_stp),
+      .ulpi_data(new_data)
   );
 
 

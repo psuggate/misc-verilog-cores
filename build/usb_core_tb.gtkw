@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Dec 17 10:28:25 2023
+[*] Mon Dec 18 08:36:12 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Dec 17 10:27:30 2023"
-[dumpfile_size] 233031
+[dumpfile_mtime] "Mon Dec 18 07:49:50 2023"
+[dumpfile_size] 236255
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 499400
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.753487 970000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.753487 50000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -421,7 +421,7 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 -Control
 @1000200
 -Device
-@800200
+@c00200
 -ULPI_Dec
 @28
 [color] 3
@@ -442,26 +442,20 @@ U_ULPI_USB0.U_DECODER1.pid_vld_w
 U_ULPI_USB0.U_DECODER1.cyc_q
 U_ULPI_USB0.U_DECODER1.pid_q
 [color] 3
-U_ULPI_USB0.U_DECODER1.end_w
 U_ULPI_USB0.U_DECODER1.tok_q
 U_ULPI_USB0.U_DECODER1.hsk_q
 @22
 U_ULPI_USB0.U_DECODER1.dat_q[7:0]
-[color] 7
-U_ULPI_USB0.U_DECODER1.xrecv[4:0]
 [color] 2
 U_ULPI_USB0.U_DECODER1.crc16_q[15:0]
 @28
-U_ULPI_USB0.U_DECODER1.rx_cmd_w
 [color] 3
 U_ULPI_USB0.U_DECODER1.rx_end_w
 @800200
 -Out
 @28
 U_ULPI_USB0.U_DECODER1.rx_tvalid
-@29
 U_ULPI_USB0.U_DECODER1.rx_tkeep
-@28
 U_ULPI_USB0.U_DECODER1.rx_tlast
 @22
 U_ULPI_USB0.U_DECODER1.rx_tdata[7:0]
@@ -480,9 +474,31 @@ U_ULPI_USB0.U_DECODER1.m_tdata[7:0]
 -AXIS Master
 @22
 U_ULPI_USB0.U_DECODER1.token_data[10:0]
-U_ULPI_USB0.U_DECODER1.token_crc5[4:0]
 U_ULPI_USB0.U_DECODER1.rx_crc5_w[4:0]
-@1000200
+@1401200
 -ULPI_Dec
+@28
+U_ULPI_USB0.new_stp
+@22
+U_ULPI_USB0.new_data[7:0]
+@28
+U_ULPI_USB0.U_ENCODER1.LineState[1:0]
+U_ULPI_USB0.U_ENCODER1.VbusState[1:0]
+@22
+U_ULPI_USB0.U_ENCODER1.xsend[7:0]
+@820
+[color] 7
+U_ULPI_USB0.U_ENCODER1.dbg_xsend[39:0]
+@29
+U_ULPI_USB0.U_ENCODER1.mux_sel_w[1:0]
+@28
+U_ULPI_USB0.phy_write_w
+U_ULPI_USB0.phy_chirp_w
+U_ULPI_USB0.phy_stop_w
+U_ULPI_USB0.phy_busy_w
+U_ULPI_USB0.phy_done_w
+@22
+U_ULPI_USB0.phy_addr_w[7:0]
+U_ULPI_USB0.phy_data_w[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -53,6 +53,7 @@ module ulpi_line_state #(
 
   localparam [3:0]
 	LX_INIT = 4'h0,
+	LX_WAIT = 4'hf,
 	LX_WRITE_REG = 4'h1,
 	LX_RESET = 4'h2,
 	LX_SUSPEND = 4'h3,
@@ -120,6 +121,11 @@ module ulpi_line_state #(
   always @(posedge clock) begin
     rx_cmd_q <= dir_q && ulpi_dir && !ulpi_nxt;
 
+    if (reset) begin
+      LineStateQ <= 2'b00;
+      VbusStateQ <= 2'b00;
+      RxEventQ   <= 2'b00;
+    end else
     if (rx_cmd_q) begin
       LineStateQ <= LineStateW;
       VbusStateQ <= VbusStateW;
@@ -142,7 +148,7 @@ module ulpi_line_state #(
   assign ls_changed = rx_cmd_q && (LineStateW != LineStateQ);
 
   always @(posedge clock) begin
-    if (xinit != LX_CHIRPKJ) begin
+    if (reset || xinit != LX_CHIRPKJ) begin
       kj_count <= 3'd0;
     end else if (xinit == LX_CHIRPKJ && LineStateW == 2'b01 && ls_changed) begin
       kj_count <= kj_cnext;
@@ -150,7 +156,7 @@ module ulpi_line_state #(
       kj_count <= kj_count;
     end
 
-    if (xinit == LX_CHIRP_STARTK || xinit == LX_SWITCH_FSSTART || ls_changed) begin
+    if (reset || xinit == LX_CHIRP_STARTK || xinit == LX_SWITCH_FSSTART || ls_changed) begin
       st_count <= 18'd0;
     end else begin
       st_count <= st_cnext;
@@ -159,10 +165,14 @@ module ulpi_line_state #(
 
   // Issuer of PHY STOP commands at the end of chirping //
   always @(posedge clock) begin
-    if (xinit == LX_CHIRPK && !phy_busy_i && st_count > CHIRP_K_TIME) begin
-      stp_q <= 1'b1;
-    end else if (phy_busy_i) begin
+    if (reset) begin
       stp_q <= 1'b0;
+    end else begin
+      if (xinit == LX_CHIRPK && !phy_busy_i && st_count > CHIRP_K_TIME) begin
+        stp_q <= 1'b1;
+      end else if (phy_busy_i) begin
+        stp_q <= 1'b0;
+      end
     end
   end
 
@@ -204,6 +214,12 @@ module ulpi_line_state #(
         // De-assert request after ACK
         LX_WRITE_REG: begin
           if (phy_busy_i) begin
+            {set_q, adr_q, val_q} <= {1'b0, adr_q, val_q};
+          end
+        end
+
+        LX_WAIT: begin
+          if (phy_done_i) begin
             {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
           end
         end
@@ -261,11 +277,17 @@ module ulpi_line_state #(
         end
 
         LX_WRITE_REG: begin
-          {xinit, xnext} <= phy_busy_i ? {xnext, 4'hx} : {xinit, xnext};
+          // {xinit, xnext} <= phy_busy_i ? {xnext, 4'hx} : {xinit, xnext};
+          xinit <= phy_busy_i ? LX_WAIT : xinit;
+          xnext <= xnext;
           // if (phy_done_i) begin
           //   xinit <= xnext;
           //   xnext <= 4'hx;
           // end
+        end
+
+        LX_WAIT: begin
+          {xinit, xnext} <= phy_done_i ? {xnext, 4'hx} : {xinit, xnext};
         end
 
         LX_RESET: begin
