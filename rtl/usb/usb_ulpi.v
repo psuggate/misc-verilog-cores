@@ -159,6 +159,9 @@ module usb_ulpi #(
   // -- Chirping & 'LineState' -- //
 
   always @(posedge ulpi_clk) begin
+    if (!rst_n) begin
+      usb_line_state <= 2'b00;
+    end else begin
     if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
       if (state == STATE_CHIRPKJ) begin
         if (ulpi_data_in[1:0] == 2'b01) begin
@@ -176,6 +179,7 @@ module usb_ulpi #(
     end else begin
       state_counter <= state_counter + 1;
     end
+  end
   end
 
 
@@ -328,155 +332,6 @@ module usb_ulpi #(
       end
     end
   end
-
-  /*
-  localparam [3:0] RX_IDLE = 4'b0001;
-  localparam [3:0] RX_TURN = 4'b0010;
-  localparam [3:0] RX_RECV = 4'b0100;
-  localparam [3:0] RX_DONE = 4'b1000;
-
-  reg vld_q;
-  reg [3:0] xrecv;
-
-  always @(posedge ulpi_clk) begin
-    if (!rst_n) begin
-      vld_q     <= 1'b0;
-      dat_q     <= 'bx;
-      xrecv     <= RX_IDLE;
-
-      rx_tvalid <= 1'b0;
-      rx_tlast  <= 1'b0;
-      rx_tdata  <= 'bx;
-    end else begin
-      case (xrecv)
-        RX_IDLE: begin
-          vld_q     <= 1'b0;
-          dat_q     <= 'bx;
-
-          rx_tvalid <= 1'b0;
-          rx_tlast  <= 1'b0;
-          rx_tdata  <= 'bx;
-
-          if (!dir_q && ulpi_dir && ulpi_nxt) begin
-            xrecv <= RX_TURN;  // Bus turnaround, followed by RECV
-          end else if (dir_q && ulpi_dir && !ulpi_nxt && ulpi_data_in[5:4] == 2'b01) begin
-            xrecv <= RX_TURN;  // 'RxActive' event signalled
-          end
-        end
-
-        RX_TURN: begin
-          // Bus-turnaround (if required) and loads the PID
-          if (ulpi_dir && ulpi_nxt) begin
-            vld_q <= 1'b1;
-            dat_q <= ulpi_data_in;
-            xrecv <= RX_RECV;
-          end else if (eop_w) begin
-            vld_q <= 1'b0;
-            dat_q <= 'bx;
-            xrecv <= RX_IDLE;
-          end
-
-          rx_tvalid <= 1'b0;
-          rx_tlast  <= 1'b0;
-          rx_tdata  <= 'bx;
-        end
-
-        RX_RECV: begin
-          if (ulpi_dir && ulpi_nxt) begin
-            // Have valid data, and received another byte
-            vld_q     <= 1'b1;
-            dat_q     <= ulpi_data_in;
-            xrecv     <= xrecv;
-
-            rx_tvalid <= 1'b1;
-            rx_tlast  <= 1'b0;
-            rx_tdata  <= dat_q;
-          end else if (eop_w) begin
-            // End of packet, so assert 'tlast'
-            vld_q     <= 1'b0;
-            dat_q     <= 'bx;
-            xrecv     <= RX_DONE;
-
-            rx_tvalid <= 1'b1;
-            rx_tlast  <= 1'b1;
-            rx_tdata  <= dat_q;
-          end else begin
-            // Only load data when receiving
-            vld_q     <= vld_q;
-            dat_q     <= dat_q;
-            xrecv     <= xrecv;
-
-            rx_tvalid <= 1'b0;
-            rx_tlast  <= 1'b0;
-            rx_tdata  <= rx_tdata;
-          end
-        end
-
-        default: begin  // RX_DONE
-          vld_q     <= 1'b0;
-          dat_q     <= 'bx;
-          xrecv     <= RX_IDLE;
-
-          rx_tvalid <= 1'b0;
-          rx_tlast  <= 1'b0;
-          rx_tdata  <= 'bx;
-        end
-      endcase
-    end
-  end
-
-
-  // -- Simulation Only -- //
-
-`ifdef __icarus
-
-  reg [39:0] dbg_xrecv;
-
-  always @* begin
-    case (xrecv)
-      RX_IDLE: dbg_xrecv = "IDLE";
-      RX_TURN: dbg_xrecv = "TURN";
-      RX_RECV: dbg_xrecv = "RECV";
-      RX_DONE: dbg_xrecv = "DONE";
-      default: dbg_xrecv = "XXXX";
-    endcase
-  end
-
-`endif
-
-
-   // Start of trying to make the output more-suitable for DDR and OREG ...
-  reg osel_q, doce_q;
-  reg [7:0] dout_q, dreg_q;
-  wire [7:0] dout_w;
-
-  assign dout_w = osel_q ? ulpi_tdata_i : dreg_q;
-
-  always @(posedge ulpi_clk) begin
-    if (reset) begin
-      dout_q <= 8'd0;
-    end else if (doce_q) begin
-      dout_q <= dout_w;
-    end
-  end
-
-  always @(posedge ulpi_clk) begin
-    if (!rst_n) begin
-      dreg_q <= 8'h8A;
-      doce_q <= 1'b0;
-      osel_q <= 1'b0;
-    end else if (dir_q || ulpi_dir) begin
-    end else begin
-      case (state)
-        default: begin // STATE_INIT
-          osel_q <= 1'b0;
-          doce_q <= 1'b1;
-          dreg_q <= 8'd0;
-        end
-      endcase
-    end
-  end
-*/
 
 
   // -- ULPI FSM -- //
@@ -670,6 +525,36 @@ module usb_ulpi #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [159:0] dbg_state;
+
+  always @* begin
+    case (state)
+      STATE_INIT: dbg_state = "INIT";
+      STATE_WRITE_REGA: dbg_state = "WRITE_REGA";
+      STATE_WRITE_REGD: dbg_state = "WRITE_REGD";
+      STATE_STP: dbg_state = "STP";
+      STATE_RESET: dbg_state = "RESET";
+      STATE_SUSPEND: dbg_state = "SUSPEND";
+      STATE_IDLE: dbg_state = "IDLE";
+      STATE_TX: dbg_state = "TX";
+      STATE_TX_LAST: dbg_state = "TX_LAST";
+      STATE_CHIRP_START: dbg_state = "CHIRP_START";
+      STATE_CHIRP_STARTK: dbg_state = "CHIRP_STARTK";
+      STATE_CHIRPK: dbg_state = "CHIRPK";
+      STATE_CHIRPKJ: dbg_state = "CHIRPKJ";
+      STATE_SWITCH_FSSTART: dbg_state = "SWITCH_FSSTART";
+      STATE_SWITCH_FS: dbg_state = "SWITCH_FS";
+      default: dbg_state = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // usb_ulpi

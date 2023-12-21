@@ -42,21 +42,22 @@ module ulpi_encoder (
   // -- Constants -- //
 
   // FSM states
-  localparam [7:0] TX_IDLE = 8'h01;
-  localparam [7:0] TX_XPID = 8'h02;
-  localparam [7:0] TX_DATA = 8'h04;
-  localparam [7:0] TX_CRC0 = 8'h08;
-  localparam [7:0] TX_LAST = 8'h10;
-  localparam [7:0] TX_DONE = 8'h20;
-  localparam [7:0] TX_REGW = 8'h40;
-  localparam [7:0] TX_WAIT = 8'h80;
+  localparam [8:0] TX_IDLE = 9'h001;
+  localparam [8:0] TX_XPID = 9'h002;
+  localparam [8:0] TX_DATA = 9'h004;
+  localparam [8:0] TX_CRC0 = 9'h008;
+  localparam [8:0] TX_LAST = 9'h010;
+  localparam [8:0] TX_DONE = 9'h020;
+  localparam [8:0] TX_REGW = 9'h040;
+  localparam [8:0] TX_WAIT = 9'h080;
+  localparam [8:0] TX_INIT = 9'h100;
 
   localparam [1:0] LS_EOP = 2'b00;
 
 
   // -- Signals & State -- //
 
-  reg [7:0] xsend;
+  reg [8:0] xsend;
   reg dir_q, rdy_q;
 
   // Transmit datapath MUX signals
@@ -72,7 +73,7 @@ module ulpi_encoder (
 
   assign tvalid_w = 1'b0;
 
-  reg dvalid;
+  reg  dvalid;
   wire sready_next;
 
   assign sready_next = src_ready(s_tvalid, tvalid, dvalid, ulpi_nxt);
@@ -83,10 +84,10 @@ module ulpi_encoder (
   // Signals for sending initialisation commands & settings to the PHY.
   reg phy_done_q, stp_q;
 
-  assign phy_busy_o = xsend != TX_IDLE;
+  assign phy_busy_o = xsend != TX_INIT;
   assign phy_done_o = phy_done_q;
 
-  assign ulpi_stp = stp_q;
+  assign ulpi_stp   = stp_q;
 
   always @(posedge clock) begin
     phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
@@ -117,7 +118,7 @@ module ulpi_encoder (
   // -- ULPI Data-Out MUX -- //
 
   // Sets the idle data to PID (at start of packet), or 00h for NOP
-  assign usb_dat_w = xsend == TX_IDLE ? {~s_tuser, s_tuser} : 8'd0;
+  assign usb_dat_w = s_tvalid && xsend == TX_IDLE ? {~s_tuser, s_tuser} : 8'd0;
 
   // 2:1 MUX for AXI source data, whether from skid-register, or upstream
   assign axi_dat_w = tvalid && ulpi_nxt ? tdata : s_tdata;
@@ -126,13 +127,15 @@ module ulpi_encoder (
   assign crc_dat_w = xsend == TX_CRC0 ? crc16_nw[15:8] : crc16_nw[7:0];
 
   // 2:1 MUX for request-data to the PHY
-  assign phy_dat_w = phy_nopid_i ? 8'h40 : xsend == TX_REGW ? phy_data_i : phy_addr_i;
+  assign phy_dat_w = phy_nopid_i ? 8'h40 :
+                     xsend == TX_REGW && ulpi_nxt || xsend == TX_WAIT ? phy_data_i :
+                     phy_addr_i;
 
   // Determine the data-source for the 4:1 MUX
-  assign mux_sel_w = xsend == TX_IDLE ? (phy_write_i || phy_nopid_i ? 2'd2 :
-                                         tvalid_w ? 2'd1 : 2'd3) :
-                     xsend == TX_DATA || xsend == TX_LAST ? 2'd0 :
+  assign mux_sel_w = xsend == TX_INIT && (phy_write_i || phy_nopid_i) ? 2'd2 :
                      xsend == TX_REGW ? 2'd2 :
+                     xsend == TX_IDLE ? (tvalid_w ? 2'd1 : 2'd3) :
+                     xsend == TX_DATA || xsend == TX_LAST ? 2'd0 :
                      xsend == TX_CRC0 ? 2'd1 : 2'd3;
 
   mux4to1 #(
@@ -144,7 +147,7 @@ module ulpi_encoder (
       .I0(axi_dat_w),
       .I1(crc_dat_w),
       .I2(phy_dat_w),
-      .I3(usb_dat_w)  // NOP (or STOP)
+      .I3(usb_dat_w)   // NOP (or STOP)
   );
 
 
@@ -164,12 +167,14 @@ module ulpi_encoder (
   // -- ULPI Encoder FSM -- //
 
   always @(posedge clock) begin
-    if (dir_q || ulpi_dir) begin
+    if (reset) begin
+      xsend <= TX_INIT;
+    end else if (dir_q || ulpi_dir) begin
       xsend <= TX_IDLE;
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
-          xsend  <= phy_write_i ? TX_REGW : s_tvalid ? TX_XPID : TX_IDLE;
+          xsend  <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : s_tvalid ? TX_XPID : TX_IDLE;
           stp_q  <= 1'b0;
 
           // Upstream TREADY signal
@@ -203,6 +208,7 @@ module ulpi_encoder (
         TX_LAST: begin
           // Send 2nd (and last) CRC16 byte
           xsend <= ulpi_nxt ? TX_DONE : xsend;
+          stp_q <= ulpi_nxt ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
 
@@ -216,18 +222,30 @@ module ulpi_encoder (
           //   module, as this module is Tx-only ??
           //
           xsend <= dir_q && ulpi_dir && !ulpi_nxt && LineState == LS_EOP ? TX_IDLE : xsend;
+          stp_q <= 1'b0;
+          rdy_q <= 1'b0;
+        end
+
+        //
+        //  Until the PHY has been configured, respond to the commands from the
+        //  'ulpi_line_state' module.
+        ///
+        TX_INIT: begin
+          xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
+          stp_q <= phy_stop_i ? ~stp_q : 1'b0;
           rdy_q <= 1'b0;
         end
 
         TX_REGW: begin
           // Write to a PHY register
           xsend <= ulpi_nxt ? TX_WAIT : xsend;
+          stp_q <= 1'b0;
           rdy_q <= 1'b0;
         end
 
         TX_WAIT: begin
           // Wait for the PHY to accept a 'ulpi_data' value
-          xsend <= ulpi_nxt ? TX_IDLE : xsend;
+          xsend <= ulpi_nxt ? TX_INIT : xsend;
           stp_q <= ulpi_nxt ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
@@ -251,6 +269,7 @@ module ulpi_encoder (
       TX_CRC0: dbg_xsend = "CRC0";
       TX_LAST: dbg_xsend = "LAST";
       TX_DONE: dbg_xsend = "DONE";
+      TX_INIT: dbg_xsend = "INIT";
       TX_REGW: dbg_xsend = "REGW";
       TX_WAIT: dbg_xsend = "WAIT";
       default: dbg_xsend = "XXXX";

@@ -314,6 +314,11 @@ module ulpi_axis #(
       .m_tdata ()
   );
 
+  wire new_dir = ulpi_dir_i;
+  wire new_stp;
+  wire new_nxt = ulpi_nxt_i;
+  wire [7:0] new_data;
+
   ulpi_line_state #(
       .HIGH_SPEED(1)
   ) U_ULPI_LS0 (
@@ -326,6 +331,7 @@ module ulpi_axis #(
 
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
+      .ulpi_stp (new_stp),
       .ulpi_data(ulpi_data_io),
 
       .iob_dir_o(iob_dir_w),
@@ -343,9 +349,6 @@ module ulpi_axis #(
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w)
   );
-
-  wire new_stp;
-  wire [7:0] new_data;
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),

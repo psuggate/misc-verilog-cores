@@ -8,6 +8,7 @@ module ulpi_line_state #(
     // Raw FPGA IOB values from the ULPI PHY
     input ulpi_dir,
     input ulpi_nxt,
+    input ulpi_stp,
     input [7:0] ulpi_data,
 
     // USB-core status and control-signals
@@ -70,7 +71,7 @@ module ulpi_line_state #(
   // -- State & Signals -- //
 
   reg [3:0] xinit, xnext;
-  reg dir_q, nxt_q, set_q, stp_q;
+  reg dir_q, nxt_q, set_q, stp_q, nop_q;
   reg [7:0] adr_q, val_q;
   reg rx_cmd_q;
   reg [7:0] dat_q;
@@ -85,7 +86,7 @@ module ulpi_line_state #(
   assign iob_dat_o = dat_q;
 
   assign phy_write_o = set_q;
-  assign phy_nopid_o = 1'b0;
+  assign phy_nopid_o = nop_q;
   assign phy_stop_o = stp_q;
   assign phy_addr_o = adr_q;
   assign phy_data_o = val_q;
@@ -125,8 +126,7 @@ module ulpi_line_state #(
       LineStateQ <= 2'b00;
       VbusStateQ <= 2'b00;
       RxEventQ   <= 2'b00;
-    end else
-    if (rx_cmd_q) begin
+    end else if (rx_cmd_q) begin
       LineStateQ <= LineStateW;
       VbusStateQ <= VbusStateW;
       RxEventQ   <= RxEventW;
@@ -170,8 +170,20 @@ module ulpi_line_state #(
     end else begin
       if (xinit == LX_CHIRPK && !phy_busy_i && st_count > CHIRP_K_TIME) begin
         stp_q <= 1'b1;
-      end else if (phy_busy_i) begin
+      end else if (ulpi_stp) begin
         stp_q <= 1'b0;
+      end
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      nop_q <= 1'b0;
+    end else begin
+      if (xinit == LX_CHIRP_STARTK && !phy_busy_i) begin
+        nop_q <= 1'b1;
+      end else begin
+        nop_q <= 1'b0;
       end
     end
   end
@@ -316,7 +328,7 @@ module ulpi_line_state #(
         end
 
         LX_STOP: begin
-          {xinit, xnext} <= phy_busy_i ? {xnext, 4'hx} : {xinit, xnext};
+          {xinit, xnext} <= ulpi_stp ? {xnext, 4'hx} : {xinit, xnext};
         end
 
         LX_CHIRP_START: begin
@@ -372,6 +384,34 @@ module ulpi_line_state #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [159:0] dbg_xinit;
+
+  always @* begin
+    case (xinit)
+      LX_INIT: dbg_xinit = "INIT";
+      LX_WAIT: dbg_xinit = "WAIT";
+      LX_WRITE_REG: dbg_xinit = "WRITE_REG";
+      LX_RESET: dbg_xinit = "RESET";
+      LX_SUSPEND: dbg_xinit = "SUSPEND";
+      LX_IDLE: dbg_xinit = "IDLE";
+      LX_STOP: dbg_xinit = "STOP";
+      LX_CHIRP_START: dbg_xinit = "CHIRP_START";
+      LX_CHIRP_STARTK: dbg_xinit = "CHIRP_STARTK";
+      LX_CHIRPK: dbg_xinit = "CHIRPK";
+      LX_CHIRPKJ: dbg_xinit = "CHIRPKJ";
+      LX_SWITCH_FSSTART: dbg_xinit = "SWITCH_FSSTART";
+      LX_SWITCH_FS: dbg_xinit = "SWITCH_FS";
+      default: dbg_xinit = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // ulpi_line_state

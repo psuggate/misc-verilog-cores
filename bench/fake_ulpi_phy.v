@@ -1,48 +1,27 @@
 `timescale 1ns / 100ps
 module fake_ulpi_phy (
-    clock,
-    reset,
+    input clock,
+    input reset,
 
-    ulpi_clock_o,
-    ulpi_rst_ni,
-    ulpi_dir_o,
-    ulpi_nxt_o,
-    ulpi_stp_i,
-    ulpi_data_io,
+    output ulpi_clock_o,
+    input ulpi_rst_ni,
+    output ulpi_dir_o,
+    input ulpi_stp_i,
+    output ulpi_nxt_o,
+    inout [7:0] ulpi_data_io,
 
-    usb_tvalid_i,
-    usb_tready_o,
-    usb_tlast_i,
-    usb_tdata_i,
+    // Encoded USB packets IN (from ULPI)
+    input usb_tvalid_i,
+    output usb_tready_o,
+    input usb_tlast_i,
+    input [7:0] usb_tdata_i,
 
-    usb_tvalid_o,
-    usb_tready_i,
-    usb_tlast_o,
-    usb_tdata_o
+    // Decoded USB packets OUT (to ULPI)
+    output usb_tvalid_o,
+    input usb_tready_i,
+    output usb_tlast_o,
+    output [7:0] usb_tdata_o
 );
-
-  input clock;
-  input reset;
-
-  output ulpi_clock_o;
-  input ulpi_rst_ni;
-  output ulpi_dir_o;
-  input ulpi_stp_i;
-  output ulpi_nxt_o;
-  inout [7:0] ulpi_data_io;
-
-  // Encoded USB packets IN (from ULPI)
-  input usb_tvalid_i;
-  output usb_tready_o;
-  input usb_tlast_i;
-  input [7:0] usb_tdata_i;
-
-  // Decoded USB packets OUT (to ULPI)
-  output usb_tvalid_o;
-  input usb_tready_i;
-  output usb_tlast_o;
-  output [7:0] usb_tdata_o;
-
 
   // -- Signals & State -- //
 
@@ -59,7 +38,6 @@ module fake_ulpi_phy (
   // -- Output Signal Assignments -- //
 
   assign ulpi_clock_o = clock;
-  // assign ulpi_clock_o = ~clock;
   assign ulpi_dir_o = dir_q;
   assign ulpi_nxt_o = nxt_q;
   assign ulpi_data_io = dir_q ? dat_q : 'bz;
