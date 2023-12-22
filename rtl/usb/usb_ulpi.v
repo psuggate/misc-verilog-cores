@@ -44,8 +44,8 @@ module usb_ulpi #(
 `ifdef __icarus
   localparam integer SUSPEND_TIME = 190;  // ~3 ms
   localparam integer RESET_TIME = 190;  // ~3 ms
-  localparam integer CHIRP_K_TIME = 660;  // ~1 ms
-  localparam integer CHIRP_KJ_TIME = 12;  // ~2 us
+  localparam integer CHIRP_K_TIME = 5;  // ~1 ms
+  localparam integer CHIRP_KJ_TIME = 3;  // ~2 us
   localparam integer SWITCH_TIME = 60;  // ~100 us 
 `else
   localparam integer SUSPEND_TIME = 190000;  // ~3 ms
@@ -343,8 +343,8 @@ module usb_ulpi #(
     end else if (dir_q || ulpi_dir) begin
       // We are not driving //
       state <= state;
-      snext <= 4'bx;
-      reg_data <= 8'bx;
+      snext <= snext;
+      reg_data <= reg_data;
     end else begin
       // We are driving //
       case (state)

@@ -23,7 +23,23 @@ module fake_ulpi_phy (
     output [7:0] usb_tdata_o
 );
 
+  // -- Constants -- //
+
+  localparam [3:0] ST_IDLE = 4'b0000;
+  localparam [3:0] ST_SEND = 4'b0001;
+  localparam [3:0] ST_RECV = 4'b0010;
+  localparam [3:0] ST_REGW = 4'b0011;
+  localparam [3:0] ST_STOP = 4'b0100;
+  localparam [3:0] ST_CHRP = 4'b0101;
+  localparam [3:0] ST_XSE0 = 4'b0110;
+  localparam [3:0] ST_KJKJ = 4'b0111;
+  localparam [3:0] ST_INIT = 4'b1111;
+  localparam [3:0] ST_WAIT = 4'b1000;
+
+
   // -- Signals & State -- //
+
+  reg [3:0] state, snext;
 
   reg dir_q, nxt_q, rdy_q;
   reg [7:0] dat_q;
@@ -32,6 +48,7 @@ module fake_ulpi_phy (
   reg [7:0] tdata;
 
   wire pid_vld_w, non_pid_w, reg_pid_w, tx_start_w, rx_start_w;
+  wire [1:0] line_state_w;
   wire [7:0] rx_cmd_w;
 
 
@@ -55,21 +72,15 @@ module fake_ulpi_phy (
   assign tx_start_w = usb_tvalid_i && !rx_start_w;
   assign rx_start_w = pid_vld_w && usb_tready_i;
 
-  assign pid_vld_w = dir_q == 1'b0 && ulpi_data_io[7:4] == 4'b0100;
-  assign non_pid_w = dir_q == 1'b0 && ulpi_data_io[7:4] != 4'b0100 && ulpi_data_io != 8'h00;
+  assign pid_vld_w = dir_q == 1'b0 && ulpi_data_io[7:4] == 4'h4 && ulpi_data_io[3:0] != 4'h0;
+  assign non_pid_w = dir_q == 1'b0 && ulpi_data_io[7:4] == 4'h4 && ulpi_data_io[3:0] == 4'h0;
   assign reg_pid_w = !dir_q && ulpi_data_io[7];
 
   // See pp.16, UTMI+ Low Pin Interface (ULPI) Specification
-  assign rx_cmd_w = {2'b01, tx_start_w ? 2'b01 : 2'b00, 2'b11, 2'b00};
+  assign rx_cmd_w = {2'b01, tx_start_w ? 2'b01 : 2'b00, 2'b11, line_state_w};
 
-  localparam [3:0] ST_IDLE = 4'b0000;
-  localparam [3:0] ST_SEND = 4'b0001;
-  localparam [3:0] ST_RECV = 4'b0010;
-  localparam [3:0] ST_REGW = 4'b0011;
-  localparam [3:0] ST_STOP = 4'b0100;
-  localparam [3:0] ST_WAIT = 4'b1000;
-
-  reg [3:0] state, snext;
+  assign line_state_w = state == ST_INIT ? 2'b01 :
+                        state == ST_CHRP ? (kj_count[3] ? 2'b10 : 2'b01) : 2'b00;
 
 
   // -- Rx Datapath -- //
@@ -111,11 +122,39 @@ module fake_ulpi_phy (
   end
 
 
+  // -- Fake Chirping -- //
+
+  reg [3:0] kj_count;
+  wire [3:0] kj_cnext = kj_count + 4'd1;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      kj_count <= 4'd0;
+    end else begin
+      if (state == ST_CHRP) begin
+        kj_count <= kj_cnext;
+      end
+    end
+  end
+
+
   // -- ULPI FSM -- //
+
+  localparam CONNECT_TIME = 3;
+  reg [3:0] count;
+  wire [3:0] cnext = count + 4'd1;
 
   always @(posedge clock) begin
     if (reset || !ulpi_rst_ni) begin
-      state <= ST_IDLE;
+      count <= 4'd0;
+    end else if (count < 4'd15) begin
+      count <= cnext;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset || !ulpi_rst_ni) begin
+      state <= ST_INIT;
 
       dir_q <= 1'b0;
       nxt_q <= 1'b0;
@@ -127,10 +166,16 @@ module fake_ulpi_phy (
           rdy_q <= 1'b0;
           dat_q <= 'bz;
 
-          if (reg_pid_w || non_pid_w) begin
+          if (reg_pid_w) begin
             nxt_q <= 1'b1;
             dir_q <= 1'b0;
             state <= ST_REGW;
+            snext <= ST_IDLE;
+          end else if (non_pid_w) begin
+            $display("%10t: Tweet, tweet", $time);
+            nxt_q <= 1'b1;
+            dir_q <= 1'b0;
+            state <= ST_CHRP;
             snext <= ST_IDLE;
           end else if (rx_start_w) begin
             // ULPI data is coming in over the wire
@@ -170,6 +215,40 @@ module fake_ulpi_phy (
           dat_q <= snext == ST_SEND ? rx_cmd_w : dat_q;
         end
 
+        //
+        //  High-Speed Negotiation Sequence
+        ///
+        ST_INIT: begin
+          state <= count > CONNECT_TIME && ulpi_data_io == 8'h0 ? ST_XSE0 : state;
+          dir_q <= count > CONNECT_TIME && ulpi_data_io == 8'h0;
+        end
+
+        ST_XSE0: begin
+          // Send 'RX CMD' (line-state) of 'SE0'
+          dir_q <= 1'b1;
+          state <= ST_CHRP;
+        end
+
+        ST_CHRP: begin
+          // Wait for the K-chirp
+          dir_q <= 1'b0;
+          dat_q <= 8'bz;
+          nxt_q <= 1'b0;
+          rdy_q <= 1'b0;
+          state <= ulpi_stp_i ? snext : state;
+        end
+
+        ST_KJKJ: begin
+          dir_q <= ulpi_stp_i ? 1'b0 : kj_count[1] & kj_count[2];
+          dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
+          nxt_q <= 1'b0;
+          rdy_q <= 1'b0;
+          state <= ulpi_stp_i ? snext : state;
+        end
+
+        //
+        //  Normal Operation
+        ///
         ST_SEND: begin
           state <= ulpi_stp_i ? ST_STOP : usb_tvalid_i && usb_tlast_i && rdy_q ? ST_IDLE : state;
           snext <= ST_IDLE;
@@ -219,6 +298,10 @@ module fake_ulpi_phy (
       ST_REGW: dbg_state = "REGW";
       ST_STOP: dbg_state = "STOP";
       ST_WAIT: dbg_state = "WAIT";
+      ST_INIT: dbg_state = "INIT";
+      ST_XSE0: dbg_state = "XSE0";
+      ST_CHRP: dbg_state = "CHRP";
+      ST_KJKJ: dbg_state = "KJKJ";
       default: dbg_state = "XXXX";
     endcase
   end

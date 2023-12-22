@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Dec 21 08:32:00 2023
+[*] Fri Dec 22 09:00:44 2023
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Thu Dec 21 08:29:01 2023"
-[dumpfile_size] 237917
+[dumpfile_mtime] "Fri Dec 22 09:00:07 2023"
+[dumpfile_size] 165736
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 321200
-[size] 1920 1043
+[timestart] 0
+[size] 2560 1376
 [pos] -1 -1
-*-16.753487 730000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.753487 60000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -20,7 +20,7 @@
 [sst_width] 233
 [signals_width] 182
 [sst_expanded] 1
-[sst_vpaned_height] 468
+[sst_vpaned_height] 650
 @28
 usb_core_tb.clock
 usb_core_tb.reset
@@ -67,10 +67,11 @@ U_ULPI_USB0.blk_cycle_o
 U_ULPI_USB0.ulpi_rst_nw
 @1401200
 -Moar
-@c00200
+@800200
 -Host
-@28
+@29
 usb_core_tb.enum_done
+@28
 usb_core_tb.configured
 usb_core_tb.usb_rx_tvalid_w
 usb_core_tb.usb_rx_tready_w
@@ -162,7 +163,6 @@ usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_o[7:0]
 -Dec
 @1000200
 -PHY
-@1401200
 -Host
 @800200
 -ULPI
@@ -427,7 +427,10 @@ U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
 @820
 [color] 7
 U_ULPI_USB0.U_USB_ULPI0.dbg_state[159:0]
-@29
+@22
+U_ULPI_USB0.U_USB_ULPI0.state[3:0]
+U_ULPI_USB0.U_USB_ULPI0.snext[3:0]
+@28
 U_ULPI_USB0.U_USB_ULPI0.usb_line_state[1:0]
 @1000200
 -Device
@@ -500,11 +503,12 @@ U_ULPI_USB0.new_data[7:0]
 @820
 [color] 7
 U_ULPI_USB0.U_ULPI_LS0.dbg_xinit[159:0]
+@22
+U_ULPI_USB0.U_ULPI_LS0.xinit[3:0]
+U_ULPI_USB0.U_ULPI_LS0.xnext[3:0]
 @28
 U_ULPI_USB0.U_ENCODER1.LineState[1:0]
 U_ULPI_USB0.U_ENCODER1.VbusState[1:0]
-@22
-U_ULPI_USB0.U_ENCODER1.xsend[7:0]
 @820
 [color] 7
 U_ULPI_USB0.U_ENCODER1.dbg_xsend[39:0]
@@ -525,5 +529,13 @@ U_ULPI_USB0.U_ENCODER1.mux_sel_w[1:0]
 U_ULPI_USB0.U_ENCODER1.ulpi_dat_w[7:0]
 @1000200
 -Dout
+@28
+U_ULPI_USB0.U_ULPI_LS0.ls_changed
+U_ULPI_USB0.U_ULPI_LS0.kj_count[2:0]
+@24
+[color] 2
+U_ULPI_USB0.U_ULPI_LS0.st_count[17:0]
+@28
+U_ULPI_USB0.U_ULPI_LS0.LineStateW[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

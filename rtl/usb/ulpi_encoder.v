@@ -169,8 +169,12 @@ module ulpi_encoder (
   always @(posedge clock) begin
     if (reset) begin
       xsend <= TX_INIT;
+      stp_q <= 1'b0;
+      rdy_q <= 1'b0;
     end else if (dir_q || ulpi_dir) begin
-      xsend <= TX_IDLE;
+      xsend <= xsend; // TX_IDLE;
+      stp_q <= 1'b0;
+      rdy_q <= 1'b0;
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
@@ -190,18 +194,21 @@ module ulpi_encoder (
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
           xsend <= ulpi_nxt ? TX_DATA : xsend;
+          stp_q <= 1'b0;
           rdy_q <= ulpi_nxt ? 1'b1 : 1'b0;
         end
 
         TX_DATA: begin
           // Continue transferring the packet data
           xsend <= ulpi_nxt && tlast_w ? TX_CRC0 : xsend;
+          stp_q <= 1'b0;
           rdy_q <= sready_next;
         end
 
         TX_CRC0: begin
           // Send 1st CRC16 byte
           xsend <= ulpi_nxt ? TX_LAST : xsend;
+          stp_q <= 1'b0;
           rdy_q <= 1'b0;
         end
 

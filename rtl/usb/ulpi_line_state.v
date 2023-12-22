@@ -39,11 +39,11 @@ module ulpi_line_state #(
   // -- Constants -- //
 
 `ifdef __icarus
-  localparam integer SUSPEND_TIME = 190;  // ~3 ms
-  localparam integer RESET_TIME = 190;  // ~3 ms
-  localparam integer CHIRP_K_TIME = 660;  // ~1 ms
-  localparam integer CHIRP_KJ_TIME = 12;  // ~2 us
-  localparam integer SWITCH_TIME = 60;  // ~100 us
+  localparam integer SUSPEND_TIME = 4;  // ~3 ms
+  localparam integer RESET_TIME = 4;  // ~3 ms
+  localparam integer CHIRP_K_TIME = 4;  // ~1 ms
+  localparam integer CHIRP_KJ_TIME = 3;  // ~2 us
+  localparam integer SWITCH_TIME = 4;  // ~100 us
 `else
   localparam integer SUSPEND_TIME = 190000;  // ~3 ms
   localparam integer RESET_TIME = 190000;  // ~3 ms
@@ -220,7 +220,7 @@ module ulpi_line_state #(
 
   always @(posedge clock) begin
     if (reset || dir_q || ulpi_dir) begin
-      {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
+      // {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
     end else begin
       case (xinit)
         // De-assert request after ACK
@@ -241,7 +241,7 @@ module ulpi_line_state #(
           if (!phy_busy_i) begin
             set_q <= 1'b1;
             adr_q <= 8'h84;
-            val_q <= 8'b0_1_0_10_1_00;
+            val_q <= 8'b0_1_0_10_1_00; // 8'h54;
           end else begin
             {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
           end
@@ -251,7 +251,7 @@ module ulpi_line_state #(
           if (kj_count > 3 && st_count > CHIRP_KJ_TIME) begin
             set_q <= 1'b1;
             adr_q <= 8'h84;
-            val_q <= 8'b0_1_0_00_0_00;
+            val_q <= 8'b0_1_0_00_0_00; // 8'h40;
           end else begin
             {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
           end
@@ -259,7 +259,7 @@ module ulpi_line_state #(
 
         LX_SWITCH_FSSTART: begin
           set_q <= 1'b1;
-          val_q <= 8'b0_1_0_00_1_01;
+          val_q <= 8'b0_1_0_00_1_01; // 8'h45;
           adr_q <= 8'h84;
         end
 
@@ -279,7 +279,7 @@ module ulpi_line_state #(
     end else if (dir_q || ulpi_dir) begin
       // We are not driving //
       xinit <= xinit;
-      xnext <= 4'hx;
+      xnext <= xnext;
     end else begin
       // We are driving //
       case (xinit)
