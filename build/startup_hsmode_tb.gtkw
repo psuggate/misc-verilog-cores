@@ -1,0 +1,84 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Dec 31 04:18:49 2023
+[*]
+[dumpfile] "./startup_hsmode_tb.vcd"
+[dumpfile_mtime] "Sun Dec 31 04:17:36 2023"
+[dumpfile_size] 89587
+[savefile] "./startup_hsmode_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] -1 -1
+*-17.617355 150000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] startup_hsmode_tb.
+[treeopen] startup_hsmode_tb.U_ENCODER1.
+[sst_width] 233
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 298
+@28
+startup_hsmode_tb.clock
+startup_hsmode_tb.arst_n
+startup_hsmode_tb.reset
+startup_hsmode_tb.ulpi_clock
+startup_hsmode_tb.ulpi_dir
+startup_hsmode_tb.ulpi_nxt
+startup_hsmode_tb.ulpi_stp
+@c00023
+startup_hsmode_tb.ulpi_data[7:0]
+@29
+(0)startup_hsmode_tb.ulpi_data[7:0]
+(1)startup_hsmode_tb.ulpi_data[7:0]
+(2)startup_hsmode_tb.ulpi_data[7:0]
+(3)startup_hsmode_tb.ulpi_data[7:0]
+(4)startup_hsmode_tb.ulpi_data[7:0]
+(5)startup_hsmode_tb.ulpi_data[7:0]
+(6)startup_hsmode_tb.ulpi_data[7:0]
+(7)startup_hsmode_tb.ulpi_data[7:0]
+@1401201
+-group_end
+@28
+startup_hsmode_tb.LineState[1:0]
+@820
+[color] 7
+startup_hsmode_tb.U_ENCODER1.dbg_xsend[39:0]
+@22
+startup_hsmode_tb.U_ENCODER1.xsend[8:0]
+@28
+startup_hsmode_tb.U_ENCODER1.phy_write_i
+startup_hsmode_tb.U_ENCODER1.phy_done_o
+@800200
+-LineState
+@28
+[color] 2
+startup_hsmode_tb.U_LINESTATE1.LineState[1:0]
+[color] 3
+startup_hsmode_tb.U_LINESTATE1.pulse_2_5us
+@820
+[color] 7
+startup_hsmode_tb.U_LINESTATE1.dbg_state[159:0]
+@1000200
+-LineState
+@28
+[color] 3
+startup_hsmode_tb.U_ULPI_PHY0.pulse_2_5us
+@820
+[color] 7
+startup_hsmode_tb.U_ULPI_PHY0.dbg_state[39:0]
+@c00022
+startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+@28
+(0)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(1)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(2)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(3)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(4)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(5)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(6)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+(7)startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
+@1401200
+-group_end
+@28
+startup_hsmode_tb.U_ULPI_PHY0.tx_start_w
+[pattern_trace] 1
+[pattern_trace] 0

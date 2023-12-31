@@ -219,7 +219,9 @@ module ulpi_line_state #(
   // -- USB & PHY Line States -- //
 
   always @(posedge clock) begin
-    if (reset || dir_q || ulpi_dir) begin
+    if (reset) begin
+      {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
+    end else if (dir_q || ulpi_dir) begin
       // {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
     end else begin
       case (xinit)
@@ -241,7 +243,7 @@ module ulpi_line_state #(
           if (!phy_busy_i) begin
             set_q <= 1'b1;
             adr_q <= 8'h84;
-            val_q <= 8'b0_1_0_10_1_00; // 8'h54;
+            val_q <= 8'b0_1_0_10_1_00;  // 8'h54;
           end else begin
             {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
           end
@@ -251,7 +253,7 @@ module ulpi_line_state #(
           if (kj_count > 3 && st_count > CHIRP_KJ_TIME) begin
             set_q <= 1'b1;
             adr_q <= 8'h84;
-            val_q <= 8'b0_1_0_00_0_00; // 8'h40;
+            val_q <= 8'b0_1_0_00_0_00;  // 8'h40;
           end else begin
             {set_q, adr_q, val_q} <= {1'b0, 8'hx, 8'hx};
           end
@@ -259,7 +261,7 @@ module ulpi_line_state #(
 
         LX_SWITCH_FSSTART: begin
           set_q <= 1'b1;
-          val_q <= 8'b0_1_0_00_1_01; // 8'h45;
+          val_q <= 8'b0_1_0_00_1_01;  // 8'h45;
           adr_q <= 8'h84;
         end
 

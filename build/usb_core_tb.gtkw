@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Dec 22 09:00:44 2023
+[*] Tue Dec 26 03:59:01 2023
 [*]
-[dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Fri Dec 22 09:00:07 2023"
-[dumpfile_size] 165736
-[savefile] "./usb_core_tb.gtkw"
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
+[dumpfile_mtime] "Tue Dec 26 03:54:14 2023"
+[dumpfile_size] 205296
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.753487 60000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.753487 250000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_ULPI_USB0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.
 [treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
@@ -67,11 +67,10 @@ U_ULPI_USB0.blk_cycle_o
 U_ULPI_USB0.ulpi_rst_nw
 @1401200
 -Moar
-@800200
+@c00200
 -Host
-@29
-usb_core_tb.enum_done
 @28
+usb_core_tb.enum_done
 usb_core_tb.configured
 usb_core_tb.usb_rx_tvalid_w
 usb_core_tb.usb_rx_tready_w
@@ -163,6 +162,7 @@ usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_o[7:0]
 -Dec
 @1000200
 -PHY
+@1401200
 -Host
 @800200
 -ULPI
@@ -537,5 +537,9 @@ U_ULPI_USB0.U_ULPI_LS0.kj_count[2:0]
 U_ULPI_USB0.U_ULPI_LS0.st_count[17:0]
 @28
 U_ULPI_USB0.U_ULPI_LS0.LineStateW[1:0]
+@29
+U_ULPI_USB0.pulse_2_5us_w
+@28
+U_ULPI_USB0.pulse_1_0ms_w
 [pattern_trace] 1
 [pattern_trace] 0

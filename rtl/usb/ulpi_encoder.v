@@ -172,7 +172,7 @@ module ulpi_encoder (
       stp_q <= 1'b0;
       rdy_q <= 1'b0;
     end else if (dir_q || ulpi_dir) begin
-      xsend <= xsend; // TX_IDLE;
+      xsend <= xsend;  // TX_IDLE;
       stp_q <= 1'b0;
       rdy_q <= 1'b0;
     end else begin
@@ -239,7 +239,7 @@ module ulpi_encoder (
         ///
         TX_INIT: begin
           xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
-          stp_q <= phy_stop_i ? ~stp_q : 1'b0;
+          stp_q <= phy_stop_i ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
 

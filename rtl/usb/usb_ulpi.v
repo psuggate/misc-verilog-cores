@@ -162,24 +162,24 @@ module usb_ulpi #(
     if (!rst_n) begin
       usb_line_state <= 2'b00;
     end else begin
-    if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
-      if (state == STATE_CHIRPKJ) begin
-        if (ulpi_data_in[1:0] == 2'b01) begin
-          chirp_kj_counter <= chirp_kj_counter + 1;
+      if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
+        if (state == STATE_CHIRPKJ) begin
+          if (ulpi_data_in[1:0] == 2'b01) begin
+            chirp_kj_counter <= chirp_kj_counter + 1;
+          end
+        end else begin
+          chirp_kj_counter <= 0;
         end
+        usb_line_state <= ulpi_data_in[1:0];
+        state_counter  <= 0;
+      end else if (state == STATE_CHIRP_STARTK) begin
+        state_counter <= 0;
+      end else if (state == STATE_SWITCH_FSSTART) begin
+        state_counter <= 0;
       end else begin
-        chirp_kj_counter <= 0;
+        state_counter <= state_counter + 1;
       end
-      usb_line_state <= ulpi_data_in[1:0];
-      state_counter  <= 0;
-    end else if (state == STATE_CHIRP_STARTK) begin
-      state_counter <= 0;
-    end else if (state == STATE_SWITCH_FSSTART) begin
-      state_counter <= 0;
-    end else begin
-      state_counter <= state_counter + 1;
     end
-  end
   end
 
 

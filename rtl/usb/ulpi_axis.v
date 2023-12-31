@@ -382,6 +382,37 @@ module ulpi_axis #(
   );
 
 
+  wire pulse_2_5us_w, pulse_1_0ms_w;
+
+  line_state #(
+      .HIGH_SPEED(1)
+  ) U_LINESTATE1 (
+      .clock(clock),
+      .reset(~areset_n),
+
+      .LineState(),
+      .VbusState(),
+      .RxEvent  (),
+
+      .ulpi_dir (ulpi_dir_i),
+      .ulpi_nxt (ulpi_nxt_i),
+      .ulpi_stp (new_stp),
+      .ulpi_data(ulpi_data_io),
+
+      .iob_dir_o(),
+      .iob_nxt_o(),
+      .iob_dat_o(),
+
+      .high_speed_o(),
+
+      .phy_done_i (phy_done_w),
+      .kj_start_i(1'b0),
+
+      .pulse_2_5us_o(pulse_2_5us_w),
+      .pulse_1_0ms_o(pulse_1_0ms_w)
+  );
+
+
   /*
   // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
 

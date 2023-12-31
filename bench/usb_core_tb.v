@@ -100,7 +100,8 @@ module usb_core_tb;
 
   fake_usb_host_ulpi U_FAKE_USB0 (
       .clock (clock),
-      .reset (reset),
+      // .reset (reset),
+      .reset (~arst_n),
       .enable(enabled),
 
       .ulpi_clock_o(usb_clock),
@@ -245,6 +246,17 @@ module usb_core_tb;
   );
 
 
+  reg [3:0] areset_n;
+
+  always @(posedge usb_clock or negedge arst_n) begin
+    if (!arst_n) begin
+      areset_n <= 4'h0;
+    end else begin
+      areset_n <= {areset_n[2:0], 1'b1};
+    end
+  end
+
+
   //
   // Core Under New Tests
   ///
@@ -254,13 +266,14 @@ module usb_core_tb;
       .EP2_CONTROL(0),
       .ENDPOINT2  (0)
   ) U_ULPI_USB0 (
-      .areset_n(arst_n),
+      // .areset_n(arst_n),
+      .areset_n(areset_n[3]),
       .reset_no(usb_rst_n),
 
       .ulpi_clock_i(usb_clock),
-      .ulpi_dir_i(ulpi_dir),
-      .ulpi_nxt_i(ulpi_nxt),
-      .ulpi_stp_o(ulpi_stp),
+      .ulpi_dir_i  (ulpi_dir),
+      .ulpi_nxt_i  (ulpi_nxt),
+      .ulpi_stp_o  (ulpi_stp),
       .ulpi_data_io(ulpi_data),
 
       .usb_clock_o(dev_clock),

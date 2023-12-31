@@ -1,18 +1,18 @@
 `timescale 1ns / 100ps
 module usb_demo_top (
     // Clock and reset from the dev-board
-    clk_26,
-    rst_n,
+    input clk_26,
+    input rst_n,
 
-    leds,
+    output [5:0] leds,
 
     // USB ULPI pins on the dev-board
-    ulpi_clk,
-    ulpi_rst,
-    ulpi_dir,
-    ulpi_nxt,
-    ulpi_stp,
-    ulpi_data
+    input ulpi_clk,
+    output ulpi_rst,
+    input ulpi_dir,
+    input ulpi_nxt,
+    output ulpi_stp,
+    inout [7:0] ulpi_data
 );
 
   // -- Constants -- //
@@ -34,19 +34,6 @@ module usb_demo_top (
 
   localparam HIGH_SPEED = 1'b1;
   localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
-
-
-  input clk_26;
-  input rst_n;
-
-  output [5:0] leds;
-
-  input ulpi_clk;
-  output ulpi_rst;
-  input ulpi_dir;
-  input ulpi_nxt;
-  output ulpi_stp;
-  inout [7:0] ulpi_data;
 
 
   // -- Signals -- //
