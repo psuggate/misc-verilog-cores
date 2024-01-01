@@ -82,7 +82,8 @@ module fake_ulpi_phy (
   assign rx_cmd_w = {2'b01, tx_start_w ? 2'b01 : 2'b00, 2'b11, line_state_w};
 
   assign line_state_w = state == ST_INIT ? 2'b01 :
-                        state == ST_CHRP ? (kj_count[3] ? 2'b10 : 2'b01) : 2'b00;
+                        state == ST_KJKJ ? (kj_count[3] ? 2'b10 : 2'b01) :
+                        state == ST_CHRP ? 2'b10 : 2'b00;
 
 
   // -- Rx Datapath -- //
@@ -132,7 +133,7 @@ module fake_ulpi_phy (
 
 `ifdef __icarus
   // Because patience is for the weak
-  localparam [7:0] COUNT_2_5_US = 15;
+  localparam [7:0] COUNT_2_5_US = 31;
 `else
   localparam [7:0] COUNT_2_5_US = 149;
 `endif
@@ -225,7 +226,7 @@ module fake_ulpi_phy (
             state <= ST_WAIT;
             snext <= ST_SEND;
           end else if (ulpi_data_io == 8'h00 && pulse_2_5us) begin
-            nxt_q <= 1'b1;
+            nxt_q <= 1'b0;
             dir_q <= 1'b1;
             dat_q <= 8'bz;
             state <= ST_LINE;
@@ -271,12 +272,13 @@ module fake_ulpi_phy (
           state <= snext;
           dir_q <= 1'b1;
           nxt_q <= 1'b0;
+          dat_q <= rx_cmd_w;
         end
 
         ST_STAT: begin
           // Uses an RX CMD to indicate the line-state
           state <= ST_IDLE;
-          dat_q <= rx_cmd_w;
+          dat_q <= 8'bz;
           dir_q <= 1'b0;
           nxt_q <= 1'b0;
         end
@@ -291,11 +293,17 @@ module fake_ulpi_phy (
         ST_CHRP: begin
           // TODO: unused !!?!?
           // Wait for the K-chirp
+          if (ulpi_stp_i) begin
+            nxt_q <= 1'b0;
+            dat_q <= 8'bz;
+            state <= snext;
+          end else begin
+            nxt_q <= 1'b1;
+            dat_q <= 8'hAA;
+            state <= state;
+          end
           dir_q <= 1'b0;
-          dat_q <= 8'bz;
-          nxt_q <= 1'b0;
           rdy_q <= 1'b0;
-          state <= ulpi_stp_i ? snext : state;
         end
 
         ST_KJKJ: begin
@@ -363,6 +371,8 @@ module fake_ulpi_phy (
       ST_XSE0: dbg_state = "XSE0";
       ST_CHRP: dbg_state = "CHRP";
       ST_KJKJ: dbg_state = "KJKJ";
+      ST_LINE: dbg_state = "LINE";
+      ST_STAT: dbg_state = "STAT";
       default: dbg_state = "XXXX";
     endcase
   end

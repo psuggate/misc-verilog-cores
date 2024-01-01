@@ -39,6 +39,8 @@ module line_state #(
     output pulse_1_0ms_o,
 
     output phy_write_o,
+    output phy_nopid_o,
+    output phy_stop_o,
    input phy_done_i,
     output [7:0] phy_addr_o,
     output [7:0] phy_data_o
@@ -70,12 +72,13 @@ module line_state #(
   localparam [3:0] ST_WAIT_SE0 = 4'h8;
   localparam [3:0] ST_CHIRP_K0 = 4'h9;
   localparam [3:0] ST_CHIRP_K1 = 4'ha;
+  localparam [3:0] ST_CHIRP_K2 = 4'hb;
 
 
   // -- State & Signals -- //
 
   reg [3:0] state, snext;
-  reg dir_q, nxt_q, set_q;
+  reg dir_q, nxt_q, set_q, nop_q, stp_q;
   reg [7:0] dat_q, adr_q, val_q;
   reg rx_cmd_q, chirp_kj_q;
 
@@ -100,6 +103,8 @@ module line_state #(
   assign pulse_1_0ms_o = pulse_1_0ms;
 
   assign phy_write_o = set_q;
+  assign phy_nopid_o = nop_q;
+  assign phy_stop_o = stp_q;
   assign phy_addr_o = adr_q;
   assign phy_data_o = val_q;
 
@@ -157,6 +162,10 @@ module line_state #(
   localparam [8:0] COUNT_1_0_MS = 399;
 `endif
 
+  // todo ...
+  assign clr_pulse_1_0ms = 1'b0;
+  assign pulse_80us_w = pulse_2_5us && count_1_0ms[4:0] == 5'h10;
+
   // Start the 2.5 us wait, after SE0 during initialisation
   assign clr_pulse_2_5us = state == ST_POWER_ON && kj_start_i;
 
@@ -175,10 +184,6 @@ module line_state #(
       end
     end
   end
-
-  // Nein blyat.
-  assign clr_pulse_1_0ms = 1'b0;
-  assign pulse_80us_w = pulse_2_5us && count_1_0ms[4:0] == 5'h10;
 
   // Pulse-signal & timer(-counter) for 1.0 ms
   always @(posedge clock) begin
@@ -261,6 +266,8 @@ module line_state #(
     if (reset) begin
       state      <= ST_POWER_ON;
       set_q      <= 1'b0;
+      nop_q      <= 1'b0;
+      stp_q      <= 1'b0;
       chirp_kj_q <= 1'b0;
     end else if (dir_q || ulpi_dir) begin
       set_q <= 1'b0;
@@ -311,14 +318,31 @@ module line_state #(
 
         ST_CHIRP_K0: begin
           if (phy_done_i) begin
+            // Issue 'NO PID' command to start the 'K'-chirp
             state <= ST_CHIRP_K1;
-            set_q <= 1'b0;
+            set_q <= 1'b0; // todo: issue 'NO PID' here ??
+            nop_q <= 1'b1;
           end else begin
             set_q <= ulpi_nxt ? 1'b0 : 1'b1;
           end
         end
 
         ST_CHIRP_K1: begin
+          // todo: start timer when 'nxt' arrives ??
+          // if (ulpi_nxt) begin
+          if (pulse_1_0ms) begin
+            state <= ST_CHIRP_K2;
+            stp_q <= 1'b1;
+          end
+          nop_q <= 1'b0;
+        end
+
+        ST_CHIRP_K2: begin
+          // Wait at least 1.0 ms
+          // todo: issue stop, then wait for 'RX CMD' ('squelch')
+          state <= LineState == 2'b00 ? ST_CHIRP_KJ : state;
+          nop_q <= 1'b0;
+          stp_q <= 1'b0;
         end
 
         //
@@ -475,7 +499,7 @@ module line_state #(
 
 `ifdef __icarus
 
-  reg [159:0] dbg_state;
+  reg [95:0] dbg_state;
 
   always @* begin
     case (state)
@@ -486,6 +510,7 @@ module line_state #(
       ST_WAIT_SE0: dbg_state = "WAIT_SE0";
       ST_CHIRP_K0: dbg_state = "CHIRP_K0";
       ST_CHIRP_K1: dbg_state = "CHIRP_K1";
+      ST_CHIRP_K2: dbg_state = "CHIRP_K2";
       ST_CHIRP_KJ: dbg_state = "CHIRP_KJ";
       ST_HS_MODE: dbg_state = "HS_MODE";
       default: dbg_state = "XXXX";

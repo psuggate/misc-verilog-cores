@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Tue Dec 26 03:59:01 2023
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
+[dumpfile] "./usb_core_tb.vcd"
 [dumpfile_mtime] "Tue Dec 26 03:54:14 2023"
 [dumpfile_size] 205296
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
+[savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1

@@ -1,32 +1,35 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Dec 31 04:18:49 2023
+[*] Mon Jan  1 08:54:31 2024
 [*]
 [dumpfile] "./startup_hsmode_tb.vcd"
-[dumpfile_mtime] "Sun Dec 31 04:17:36 2023"
-[dumpfile_size] 89587
+[dumpfile_mtime] "Mon Jan  1 08:47:29 2024"
+[dumpfile_size] 91144
 [savefile] "./startup_hsmode_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-17.617355 150000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.617355 710000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] startup_hsmode_tb.
 [treeopen] startup_hsmode_tb.U_ENCODER1.
 [sst_width] 233
-[signals_width] 158
+[signals_width] 150
 [sst_expanded] 1
 [sst_vpaned_height] 298
 @28
 startup_hsmode_tb.clock
 startup_hsmode_tb.arst_n
 startup_hsmode_tb.reset
+@800200
+-ULPI Bus
+@28
 startup_hsmode_tb.ulpi_clock
 startup_hsmode_tb.ulpi_dir
 startup_hsmode_tb.ulpi_nxt
 startup_hsmode_tb.ulpi_stp
-@c00023
+@c00022
 startup_hsmode_tb.ulpi_data[7:0]
-@29
+@28
 (0)startup_hsmode_tb.ulpi_data[7:0]
 (1)startup_hsmode_tb.ulpi_data[7:0]
 (2)startup_hsmode_tb.ulpi_data[7:0]
@@ -35,10 +38,10 @@ startup_hsmode_tb.ulpi_data[7:0]
 (5)startup_hsmode_tb.ulpi_data[7:0]
 (6)startup_hsmode_tb.ulpi_data[7:0]
 (7)startup_hsmode_tb.ulpi_data[7:0]
-@1401201
+@1401200
 -group_end
-@28
-startup_hsmode_tb.LineState[1:0]
+@1000200
+-ULPI Bus
 @820
 [color] 7
 startup_hsmode_tb.U_ENCODER1.dbg_xsend[39:0]
@@ -46,6 +49,8 @@ startup_hsmode_tb.U_ENCODER1.dbg_xsend[39:0]
 startup_hsmode_tb.U_ENCODER1.xsend[8:0]
 @28
 startup_hsmode_tb.U_ENCODER1.phy_write_i
+startup_hsmode_tb.U_ENCODER1.phy_nopid_i
+startup_hsmode_tb.U_ENCODER1.phy_stop_i
 startup_hsmode_tb.U_ENCODER1.phy_done_o
 @800200
 -LineState
@@ -56,9 +61,11 @@ startup_hsmode_tb.U_LINESTATE1.LineState[1:0]
 startup_hsmode_tb.U_LINESTATE1.pulse_2_5us
 @820
 [color] 7
-startup_hsmode_tb.U_LINESTATE1.dbg_state[159:0]
+startup_hsmode_tb.U_LINESTATE1.dbg_state[95:0]
 @1000200
 -LineState
+@800200
+-FakeULPI
 @28
 [color] 3
 startup_hsmode_tb.U_ULPI_PHY0.pulse_2_5us
@@ -80,5 +87,9 @@ startup_hsmode_tb.U_ULPI_PHY0.rx_cmd_w[7:0]
 -group_end
 @28
 startup_hsmode_tb.U_ULPI_PHY0.tx_start_w
+@22
+startup_hsmode_tb.U_ULPI_PHY0.dat_q[7:0]
+@1000200
+-FakeULPI
 [pattern_trace] 1
 [pattern_trace] 0

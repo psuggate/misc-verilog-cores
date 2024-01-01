@@ -38,7 +38,7 @@ module startup_hsmode_tb;
 
   wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tlast_w;
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
-  wire [7:0] usb_tx_tdata_w, ulpi_rx_tdata_w;
+  wire [7:0] usb_tx_tdata_w, ulpi_rx_tdata_w, ulpi_data_p, ulpi_data_w;
 
   wire high_speed_w;
   wire phy_write_w, phy_chirp_w, phy_stop_w, phy_busy_w, phy_done_w;
@@ -56,7 +56,7 @@ module startup_hsmode_tb;
       .ulpi_dir_o  (ulpi_dir),
       .ulpi_nxt_o  (ulpi_nxt),
       .ulpi_stp_i  (ulpi_stp),
-      .ulpi_data_io(ulpi_data),
+      .ulpi_data_io(ulpi_data_p),
 
       // From the USB packet encoder
       .usb_tvalid_i(usb_tx_tvalid_w),
@@ -73,6 +73,11 @@ module startup_hsmode_tb;
 
 
   // -- Cores Under New Tests -- //
+
+  // ULPI signals
+  assign ulpi_data   = ulpi_dir ? ulpi_data_p : ulpi_data_w;
+  assign ulpi_data_w = ulpi_dir ? ulpi_data_p : {8{1'bz}};
+  assign ulpi_data_p = ulpi_dir ? {8{1'bz}} : ulpi_data_w;
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
@@ -102,11 +107,8 @@ module startup_hsmode_tb;
       .ulpi_dir (ulpi_dir),
       .ulpi_nxt (ulpi_nxt),
       .ulpi_stp (ulpi_stp),
-      .ulpi_data(ulpi_data)
+      .ulpi_data(ulpi_data_w)
   );
-
-  assign phy_chirp_w = 1'b0;
-  assign phy_stop_w = 1'b0;
 
   line_state #(
       .HIGH_SPEED(1)
@@ -135,6 +137,8 @@ module startup_hsmode_tb;
       .pulse_1_0ms_o(pulse_1_0ms_w),
 
       .phy_write_o(phy_write_w),
+      .phy_nopid_o(phy_chirp_w),
+      .phy_stop_o (phy_stop_w),
       .phy_done_i(phy_done_w),
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w)

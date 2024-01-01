@@ -238,7 +238,8 @@ module ulpi_encoder (
         //  'ulpi_line_state' module.
         ///
         TX_INIT: begin
-          xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
+          // xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
+          xsend <= phy_write_i ? TX_REGW : xsend;
           stp_q <= phy_stop_i ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
@@ -257,6 +258,19 @@ module ulpi_encoder (
           rdy_q <= 1'b0;
         end
 
+/*
+        TX_HOLD: begin
+          // Hold the current state until signaled to stop
+          if (phy_stop_i) begin
+            xsend <= TX_INIT;
+            stp_q <= 1'b1;
+          end else begin
+            xsend <= xsend;
+            stp_q <= 1'b0;
+          end
+          rdy_q <= 1'b0;
+        end
+*/
       endcase
     end
   end
