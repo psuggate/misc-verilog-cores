@@ -1,20 +1,20 @@
 [*]
-[*] GTKWave Analyzer v3.3.64 (w)1999-2014 BSI
-[*] Mon Jun 20 07:59:52 2016
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Jan  3 06:48:12 2024
 [*]
 [dumpfile] "./spi_tb.vcd"
-[dumpfile_mtime] "Mon Jun 20 07:59:42 2016"
-[dumpfile_size] 79231
+[dumpfile_mtime] "Wed Jan  3 06:47:17 2024"
+[dumpfile_size] 103648
 [savefile] "./spi_tb.gtkw"
 [timestart] 394500
-[size] 2560 1416
+[size] 2560 1376
 [pos] -1 -1
-*-16.747328 680000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.747328 580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_slave_tb.
 [treeopen] spi_slave_tb.SPI_SLAVE0.
-[treeopen] spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.
-[sst_width] 223
-[signals_width] 142
+[treeopen] spi_slave_tb.SPI_SLAVE0.ST_LAYER0.
+[sst_width] 233
+[signals_width] 150
 [sst_expanded] 1
 [sst_vpaned_height] 731
 @28
@@ -29,6 +29,37 @@ spi_slave_tb.ptr[6:0]
 spi_slave_tb.dat[7:0]
 @200
 -
+@800200
+-Master
+@200
+-** Master **
+@28
+spi_slave_tb.SPI_MASTER0.tx_empty
+spi_slave_tb.SPI_MASTER0.rx_empty
+spi_slave_tb.SPI_MASTER0.tx_byte
+spi_slave_tb.SPI_MASTER0.next_byte
+@1000200
+-Master
+@800200
+-Slave
+@200
+-** Slave **
+@820
+[color] 7
+spi_slave_tb.SPI_SLAVE0.dbg_state[31:0]
+@28
+spi_slave_tb.s_cyc
+spi_slave_tb.s_stb
+spi_slave_tb.s_we
+spi_slave_tb.s_ack
+@22
+[color] 2
+spi_slave_tb.s_adr[6:0]
+spi_slave_tb.s_dtx[7:0]
+spi_slave_tb.s_drx[7:0]
+@c00200
+-Bus
+@200
 -<< BUS >>
 @28
 spi_slave_tb.cyc
@@ -42,61 +73,37 @@ spi_slave_tb.wat
 spi_slave_tb.adr[6:0]
 spi_slave_tb.dtx[7:0]
 spi_slave_tb.drx[7:0]
-@200
--
--** Master **
+@1401200
+-Bus
+@800200
+-LinkLayer
 @28
-spi_slave_tb.SPI_MASTER0.tx_empty
-spi_slave_tb.SPI_MASTER0.rx_empty
-spi_slave_tb.SPI_MASTER0.tx_byte
-spi_slave_tb.SPI_MASTER0.next_byte
-@200
--
--** Slave **
-@28
-spi_slave_tb.s_cyc
-spi_slave_tb.s_stb
-spi_slave_tb.s_we
-spi_slave_tb.s_ack
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.spi_select
+spi_slave_tb.SPI_SLAVE0.l_wat
+[color] 3
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.dat_req
+[color] 3
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.rdy_i
 @22
-spi_slave_tb.s_adr[6:0]
-spi_slave_tb.s_dtx[7:0]
-spi_slave_tb.s_drx[7:0]
-@200
--
+spi_slave_tb.SPI_SLAVE0.x_dtx[7:0]
+@28
+[color] 3
+spi_slave_tb.SPI_SLAVE0.l_ack
 @22
-spi_slave_tb.SPI_SLAVE0.spi[3:0]
-@28
-spi_slave_tb.SPI_SLAVE0.b_pend
-@200
--
---- Target --
-@28
-spi_slave_tb.SPI_SLAVE0.t_cyc
-spi_slave_tb.SPI_SLAVE0.t_stb
-spi_slave_tb.SPI_SLAVE0.t_we
-spi_slave_tb.SPI_SLAVE0.t_ack
+spi_slave_tb.SPI_SLAVE0.l_drx[7:0]
+@800200
+-Internal
 @22
-spi_slave_tb.SPI_SLAVE0.t_dati[7:0]
-spi_slave_tb.SPI_SLAVE0.t_dato[7:0]
-@200
--
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.tx_reg[6:0]
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.tx_data[7:0]
 @28
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.tx_rst_n
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.tx_empty
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.tx_push
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.tx_pull
-@23
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.tx_data[7:0]
-@28
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.rx_empty
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.rx_push
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.rx_pull
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.rdy_i
 @22
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.dat_w[7:0]
-@28
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.dat_req
-spi_slave_tb.SPI_SLAVE0.SPI_TARGET0.bus_state[2:0]
+spi_slave_tb.SPI_SLAVE0.ST_LAYER0.dat_i[7:0]
+@1000200
+-Internal
+-LinkLayer
+-Slave
 @200
 -
 -** SPI **
@@ -106,5 +113,16 @@ spi_slave_tb.SCK_pin
 spi_slave_tb.SSEL
 spi_slave_tb.MISO
 spi_slave_tb.MOSI
+@200
+-
+@800201
+-Target
+@821
+[color] 7
+spi_slave_tb.U_SPITARG0.dbg_state[31:0]
+@29
+spi_slave_tb.U_SPITARG0.ready
+@1000201
+-Target
 [pattern_trace] 1
 [pattern_trace] 0

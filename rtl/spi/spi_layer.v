@@ -349,5 +349,5 @@ module spi_layer
        .wfull_o  (rx_full)
        );
 
-   
+
 endmodule // spi_layer

@@ -85,17 +85,19 @@ module spi_slave #(
     output MISO
 );
 
-  localparam [3:0] SPI_IDLE = 4'h0;
-  localparam [3:0] SPI_ADDR = 4'h1;
-  localparam [3:0] SPI_BUSY = 4'h2;
-  localparam [3:0] SPI_PUSH = 4'h4;
-  localparam [3:0] SPI_PULL = 4'h8;
+  // todo: fix this encoding -- as it does not have the benefits of one-hot, nor
+  //   base-2 !?
+  localparam [3:0] ST_IDLE = 4'h0;
+  localparam [3:0] ST_ADDR = 4'h1;
+  localparam [3:0] ST_BUSY = 4'h2;
+  localparam [3:0] ST_PUSH = 4'h4;
+  localparam [3:0] ST_PULL = 4'h8;
 
   //  FSM state register, and some state-bit aliases:
-  reg  [3:0] spi = SPI_IDLE;
-  wire       a_spi = spi[0];
-  wire       b_spi = spi[1];
-  wire       i_spi = spi == SPI_IDLE;
+  reg  [3:0] state = ST_IDLE;
+  wire       a_spi = state[0];
+  wire       b_spi = state[1];
+  wire       i_spi = state == ST_IDLE;
 
   //  Signals to/from the SPI layer:
   wire [7:0] l_drx;
@@ -117,31 +119,30 @@ module spi_slave #(
   //-------------------------------------------------------------------------
   always @(posedge clk_i)
     if (rst_i || !l_cyc) begin
-      spi <= #DELAY SPI_IDLE;
+      state <= #DELAY ST_IDLE;
     end else begin
-      case (spi)
+      case (state)
         // new SPI transaction beginning?
-        SPI_IDLE: spi <= #DELAY l_get && r_rdy ? SPI_ADDR : spi;
+        ST_IDLE: state <= #DELAY l_get && r_rdy ? ST_ADDR : state;
 
         // first byte from SPI is the write-mode and address?
-        SPI_ADDR:
+        ST_ADDR:
         if (!l_wat) begin
-          spi <= #DELAY a_we || !l_get ? SPI_BUSY : SPI_PULL;
+          state <= #DELAY a_we || !l_get ? ST_BUSY : ST_PULL;
         end
 
-        SPI_BUSY: begin
+        ST_BUSY: begin
           if (l_get && !b_we && !r_rdy)  // TODO: verify that this is OK!?
-            //             if (l_get && !b_we && !x_rdy)
-            spi <= #DELAY SPI_PULL;  // pull data from the WB bus
-          else if (!l_wat && b_we && !l_ack) spi <= #DELAY SPI_PUSH;  // push data onto the WB bus
+            state <= #DELAY ST_PULL;  // pull data from the WB bus
+          else if (!l_wat && b_we && !l_ack) state <= #DELAY ST_PUSH;  // push data onto the WB bus
           else  // ignore reads when in write-mode,
-            spi <= #DELAY spi;  // and writes when in read-mode
+            state <= #DELAY state;  // and writes when in read-mode
         end
 
-        SPI_PUSH: spi <= #DELAY ack_i ? SPI_BUSY : spi;
-        SPI_PULL: spi <= #DELAY ack_i ? SPI_BUSY : spi;
-        default:  spi <= #DELAY 4'bx;
-      endcase  // case (spi)
+        ST_PUSH: state <= #DELAY ack_i ? ST_BUSY : state;
+        ST_PULL: state <= #DELAY ack_i ? ST_BUSY : state;
+        default: state <= #DELAY 4'bx;
+      endcase  // case (state)
     end
 
   //-------------------------------------------------------------------------
@@ -154,21 +155,21 @@ module spi_slave #(
   always @(posedge clk_i)
     if (rst_i) {cyc_o, stb_o} <= #DELAY 2'b00;
     else if (l_cyc)
-      case (spi)
-        SPI_IDLE: {cyc_o, stb_o} <= #DELAY 2'b00;
+      case (state)
+        ST_IDLE: {cyc_o, stb_o} <= #DELAY 2'b00;
 `ifdef __WB_CLASSIC
-        SPI_ADDR: {cyc_o, stb_o} <= #DELAY{a_pull, a_pull};
-        SPI_BUSY: {cyc_o, stb_o} <= #DELAY{b_xfer, b_xfer};
-        SPI_PULL: {cyc_o, stb_o} <= #DELAY{!ack_i, !ack_i};
-        SPI_PUSH: {cyc_o, stb_o} <= #DELAY{!ack_i, !ack_i};
+        ST_ADDR: {cyc_o, stb_o} <= #DELAY{a_pull, a_pull};
+        ST_BUSY: {cyc_o, stb_o} <= #DELAY{b_xfer, b_xfer};
+        ST_PULL: {cyc_o, stb_o} <= #DELAY{!ack_i, !ack_i};
+        ST_PUSH: {cyc_o, stb_o} <= #DELAY{!ack_i, !ack_i};
 `else
-        SPI_ADDR: {cyc_o, stb_o} <= #DELAY{a_pull || cyc_o && !ack_i, a_pull};
-        SPI_BUSY: {cyc_o, stb_o} <= #DELAY{b_xfer || cyc_o && !ack_i, b_xfer};
-        SPI_PULL: {cyc_o, stb_o} <= #DELAY{cyc_o && !ack_i, 1'b0};
-        SPI_PUSH: {cyc_o, stb_o} <= #DELAY{!ack_i, 1'b0};
+        ST_ADDR: {cyc_o, stb_o} <= #DELAY{a_pull || cyc_o && !ack_i, a_pull};
+        ST_BUSY: {cyc_o, stb_o} <= #DELAY{b_xfer || cyc_o && !ack_i, b_xfer};
+        ST_PULL: {cyc_o, stb_o} <= #DELAY{cyc_o && !ack_i, 1'b0};
+        ST_PUSH: {cyc_o, stb_o} <= #DELAY{!ack_i, 1'b0};
 `endif
-        default:  {cyc_o, stb_o} <= #DELAY 2'bx;
-      endcase  // case (spi)
+        default: {cyc_o, stb_o} <= #DELAY 2'bx;
+      endcase  // case (state)
     else {cyc_o, stb_o} <= #DELAY 2'b00;
 
   //-------------------------------------------------------------------------
@@ -183,12 +184,12 @@ module spi_slave #(
   //  Data received from `spi_layer` needs to be acknowledged.
   always @(posedge clk_i)
     if (!rst_i && !l_wat && !l_ack)
-      case (spi)
-        SPI_ADDR: l_ack <= #DELAY 1;
-        SPI_BUSY: l_ack <= #DELAY 1;
-        SPI_PUSH: l_ack <= #DELAY ack_i;
-        default:  l_ack <= #DELAY 0;
-      endcase  // case (spi)
+      case (state)
+        ST_ADDR: l_ack <= #DELAY 1;
+        ST_BUSY: l_ack <= #DELAY 1;
+        ST_PUSH: l_ack <= #DELAY ack_i;
+        default: l_ack <= #DELAY 0;
+      endcase  // case (state)
     else l_ack <= #DELAY 0;
 
   //-------------------------------------------------------------------------
@@ -224,15 +225,17 @@ module spi_slave #(
       .WIDTH(WIDTH),
       .FSIZE(2),
       .HEADER_BYTE(HEADER_BYTE)
-  ) SPI_LAYER0 (
+  ) ST_LAYER0 (
       .clk_i(clk_i),
       .rst_i(rst_i),
       .cyc_o(l_cyc),
-      .get_o(l_get),
+
+      .get_o(l_get),  // Slave -> Master datapath
       .rdy_i(x_rdy),
-      .wat_o(l_wat),
-      .ack_i(l_ack),
       .dat_i(x_dtx),
+
+      .wat_o(l_wat),
+      .ack_i(l_ack),  // Master -> Slave datapath
       .dat_o(l_drx),
 
       .overflow_o(overflow_o),
@@ -243,6 +246,26 @@ module spi_slave #(
       .MOSI(MOSI),
       .MISO(MISO)
   );
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [31:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_ADDR: dbg_state = "ADDR";
+      ST_BUSY: dbg_state = "BUSY";
+      ST_PUSH: dbg_state = "PUSH";
+      ST_PULL: dbg_state = "PULL";
+      default: dbg_state = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // spi_slave
