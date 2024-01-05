@@ -328,7 +328,7 @@ module spi_layer
        .wr_en_i  (rdy_i),
        .wr_data_i(dat_i),
 
-       .rst_i    (tx_rst),
+       .reset_ni (~tx_rst),
        .rempty_o (tx_empty),
        .wfull_o  ()
        );
@@ -344,10 +344,10 @@ module spi_layer
        .wr_en_i  (rx_push),
        .wr_data_i(rx_data),
 
-       .rst_i    (rst_i),
+       .reset_ni (~rst_i),
        .rempty_o (rx_empty),
        .wfull_o  (rx_full)
        );
 
-   
+
 endmodule // spi_layer
