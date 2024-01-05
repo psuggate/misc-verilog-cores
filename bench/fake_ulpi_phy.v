@@ -43,7 +43,7 @@ module fake_ulpi_phy (
 
   reg [3:0] state, snext;
 
-  reg dir_q, nxt_q, rdy_q;
+  reg dir_q, nxt_q, rdy_q, hss_q;
   reg [7:0] dat_q;
 
   reg tvalid;
@@ -84,6 +84,44 @@ module fake_ulpi_phy (
   assign line_state_w = state == ST_INIT ? 2'b01 :
                         state == ST_KJKJ ? (kj_count[3] ? 2'b10 : 2'b01) :
                         state == ST_CHRP ? 2'b10 : 2'b00;
+
+
+  // -- Monitor the USB 'LineState' -- //
+
+  reg [7:0] last_dat_q;
+  reg [1:0] curr_ls_q, last_ls_q;
+  reg ls_diff_q;
+  wire ls_changed_w;
+
+  assign ls_changed_w = curr_ls_q != last_ls_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      curr_ls_q  <= 2'b01; // Note: post-connect (FS) value is 'J'
+      last_ls_q  <= 2'b01;
+      last_dat_q <= 8'dx;
+
+      ls_diff_q <= 1'b1;
+    end else begin
+      last_ls_q  <= curr_ls_q;
+      last_dat_q <= ulpi_data_io;
+
+      if (last_dat_q == 8'd0 && ulpi_data_io == 8'h40) begin
+        curr_ls_q <= 2'b10; // Note: 'K'-chirp on 'NO PID' command
+      end else if (ulpi_stp_i && nxt_q) begin
+        curr_ls_q <= 2'b00; // Note: "EoP"-ish
+      end else begin
+        // todo: K-J chirping ...
+        curr_ls_q <= line_state_w;
+      end
+
+      if (state == ST_STAT) begin
+        ls_diff_q <= 1'b0;
+      end else if (!ls_diff_q) begin
+        ls_diff_q <= ls_changed_w;
+      end
+    end
+  end
 
 
   // -- Rx Datapath -- //
@@ -133,7 +171,7 @@ module fake_ulpi_phy (
 
 `ifdef __icarus
   // Because patience is for the weak
-  localparam [7:0] COUNT_2_5_US = 31;
+  localparam [7:0] COUNT_2_5_US = 11;
 `else
   localparam [7:0] COUNT_2_5_US = 149;
 `endif
@@ -167,7 +205,7 @@ module fake_ulpi_phy (
     if (reset) begin
       kj_count <= 4'd0;
     end else begin
-      if (state == ST_CHRP) begin
+      if (state == ST_KJKJ) begin
         kj_count <= kj_cnext;
       end
     end
@@ -196,6 +234,7 @@ module fake_ulpi_phy (
       nxt_q <= 1'b0;
       rdy_q <= 1'b0;
       dat_q <= 'bx;
+      hss_q <= 1'b0;
     end else begin
       case (state)
         default: begin  // ST_IDLE
@@ -211,6 +250,7 @@ module fake_ulpi_phy (
             $display("%10t: Tweet, tweet", $time);
             nxt_q <= 1'b1;
             dir_q <= 1'b0;
+            hss_q <= 1'b1;
             state <= ST_CHRP;
             snext <= ST_IDLE;
           end else if (rx_start_w) begin
@@ -225,12 +265,14 @@ module fake_ulpi_phy (
             dir_q <= 1'b1;
             state <= ST_WAIT;
             snext <= ST_SEND;
-          end else if (ulpi_data_io == 8'h00 && pulse_2_5us) begin
+          end else if (ls_diff_q && ulpi_data_io == 8'h00 && pulse_2_5us) begin
+            // 'LineState' has changed, so issue an 'RX CMD'
+            // If "High-Speed Switch" is active, then K/J chirp afterwards
             nxt_q <= 1'b0;
             dir_q <= 1'b1;
             dat_q <= 8'bz;
             state <= ST_LINE;
-            snext <= ST_STAT;
+            snext <= hss_q ? ST_KJKJ : ST_IDLE;
           end else begin
             nxt_q <= 1'b0;
             dir_q <= 1'b0;
@@ -239,16 +281,11 @@ module fake_ulpi_phy (
           end
         end
 
-        ST_REGW: begin
-          if (ulpi_stp_i) begin
-            state <= ST_IDLE;
-            nxt_q <= 1'b0;
-          end else begin
-            nxt_q <= 1'b1;
-          end
-        end
-
+        //
+        //  Normal Operation
+        ///
         ST_WAIT: begin
+          // This is an intermediate-state that waits for bus-turnaround
           state <= snext;
           snext <= 'bx;
 
@@ -257,67 +294,6 @@ module fake_ulpi_phy (
           dat_q <= snext == ST_SEND ? rx_cmd_w : dat_q;
         end
 
-        //
-        //  High-Speed Negotiation Sequence
-        //  Note: PHY attaches in FS-mode
-        ///
-        ST_INIT: begin
-          // TODO: unused !!?!?
-          state <= count > CONNECT_TIME && ulpi_data_io == 8'h0 ? ST_XSE0 : state;
-          dir_q <= count > CONNECT_TIME && ulpi_data_io == 8'h0;
-        end
-
-        ST_LINE: begin
-          // Grabs the line
-          state <= snext;
-          dir_q <= 1'b1;
-          nxt_q <= 1'b0;
-          dat_q <= rx_cmd_w;
-        end
-
-        ST_STAT: begin
-          // Uses an RX CMD to indicate the line-state
-          state <= ST_IDLE;
-          dat_q <= 8'bz;
-          dir_q <= 1'b0;
-          nxt_q <= 1'b0;
-        end
-
-        ST_XSE0: begin
-          // TODO: unused !!?!?
-          // Send 'RX CMD' (line-state) of 'SE0'
-          dir_q <= 1'b1;
-          state <= ST_CHRP;
-        end
-
-        ST_CHRP: begin
-          // TODO: unused !!?!?
-          // Wait for the K-chirp
-          if (ulpi_stp_i) begin
-            nxt_q <= 1'b0;
-            dat_q <= 8'bz;
-            state <= snext;
-          end else begin
-            nxt_q <= 1'b1;
-            dat_q <= 8'hAA;
-            state <= state;
-          end
-          dir_q <= 1'b0;
-          rdy_q <= 1'b0;
-        end
-
-        ST_KJKJ: begin
-          // TODO: unused !!?!?
-          dir_q <= ulpi_stp_i ? 1'b0 : kj_count[1] & kj_count[2];
-          dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
-          nxt_q <= 1'b0;
-          rdy_q <= 1'b0;
-          state <= ulpi_stp_i ? snext : state;
-        end
-
-        //
-        //  Normal Operation
-        ///
         ST_SEND: begin
           state <= ulpi_stp_i ? ST_STOP : usb_tvalid_i && usb_tlast_i && rdy_q ? ST_IDLE : state;
           snext <= ST_IDLE;
@@ -337,6 +313,78 @@ module fake_ulpi_phy (
           nxt_q <= !ulpi_stp_i && !(rnd_q >= 5);
           rdy_q <= 1'b0;
           dat_q <= dat_q;
+        end
+
+        //
+        //  Issue 'RX CMD' messages from the ULPI to the Link
+        ///
+        ST_LINE: begin
+          // Grabs the line
+          state <= ST_STAT;
+          dir_q <= 1'b1;
+          nxt_q <= 1'b0;
+          dat_q <= rx_cmd_w;
+        end
+
+        ST_STAT: begin
+          // Uses an RX CMD to indicate the line-state
+          state <= snext;
+          dat_q <= 8'bz;
+          dir_q <= 1'b0;
+          nxt_q <= 1'b0;
+        end
+
+        //
+        //  ULPI PHY Configuration
+        ///
+        ST_REGW: begin
+          if (ulpi_stp_i) begin
+            state <= ST_IDLE;
+            nxt_q <= 1'b0;
+          end else begin
+            nxt_q <= 1'b1;
+          end
+        end
+
+        //
+        //  High-Speed Negotiation Sequence
+        //  Note: PHY attaches in FS-mode
+        ///
+        ST_INIT: begin
+          // TODO: unused !!?!?
+          state <= count > CONNECT_TIME && ulpi_data_io == 8'h0 ? ST_XSE0 : state;
+          dir_q <= count > CONNECT_TIME && ulpi_data_io == 8'h0;
+        end
+
+        ST_XSE0: begin
+          // Send 'RX CMD' (line-state) of 'SE0'
+          state <= ST_CHRP;
+          dir_q <= 1'b1;
+        end
+
+        ST_CHRP: begin
+          // Wait for the K-chirp
+          if (ulpi_stp_i) begin
+            state <= snext;
+            nxt_q <= 1'b0;
+            dat_q <= 8'bz;
+          end else begin
+            state <= state;
+            nxt_q <= 1'b1;
+            dat_q <= 8'hAA;
+          end
+          dir_q <= 1'b0;
+          rdy_q <= 1'b0;
+        end
+
+        ST_KJKJ: begin
+          // Now pretend to be the USB host, emitting K- & J- chirps
+          state <= ulpi_stp_i ? ST_IDLE : state;
+          dir_q <= ulpi_stp_i ? 1'b0 : kj_count[1] & kj_count[2];
+          nxt_q <= 1'b0;
+          dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
+          rdy_q <= 1'b0;
+          hss_q <= 1'b0; // HS handshaking sequence has ended
         end
 
         ST_STOP: begin

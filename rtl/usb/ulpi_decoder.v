@@ -14,11 +14,16 @@ module ulpi_decoder (
 
     output crc_error_o,
     output crc_valid_o,
+    output decode_idle_o,
 
     input [1:0] LineState,
     input [1:0] VbusState,
     input [1:0] RxEvent,
 
+    output usb_sof_o,
+    output tok_recv_o,
+    output tok_ping_o,
+    output [1:0] tok_type_o,
     output [6:0] tok_addr_o,
     output [3:0] tok_endp_o,
 
@@ -67,7 +72,7 @@ module ulpi_decoder (
   reg [7:0] dat_q;
 
   // USB packet-type parser signals
-  reg hsk_q, tok_q, low_q;
+  reg hsk_q, tok_q, low_q, sof_q;
   wire pid_vld_w, istoken_w;
   wire [3:0] rx_pid_pw, rx_pid_nw;
 
@@ -77,15 +82,22 @@ module ulpi_decoder (
   wire [15:0] crc16_w;
 
   // USB token signals
+  reg tok_recv_q;
   reg  [10:0] token_data;
   wire [ 4:0] rx_crc5_w;
 
 
   // -- Output Assignments -- //
 
+  // todo: good enough !?
+  assign decode_idle_o = ~cyc_q;
+
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
 
+  assign usb_sof_o  = sof_q;
+
+  assign tok_recv_o = tok_recv_q;
   assign tok_addr_o = token_data[6:0];
   assign tok_endp_o = token_data[10:7];
 
@@ -132,7 +144,7 @@ module ulpi_decoder (
         rx_tvalid <= 1'b1;
         rx_tkeep <= 1'b0;
         rx_tlast <= 1'b1;
-        rx_tuser <= 4'hx;
+        rx_tuser <= rx_tuser;
         rx_tdata <= 8'bx;
       end else if (dir_q && ulpi_dir && ulpi_nxt) begin
         cyc_q <= 1'b1;
@@ -143,7 +155,7 @@ module ulpi_decoder (
           rx_tvalid <= 1'b0;
           rx_tkeep  <= 1'bx;
           rx_tlast  <= 1'bx;
-          rx_tuser  <= 4'hx;
+          rx_tuser  <= rx_tuser;
           rx_tdata  <= 8'hx;
         end else begin
           rx_tvalid <= 1'b1;
@@ -186,6 +198,7 @@ module ulpi_decoder (
   always @(posedge clock) begin
     if (reset) begin
       tok_q <= 1'b0;
+      sof_q <= 1'b0;
       low_q <= 1'b1;
     end else begin
       if (!tok_q && pid_vld_w && istoken_w) begin
@@ -206,10 +219,13 @@ module ulpi_decoder (
     end
   end
 
+  always @(posedge clock) begin
+    tok_recv_q <= tok_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];
+  end
+
 
   // -- Early CRC16 calculation -- //
 
-  // assign rx_crc5_w = crc5(token_data);
   assign rx_crc5_w = crc5({ulpi_data[2:0], token_data[7:0]});
   assign crc16_w   = crc16(ulpi_data, crc16_q);
 

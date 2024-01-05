@@ -4,6 +4,7 @@ module ulpi_encoder (
     input reset,
 
     input high_speed_i,
+    output encode_idle_o,
 
     input [1:0] LineState,
     input [1:0] VbusState,
@@ -77,6 +78,12 @@ module ulpi_encoder (
   wire sready_next;
 
   assign sready_next = src_ready(s_tvalid, tvalid, dvalid, ulpi_nxt);
+
+
+  // -- I/O Assignments -- //
+
+  // todo: check that this encodes correctly (as 'xsend[0]') !?
+  assign encode_idle_o = xsend == TX_IDLE;
 
 
   // -- ULPI Initialisation FSM -- //
@@ -239,7 +246,7 @@ module ulpi_encoder (
         ///
         TX_INIT: begin
           // xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
-          xsend <= phy_write_i ? TX_REGW : xsend;
+          xsend <= high_speed_i ? TX_IDLE : phy_write_i ? TX_REGW : xsend;
           stp_q <= phy_stop_i ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
@@ -257,20 +264,6 @@ module ulpi_encoder (
           stp_q <= ulpi_nxt ? 1'b1 : 1'b0;
           rdy_q <= 1'b0;
         end
-
-/*
-        TX_HOLD: begin
-          // Hold the current state until signaled to stop
-          if (phy_stop_i) begin
-            xsend <= TX_INIT;
-            stp_q <= 1'b1;
-          end else begin
-            xsend <= xsend;
-            stp_q <= 1'b0;
-          end
-          rdy_q <= 1'b0;
-        end
-*/
       endcase
     end
   end

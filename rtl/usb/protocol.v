@@ -42,13 +42,19 @@ module protocol #(
     output [6:0] usb_addr_o,
     output [7:0] usb_conf_o,
     output usb_sof_o,
-    output crc_err_o,
+    input crc_err_i,
     output timeout_o,
+
+   input tok_recv_i,
+   input [6:0] tok_addr_i,
+   input [3:0] tok_endp_i,
 
     // USB control & bulk data received from host
     input usb_tvalid_i,
     output usb_tready_o,
+    input usb_tkeep_i,
     input usb_tlast_i,
+    input [3:0] usb_tuser_i,
     input [7:0] usb_tdata_i,
 
     // USB control & bulk data transmitted to the host
@@ -110,13 +116,11 @@ module protocol #(
   wire usb_tx_tvalid_w, usb_tx_tready_w, usb_tx_tkeep_w, usb_tx_tlast_w;
   wire [7:0] usb_rx_tdata_w, usb_tx_tdata_w;
 
-  reg crc_err_q, ctl_err_q, ctl_sel_q, usb_sof_q;
+  reg ctl_err_q, ctl_sel_q, usb_sof_q;
   wire crc_err_w;
 
 
   assign usb_addr_o = usb_addr_w;
-
-  assign crc_err_o  = crc_err_q;
 
 
   // -- Status & Debug Flags -- //
@@ -125,7 +129,6 @@ module protocol #(
     if (reset) begin
       ctl_err_q <= 1'b0;
       ctl_sel_q <= 1'b0;
-      crc_err_q <= 1'b0;
       usb_sof_q <= 1'b0;
     end else begin
       if (ctl0_error_w) begin
@@ -133,9 +136,6 @@ module protocol #(
       end
       if (ctl0_cycle_w) begin
         ctl_sel_q <= 1'b1;
-      end
-      if (crc_err_w) begin
-        crc_err_q <= 1'b1;
       end
       if (usb_sof_o) begin
         usb_sof_q <= 1'b1;
@@ -191,6 +191,7 @@ module protocol #(
       .trn_tdata_i (usb_tx_tdata_w)
   );
 
+/*
   decode_packet U_DECODER0 (
       .reset(reset),
       .clock(clock),
@@ -224,6 +225,15 @@ module protocol #(
       .out_tlast_o (usb_rx_tlast_w),
       .out_tdata_o (usb_rx_tdata_w)
   );
+*/
+
+  assign usb_rx_tvalid_w = usb_tvalid_i;
+  assign usb_tready_o = usb_rx_tready_w;
+  assign usb_rx_tkeep_w = usb_tkeep_i;
+  assign usb_rx_tlast_w = usb_tlast_i;
+  assign usb_rx_tdata_w = usb_tdata_i;
+
+  assign tok_rx_ping_w = 1'b0;
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
@@ -245,11 +255,11 @@ module protocol #(
       .usb_timeout_error_o(timeout_o),
 
       // Signals from the USB packet decoder (upstream)
-      .tok_recv_i(tok_rx_recv_w),
+      .tok_recv_i(tok_recv_i),
       .tok_ping_i(tok_rx_ping_w),
-      .tok_type_i(tok_rx_type_w),
-      .tok_addr_i(tok_rx_addr_w),
-      .tok_endp_i(tok_rx_endp_w),
+      .tok_type_i(usb_tuser_i[3:2]),
+      .tok_addr_i(tok_addr_i),
+      .tok_endp_i(tok_endp_i),
 
       .hsk_recv_i(hsk_rx_recv_w),
       .hsk_type_i(hsk_rx_type_w),
@@ -426,7 +436,7 @@ module protocol #(
       .usb_enum_i(1'b1),
 `endif
 
-      .crc_error_i(crc_err_w),
+      .crc_error_i(crc_err_i),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),

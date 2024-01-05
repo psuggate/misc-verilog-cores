@@ -41,7 +41,7 @@ module line_state #(
     output phy_write_o,
     output phy_nopid_o,
     output phy_stop_o,
-   input phy_done_i,
+    input phy_done_i,
     output [7:0] phy_addr_o,
     output [7:0] phy_data_o
 );
@@ -73,6 +73,7 @@ module line_state #(
   localparam [3:0] ST_CHIRP_K0 = 4'h9;
   localparam [3:0] ST_CHIRP_K1 = 4'ha;
   localparam [3:0] ST_CHIRP_K2 = 4'hb;
+  localparam [3:0] ST_HS_START = 4'hc;
 
 
   // -- State & Signals -- //
@@ -320,7 +321,7 @@ module line_state #(
           if (phy_done_i) begin
             // Issue 'NO PID' command to start the 'K'-chirp
             state <= ST_CHIRP_K1;
-            set_q <= 1'b0; // todo: issue 'NO PID' here ??
+            set_q <= 1'b0;  // todo: issue 'NO PID' here ??
             nop_q <= 1'b1;
           end else begin
             set_q <= ulpi_nxt ? 1'b0 : 1'b1;
@@ -349,150 +350,32 @@ module line_state #(
         //  Attempt to handshake for HS-mode
         ///
         ST_CHIRP_KJ: begin
-          state      <= kj_ended_q ? ST_HS_MODE : state;
+          state      <= kj_ended_q ? ST_HS_START : state;
           set_q      <= 1'b0;
+          stp_q      <= kj_ended_q ? 1'b1 : 1'b0;
           chirp_kj_q <= kj_start_q && pulse_2_5us && !kj_valid_q;
+          {set_q, adr_q, val_q} <= {kj_ended_q, 8'h84, 8'h40};
+        end
+
+        ST_HS_START: begin
+          stp_q <= 1'b0;
+          if (phy_done_i) begin
+            state <= ST_HS_MODE;
+            set_q <= 1'b0;
+          end else begin
+            set_q <= ulpi_nxt ? 1'b0 : 1'b1;
+          end
         end
 
         ST_HS_MODE: begin
           state      <= state;
           set_q      <= 1'b0;
+          stp_q      <= 1'b0;
           chirp_kj_q <= 1'b0;
         end
       endcase
     end
   end
-
-
-  /*
-  always @(posedge clock) begin
-    if (reset) begin
-      state <= ST_POWER_ON;
-      set_q <= 1'b0;
-      stp_q <= 1'b0;
-      nop_q <= 1'b0;
-    end else begin
-      case (state)
-        ST_POWER_ON: begin
-          // Set the ULPI PHY to FS-mode, in order to listen to host signals
-          state <= ST_WR_REGA;
-          snext <= ST_FSSTART;
-
-          set_q <= 1'b1;
-          adr_q <= 8'h8A;
-          val_q <= 8'h00;
-        end
-
-        //
-        //  Switch to FS-mode prior to chirping
-        ///
-        ST_FSSTART: begin
-          // Switch to FS-mode, and then wait for the host
-          state <= ST_WR_REGA;
-          snext <= ST_FSRESET;
-
-          set_q <= 1'b1;
-          adr_q <= 8'h84;
-          val_q <= 8'h45;
-        end
-
-        ST_FSRESET: begin
-          // Issue RESET to the USB core/function, while transceivers start
-          state <= pulse_80us_w ? ST_FSWITCH : rx_cmd_q && LineStateW == 2'b00 ? ST_STARTUP : state;
-        end
-
-        ST_FSWITCH: begin
-          // Wait for the transceivers to switch to FS-mode, and then listen for
-          // 'SE0' to be signaled
-          state <= rx_cmd_q && LineStateW == 2'b00 ? ST_STARTUP : state;
-        end
-
-        ST_STARTUP: begin
-          // Wait for the host to hold SE0 for atleast 2.5 us, then continue
-          // start-up sequence (peripheral emits 'K' chirp)
-          state <= pulse_2_5us ? ST_WR_REGA : state;
-          snext <= ST_CHIRPK0;
-
-          set_q <= 1'b1;
-          adr_q <= 8'h84;
-          val_q <= 8'h54;
-        end
-
-        //
-        //  Negotiate HS-mode via Chirping
-        ///
-        ST_CHIRPK0: begin
-          // Send a 'NO PID' command to the PHY to initiate the 'K'-chirp
-          state <= phy_busy_i ? ST_CHIRPK1 : state;
-          nop_q <= 1'b1;
-        end
-
-        ST_CHIRPK1: begin
-          // Wait for at least 1.0 ms, and for the PHY to accept, before issuing
-          // chirp-'STOP'
-          state <= pulse_1_0ms && ulpi_nxt ? ST_CHIRPK2 : state;
-          nop_q <= 1'b0;
-          stp_q <= pulse_1_0ms && ulpi_nxt;
-        end
-
-        ST_CHIRPK2: begin
-          // Wait for the PHY to signal 'squelch', then switch to listening to
-          // the host K/J chirps
-          state <= rx_cmd_q ? ST_CHIRPKJ : state;
-          stp_q <= 1'b0;
-        end
-
-        ST_CHIRPKJ: begin
-          // Wait for the host to chirp 6x (K-J-K-J-K-J), then switch the PHY
-          // transceivers to HS-mode
-          state <= kj_count == 3 && pulse_2_5us ? ST_WR_REGA : state;
-          snext <= ST_HS_MODE;
-
-          set_q <= 1'b1;
-          adr_q <= 8'h84;
-          val_q <= 8'h40;
-        end
-
-        ST_HS_MODE: begin
-          // Done (after 'squelch')
-          state <= state;
-        end
-
-        //
-        //  Write to a ULPI PHY register
-        ///
-        ST_WR_REGA: begin
-          state <= ulpi_nxt ? ST_WR_REGD : state;
-          set_q <= ulpi_nxt ? 1'b0 : 1'b1;
-        end
-        ST_WR_REGD: state <= ulpi_nxt ? snext : state;
-
-        // default: begin
-        //   state <= ST_RESET;
-        // end
-
-      endcase
-    end
-  end
-
-
-  // -- Output Data-Path -- //
-
-  reg run_q;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      run_q <= 1'b0;
-    end else if (dir_q || ulpi_dir) begin
-      // todo: we have to load the pipeline-registers up ??
-    end else begin
-      if (ulpi_nxt) begin
-        ulpi_data <= run_q ? s_tdata : dat_q;
-        dat_q <= dat_w;
-      end
-    end
-  end
-*/
 
 
   // -- Simulation Only -- //
@@ -512,6 +395,7 @@ module line_state #(
       ST_CHIRP_K1: dbg_state = "CHIRP_K1";
       ST_CHIRP_K2: dbg_state = "CHIRP_K2";
       ST_CHIRP_KJ: dbg_state = "CHIRP_KJ";
+      ST_HS_START: dbg_state = "HS_START";
       ST_HS_MODE: dbg_state = "HS_MODE";
       default: dbg_state = "XXXX";
     endcase

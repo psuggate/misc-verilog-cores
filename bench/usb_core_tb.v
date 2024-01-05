@@ -57,13 +57,6 @@ module usb_core_tb;
 
     while (reset) begin
       @(posedge clock);
-
-      /*
-      svalid <= 1'b0;
-      slast <= 1'b0;
-      mready <= 1'b0;
-*/
-
       enumerate <= 1'b0;
     end
 
@@ -100,7 +93,6 @@ module usb_core_tb;
 
   fake_usb_host_ulpi U_FAKE_USB0 (
       .clock (clock),
-      // .reset (reset),
       .reset (~arst_n),
       .enable(enabled),
 
@@ -132,10 +124,10 @@ module usb_core_tb;
 
 
   // Check the output from the Control PIPE0 //
-  wire ctl0_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.get_desc_q;
-  wire ctl0_tready_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_ready_w;
-  wire ctl0_tlast_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_last_w;
-  wire [7:0] ctl0_tdata_w = U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_data_w;
+  wire ctl0_tvalid_w = U_ULPI_USB0.U_PROTOCOL0.U_CFG_PIPE0.get_desc_q;
+  wire ctl0_tready_w = U_ULPI_USB0.U_PROTOCOL0.U_CFG_PIPE0.chop_ready_w;
+  wire ctl0_tlast_w = U_ULPI_USB0.U_PROTOCOL0.U_CFG_PIPE0.chop_last_w;
+  wire [7:0] ctl0_tdata_w = U_ULPI_USB0.U_PROTOCOL0.U_CFG_PIPE0.chop_data_w;
 
   axis_flow_check U_AXIS_FLOW0 (
       .clock(usb_clock),
@@ -147,10 +139,10 @@ module usb_core_tb;
   );
 
   // Check the output from the AXI4-Stream burst-chopper //
-  wire ask_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tvalid_w;
-  wire ask_tready_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tready_w;
-  wire ask_tlast_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tlast_w;
-  wire [7:0] ask_tdata_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_tdata_w;
+  wire ask_tvalid_w = U_ULPI_USB0.U_PROTOCOL0.ctl0_tvalid_w;
+  wire ask_tready_w = U_ULPI_USB0.U_PROTOCOL0.ctl0_tready_w;
+  wire ask_tlast_w = U_ULPI_USB0.U_PROTOCOL0.ctl0_tlast_w;
+  wire [7:0] ask_tdata_w = U_ULPI_USB0.U_PROTOCOL0.ctl0_tdata_w;
 
   axis_flow_check U_AXIS_FLOW1 (
       .clock(usb_clock),
@@ -162,10 +154,10 @@ module usb_core_tb;
   );
 
   // Check the output from the USB packet decoder //
-  wire usb_rx_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tvalid_w;
-  wire usb_rx_tready_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tready_w;
-  wire usb_rx_tlast_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tlast_w;
-  wire [7:0] usb_rx_tdata_w = U_ULPI_USB0.U_USB_CTRL0.usb_rx_tdata_w;
+  wire usb_rx_tvalid_w = U_ULPI_USB0.U_PROTOCOL0.usb_rx_tvalid_w;
+  wire usb_rx_tready_w = U_ULPI_USB0.U_PROTOCOL0.usb_rx_tready_w;
+  wire usb_rx_tlast_w = U_ULPI_USB0.U_PROTOCOL0.usb_rx_tlast_w;
+  wire [7:0] usb_rx_tdata_w = U_ULPI_USB0.U_PROTOCOL0.usb_rx_tdata_w;
 
   axis_flow_check U_AXIS_FLOW2 (
       .clock(usb_clock),
@@ -177,10 +169,10 @@ module usb_core_tb;
   );
 
   // Check the output to the USB packet encoder //
-  wire usb_tx_tvalid_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tvalid_w;
-  wire usb_tx_tready_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tready_w;
-  wire usb_tx_tlast_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tlast_w;
-  wire [7:0] usb_tx_tdata_w = U_ULPI_USB0.U_USB_CTRL0.usb_tx_tdata_w;
+  wire usb_tx_tvalid_w = U_ULPI_USB0.U_PROTOCOL0.usb_tx_tvalid_w;
+  wire usb_tx_tready_w = U_ULPI_USB0.U_PROTOCOL0.usb_tx_tready_w;
+  wire usb_tx_tlast_w = U_ULPI_USB0.U_PROTOCOL0.usb_tx_tlast_w;
+  wire [7:0] usb_tx_tdata_w = U_ULPI_USB0.U_PROTOCOL0.usb_tx_tdata_w;
 
   axis_flow_check U_AXIS_FLOW3 (
       .clock(usb_clock),

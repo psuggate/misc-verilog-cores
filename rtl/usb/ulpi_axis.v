@@ -47,6 +47,7 @@ module ulpi_axis #(
     output has_telemetry_o,
     output usb_sof_o,
     output crc_err_o,
+    output crc_vld_o,
     output timeout_o,
     output usb_vbus_valid_o,
     output usb_hs_enabled_o,
@@ -179,43 +180,14 @@ module ulpi_axis #(
 
   // -- Local Signals and Assignments -- //
 
-  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
-  wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tlast_w;
+  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tkeep_w, ulpi_rx_tlast_w;
+  wire ulpi_tx_tvalid_w, ulpi_tx_tready_w, ulpi_tx_tkeep_w, ulpi_tx_tlast_w;
+  wire [3:0] ulpi_rx_tuser_w, ulpi_tx_tuser_w;
   wire [7:0] ulpi_rx_tdata_w, ulpi_tx_tdata_w;
 
-
-  // -- AXI4 stream to/from ULPI stream -- //
-
-  usb_ulpi #(
-      .HIGH_SPEED(HIGH_SPEED)
-  ) U_USB_ULPI0 (
-      .rst_n(ulpi_rst_nw),
-
-      .ulpi_clk(clock),
-      .usb_reset_o(usb_reset_w),
-
-      .ulpi_data_in(ulpi_data_iw),
-      .ulpi_data_out(ulpi_data_ow),
-      .ulpi_dir(ulpi_dir_i),
-      .ulpi_nxt(ulpi_nxt_i),
-      .ulpi_stp(ulpi_stp_o),
-
-      .axis_rx_tvalid_o(ulpi_rx_tvalid_w),
-      .axis_rx_tready_i(ulpi_rx_tready_w),
-      .axis_rx_tlast_o (ulpi_rx_tlast_w),
-      .axis_rx_tdata_o (ulpi_rx_tdata_w),
-
-      .axis_tx_tvalid_i(ulpi_tx_tvalid_w),
-      .axis_tx_tready_o(ulpi_tx_tready_w),
-      .axis_tx_tlast_i (ulpi_tx_tlast_w),
-      .axis_tx_tdata_i (ulpi_tx_tdata_w),
-
-      .ulpi_rx_overflow_o(ulpi_rx_overflow_o),
-      .usb_hs_enabled_o  (usb_hs_enabled_o),
-      .usb_vbus_valid_o  (usb_vbus_valid_o),
-      .usb_idle_o        (usb_idle_o),
-      .usb_suspend_o     (usb_suspend_o)
-  );
+  wire tok_recv_w;
+  wire [6:0] tok_addr_w;
+  wire [3:0] tok_endp_w;
 
 
   // -- Top-level USB Control Core -- //
@@ -231,7 +203,7 @@ module ulpi_axis #(
       .SERIAL_STRING(SERIAL_STRING),
       .VENDOR_ID(VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID)
-  ) U_USB_CTRL0 (
+  ) U_PROTOCOL0 (
       .clock(clock),
       .reset(reset),
 
@@ -240,8 +212,12 @@ module ulpi_axis #(
       .usb_addr_o     (),
       .usb_conf_o     (),
       .usb_sof_o      (usb_sof_o),
-      .crc_err_o      (crc_err_o),
+      .crc_err_i      (crc_err_o),
       .timeout_o      (timeout_o),
+
+                 .tok_recv_i(tok_recv_w),
+                 .tok_addr_i(tok_addr_w),
+                 .tok_endp_i(tok_endp_w),
 
       // USB bulk endpoint data-paths
       .blk_in_ready_i(blk_in_ready_i),
@@ -264,7 +240,9 @@ module ulpi_axis #(
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),
       .usb_tready_o(ulpi_rx_tready_w),
+      .usb_tkeep_i (ulpi_rx_tkeep_w),
       .usb_tlast_i (ulpi_rx_tlast_w),
+      .usb_tuser_i (ulpi_rx_tuser_w),
       .usb_tdata_i (ulpi_rx_tdata_w),
 
       // USB control & bulk data transmitted to host (via encoder)
@@ -275,15 +253,36 @@ module ulpi_axis #(
   );
 
 
+  // -- AXI4 stream to/from ULPI stream -- //
+
   // Signals for sending initialisation commands & settings to the PHY.
   wire phy_write_w, phy_stop_w, phy_chirp_w, phy_busy_w, phy_done_w;
   wire [7:0] phy_addr_w, phy_data_w;
 
   wire [1:0] LineState, VbusState, RxEvent;
-  wire high_speed_w;
+  wire high_speed_w, encode_idle_w, decode_idle_w;
+  wire pulse_2_5us_w, pulse_1_0ms_w;
 
   wire iob_dir_w, iob_nxt_w;
   wire [7:0] iob_dat_w;
+
+
+  // -- USB Idle State -- //
+
+  reg usb_idle_q;
+  
+  assign usb_idle_o = usb_idle_q;
+
+  always @(posedge clock) begin
+    if (!areset_n) begin
+      usb_idle_q <= 1'b0;
+    end else begin
+      usb_idle_q <= ~ulpi_dir_i & high_speed_w & encode_idle_w & decode_idle_w;
+    end
+  end
+
+
+  // -- ULPI Decoder & Encoder -- //
 
   ulpi_decoder U_DECODER1 (
       .clock(clock),
@@ -301,60 +300,31 @@ module ulpi_axis #(
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
 
-      .crc_error_o(),
-      .crc_valid_o(),
+      .crc_error_o(crc_err_o),
+      .crc_valid_o(crc_vld_o),
+      .decode_idle_o(decode_idle_w),
 
-      .tok_addr_o(),
-      .tok_endp_o(),
+      .tok_recv_o(tok_recv_w),
+      .tok_addr_o(tok_addr_w),
+      .tok_endp_o(tok_endp_w),
 
-      .m_tvalid(),
-      .m_tready(1'b1),
-      .m_tkeep (),
-      .m_tlast (),
-      .m_tdata ()
+      .m_tvalid(ulpi_rx_tvalid_w),
+      .m_tready(ulpi_rx_tready_w),
+      .m_tkeep (ulpi_rx_tkeep_w),
+      .m_tlast (ulpi_rx_tlast_w),
+      .m_tuser (ulpi_rx_tuser_w),
+      .m_tdata (ulpi_rx_tdata_w)
   );
 
-  wire new_dir = ulpi_dir_i;
-  wire new_stp;
-  wire new_nxt = ulpi_nxt_i;
-  wire [7:0] new_data;
-
-  ulpi_line_state #(
-      .HIGH_SPEED(1)
-  ) U_ULPI_LS0 (
-      .clock(clock),
-      .reset(~areset_n),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ulpi_dir (ulpi_dir_i),
-      .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (new_stp),
-      .ulpi_data(ulpi_data_io),
-
-      .iob_dir_o(iob_dir_w),
-      .iob_nxt_o(iob_nxt_w),
-      .iob_dat_o(iob_dat_w),
-
-      .high_speed_o(high_speed_w),
-      .usb_reset_o (),
-
-      .phy_write_o(phy_write_w),
-      .phy_nopid_o(phy_chirp_w),
-      .phy_stop_o (phy_stop_w),
-      .phy_busy_i (phy_busy_w),
-      .phy_done_i (phy_done_w),
-      .phy_addr_o (phy_addr_w),
-      .phy_data_o (phy_data_w)
-  );
+  // todo: ...
+  assign ulpi_tx_tuser_w = 4'h0;
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
       .reset(~areset_n),
 
       .high_speed_i(high_speed_w),
+      .encode_idle_o(encode_idle_w),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -368,21 +338,18 @@ module ulpi_axis #(
       .phy_addr_i (phy_addr_w),
       .phy_data_i (phy_data_w),
 
-      .s_tvalid(1'b0),
-      .s_tready(),
-      .s_tkeep (1'b0),
-      .s_tlast (1'b0),
-      .s_tuser (4'h0),
-      .s_tdata (8'hx),
+      .s_tvalid(ulpi_tx_tvalid_w),
+      .s_tready(ulpi_tx_tready_w),
+      .s_tkeep (ulpi_tx_tkeep_w),
+      .s_tlast (ulpi_tx_tlast_w),
+      .s_tuser (ulpi_tx_tuser_w),
+      .s_tdata (ulpi_tx_tdata_w),
 
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (new_stp),
-      .ulpi_data(new_data)
+      .ulpi_stp (ulpi_stp_o),
+      .ulpi_data(ulpi_data_ow)
   );
-
-
-  wire pulse_2_5us_w, pulse_1_0ms_w;
 
   line_state #(
       .HIGH_SPEED(1)
@@ -390,172 +357,33 @@ module ulpi_axis #(
       .clock(clock),
       .reset(~areset_n),
 
-      .LineState(),
-      .VbusState(),
-      .RxEvent  (),
+      .LineState(LineState),
+      .VbusState(VbusState),
+      .RxEvent  (RxEvent),
 
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (new_stp),
-      .ulpi_data(ulpi_data_io),
+      .ulpi_stp (ulpi_stp_o),
+      .ulpi_data(ulpi_data_iw),
 
-      .iob_dir_o(),
-      .iob_nxt_o(),
-      .iob_dat_o(),
+      .iob_dir_o(iob_dir_w),
+      .iob_nxt_o(iob_nxt_w),
+      .iob_dat_o(iob_dat_w),
 
-      .high_speed_o(),
+      .high_speed_o(high_speed_w),
 
+      .phy_write_o(phy_write_w),
+      .phy_nopid_o(phy_chirp_w),
+      .phy_stop_o (phy_stop_w),
       .phy_done_i (phy_done_w),
+      .phy_addr_o (phy_addr_w),
+      .phy_data_o (phy_data_w),
+
       .kj_start_i(1'b0),
 
       .pulse_2_5us_o(pulse_2_5us_w),
       .pulse_1_0ms_o(pulse_1_0ms_w)
   );
-
-
-  /*
-  // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
-
-  wire mux_tvalid_w, mux_tlast_w;
-  wire [7:0] mux_tdata_w;
-
-  wire blk_sel_w = xbulk == BLK_DATI_TX;
-  wire ctl_sel_w = xctrl == CTL_DATI_TX;
-
-  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : 1'b0;
-  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_tlast_i;
-  assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_tdata_i;
-
-  axis_skid #(
-      .WIDTH (8),
-      .BYPASS(PIPELINED == 0)
-  ) U_AXIS_SKID1 (
-      .clock(clock),
-      .reset(reset),
-
-      .s_tvalid(mux_tvalid_w),
-      .s_tready(mux_tready_w),
-      .s_tlast (mux_tlast_w),
-      .s_tdata (mux_tdata_w),
-
-      .m_tvalid(usb_tvalid_o),
-      .m_tready(usb_tready_i),
-      .m_tlast (usb_tlast_o),
-      .m_tdata (usb_tdata_o)
-  );
-*/
-
-
-  /*
-  // -- Route Bulk IN Signals -- //
-
-  generate
-    if (EP1_BULK_IN && EP2_BULK_IN) begin : g_yes_mux_bulk_in
-
-      // todo: 2:1 AXI4-Stream MUX (from Alex Forencich)
-
-    end else begin : g_no_mux_bulk_in
-
-      // todo: Hook-up bulk EP signals
-
-    end
-  endgenerate
-
-
-  // -- Route Control Transfer Signals -- //
-
-  generate
-    if (EP1_CONTROL && EP2_CONTROL) begin : g_yes_mux_control
-
-      // todo: 2:1 AXI4-Stream MUX (from Alex Forencich)
-
-    end else begin : g_no_mux_control
-
-      // todo: Hook-up control EP signals
-
-    end
-  endgenerate
-
-
-  // -- Top-level USB Control Core -- //
-
-  usb_control #(
-      .EP1_BULK_IN(EP1_BULK_IN),  // IN- & OUT- for TART raw (antenna) samples
-      .EP1_BULK_OUT(EP1_BULK_OUT),
-      .EP1_CONTROL(EP1_CONTROL),
-      .ENDPOINT1(ENDPOINT1),
-      .EP2_BULK_IN(EP2_BULK_IN),  // IN-only for TART correlated values
-      .EP2_BULK_OUT(EP2_BULK_OUT),
-      .EP2_CONTROL(EP2_CONTROL),  // Control EP for configuring TART
-      .ENDPOINT2(ENDPOINT2),
-      .VENDOR_ID(VENDOR_ID),
-      .VENDOR_LENGTH(VENDOR_LENGTH),
-      .VENDOR_STRING(VENDOR_STRING),
-      .PRODUCT_ID(PRODUCT_ID),
-      .PRODUCT_LENGTH(PRODUCT_LENGTH),
-      .PRODUCT_STRING(PRODUCT_STRING),
-      .SERIAL_LENGTH(SERIAL_LENGTH),
-      .SERIAL_STRING(SERIAL_STRING)
-  ) U_USB_CTRL0 (
-      .reset       (reset),
-      // .reset       (usb_reset_w),
-      .clock       (clock),
-      .configured_o(configured_o),
-      .usb_addr_o  (),
-      .usb_conf_o  (),
-      .usb_sof_o   (usb_sof_o),
-      .crc_err_o   (crc_err_o),
-
-      .flag_tok_recv_o(flag_tok_recv_o),
-      .flag_hsk_recv_o(flag_hsk_recv_o),
-      .flag_hsk_sent_o(flag_hsk_sent_o),
-
-      // USB control & bulk data received from host (via decoder)
-      .usb_tvalid_i(ulpi_rx_tvalid_w),
-      .usb_tready_o(ulpi_rx_tready_w),
-      .usb_tlast_i (ulpi_rx_tlast_w),
-      .usb_tdata_i (ulpi_rx_tdata_w),
-
-      // USB control & bulk data transmitted to host (via encoder)
-      .usb_tvalid_o(ulpi_tx_tvalid_w),
-      .usb_tready_i(ulpi_tx_tready_w),
-      .usb_tlast_o (ulpi_tx_tlast_w),
-      .usb_tdata_o (ulpi_tx_tdata_w),
-
-      .blk_start_o (),
-      .blk_dtype_o (),
-      .blk_done1_i (1'b0),
-      .blk_done2_i (1'b0),
-      .blk_muxsel_o(),
-
-      .blk_tvalid_o(blko_tvalid_w),
-      .blk_tready_i(blko_tready_w),
-      .blk_tlast_o (blko_tlast_w),
-      .blk_tdata_o (blko_tdata_w),
-
-      .blk_tvalid_i(blki_tvalid_w),
-      .blk_tready_o(blki_tready_w),
-      .blk_tlast_i (blki_tlast_w),
-      .blk_tdata_i (blki_tdata_w),
-
-      .ctl_start_o (ctl_start_w),
-      .ctl_rtype_o (ctl_rtype_w),
-      .ctl_rargs_o (ctl_rargs_w),
-      .ctl_value_o (ctl_value_w),
-      .ctl_index_o (ctl_index_w),
-      .ctl_length_o(ctl_length_w),
-
-      .ctl_tvalid_o(cto_tvalid_w),
-      .ctl_tready_i(cto_tready_w),
-      .ctl_tlast_o (cto_tlast_w),
-      .ctl_tdata_o (cto_tdata_w),
-
-      .ctl_tvalid_i(cti_tvalid_w),
-      .ctl_tready_o(cti_tready_w),
-      .ctl_tlast_i (cti_tlast_w),
-      .ctl_tdata_i (cti_tdata_w)
-  );
-*/
 
 
 endmodule  // ulpi_axis
