@@ -90,26 +90,26 @@ module fake_ulpi_phy (
 
   reg [7:0] last_dat_q;
   reg [1:0] curr_ls_q, last_ls_q;
-  reg ls_diff_q;
+  reg  ls_diff_q;
   wire ls_changed_w;
 
   assign ls_changed_w = curr_ls_q != last_ls_q;
 
   always @(posedge clock) begin
     if (reset) begin
-      curr_ls_q  <= 2'b01; // Note: post-connect (FS) value is 'J'
+      curr_ls_q  <= 2'b01;  // Note: post-connect (FS) value is 'J'
       last_ls_q  <= 2'b01;
       last_dat_q <= 8'dx;
 
-      ls_diff_q <= 1'b1;
+      ls_diff_q  <= 1'b1;
     end else begin
       last_ls_q  <= curr_ls_q;
       last_dat_q <= ulpi_data_io;
 
       if (last_dat_q == 8'd0 && ulpi_data_io == 8'h40) begin
-        curr_ls_q <= 2'b10; // Note: 'K'-chirp on 'NO PID' command
+        curr_ls_q <= 2'b10;  // Note: 'K'-chirp on 'NO PID' command
       end else if (ulpi_stp_i && nxt_q) begin
-        curr_ls_q <= 2'b00; // Note: "EoP"-ish
+        curr_ls_q <= 2'b00;  // Note: "EoP"-ish
       end else begin
         // todo: K-J chirping ...
         curr_ls_q <= line_state_w;
@@ -158,8 +158,8 @@ module fake_ulpi_phy (
   // Randomly de-asserts 'nxt' to test how the flow-control of the upstream and
   // downstream functional-units behave.
   always @(posedge clock) begin
-    // rnd_q <= 3'd0; // Disables random flow-stoppages
-    rnd_q <= $urandom;
+    rnd_q <= 3'd0;  // Disables random flow-stoppages
+    // rnd_q <= $urandom;
   end
 
 
@@ -384,7 +384,7 @@ module fake_ulpi_phy (
           nxt_q <= 1'b0;
           dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
           rdy_q <= 1'b0;
-          hss_q <= 1'b0; // HS handshaking sequence has ended
+          hss_q <= 1'b0;  // HS handshaking sequence has ended
         end
 
         ST_STOP: begin

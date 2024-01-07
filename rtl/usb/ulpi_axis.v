@@ -189,6 +189,8 @@ module ulpi_axis #(
   wire [6:0] tok_addr_w;
   wire [3:0] tok_endp_w;
 
+  wire usb_tx_busy_w, usb_tx_done_w;
+
 
   // -- Top-level USB Control Core -- //
 
@@ -215,10 +217,6 @@ module ulpi_axis #(
       .crc_err_i      (crc_err_o),
       .timeout_o      (timeout_o),
 
-                 .tok_recv_i(tok_recv_w),
-                 .tok_addr_i(tok_addr_w),
-                 .tok_endp_i(tok_endp_w),
-
       // USB bulk endpoint data-paths
       .blk_in_ready_i(blk_in_ready_i),
       .blk_out_ready_i(blk_out_ready_i),
@@ -237,6 +235,13 @@ module ulpi_axis #(
       .blk_tlast_o (m_axis_tlast_o),
       .blk_tdata_o (m_axis_tdata_o),
 
+      .tok_recv_i(tok_recv_w),
+      .tok_addr_i(tok_addr_w),
+      .tok_endp_i(tok_endp_w),
+
+      .usb_tx_busy_i(usb_tx_busy_w),
+      .usb_tx_done_i(usb_tx_done_w),
+
       // USB control & bulk data received from host (via decoder)
       .usb_tvalid_i(ulpi_rx_tvalid_w),
       .usb_tready_o(ulpi_rx_tready_w),
@@ -248,141 +253,10 @@ module ulpi_axis #(
       // USB control & bulk data transmitted to host (via encoder)
       .usb_tvalid_o(ulpi_tx_tvalid_w),
       .usb_tready_i(ulpi_tx_tready_w),
+      .usb_tkeep_o (ulpi_tx_tkeep_w),
       .usb_tlast_o (ulpi_tx_tlast_w),
+      .usb_tuser_o (ulpi_tx_tuser_w),
       .usb_tdata_o (ulpi_tx_tdata_w)
-  );
-
-
-  // -- AXI4 stream to/from ULPI stream -- //
-
-  // Signals for sending initialisation commands & settings to the PHY.
-  wire phy_write_w, phy_stop_w, phy_chirp_w, phy_busy_w, phy_done_w;
-  wire [7:0] phy_addr_w, phy_data_w;
-
-  wire [1:0] LineState, VbusState, RxEvent;
-  wire high_speed_w, encode_idle_w, decode_idle_w;
-  wire pulse_2_5us_w, pulse_1_0ms_w;
-
-  wire iob_dir_w, iob_nxt_w;
-  wire [7:0] iob_dat_w;
-
-
-  // -- USB Idle State -- //
-
-  reg usb_idle_q;
-  
-  assign usb_idle_o = usb_idle_q;
-
-  always @(posedge clock) begin
-    if (!areset_n) begin
-      usb_idle_q <= 1'b0;
-    end else begin
-      usb_idle_q <= ~ulpi_dir_i & high_speed_w & encode_idle_w & decode_idle_w;
-    end
-  end
-
-
-  // -- ULPI Decoder & Encoder -- //
-
-  ulpi_decoder U_DECODER1 (
-      .clock(clock),
-      .reset(~areset_n),
-      // .reset(reset),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ibuf_dir(ulpi_dir_i),
-      .ibuf_nxt(ulpi_nxt_i),
-
-      .ulpi_dir (iob_dir_w),
-      .ulpi_nxt (iob_nxt_w),
-      .ulpi_data(iob_dat_w),
-
-      .crc_error_o(crc_err_o),
-      .crc_valid_o(crc_vld_o),
-      .decode_idle_o(decode_idle_w),
-
-      .tok_recv_o(tok_recv_w),
-      .tok_addr_o(tok_addr_w),
-      .tok_endp_o(tok_endp_w),
-
-      .m_tvalid(ulpi_rx_tvalid_w),
-      .m_tready(ulpi_rx_tready_w),
-      .m_tkeep (ulpi_rx_tkeep_w),
-      .m_tlast (ulpi_rx_tlast_w),
-      .m_tuser (ulpi_rx_tuser_w),
-      .m_tdata (ulpi_rx_tdata_w)
-  );
-
-  // todo: ...
-  assign ulpi_tx_tuser_w = 4'h0;
-
-  ulpi_encoder U_ENCODER1 (
-      .clock(clock),
-      .reset(~areset_n),
-
-      .high_speed_i(high_speed_w),
-      .encode_idle_o(encode_idle_w),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-
-      // Signals for controlling the ULPI PHY
-      .phy_write_i(phy_write_w),
-      .phy_nopid_i(phy_chirp_w),
-      .phy_stop_i (phy_stop_w),
-      .phy_busy_o (phy_busy_w),
-      .phy_done_o (phy_done_w),
-      .phy_addr_i (phy_addr_w),
-      .phy_data_i (phy_data_w),
-
-      .s_tvalid(ulpi_tx_tvalid_w),
-      .s_tready(ulpi_tx_tready_w),
-      .s_tkeep (ulpi_tx_tkeep_w),
-      .s_tlast (ulpi_tx_tlast_w),
-      .s_tuser (ulpi_tx_tuser_w),
-      .s_tdata (ulpi_tx_tdata_w),
-
-      .ulpi_dir (ulpi_dir_i),
-      .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (ulpi_stp_o),
-      .ulpi_data(ulpi_data_ow)
-  );
-
-  line_state #(
-      .HIGH_SPEED(1)
-  ) U_LINESTATE1 (
-      .clock(clock),
-      .reset(~areset_n),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ulpi_dir (ulpi_dir_i),
-      .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_stp (ulpi_stp_o),
-      .ulpi_data(ulpi_data_iw),
-
-      .iob_dir_o(iob_dir_w),
-      .iob_nxt_o(iob_nxt_w),
-      .iob_dat_o(iob_dat_w),
-
-      .high_speed_o(high_speed_w),
-
-      .phy_write_o(phy_write_w),
-      .phy_nopid_o(phy_chirp_w),
-      .phy_stop_o (phy_stop_w),
-      .phy_done_i (phy_done_w),
-      .phy_addr_o (phy_addr_w),
-      .phy_data_o (phy_data_w),
-
-      .kj_start_i(1'b0),
-
-      .pulse_2_5us_o(pulse_2_5us_w),
-      .pulse_1_0ms_o(pulse_1_0ms_w)
   );
 
 

@@ -77,12 +77,14 @@ module transactor #(
     output usb_tready_o,
     input usb_tkeep_i,
     input usb_tlast_i,
+    input [3:0] usb_tuser_i,
     input [7:0] usb_tdata_i,
 
     output usb_tvalid_o,
     input usb_tready_i,
     output usb_tkeep_o,
     output usb_tlast_o,
+    output [3:0] usb_tuser_o,
     output [7:0] usb_tdata_o
 );
 
@@ -200,9 +202,13 @@ module transactor #(
   assign blk_tready_o = mux_tready_w && xbulk == BLK_DATI_TX;
   assign ctl_tready_o = mux_tready_w && xctrl == CTL_DATI_TX;
 
-  assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   // assign usb_tready_o = state == ST_BULK ? blk_tready_i || xbulk == BLK_DATO_ERR : 1'b1;  // todo: ...
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
+  assign usb_tuser_o  = trn_send_q ? {trn_type_q, 2'b11} :
+                        hsend_q ? {htype_q, 2'b10} : 4'hx;
+  assign usb_tkeep_o  = usb_tvalid_o;
+
+  assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   assign blk_tlast_o  = usb_tlast_i;
   assign blk_tdata_o  = usb_tdata_i;
 
@@ -574,7 +580,7 @@ module transactor #(
       ctl_lenhi_q <= 0;
       ctl_start_q <= 1'b0;
       ctl_cycle_q <= 1'b0;
-    end else if (xctrl == CTL_SETUP_RX && usb_tvalid_i && usb_tready_o) begin
+    end else if (xctrl == CTL_SETUP_RX && usb_tvalid_i && usb_tkeep_i && usb_tready_o) begin
       ctl_rtype_q <= xcptr == 3'b000 ? usb_tdata_i : ctl_rtype_q;
       ctl_rargs_q <= xcptr == 3'b001 ? usb_tdata_i : ctl_rargs_q;
 

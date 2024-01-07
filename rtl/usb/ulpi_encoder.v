@@ -1,9 +1,11 @@
 `timescale 1ns / 100ps
-module ulpi_encoder (
+module ulpi_encoder
+ #( parameter OUTREG = 3
+) (
     input clock,
     input reset,
 
-    input high_speed_i,
+    input  high_speed_i,
     output encode_idle_o,
 
     input [1:0] LineState,
@@ -17,6 +19,11 @@ module ulpi_encoder (
     output phy_done_o,
     input [7:0] phy_addr_i,
     input [7:0] phy_data_i,
+
+    input  hsk_send_i,
+    output hsk_done_o,
+    output usb_busy_o,
+    output usb_done_o,
 
     input s_tvalid,
     output s_tready,
@@ -53,6 +60,8 @@ module ulpi_encoder (
   localparam [8:0] TX_WAIT = 9'h080;
   localparam [8:0] TX_INIT = 9'h100;
 
+  localparam [8:0] TX_HSK0 = 9'h003;  // todo: one-hot ...
+
   localparam [1:0] LS_EOP = 2'b00;
 
 
@@ -66,17 +75,18 @@ module ulpi_encoder (
   wire ulpi_stp_w;
   wire [7:0] usb_pid_w, usb_dat_w, axi_dat_w, crc_dat_w, phy_dat_w, ulpi_dat_w;
 
-  reg tvalid, tlast;
+  reg tvalid, tlast, dvalid, sready;
   reg [7:0] tdata;
-  wire tvalid_w;
-  wire tlast_w = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
-  wire [7:0] tdata_w = tvalid ? tdata : s_tdata;
+  wire svalid_w, sready_w, tvalid_w, tready_w, tlast_w, dvalid_w, dlast_w;
+  wire [7:0] ddata_w, tdata_w;
 
-  assign tvalid_w = 1'b0;
+  assign svalid_w = s_tvalid && s_tkeep && xsend == TX_DATA;
 
-  reg  dvalid;
+  assign tvalid_w = s_tvalid && s_tkeep && xsend == TX_IDLE;
+  assign tlast_w = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
+  assign tdata_w = tvalid ? tdata : s_tdata;
+
   wire sready_next;
-
   assign sready_next = src_ready(s_tvalid, tvalid, dvalid, ulpi_nxt);
 
 
@@ -84,6 +94,13 @@ module ulpi_encoder (
 
   // todo: check that this encodes correctly (as 'xsend[0]') !?
   assign encode_idle_o = xsend == TX_IDLE;
+
+  assign usb_busy_o = xsend != TX_IDLE;
+  assign usb_done_o = xsend == TX_DONE;
+  assign hsk_done_o = xsend == TX_HSK0;
+
+  // assign s_tready = sready;
+  assign s_tready = rdy_q;
 
 
   // -- ULPI Initialisation FSM -- //
@@ -125,7 +142,9 @@ module ulpi_encoder (
   // -- ULPI Data-Out MUX -- //
 
   // Sets the idle data to PID (at start of packet), or 00h for NOP
-  assign usb_dat_w = s_tvalid && xsend == TX_IDLE ? {~s_tuser, s_tuser} : 8'd0;
+  // todo: 'hsk_send_i' should be coincident with 's_tvalid' !?
+  assign usb_dat_w = (hsk_send_i || s_tvalid) && xsend == TX_IDLE && !dir_q ?
+                     {2'b01, 2'b00, s_tuser} : 8'd0;
 
   // 2:1 MUX for AXI source data, whether from skid-register, or upstream
   assign axi_dat_w = tvalid && ulpi_nxt ? tdata : s_tdata;
@@ -161,13 +180,14 @@ module ulpi_encoder (
   always @(posedge clock) begin
     if (reset) begin
       ulpi_data <= 8'd0;
-    end else begin
+    end else if (ulpi_nxt || xsend == TX_IDLE || xsend == TX_INIT) begin
       ulpi_data <= ulpi_dat_w;
     end
   end
 
   always @(posedge clock) begin
-    dir_q <= ulpi_dir;
+    // sready <= xsend == TX_XPID || xsend == TX_DATA;  // sready_next;
+    dir_q  <= ulpi_dir;
   end
 
 
@@ -185,11 +205,14 @@ module ulpi_encoder (
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
-          xsend  <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : s_tvalid ? TX_XPID : TX_IDLE;
+          // xsend  <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : s_tvalid ? TX_XPID : TX_IDLE;
+          xsend  <= hsk_send_i ? TX_HSK0 : s_tvalid ? TX_XPID : TX_IDLE;
           stp_q  <= 1'b0;
 
           // Upstream TREADY signal
-          rdy_q  <= phy_write_i || phy_nopid_i || s_tvalid ? 1'b0 : high_speed_i;
+          // todo: 'hsk_send_i' should be coincident with 's_tvalid' !?
+          rdy_q  <= hsk_send_i || s_tvalid ? 1'b0 : high_speed_i;
+          // rdy_q  <= hsk_send_i || phy_write_i || phy_nopid_i || s_tvalid ? 1'b0 : high_speed_i;
 
           // Latch the first byte (using temp. reg.)
           // todo: move to dedicated AXI datapath
@@ -199,10 +222,12 @@ module ulpi_encoder (
         end
 
         TX_XPID: begin
+          tvalid <= 1'b0;
+
           // Output PID has been accepted? If so, we can receive another byte.
-          xsend <= ulpi_nxt ? TX_DATA : xsend;
-          stp_q <= 1'b0;
-          rdy_q <= ulpi_nxt ? 1'b1 : 1'b0;
+          xsend  <= ulpi_nxt ? TX_DATA : xsend;
+          stp_q  <= 1'b0;
+          rdy_q  <= ulpi_nxt ? 1'b1 : 1'b0;
         end
 
         TX_DATA: begin
@@ -240,6 +265,12 @@ module ulpi_encoder (
           rdy_q <= 1'b0;
         end
 
+        TX_HSK0: begin
+          xsend <= ulpi_nxt ? TX_IDLE : xsend;
+          stp_q <= ulpi_nxt ? 1'b1 : 1'b0;
+          rdy_q <= 1'b0;
+        end
+
         //
         //  Until the PHY has been configured, respond to the commands from the
         //  'ulpi_line_state' module.
@@ -269,6 +300,33 @@ module ulpi_encoder (
   end
 
 
+  // -- Skid Register with Loadable, Overflow Register -- //
+
+  skid_loader #(
+      .WIDTH (8),
+      .BYPASS(0),
+      .LOADER(1)
+  ) U_SKID3 (
+      .clock(clock),
+      .reset(reset),
+
+      .s_tvalid(svalid_w),
+      .s_tready(sready_w),
+      .s_tlast (s_tlast),
+      .s_tdata (s_tdata),
+
+      .t_tvalid(tvalid_w),  // If OUTREG > 2, allow the temp-register to be
+      .t_tready(tready_w),  // explicitly loaded
+      .t_tlast (s_tlast),
+      .t_tdata (s_tdata),
+
+      .m_tvalid(dvalid_w),
+      .m_tready(ulpi_nxt),
+      .m_tlast (dlast_w),
+      .m_tdata (ddata_w)
+  );
+
+
   // -- Simulation Only -- //
 
 `ifdef __icarus
@@ -286,6 +344,7 @@ module ulpi_encoder (
       TX_INIT: dbg_xsend = "INIT";
       TX_REGW: dbg_xsend = "REGW";
       TX_WAIT: dbg_xsend = "WAIT";
+      TX_HSK0: dbg_xsend = "HSK0";
       default: dbg_xsend = "XXXX";
     endcase
   end

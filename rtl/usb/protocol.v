@@ -45,9 +45,12 @@ module protocol #(
     input crc_err_i,
     output timeout_o,
 
-   input tok_recv_i,
-   input [6:0] tok_addr_i,
-   input [3:0] tok_endp_i,
+    input tok_recv_i,
+    input [6:0] tok_addr_i,
+    input [3:0] tok_endp_i,
+
+    input usb_tx_busy_i,
+    input usb_tx_done_i,
 
     // USB control & bulk data received from host
     input usb_tvalid_i,
@@ -60,7 +63,9 @@ module protocol #(
     // USB control & bulk data transmitted to the host
     output usb_tvalid_o,
     input usb_tready_i,
+    output usb_tkeep_o,
     output usb_tlast_o,
+    output [3:0] usb_tuser_o,
     output [7:0] usb_tdata_o,
 
     // USB Bulk Transfer parameters and data-streams
@@ -159,6 +164,7 @@ module protocol #(
 
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 
+  /*
   encode_packet #(
       .TOKEN(0)
   ) U_ENCODER0 (
@@ -191,7 +197,6 @@ module protocol #(
       .trn_tdata_i (usb_tx_tdata_w)
   );
 
-/*
   decode_packet U_DECODER0 (
       .reset(reset),
       .clock(clock),
@@ -227,6 +232,8 @@ module protocol #(
   );
 */
 
+  wire [3:0] usb_tx_tuser_w;
+
   assign usb_rx_tvalid_w = usb_tvalid_i;
   assign usb_tready_o = usb_rx_tready_w;
   assign usb_rx_tkeep_w = usb_tkeep_i;
@@ -234,6 +241,16 @@ module protocol #(
   assign usb_rx_tdata_w = usb_tdata_i;
 
   assign tok_rx_ping_w = 1'b0;
+
+  assign usb_tvalid_o = usb_tx_tvalid_w;
+  assign usb_tx_tready_w = usb_tready_i;
+  assign usb_tkeep_o = usb_tx_tkeep_w;
+  assign usb_tlast_o = usb_tx_tlast_w;
+  assign usb_tuser_o = usb_tx_tuser_w;
+  assign usb_tdata_o = usb_tx_tdata_w;
+
+  assign usb_tx_tuser_w = hsk_tx_send_w ? {hsk_tx_type_w, 2'b10} : {usb_tx_ttype_w, 2'b11};
+  //                           usb_tx_send_w ? {usb_tx_ttype_w, 2'b11} : 'bx ;
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
@@ -244,6 +261,8 @@ module protocol #(
   wire tel_tvalid_w, tel_tlast_w, tel_tready_w;
   wire [7:0] tel_tdata_w;
 
+  assign usb_tx_tbusy_w = usb_tx_busy_i;
+  assign usb_tx_tdone_w = usb_tx_done_i;
 
   transactor #(
       .PIPELINED(1)

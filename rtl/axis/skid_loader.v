@@ -1,4 +1,14 @@
 `timescale 1ns / 100ps
+/**
+ * AXI4-Stream skid-buffer that allows the temporary register to be explicitly
+ * loaded.
+ * 
+ * Note:
+ *  - can be used as part of a circuit to prefetch the first byte, for a pull-
+ *    based stream;
+ *  - parameters allow these pipeline-registers to be bypassed, or for the
+ *    explicit-load port to be disabled;
+ */
 module skid_loader (
     clock,
     reset,

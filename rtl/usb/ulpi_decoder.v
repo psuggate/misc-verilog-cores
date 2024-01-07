@@ -23,9 +23,10 @@ module ulpi_decoder (
     output usb_sof_o,
     output tok_recv_o,
     output tok_ping_o,
-    output [1:0] tok_type_o,
     output [6:0] tok_addr_o,
     output [3:0] tok_endp_o,
+    output hsk_recv_o,
+    output usb_recv_o,
 
     output raw_tvalid_o,
     output raw_tlast_o,
@@ -82,7 +83,7 @@ module ulpi_decoder (
   wire [15:0] crc16_w;
 
   // USB token signals
-  reg tok_recv_q;
+  reg tok_recv_q, hsk_recv_q, usb_recv_q, sof_recv_q;
   reg  [10:0] token_data;
   wire [ 4:0] rx_crc5_w;
 
@@ -95,11 +96,12 @@ module ulpi_decoder (
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
 
-  assign usb_sof_o  = sof_q;
-
+  assign usb_sof_o = sof_recv_q;
   assign tok_recv_o = tok_recv_q;
   assign tok_addr_o = token_data[6:0];
   assign tok_endp_o = token_data[10:7];
+  assign hsk_recv_o = hsk_recv_q;
+  assign usb_recv_o = usb_recv_q;
 
   // Raw USB packets (including PID & CRC bytes)
   assign raw_tvalid_o = rx_tvalid;
@@ -122,9 +124,7 @@ module ulpi_decoder (
 
   always @(posedge clock) begin
     dir_q <= ulpi_dir;
-  end
 
-  always @(posedge clock) begin
     if (reset) begin
       cyc_q <= 1'b0;
       pid_q <= 1'b0;
@@ -182,6 +182,7 @@ module ulpi_decoder (
   assign rx_pid_pw = ulpi_data[3:0];
   assign rx_pid_nw = ~ulpi_data[7:4];
 
+  // Decode USB handshake packets
   always @(posedge clock) begin
     if (reset) begin
       hsk_q <= 1'b0;
@@ -221,6 +222,9 @@ module ulpi_decoder (
 
   always @(posedge clock) begin
     tok_recv_q <= tok_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];
+    sof_recv_q <= sof_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];  // todo: ...
+    hsk_recv_q <= hsk_q && rx_end_w;
+    usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...
   end
 
 

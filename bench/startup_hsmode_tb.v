@@ -40,11 +40,11 @@ module startup_hsmode_tb;
   wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tlast_w;
   wire [7:0] usb_tx_tdata_w, ulpi_rx_tdata_w, ulpi_data_p, ulpi_data_w;
 
-  wire high_speed_w;
+  wire high_speed_w, usb_busy_w, usb_done_w;
   wire phy_write_w, phy_chirp_w, phy_stop_w, phy_busy_w, phy_done_w;
   wire [7:0] phy_addr_w, phy_data_w;
 
-  assign usb_tx_tvalid_w = 1'b0;
+  assign usb_tx_tvalid_w  = 1'b0;
   assign ulpi_rx_tready_w = 1'b0;
 
   fake_ulpi_phy U_ULPI_PHY0 (
@@ -97,6 +97,10 @@ module startup_hsmode_tb;
       .phy_addr_i (phy_addr_w),
       .phy_data_i (phy_data_w),
 
+      .hsk_send_i(1'b0),
+      .usb_busy_o(usb_busy_w),
+      .usb_done_o(usb_done_w),
+
       .s_tvalid(1'b0),
       .s_tready(),
       .s_tkeep (1'b0),
@@ -139,7 +143,7 @@ module startup_hsmode_tb;
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
       .phy_stop_o (phy_stop_w),
-      .phy_done_i(phy_done_w),
+      .phy_done_i (phy_done_w),
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w)
   );
