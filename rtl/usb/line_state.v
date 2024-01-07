@@ -52,8 +52,8 @@ module line_state #(
 `ifdef __icarus
   localparam integer SUSPEND_TIME = 4;  // ~3 ms
   localparam integer RESET_TIME = 4;  // ~3 ms
-  localparam integer CHIRP_K_TIME = 4;  // ~1 ms
-  localparam integer CHIRP_KJ_TIME = 3;  // ~2 us
+  localparam integer CHIRP_K_TIME = 7;  // ~1 ms
+  localparam integer CHIRP_KJ_TIME = 7;  // ~2 us
   localparam integer SWITCH_TIME = 4;  // ~100 us
 `else
   localparam integer SUSPEND_TIME = 190000;  // ~3 ms
@@ -156,7 +156,7 @@ module line_state #(
 
 `ifdef __icarus
   // Because patience is for the weak
-  localparam [7:0] COUNT_2_5_US = 3;
+  localparam [7:0] COUNT_2_5_US = 7;
   localparam [8:0] COUNT_1_0_MS = 7;
 `else
   localparam [7:0] COUNT_2_5_US = 149;
@@ -352,7 +352,7 @@ module line_state #(
         ST_CHIRP_KJ: begin
           state      <= kj_ended_q ? ST_HS_START : state;
           set_q      <= 1'b0;
-          stp_q      <= kj_ended_q ? 1'b1 : 1'b0;
+          stp_q      <= 1'b0; // kj_ended_q ? 1'b1 : 1'b0;
           chirp_kj_q <= kj_start_q && pulse_2_5us && !kj_valid_q;
           {set_q, adr_q, val_q} <= {kj_ended_q, 8'h84, 8'h40};
         end

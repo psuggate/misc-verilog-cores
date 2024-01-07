@@ -31,6 +31,7 @@ module fake_ulpi_phy (
   localparam [3:0] ST_REGW = 4'b0011;
   localparam [3:0] ST_STOP = 4'b0100;
   localparam [3:0] ST_CHRP = 4'b0101;
+  localparam [3:0] ST_CHRK = 4'b1011;
   localparam [3:0] ST_XSE0 = 4'b0110;
   localparam [3:0] ST_KJKJ = 4'b0111;
   localparam [3:0] ST_INIT = 4'b1111;
@@ -252,7 +253,7 @@ module fake_ulpi_phy (
             dir_q <= 1'b0;
             hss_q <= 1'b1;
             state <= ST_CHRP;
-            snext <= ST_IDLE;
+            snext <= ST_CHRK;
           end else if (rx_start_w) begin
             // ULPI data is coming in over the wire
             nxt_q <= 1'b1;
@@ -364,8 +365,17 @@ module fake_ulpi_phy (
 
         ST_CHRP: begin
           // Wait for the K-chirp
+          state <= ulpi_stp_i ? snext : state;
+          nxt_q <= 1'b1;
+          dat_q <= 8'hAA;
+          dir_q <= 1'b0;
+          rdy_q <= 1'b0;
+        end
+
+        ST_CHRK: begin
+          // Wait for the K-chirp
           if (ulpi_stp_i) begin
-            state <= snext;
+            state <= ST_IDLE;
             nxt_q <= 1'b0;
             dat_q <= 8'bz;
           end else begin
@@ -373,14 +383,15 @@ module fake_ulpi_phy (
             nxt_q <= 1'b1;
             dat_q <= 8'hAA;
           end
+          snext <= ST_IDLE;
           dir_q <= 1'b0;
           rdy_q <= 1'b0;
         end
 
         ST_KJKJ: begin
           // Now pretend to be the USB host, emitting K- & J- chirps
-          state <= ulpi_stp_i ? ST_IDLE : state;
-          dir_q <= ulpi_stp_i ? 1'b0 : kj_count[1] & kj_count[2];
+          state <= ulpi_stp_i || reg_pid_w ? ST_IDLE : state;
+          dir_q <= ulpi_stp_i || reg_pid_w ? 1'b0 : kj_count[1] & kj_count[2];
           nxt_q <= 1'b0;
           dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
           rdy_q <= 1'b0;
@@ -418,6 +429,7 @@ module fake_ulpi_phy (
       ST_INIT: dbg_state = "INIT";
       ST_XSE0: dbg_state = "XSE0";
       ST_CHRP: dbg_state = "CHRP";
+      ST_CHRK: dbg_state = "CHRK";
       ST_KJKJ: dbg_state = "KJKJ";
       ST_LINE: dbg_state = "LINE";
       ST_STAT: dbg_state = "STAT";

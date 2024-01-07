@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
-module ulpi_encoder
- #( parameter OUTREG = 3
+module ulpi_encoder #(
+    parameter OUTREG = 3
 ) (
     input clock,
     input reset,
@@ -35,7 +35,7 @@ module ulpi_encoder
     input ulpi_dir,
     input ulpi_nxt,
     output ulpi_stp,
-    output reg [7:0] ulpi_data
+    output [7:0] ulpi_data
 );
 
   // -- Definitions -- //
@@ -80,11 +80,13 @@ module ulpi_encoder
   wire svalid_w, sready_w, tvalid_w, tready_w, tlast_w, dvalid_w, dlast_w;
   wire [7:0] ddata_w, tdata_w;
 
+/*
   assign svalid_w = s_tvalid && s_tkeep && xsend == TX_DATA;
 
   assign tvalid_w = s_tvalid && s_tkeep && xsend == TX_IDLE;
-  assign tlast_w = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
-  assign tdata_w = tvalid ? tdata : s_tdata;
+  assign tlast_w  = tvalid ? tlast : s_tlast;  // todo: handshakes, ZDPs, and CRCs
+  assign tdata_w  = tvalid ? tdata : s_tdata;
+*/
 
   wire sready_next;
   assign sready_next = src_ready(s_tvalid, tvalid, dvalid, ulpi_nxt);
@@ -111,7 +113,7 @@ module ulpi_encoder
   assign phy_busy_o = xsend != TX_INIT;
   assign phy_done_o = phy_done_q;
 
-  assign ulpi_stp   = stp_q;
+  // assign ulpi_stp   = stp_q;
 
   always @(posedge clock) begin
     phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
@@ -176,7 +178,7 @@ module ulpi_encoder
       .I3(usb_dat_w)   // NOP (or STOP)
   );
 
-
+/*
   always @(posedge clock) begin
     if (reset) begin
       ulpi_data <= 8'd0;
@@ -184,10 +186,10 @@ module ulpi_encoder
       ulpi_data <= ulpi_dat_w;
     end
   end
+*/
 
   always @(posedge clock) begin
-    // sready <= xsend == TX_XPID || xsend == TX_DATA;  // sready_next;
-    dir_q  <= ulpi_dir;
+    dir_q <= ulpi_dir;
   end
 
 
@@ -302,28 +304,54 @@ module ulpi_encoder
 
   // -- Skid Register with Loadable, Overflow Register -- //
 
+  wire slast_w;
+  wire [7:0] udata_w, sdata_w;
+
+  assign udata_w = xsend == TX_IDLE ? usb_pid_w : s_tdata;
+
+  assign svalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
+                    xsend == TX_IDLE ? hsk_send_i || s_tvalid : xsend == TX_WAIT;
+  assign slast_w = xsend == TX_INIT ? phy_stop_i :
+                   xsend == TX_REGW ? 1'b0 :
+                   xsend == TX_WAIT ? 1'b1 : ulpi_nxt && (s_tvalid && s_tlast || hsk_send_i);
+  assign sdata_w = xsend == TX_INIT || xsend == TX_REGW ? (phy_nopid_i ? 8'h40 : phy_write_i ? phy_addr_i : 8'd0) :
+                   xsend == TX_WAIT ? 8'd0 : s_tvalid ? udata_w : 8'd0;
+
+  assign tvalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
+                    xsend == TX_IDLE ? hsk_send_i || s_tvalid : 1'b0;
+  assign tlast_w = xsend == TX_INIT ? phy_nopid_i : xsend == TX_WAIT ? ulpi_nxt :
+                   xsend == TX_IDLE && hsk_send_i ? 1'b1 :
+                   xsend == TX_REGW || xsend == TX_WAIT ? 1'b0 : s_tlast;
+  assign tdata_w = xsend == TX_INIT || xsend == TX_REGW ? (phy_nopid_i ? 8'd0 : phy_data_i) :
+                   xsend == TX_IDLE && hsk_send_i ? 8'd0 : s_tdata;
+
+  assign s_tready = sready_w && high_speed_i;
+
+
   skid_loader #(
-      .WIDTH (8),
+      .RESET_TDATA(1),
+      .RESET_VALUE(8'd0),
+      .WIDTH(8),
       .BYPASS(0),
       .LOADER(1)
   ) U_SKID3 (
       .clock(clock),
-      .reset(reset),
+      .reset(reset || ulpi_dir),
 
       .s_tvalid(svalid_w),
       .s_tready(sready_w),
-      .s_tlast (s_tlast),
-      .s_tdata (s_tdata),
+      .s_tlast (slast_w),
+      .s_tdata (sdata_w),
 
       .t_tvalid(tvalid_w),  // If OUTREG > 2, allow the temp-register to be
       .t_tready(tready_w),  // explicitly loaded
-      .t_tlast (s_tlast),
-      .t_tdata (s_tdata),
+      .t_tlast (tlast_w),
+      .t_tdata (tdata_w),
 
-      .m_tvalid(dvalid_w),
+      .m_tvalid(),
       .m_tready(ulpi_nxt),
-      .m_tlast (dlast_w),
-      .m_tdata (ddata_w)
+      .m_tlast (ulpi_stp),
+      .m_tdata (ulpi_data)
   );
 
 

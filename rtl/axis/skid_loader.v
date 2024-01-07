@@ -8,6 +8,7 @@
  *    based stream;
  *  - parameters allow these pipeline-registers to be bypassed, or for the
  *    explicit-load port to be disabled;
+ *  - more general-purpose than just for AXI-S; e.g., used for the USB core;
  */
 module skid_loader (
     clock,
@@ -34,6 +35,9 @@ module skid_loader (
 
   parameter WIDTH = 8;
   localparam MSB = WIDTH - 1;
+
+  parameter RESET_TDATA = 0;
+  parameter RESET_VALUE = 'bx;
 
 
   input clock;
@@ -137,7 +141,10 @@ module skid_loader (
       endfunction
 
       always @(posedge clock) begin
-        if (src_to_dst(sready, mvalid, m_tready)) begin
+        if (RESET_TDATA && reset) begin
+          mdata <= RESET_VALUE;
+          mlast <= 1'b0;
+        end else if (src_to_dst(sready, mvalid, m_tready)) begin
           mdata <= s_tdata;
           mlast <= s_tlast;
         end else if (tmp_to_dst(tvalid, m_tready)) begin
