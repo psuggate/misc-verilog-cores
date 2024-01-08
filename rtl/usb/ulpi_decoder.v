@@ -136,10 +136,10 @@ module ulpi_decoder (
       rx_tvalid <= 1'b0;
       rx_tkeep <= 1'bx;
       rx_tlast <= 1'bx;
-      rx_tuser <= 4'hx;
+      // rx_tuser <= 4'hx;
       rx_tdata <= 8'hx;
     end else begin
-      if (cyc_q && rx_end_w) begin
+      if (cyc_q && end_q) begin
         cyc_q <= 1'b0;
         pid_q <= 1'b0;
         dat_q <= 8'bx;
@@ -147,7 +147,7 @@ module ulpi_decoder (
         rx_tvalid <= 1'b1;
         rx_tkeep <= 1'b0;
         rx_tlast <= 1'b1;
-        rx_tuser <= rx_tuser;
+        // rx_tuser <= rx_tuser;
         rx_tdata <= 8'bx;
       end else if (dir_q && ulpi_dir && ulpi_nxt) begin
         cyc_q <= 1'b1;
@@ -158,22 +158,27 @@ module ulpi_decoder (
           rx_tvalid <= 1'b0;
           rx_tkeep  <= 1'bx;
           rx_tlast  <= 1'bx;
-          rx_tuser  <= rx_tuser;
+          // rx_tuser  <= rx_tuser;
           rx_tdata  <= 8'hx;
         end else begin
           rx_tvalid <= 1'b1;
           rx_tkeep  <= pid_q;
           rx_tlast  <= 1'b0;
-          rx_tuser  <= pid_q ? rx_tuser : dat_q[3:0];
+          // rx_tuser  <= pid_q ? rx_tuser : dat_q[3:0];
           rx_tdata  <= dat_q;
         end
       end else begin
         rx_tvalid <= 1'b0;
         rx_tkeep  <= 1'b0;
         rx_tlast  <= 1'b0;
-        rx_tuser  <= rx_tuser;
+        // rx_tuser  <= rx_tuser;
         rx_tdata  <= 8'bx;
       end
+    end
+
+    // Capture the transaction PID
+    if (cyc_q && !pid_q) begin
+      rx_tuser <= dat_q[3:0];
     end
   end
 

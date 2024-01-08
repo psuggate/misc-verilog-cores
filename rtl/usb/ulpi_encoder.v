@@ -67,6 +67,7 @@ module ulpi_encoder #(
 
   reg [8:0] xsend;
   reg dir_q;
+  reg phy_done_q, hsk_done_q, usb_done_q;
 
   // Transmit datapath MUX signals
   wire [1:0] mux_sel_w;
@@ -82,20 +83,24 @@ module ulpi_encoder #(
   assign encode_idle_o = xsend == TX_IDLE;
 
   assign usb_busy_o = xsend != TX_IDLE;
-  assign usb_done_o = xsend == TX_DONE;
-  assign hsk_done_o = xsend == TX_HSK0;
+  assign usb_done_o = usb_done_q;
+  assign hsk_done_o = hsk_done_q;
 
 
   // -- ULPI Initialisation FSM -- //
 
   // Signals for sending initialisation commands & settings to the PHY.
-  reg phy_done_q;
-
   assign phy_busy_o = xsend != TX_INIT;
   assign phy_done_o = phy_done_q;
 
   always @(posedge clock) begin
     phy_done_q <= xsend == TX_WAIT && ulpi_nxt;
+    hsk_done_q <= xsend == TX_DONE && ulpi_stp && hsk_send_i;
+    usb_done_q <= xsend == TX_DONE && ulpi_stp && !hsk_send_i;
+  end
+
+  always @(posedge clock) begin
+    dir_q <= ulpi_dir;
   end
 
 
@@ -113,54 +118,11 @@ module ulpi_encoder #(
 
   always @(posedge clock) begin
     if (reset || xsend == TX_DONE) begin
-    // if (xsend == TX_IDLE) begin
+      // if (xsend == TX_IDLE) begin
       crc16_q <= 16'hffff;
-    end else if (s_tvalid && s_tready) begin
+    end else if (s_tvalid && s_tready && s_tkeep) begin
       crc16_q <= crc16(s_tdata, crc16_q);
     end
-  end
-
-
-  // -- ULPI Data-Out MUX -- //
-  /*
-  // Sets the idle data to PID (at start of packet), or 00h for NOP
-  // todo: 'hsk_send_i' should be coincident with 's_tvalid' !?
-  assign usb_dat_w = (hsk_send_i || s_tvalid) && xsend == TX_IDLE && !dir_q ?
-                     {2'b01, 2'b00, s_tuser} : 8'd0;
-
-  // 2:1 MUX for AXI source data, whether from skid-register, or upstream
-  assign axi_dat_w = tvalid && ulpi_nxt ? tdata : s_tdata;
-
-  // 2:1 MUX for CRC16 bytes, to be appended to USB data packets being sent
-  assign crc_dat_w = xsend == TX_CRC0 ? crc16_nw[15:8] : crc16_nw[7:0];
-
-  // 2:1 MUX for request-data to the PHY
-  assign phy_dat_w = phy_nopid_i ? 8'h40 :
-                     xsend == TX_REGW && ulpi_nxt || xsend == TX_WAIT ? phy_data_i :
-                     phy_addr_i;
-
-  // Determine the data-source for the 4:1 MUX
-  assign mux_sel_w = xsend == TX_INIT && (phy_write_i || phy_nopid_i) ? 2'd2 :
-                     xsend == TX_REGW ? 2'd2 :
-                     xsend == TX_IDLE ? (tvalid_w ? 2'd1 : 2'd3) :
-                     xsend == TX_DATA || xsend == TX_LAST ? 2'd0 :
-                     xsend == TX_CRC0 ? 2'd1 : 2'd3;
-
-  mux4to1 #(
-      .WIDTH(8)
-  ) U_DMUX0 (
-      .S(mux_sel_w),
-      .O(ulpi_dat_w),
-
-      .I0(axi_dat_w),
-      .I1(crc_dat_w),
-      .I2(phy_dat_w),
-      .I3(usb_dat_w)   // NOP (or STOP)
-  );
-*/
-
-  always @(posedge clock) begin
-    dir_q <= ulpi_dir;
   end
 
 
@@ -170,22 +132,25 @@ module ulpi_encoder #(
     if (reset) begin
       xsend <= TX_INIT;
     end else if (dir_q || ulpi_dir) begin
-      xsend <= xsend;
+      xsend <= xsend;  //  == TX_XPID ? TX_IDLE : xsend;
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
           // xsend  <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : s_tvalid ? TX_XPID : TX_IDLE;
-          xsend <= hsk_send_i ? TX_HSK0 : s_tvalid ? TX_XPID : TX_IDLE;
+          xsend <= hsk_send_i ? TX_HSK0 :
+                   s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
+                   TX_IDLE;
         end
 
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
           xsend <= ulpi_nxt ? TX_DATA : xsend;
+          // xsend <= ulpi_nxt ? (tlast_w ? TX_CRC0 : TX_DATA) : xsend;
         end
 
         TX_DATA: begin
           // Continue transferring the packet data
-          xsend <= ulpi_nxt && tlast_w ? TX_CRC0 : xsend;
+          xsend <= !ulpi_nxt ? xsend : s_tvalid && !s_tkeep ? TX_CRC1 : tlast_w ? TX_CRC0 : xsend;
         end
 
         TX_CRC0: begin
@@ -244,7 +209,7 @@ module ulpi_encoder #(
   end
 
 
-  // -- Skid Register with Loadable, Overflow Register -- //
+  // -- ULPI Data-Out MUX -- //
 
   wire slast_w, uvalid_w;
   wire [7:0] udata_w, sdata_w, pdata_w;
@@ -252,17 +217,18 @@ module ulpi_encoder #(
   assign usb_pid_w = {2'b01, 2'b00, s_tuser};
 
   assign udata_w = xsend == TX_IDLE ? usb_pid_w :
+                   xsend == TX_DATA && s_tvalid && !s_tkeep ? crc16_nw[7:0] :
                    xsend == TX_CRC0 ? crc16_nw[7:0] :
                    xsend == TX_CRC1 ? crc16_nw[15:8] :
                    s_tdata;
   assign uvalid_w = s_tvalid || hsk_send_i || xsend == TX_DATA || xsend == TX_CRC0 || xsend == TX_CRC1;
 
-  assign pdata_w = phy_nopid_i ? 8'h40 :
-                   phy_write_i ? phy_addr_i : 8'd0;
+  assign pdata_w = phy_nopid_i ? 8'h40 : phy_write_i ? phy_addr_i : 8'd0;
 
   assign svalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
                     xsend == TX_IDLE ? hsk_send_i || s_tvalid :
                     xsend == TX_DATA ? sready_w :
+                    xsend == TX_XPID ? s_tvalid && s_tkeep && sready_w :
                     xsend == TX_WAIT;
   assign slast_w = xsend == TX_INIT ? phy_stop_i :
                    xsend == TX_REGW ? 1'b0 :
@@ -278,15 +244,19 @@ module ulpi_encoder #(
   //  - with 'data[0]' (and data-overflows due to flow-control), when performing
   //    USB data 'IN' transactions;
   assign tvalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
-                    xsend == TX_IDLE ? hsk_send_i || s_tvalid : 1'b0;
+                    xsend == TX_IDLE ? hsk_send_i || s_tvalid && s_tkeep :
+                    1'b0;
   assign tlast_w = xsend == TX_INIT ? phy_nopid_i : xsend == TX_WAIT ? ulpi_nxt :
                    xsend == TX_IDLE && hsk_send_i ? 1'b1 :
                    xsend == TX_REGW || xsend == TX_WAIT ? 1'b0 : s_tlast;
   assign tdata_w = xsend == TX_INIT || xsend == TX_REGW ? (phy_nopid_i ? 8'd0 : phy_data_i) :
                    xsend == TX_IDLE && hsk_send_i ? 8'd0 : s_tdata;
 
+  // assign s_tready = sready_w && !ulpi_dir && high_speed_i;
   assign s_tready = sready_w && high_speed_i;
 
+
+  // -- Skid Register with Loadable, Overflow Register -- //
 
   skid_loader #(
       .RESET_TDATA(1),

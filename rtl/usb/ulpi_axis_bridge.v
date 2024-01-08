@@ -69,6 +69,7 @@ module ulpi_axis_bridge #(
     input s_axis_tvalid_i,
     output s_axis_tready_o,
     input s_axis_tlast_i,
+    input s_axis_tkeep_i,
     input [7:0] s_axis_tdata_i,
 
     // AXI4-stream master-port signals (OUT: host -> EP)
@@ -76,6 +77,7 @@ module ulpi_axis_bridge #(
     output m_axis_tvalid_o,
     input m_axis_tready_i,
     output m_axis_tlast_o,
+    output m_axis_tkeep_o,
     output [7:0] m_axis_tdata_o
 );
 
@@ -230,10 +232,10 @@ module ulpi_axis_bridge #(
   wire [6:0] tok_rx_addr_w;
   wire [3:0] tok_rx_endp_w;
 
-  wire blkx_tvalid_w, blkx_tlast_w, blkx_tready_w;
+  wire blkx_tvalid_w, blkx_tlast_w, blkx_tkeep_w, blkx_tready_w;
   wire [7:0] blkx_tdata_w;
 
-  wire tel_tvalid_w, tel_tlast_w, tel_tready_w;
+  wire tel_tvalid_w, tel_tlast_w, tel_tkeep_w, tel_tready_w;
   wire [7:0] tel_tdata_w;
 
 
@@ -455,11 +457,13 @@ module ulpi_axis_bridge #(
       .blk_tvalid_i(blkx_tvalid_w),
       .blk_tready_o(blkx_tready_w),
       .blk_tlast_i (blkx_tlast_w),
+      .blk_tkeep_i (blkx_tkeep_w),
       .blk_tdata_i (blkx_tdata_w),
 
       .blk_tvalid_o(m_axis_tvalid_o),
       .blk_tready_i(m_axis_tready_i),
       .blk_tlast_o (m_axis_tlast_o),
+      .blk_tkeep_o (m_axis_tkeep_o),
       .blk_tdata_o (m_axis_tdata_o),
 
       // To/from USB control transfer endpoints
@@ -482,24 +486,26 @@ module ulpi_axis_bridge #(
       .ctl_tvalid_i(ctl0_tvalid_w),
       .ctl_tready_o(ctl0_tready_w),
       .ctl_tlast_i (ctl0_tlast_w),
+      .ctl_tkeep_i (ctl0_tvalid_w),
       .ctl_tdata_i (ctl0_tdata_w)
   );
 
 
   // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
 
-  wire mux_tvalid_w, mux_tlast_w, mux_tready_w;
+  wire mux_tvalid_w, mux_tlast_w, mux_tkeep_w, mux_tready_w;
   wire [7:0] mux_tdata_w;
 
   assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : s_axis_tvalid_i;
   assign mux_tlast_w  = tele_sel_q ? tel_tlast_w : s_axis_tlast_i;
+  assign mux_tkeep_w  = tele_sel_q ? tel_tkeep_w : s_axis_tkeep_i;
   assign mux_tdata_w  = tele_sel_q ? tel_tdata_w : s_axis_tdata_i;
 
   assign tel_tready_w = tele_sel_q & mux_tready_w;
 
 
   axis_skid #(
-      .WIDTH (8),
+      .WIDTH (9),
       .BYPASS(1)
   ) U_AXIS_SKID2 (
       .clock(clock),
@@ -508,12 +514,12 @@ module ulpi_axis_bridge #(
       .s_tvalid(mux_tvalid_w),
       .s_tready(mux_tready_w),
       .s_tlast (mux_tlast_w),
-      .s_tdata (mux_tdata_w),
+      .s_tdata ({mux_tkeep_w, mux_tdata_w}),
 
       .m_tvalid(blkx_tvalid_w),
       .m_tready(blkx_tready_w),
       .m_tlast (blkx_tlast_w),
-      .m_tdata (blkx_tdata_w)
+      .m_tdata ({blkx_tkeep_w, blkx_tdata_w})
   );
 
 

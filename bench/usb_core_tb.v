@@ -30,14 +30,9 @@ module usb_core_tb;
 
   // -- Simulation Signals -- //
 
-  /*
-  reg svalid, slast, mready;
-  reg [7:0] sdata;
-*/
-  wire svalid, slast, mready;
-  wire [7:0] sdata;
-  wire mvalid, mlast, sready;
-  wire [7:0] mdata;
+  wire svalid, slast, skeep, mready;
+  wire mvalid, mlast, mkeep, sready;
+  wire [7:0] sdata, mdata;
 
   wire ulpi_clock;
   wire ulpi_dir, ulpi_nxt, ulpi_stp;
@@ -221,7 +216,7 @@ module usb_core_tb;
   wire [10:0] flevel;
 
   sync_fifo #(
-      .WIDTH (9),
+      .WIDTH (10),
       .ABITS (11),
       .OUTREG(3)
   ) rddata_fifo_inst (
@@ -232,11 +227,11 @@ module usb_core_tb;
 
       .valid_i(mvalid),
       .ready_o(mready),
-      .data_i ({mlast, mdata}),
+      .data_i ({mkeep, mlast, mdata}),
 
       .valid_o(svalid),
       .ready_i(sready),
-      .data_o ({slast, sdata})
+      .data_o ({skeep, slast, sdata})
   );
 
 
@@ -291,11 +286,13 @@ module usb_core_tb;
       .s_axis_tvalid_i(svalid),
       .s_axis_tready_o(sready),
       .s_axis_tlast_i (slast),
+      .s_axis_tkeep_i (skeep),
       .s_axis_tdata_i (sdata),
 
       .m_axis_tvalid_o(mvalid),
       .m_axis_tready_i(mready),
       .m_axis_tlast_o (mlast),
+      .m_axis_tkeep_o (mkeep),
       .m_axis_tdata_o (mdata)
   );
 

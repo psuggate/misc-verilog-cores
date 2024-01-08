@@ -44,7 +44,7 @@ module fake_ulpi_phy (
 
   reg [3:0] state, snext;
 
-  reg dir_q, nxt_q, rdy_q, hss_q;
+  reg dir_q, nxt_q, rdy_q, hss_q, run_q;
   reg [7:0] dat_q;
 
   reg tvalid;
@@ -107,7 +107,7 @@ module fake_ulpi_phy (
       last_ls_q  <= curr_ls_q;
       last_dat_q <= ulpi_data_io;
 
-      if (last_dat_q == 8'd0 && ulpi_data_io == 8'h40) begin
+      if (!run_q && last_dat_q == 8'd0 && ulpi_data_io == 8'h40) begin
         curr_ls_q <= 2'b10;  // Note: 'K'-chirp on 'NO PID' command
       end else if (ulpi_stp_i && nxt_q) begin
         curr_ls_q <= 2'b00;  // Note: "EoP"-ish
@@ -236,6 +236,7 @@ module fake_ulpi_phy (
       rdy_q <= 1'b0;
       dat_q <= 'bx;
       hss_q <= 1'b0;
+      run_q <= 1'b0;
     end else begin
       case (state)
         default: begin  // ST_IDLE
@@ -396,6 +397,7 @@ module fake_ulpi_phy (
           dat_q <= kj_count[1] && kj_count[2] && dir_q ? rx_cmd_w : 8'bz;
           rdy_q <= 1'b0;
           hss_q <= 1'b0;  // HS handshaking sequence has ended
+          run_q <= ulpi_stp_i || reg_pid_w ? 1'b1 : 1'b0;
         end
 
         ST_STOP: begin

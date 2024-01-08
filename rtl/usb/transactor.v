@@ -31,6 +31,7 @@ module transactor #(
     input ctl_tvalid_i,
     output ctl_tready_o,
     input ctl_tlast_i,
+    input ctl_tkeep_i,
     input [7:0] ctl_tdata_i,
 
     // USB Bulk Transfer parameters and data-streams
@@ -44,11 +45,13 @@ module transactor #(
     output blk_tvalid_o,
     input blk_tready_i,
     output blk_tlast_o,
+    output blk_tkeep_o,
     output [7:0] blk_tdata_o,
 
     input blk_tvalid_i,
     output blk_tready_o,
     input blk_tlast_i,
+    input blk_tkeep_i,
     input [7:0] blk_tdata_i,
 
     // Signals from the USB packet decoder (upstream)
@@ -204,12 +207,11 @@ module transactor #(
 
   // assign usb_tready_o = state == ST_BULK ? blk_tready_i || xbulk == BLK_DATO_ERR : 1'b1;  // todo: ...
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
-  assign usb_tuser_o  = trn_send_q ? {trn_type_q, 2'b11} :
-                        hsend_q ? {htype_q, 2'b10} : 4'hx;
-  assign usb_tkeep_o  = usb_tvalid_o;
+  assign usb_tuser_o  = trn_send_q ? {trn_type_q, 2'b11} : hsend_q ? {htype_q, 2'b10} : 4'hx;
 
   assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   assign blk_tlast_o  = usb_tlast_i;
+  assign blk_tkeep_o  = usb_tkeep_i;
   assign blk_tdata_o  = usb_tdata_i;
 
 
@@ -252,6 +254,7 @@ module transactor #(
   // -- DATA0/1/2 DATAM Logic -- //
 
   wire odd_w = odds_q[tok_endp_i];
+  wire nod_w = ~odd_w;
 
   wire odd0_w = odds_q[0];
   wire odd1_w = odds_q[1];
@@ -269,6 +272,7 @@ module transactor #(
         //   logics
         if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK) begin
           odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
+          // $display(">>%8t: DATA%1d[%1d] -> DATA%1d[%1d]", $time, odd_w ? 1 : 0, tok_endp_i, nod_w ? 1 : 0, tok_endp_i);
         end else if (xctrl == CTL_STATUS_ACK) begin
           odds_q[tok_endp_i] <= 1'b0;  // Status is always '1'
         end else if (xctrl == CTL_SETUP_ACK) begin
@@ -278,6 +282,7 @@ module transactor #(
       end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
         // ACK received in response to IN data xfer (to host)
         if (xbulk == BLK_DATI_ACK || xctrl == CTL_DATI_ACK) begin
+          // $display("Toggle, woggle");
           odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
         end else if (xctrl == CTL_STATUS_ACK) begin
           odds_q[tok_endp_i] <= 1'b0;
@@ -348,7 +353,7 @@ module transactor #(
     end
   end
 
-/*
+  /*
   // Control transfer handshakes
   always @(posedge clock) begin
     if (reset) begin
@@ -436,18 +441,19 @@ module transactor #(
 
   // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
 
-  wire mux_tvalid_w, mux_tlast_w;
+  wire mux_tvalid_w, mux_tlast_w, mux_tkeep_w;
   wire [7:0] mux_tdata_w;
 
   wire blk_sel_w = xbulk == BLK_DATI_TX;
   wire ctl_sel_w = xctrl == CTL_DATI_TX;
 
-  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : 1'b0;
-  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_tlast_i;
-  assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_tdata_i;
+  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : trn_zero_q;
+  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : trn_zero_q;
+  assign mux_tkeep_w  = blk_sel_w ? blk_tkeep_i : ctl_sel_w ? ctl_tkeep_i : 1'b0;
+  assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_sel_w ? ctl_tdata_i : 8'bx;
 
   axis_skid #(
-      .WIDTH (8),
+      .WIDTH (9),
       .BYPASS(PIPELINED == 0)
   ) U_AXIS_SKID1 (
       .clock(clock),
@@ -456,12 +462,12 @@ module transactor #(
       .s_tvalid(mux_tvalid_w),
       .s_tready(mux_tready_w),
       .s_tlast (mux_tlast_w),
-      .s_tdata (mux_tdata_w),
+      .s_tdata ({mux_tkeep_w, mux_tdata_w}),
 
       .m_tvalid(usb_tvalid_o),
       .m_tready(usb_tready_i),
       .m_tlast (usb_tlast_o),
-      .m_tdata (usb_tdata_o)
+      .m_tdata ({usb_tkeep_o, usb_tdata_o})
   );
 
 
@@ -707,7 +713,7 @@ module transactor #(
         ///
         default: begin  // CTL_SETUP_RX
           if (eop_rx_q) begin
-          // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_SETUP_ACK;
           end else begin
             xctrl <= CTL_SETUP_RX;
@@ -733,7 +739,7 @@ module transactor #(
           //  - to be compliant, we have to check bytes-sent !?
           //  - catch Rx errors (indicated by the PHY) !?
           if (eop_rx_q) begin
-          // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+            // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_DATO_ACK;
           end
         end
