@@ -224,7 +224,7 @@ module ulpi_axis_bridge #(
   wire [15:0] ctl_value_w, ctl_index_w, ctl_length_w;
 
   wire hsk_rx_recv_w, hsk_tx_send_w, hsk_tx_done_w;
-  wire usb_rx_recv_w, usb_tx_busy_w, usb_tx_done_w;
+  wire usb_rx_recv_w, usb_tx_busy_w, usb_tx_done_w, usb_tx_send_w;
   wire tok_rx_recv_w, tok_rx_ping_w;
   wire [1:0] tok_rx_type_w;
   wire [6:0] tok_rx_addr_w;
@@ -418,16 +418,10 @@ module ulpi_axis_bridge #(
       .hsk_sent_i(hsk_tx_done_w),
 
       /*
-      .hsk_recv_i(hsk_rx_recv_w),
-      .hsk_type_i(hsk_rx_type_w),
-      .hsk_sent_i(hsk_tx_sent_w),
       .hsk_type_o(hsk_tx_type_w),
-
-      .usb_recv_i(usb_rx_trecv_w),
-      .usb_type_i(usb_rx_ttype_w),
-      .usb_send_o(usb_tx_tsend_w),
       .usb_type_o(usb_tx_ttype_w),
 */
+      .usb_send_o(usb_tx_send_w),
 
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_recv_w),

@@ -121,7 +121,7 @@ module skid_loader (
           sready <= sready_next && !(LOADER && t_tvalid && t_tready);
           mvalid <= mvalid_next;
           tvalid <= tvalid_next || LOADER && t_tvalid && t_tready;
-          tready <= tready_next && LOADER;
+          tready <= tready_next && LOADER && !t_tvalid;
         end
       end
 

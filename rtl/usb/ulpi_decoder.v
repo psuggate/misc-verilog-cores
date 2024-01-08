@@ -21,6 +21,7 @@ module ulpi_decoder (
     input [1:0] RxEvent,
 
     output usb_sof_o,
+
     output tok_recv_o,
     output tok_ping_o,
     output [6:0] tok_addr_o,
@@ -118,11 +119,13 @@ module ulpi_decoder (
   // -- Capture Incoming USB Packets -- //
 
   // This signal goes high if 'RxActive' (or 'dir') de-asserts during packet Rx
+  reg end_q;
   wire rx_end_w =
        ibuf_dir && ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive ||
        !ibuf_dir && ulpi_dir;
 
   always @(posedge clock) begin
+    end_q <= rx_end_w;
     dir_q <= ulpi_dir;
 
     if (reset) begin
@@ -189,7 +192,7 @@ module ulpi_decoder (
     end else begin
       if (pid_vld_w && !cyc_q) begin
         hsk_q <= rx_pid_pw[1:0] == PID_HANDSHAKE;
-      end else if (rx_end_w) begin
+      end else if (end_q) begin
         hsk_q <= 1'b0;
       end
     end
@@ -223,7 +226,7 @@ module ulpi_decoder (
   always @(posedge clock) begin
     tok_recv_q <= tok_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];
     sof_recv_q <= sof_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];  // todo: ...
-    hsk_recv_q <= hsk_q && rx_end_w;
+    hsk_recv_q <= hsk_q && end_q;
     usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...
   end
 

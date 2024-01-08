@@ -299,8 +299,56 @@ module transactor #(
   end
 
 
+  // -- End-of-Packet Timer -- //
+
+  reg [2:0] eop_rcnt, eop_tcnt;
+  reg eop_rx_q, eop_tx_q;
+  wire eop_rx_w = eop_rcnt == 3'd0;
+  wire eop_tx_w = eop_tcnt == 3'd0;
+
+  // todo: support faster EoP's by using 'RX CMD' 'LineState' changes
+  always @(posedge clock) begin
+    if (reset) begin
+      eop_rcnt <= 3'd0;
+      eop_tcnt <= 3'd0;
+
+      eop_rx_q <= 1'b0;
+      eop_tx_q <= 1'b0;
+    end else begin
+      if (usb_recv_i) begin
+        eop_rcnt <= 3'd5;
+      end else if (!eop_rx_w) begin
+        eop_rcnt <= eop_rcnt - 3'd1;
+      end
+
+      if (usb_sent_i) begin
+        eop_tcnt <= 3'd5;
+      end else if (!eop_tx_w) begin
+        eop_tcnt <= eop_tcnt - 3'd1;
+      end
+
+      eop_rx_q <= eop_rcnt == 3'd1;
+      eop_tx_q <= eop_tcnt == 3'd1;
+    end
+  end
+
+
   // -- FSM to Issue Handshake Packets -- //
 
+  always @(posedge clock) begin
+    if (reset) begin
+      hsend_q <= 1'b0;
+      htype_q <= 2'bx;
+    end else if (!hsend_q && eop_rx_q) begin
+      hsend_q <= 1'b1;
+      htype_q <= HSK_ACK;
+    end else if (hsk_sent_i) begin
+      hsend_q <= 1'b0;
+      htype_q <= 2'bx;
+    end
+  end
+
+/*
   // Control transfer handshakes
   always @(posedge clock) begin
     if (reset) begin
@@ -343,6 +391,7 @@ module transactor #(
       htype_q <= htype_q;
     end
   end
+*/
 
 
   // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
@@ -657,7 +706,8 @@ module transactor #(
         // Setup Stage
         ///
         default: begin  // CTL_SETUP_RX
-          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+          if (eop_rx_q) begin
+          // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_SETUP_ACK;
           end else begin
             xctrl <= CTL_SETUP_RX;
@@ -682,7 +732,8 @@ module transactor #(
           // todo:
           //  - to be compliant, we have to check bytes-sent !?
           //  - catch Rx errors (indicated by the PHY) !?
-          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+          if (eop_rx_q) begin
+          // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_DATO_ACK;
           end
         end
@@ -732,6 +783,7 @@ module transactor #(
             xctrl <= tok_type_i == TOK_IN ? CTL_DATI_TX : CTL_STATUS_RX;
           end else if (hsk_recv_i || usb_recv_i || terr_q) begin
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
+            #100 $fatal;
             // xctrl <= CTL_DONE;
           end
         end
