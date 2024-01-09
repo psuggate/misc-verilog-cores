@@ -136,7 +136,6 @@ module ulpi_encoder #(
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
-          // xsend  <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : s_tvalid ? TX_XPID : TX_IDLE;
           xsend <= hsk_send_i ? TX_HSK0 :
                    s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
                    TX_IDLE;
@@ -145,27 +144,26 @@ module ulpi_encoder #(
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
           xsend <= ulpi_nxt ? TX_DATA : xsend;
-          // xsend <= ulpi_nxt ? (tlast_w ? TX_CRC0 : TX_DATA) : xsend;
         end
 
         TX_DATA: begin
           // Continue transferring the packet data
-          xsend <= !ulpi_nxt ? xsend : s_tvalid && !s_tkeep ? TX_CRC1 : tlast_w ? TX_CRC0 : xsend;
+          xsend <= s_tvalid && !s_tkeep && sready_w ? TX_CRC1 : s_tlast && (sready_w || !sready_w && tvalid_w && tready_w) ? TX_CRC0 : xsend;
         end
 
         TX_CRC0: begin
           // Send 1st CRC16 byte
-          xsend <= ulpi_nxt ? TX_CRC1 : xsend;
+          xsend <= svalid_w && sready_w ? TX_CRC1 : xsend;
         end
 
         TX_CRC1: begin
           // Send 2nd CRC16 byte
-          xsend <= ulpi_nxt ? TX_LAST : xsend;
+          xsend <= svalid_w && sready_w ? TX_LAST : xsend;
         end
 
         TX_LAST: begin
           // Send 2nd (and last) CRC16 byte
-          xsend <= ulpi_nxt ? TX_DONE : xsend;
+          xsend <= slast_w && sready_w ? TX_DONE : xsend;
         end
 
         TX_DONE: begin
@@ -182,7 +180,6 @@ module ulpi_encoder #(
         end
 
         TX_HSK0: begin
-          // xsend <= ulpi_nxt ? TX_IDLE : xsend;
           xsend <= ulpi_nxt ? TX_DONE : xsend;
         end
 
@@ -191,7 +188,6 @@ module ulpi_encoder #(
         //  'ulpi_line_state' module.
         ///
         TX_INIT: begin
-          // xsend <= phy_write_i ? TX_REGW : phy_nopid_i ? TX_WAIT : xsend;
           xsend <= high_speed_i ? TX_IDLE : phy_write_i ? TX_REGW : xsend;
         end
 
@@ -229,6 +225,7 @@ module ulpi_encoder #(
                     xsend == TX_IDLE ? hsk_send_i || s_tvalid :
                     xsend == TX_DATA ? sready_w :
                     xsend == TX_XPID ? s_tvalid && s_tkeep && sready_w :
+                    (xsend == TX_CRC0 || xsend == TX_CRC1) && sready_w ||
                     xsend == TX_WAIT;
   assign slast_w = xsend == TX_INIT ? phy_stop_i :
                    xsend == TX_REGW ? 1'b0 :
@@ -248,7 +245,7 @@ module ulpi_encoder #(
                     1'b0;
   assign tlast_w = xsend == TX_INIT ? phy_nopid_i : xsend == TX_WAIT ? ulpi_nxt :
                    xsend == TX_IDLE && hsk_send_i ? 1'b1 :
-                   xsend == TX_REGW || xsend == TX_WAIT ? 1'b0 : s_tlast;
+                   xsend == TX_REGW || xsend == TX_WAIT || xsend == TX_DATA ? 1'b0 : s_tlast;
   assign tdata_w = xsend == TX_INIT || xsend == TX_REGW ? (phy_nopid_i ? 8'd0 : phy_data_i) :
                    xsend == TX_IDLE && hsk_send_i ? 8'd0 : s_tdata;
 

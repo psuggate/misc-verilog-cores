@@ -8,8 +8,8 @@ module ulpi_axis_bridge #(
     parameter EP2_BULK_OUT = 0,
     parameter EP2_CONTROL  = 0,
 
-    parameter ENDPOINT1 = 1,  // todo: set to '0' to disable
-    parameter ENDPOINT2 = 2,  // todo: set to '0' to disable
+    parameter [3:0] ENDPOINT1 = 1,  // todo: set to '0' to disable
+    parameter [3:0] ENDPOINT2 = 2,  // todo: set to '0' to disable
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -613,11 +613,13 @@ module ulpi_axis_bridge #(
       .s_tvalid(1'b0),
       .s_tready(),
       .s_tlast (1'b0),
+      .s_tkeep (1'b0),
       .s_tdata (8'hx),
 
       // AXI4-Stream for telemetry data
       .m_tvalid(tel_tvalid_w),
       .m_tlast (tel_tlast_w),
+      .m_tkeep (tel_tkeep_w),
       .m_tdata (tel_tdata_w),
       .m_tready(tel_tready_w)
   );

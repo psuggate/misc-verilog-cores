@@ -251,9 +251,9 @@ module usb_core_tb;
   ///
   ulpi_axis_bridge #(
       .EP1_CONTROL(0),
-      .ENDPOINT1  (0),
+      .ENDPOINT1  (1),
       .EP2_CONTROL(0),
-      .ENDPOINT2  (0)
+      .ENDPOINT2  (2)
   ) U_USB_BRIDGE1 (
       // .areset_n(arst_n),
       .areset_n(areset_n[3]),

@@ -21,11 +21,13 @@ module bulk_telemetry #(
     input s_tvalid,
     output s_tready,
     input s_tlast,
+    input s_tkeep,
     input [7:0] s_tdata,
 
     output m_tvalid,
     input m_tready,
     output m_tlast,
+    output m_tkeep,
     output [7:0] m_tdata
 );
 
@@ -49,6 +51,7 @@ module bulk_telemetry #(
   assign m_tvalid = sel_q && a_tvalid_w;
   assign a_tready_w = sel_q && m_tready;
   assign m_tlast = sel_q ? a_tlast_w : 1'bx;
+  assign m_tkeep = sel_q && a_tvalid_w;
   assign m_tdata = sel_q ? a_tdata_w : 8'bx;
 
 

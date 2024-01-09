@@ -159,8 +159,8 @@ module fake_ulpi_phy (
   // Randomly de-asserts 'nxt' to test how the flow-control of the upstream and
   // downstream functional-units behave.
   always @(posedge clock) begin
-    rnd_q <= 3'd0;  // Disables random flow-stoppages
-    // rnd_q <= $urandom;
+    // rnd_q <= 3'd0;  // Disables random flow-stoppages
+    rnd_q <= $urandom;
   end
 
 

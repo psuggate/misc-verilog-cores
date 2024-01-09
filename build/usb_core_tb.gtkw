@@ -1,22 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Jan  8 08:30:42 2024
+[*] Tue Jan  9 06:30:47 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Jan  8 08:28:12 2024"
-[dumpfile_size] 404931
+[dumpfile_mtime] "Tue Jan  9 06:30:02 2024"
+[dumpfile_size] 458682
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 3411000
+[timestart] 8123800
 [size] 2560 1376
 [pos] -1 -1
-*-19.129721 8210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.808773 8730000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_ENCODER1.
 [treeopen] U_USB_BRIDGE1.U_ENCODER1.U_SKID3.
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 190
+[signals_width] 166
 [sst_expanded] 1
 [sst_vpaned_height] 650
 @28
@@ -52,7 +52,7 @@ usb_core_tb.recv_data.count
 @28
 [color] 3
 usb_core_tb.device_usb_idle_w
-@800200
+@c00200
 -TB
 @22
 [color] 2
@@ -71,8 +71,9 @@ usb_core_tb.mlast
 usb_core_tb.mkeep
 @22
 usb_core_tb.mdata[7:0]
-@1000200
+@1401200
 -TB
+@1000200
 -Moar
 @c00200
 -Host
@@ -199,10 +200,8 @@ U_USB_BRIDGE1.U_TRANSACT1.eop_tx_q
 @820
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_state[39:0]
-@821
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_xbulk[119:0]
-@820
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_xctrl[119:0]
 @28
@@ -229,7 +228,7 @@ U_USB_BRIDGE1.U_ENCODER1.phy_busy_o
 U_USB_BRIDGE1.U_ENCODER1.phy_done_o
 @1401200
 -LineState
-@800200
+@c00200
 -Tx
 @28
 U_USB_BRIDGE1.ulpi_tx_tvalid_w
@@ -274,6 +273,7 @@ U_USB_BRIDGE1.U_ENCODER1.tlast_w
 U_USB_BRIDGE1.U_ENCODER1.tdata_w[7:0]
 @1000200
 -Enc
+@1401200
 -Tx
 @c00200
 -Rx
@@ -306,6 +306,28 @@ U_USB_BRIDGE1.ctl0_start_w
 U_USB_BRIDGE1.ctl0_cycle_w
 @1401200
 -CtlPipe0
+@800201
+-Telemetry
+@29
+U_USB_BRIDGE1.blk_start_o
+U_USB_BRIDGE1.blk_cycle_o
+@23
+U_USB_BRIDGE1.blk_endpt_o[3:0]
+@29
+[color] 3
+U_USB_BRIDGE1.tele_sel_q
+@23
+[color] 2
+U_USB_BRIDGE1.tele_level_w[9:0]
+@29
+U_USB_BRIDGE1.tel_tvalid_w
+U_USB_BRIDGE1.tel_tready_w
+U_USB_BRIDGE1.tel_tkeep_w
+U_USB_BRIDGE1.tel_tlast_w
+@23
+U_USB_BRIDGE1.tel_tdata_w[7:0]
+@1000201
+-Telemetry
 @1000200
 -Device
 [pattern_trace] 1
