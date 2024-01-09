@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Jan  9 06:30:47 2024
+[*] Tue Jan  9 06:46:59 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Tue Jan  9 06:30:02 2024"
-[dumpfile_size] 458682
+[dumpfile_mtime] "Tue Jan  9 06:46:54 2024"
+[dumpfile_size] 458802
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 8123800
 [size] 2560 1376
@@ -16,7 +16,7 @@
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 190
 [sst_expanded] 1
 [sst_vpaned_height] 650
 @28
@@ -306,7 +306,7 @@ U_USB_BRIDGE1.ctl0_start_w
 U_USB_BRIDGE1.ctl0_cycle_w
 @1401200
 -CtlPipe0
-@800201
+@800200
 -Telemetry
 @29
 U_USB_BRIDGE1.blk_start_o
@@ -326,9 +326,8 @@ U_USB_BRIDGE1.tel_tkeep_w
 U_USB_BRIDGE1.tel_tlast_w
 @23
 U_USB_BRIDGE1.tel_tdata_w[7:0]
-@1000201
--Telemetry
 @1000200
+-Telemetry
 -Device
 [pattern_trace] 1
 [pattern_trace] 0

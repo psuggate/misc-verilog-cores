@@ -17,6 +17,7 @@ module line_state #(
 
     // USB-core status and control-signals
     output high_speed_o,
+   output usb_reset_o,
 
     // UTMI+ equivalent state-signals
     output [1:0] LineState,
@@ -96,6 +97,7 @@ module line_state #(
   assign iob_dat_o = dat_q;
 
   assign high_speed_o = state == ST_HS_MODE;
+  assign usb_reset_o  = state == ST_HS_START;
 
   assign ls_host_se0_o = LineState == 2'b00;
   assign ls_chirpkj_o = chirp_kj_q;

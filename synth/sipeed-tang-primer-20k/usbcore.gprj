@@ -13,14 +13,12 @@
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/bulk_telemetry.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ctl_pipe0.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/decode_packet.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/encode_packet.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/protocol.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/line_state.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/transactor.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_axis.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_axis_bridge.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_decoder.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_encoder.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/ulpi_reset.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_control.v" type="file.verilog" enable="1"/>
-        <File path="/home/patrick/dev/misc-verilog-cores/rtl/usb/usb_ulpi.v" type="file.verilog" enable="1"/>
         <File path="usb_demo_top.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/git/verilog-axis/rtl/axis_fifo.v" type="file.verilog" enable="1"/>
         <File path="gw2a-tang-primer.cst" type="file.cst" enable="1"/>

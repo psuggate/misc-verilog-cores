@@ -307,6 +307,7 @@ module ulpi_axis_bridge #(
       .iob_dat_o(iob_dat_w),
 
       .high_speed_o(high_speed_w),
+      .usb_reset_o (usb_reset_w),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
@@ -345,6 +346,7 @@ module ulpi_axis_bridge #(
       .decode_idle_o(decode_idle_w),
 
       .tok_recv_o(tok_rx_recv_w),
+      .tok_ping_o(tok_rx_ping_w),
       .tok_addr_o(tok_addr_w),
       .tok_endp_o(tok_endp_w),
       .hsk_recv_o(hsk_rx_recv_w),
@@ -419,15 +421,10 @@ module ulpi_axis_bridge #(
       .hsk_send_o(hsk_tx_send_w),
       .hsk_sent_i(hsk_tx_done_w),
 
-      /*
-      .hsk_type_o(hsk_tx_type_w),
-      .usb_type_o(usb_tx_ttype_w),
-*/
-      .usb_send_o(usb_tx_send_w),
-
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_recv_w),
       .usb_type_i(ulpi_rx_tuser_w[3:2]),
+      .usb_send_o(usb_tx_send_w),
       .usb_busy_i(usb_tx_busy_w),
       .usb_sent_i(usb_tx_done_w),
 

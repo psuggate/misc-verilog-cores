@@ -86,7 +86,7 @@ module usb_demo_top (
   //
   // Core Under New Tests
   ///
-  ulpi_axis #(
+  ulpi_axis_bridge #(
       .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
@@ -96,9 +96,9 @@ module usb_demo_top (
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
       .EP1_CONTROL(0),
-      .ENDPOINT1(0),
+      .ENDPOINT1(1),
       .EP2_CONTROL(0),
-      .ENDPOINT2(0)
+      .ENDPOINT2(2)
   ) U_ULPI_USB0 (
       .areset_n(~reset),
 
@@ -241,10 +241,10 @@ module usb_demo_top (
   reg  blk_valid_q = 0;
 
   wire blinky_w = crc_error_q ? count[10] & count[11] : count[12];
-  wire ctl0_error_w = U_ULPI_USB0.U_USB_CTRL0.ctl0_error_w;
+  wire ctl0_error_w = U_ULPI_USB0.ctl0_error_w;
 
-  wire xfer_state_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_idle_w;
-  wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w && bulk_in_ready_q;
+  wire xfer_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_idle_w;
+  wire xfer_error_w = U_ULPI_USB0.U_TRANSACT1.xfer_dzdp_w && bulk_in_ready_q;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 

@@ -46,26 +46,24 @@ module ulpi_encoder #(
   // -- Constants -- //
 
   // FSM states
-  localparam [8:0] TX_IDLE = 9'h001;
-  localparam [8:0] TX_XPID = 9'h002;
-  localparam [8:0] TX_DATA = 9'h004;
-  localparam [8:0] TX_CRC0 = 9'h008;
-  localparam [8:0] TX_LAST = 9'h010;
-  localparam [8:0] TX_DONE = 9'h020;
-  localparam [8:0] TX_REGW = 9'h040;
-  localparam [8:0] TX_WAIT = 9'h080;
-  localparam [8:0] TX_INIT = 9'h100;
-
-  localparam [8:0] TX_HSK0 = 9'h003;  // todo: one-hot ...
-  // localparam [8:0] TX_HSK1 = 9'h005;  // todo: one-hot ...
-  localparam [8:0] TX_CRC1 = 9'h009;  // todo: one-hot ...
+  localparam [10:0] TX_IDLE = 11'h001;
+  localparam [10:0] TX_XPID = 11'h002;
+  localparam [10:0] TX_HSK0 = 11'h004;
+  localparam [10:0] TX_DATA = 11'h008;
+  localparam [10:0] TX_CRC0 = 11'h010;
+  localparam [10:0] TX_CRC1 = 11'h020;
+  localparam [10:0] TX_LAST = 11'h040;
+  localparam [10:0] TX_DONE = 11'h080;
+  localparam [10:0] TX_INIT = 11'h100;
+  localparam [10:0] TX_REGW = 11'h200;
+  localparam [10:0] TX_WAIT = 11'h400;
 
   localparam [1:0] LS_EOP = 2'b00;
 
 
   // -- Signals & State -- //
 
-  reg [8:0] xsend;
+  reg [10:0] xsend;
   reg dir_q;
   reg phy_done_q, hsk_done_q, usb_done_q;
 
@@ -118,7 +116,6 @@ module ulpi_encoder #(
 
   always @(posedge clock) begin
     if (reset || xsend == TX_DONE) begin
-      // if (xsend == TX_IDLE) begin
       crc16_q <= 16'hffff;
     end else if (s_tvalid && s_tready && s_tkeep) begin
       crc16_q <= crc16(s_tdata, crc16_q);
