@@ -73,7 +73,7 @@ module usb_demo_top (
   wire s_tvalid, s_tready, s_tlast;
   wire [7:0] s_tdata;
 
-  wire m_tvalid, m_tready, m_tlast;
+  wire m_tvalid, m_tready, m_tlast, m_tkeep;
   wire [ 7:0] m_tdata;
 
   // FIFO state //
@@ -82,6 +82,9 @@ module usb_demo_top (
 
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
+
+  assign m_tkeep = m_tvalid; // todo: ...
+
 
   //
   // Core Under New Tests
@@ -130,6 +133,7 @@ module usb_demo_top (
       .s_axis_tvalid_i(m_tvalid && blk_cycle_w),
       .s_axis_tready_o(m_tready),
       .s_axis_tlast_i (m_tlast),
+      .s_axis_tkeep_i (m_tkeep),
       .s_axis_tdata_i (m_tdata),
 
       .m_axis_tvalid_o(s_tvalid),
@@ -249,7 +253,8 @@ module usb_demo_top (
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
-  assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin

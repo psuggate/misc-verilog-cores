@@ -99,6 +99,7 @@ module ulpi_decoder (
 
   assign usb_sof_o = sof_recv_q;
   assign tok_recv_o = tok_recv_q;
+  assign tok_ping_o = 1'b0; // todo: ...
   assign tok_addr_o = token_data[6:0];
   assign tok_endp_o = token_data[10:7];
   assign hsk_recv_o = hsk_recv_q;
@@ -162,7 +163,7 @@ module ulpi_decoder (
           rx_tdata  <= 8'hx;
         end else begin
           rx_tvalid <= 1'b1;
-          rx_tkeep  <= pid_q;
+          rx_tkeep  <= pid_q && !(end_q || rx_end_w);
           rx_tlast  <= 1'b0;
           // rx_tuser  <= pid_q ? rx_tuser : dat_q[3:0];
           rx_tdata  <= dat_q;
@@ -209,6 +210,7 @@ module ulpi_decoder (
       tok_q <= 1'b0;
       sof_q <= 1'b0;
       low_q <= 1'b1;
+      token_data <= 11'd0;
     end else begin
       if (!tok_q && pid_vld_w && istoken_w) begin
         tok_q <= 1'b1;
@@ -217,10 +219,10 @@ module ulpi_decoder (
         token_data[7:0] <= low_q ? ulpi_data : token_data[7:0];
         token_data[10:8] <= low_q ? token_data[10:8] : ulpi_data[2:0];
         low_q <= ~low_q;
-        tok_q <= ~rx_end_w;
-      end else if (rx_end_w) begin
+        tok_q <= 1'b1;
+      end else if (end_q) begin
         tok_q <= 1'b0;
-        low_q <= 1'b1;
+        low_q <= 1'bx;
       end else begin
         token_data <= token_data;
         low_q <= low_q;
@@ -229,8 +231,8 @@ module ulpi_decoder (
   end
 
   always @(posedge clock) begin
-    tok_recv_q <= tok_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];
-    sof_recv_q <= sof_q && rx_end_w && rx_crc5_w == ulpi_data[7:3];  // todo: ...
+    tok_recv_q <= tok_q && end_q && rx_crc5_w == dat_q[7:3];
+    sof_recv_q <= sof_q && end_q && rx_crc5_w == dat_q[7:3];  // todo: ...
     hsk_recv_q <= hsk_q && end_q;
     usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...
   end
@@ -238,7 +240,8 @@ module ulpi_decoder (
 
   // -- Early CRC16 calculation -- //
 
-  assign rx_crc5_w = crc5({ulpi_data[2:0], token_data[7:0]});
+  // assign rx_crc5_w = crc5({ulpi_data[2:0], token_data[7:0]});
+  assign rx_crc5_w = crc5(token_data);
   assign crc16_w   = crc16(ulpi_data, crc16_q);
 
   always @(posedge clock) begin
@@ -255,12 +258,12 @@ module ulpi_decoder (
     if (reset) begin
       crc_error_flag <= 1'b0;
       crc_valid_flag <= 1'b0;
-    end else if (tok_q && rx_end_w) begin
-      crc_error_flag <= rx_crc5_w != ulpi_data[7:3];
-      crc_valid_flag <= rx_crc5_w == ulpi_data[7:3];
-    end else if (cyc_q && rx_end_w) begin
-      crc_error_flag <= crc16_w != 16'h800d;
-      crc_valid_flag <= crc16_w == 16'h800d;
+    end else if (tok_q && end_q) begin
+      crc_error_flag <= rx_crc5_w != dat_q[7:3];
+      crc_valid_flag <= rx_crc5_w == dat_q[7:3];
+    end else if (!hsk_q && cyc_q && end_q) begin
+      crc_error_flag <= crc16_q != 16'h800d;
+      crc_valid_flag <= crc16_q == 16'h800d;
     end else begin
       crc_valid_flag <= 1'b0;
     end

@@ -9,7 +9,7 @@ OPT	:= -g2005-sv -D__icarus -Wall -I../rtl/ -I../rtl/usb/
 
 RTLDIR	:= ../rtl
 USB_V	:= $(wildcard $(RTLDIR)/usb/*.v)
-USB	:= $(filter-out %_tb.v, $(USB_V))
+USB	:= $(filter-out %_tb.v, $(USB_V)) $(wildcard usb/*.v)
 MISC_V	:= $(wildcard $(RTLDIR)/misc/*.v $(RTLDIR)/axis/*.v)
 MISC	:= $(filter-out %_tb.v, $(MISC_V))
 FIFO	:= $(wildcard $(RTLDIR)/fifo/*.v)

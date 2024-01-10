@@ -7,7 +7,6 @@ all:
 
 sim:
 	@make -C bench sim
-	@make -C synth sim
 	@make -C build sim
 
 simall:	sim

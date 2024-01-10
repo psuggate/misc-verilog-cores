@@ -46,24 +46,25 @@ module ulpi_encoder #(
   // -- Constants -- //
 
   // FSM states
-  localparam [10:0] TX_IDLE = 11'h001;
-  localparam [10:0] TX_XPID = 11'h002;
-  localparam [10:0] TX_HSK0 = 11'h004;
-  localparam [10:0] TX_DATA = 11'h008;
-  localparam [10:0] TX_CRC0 = 11'h010;
-  localparam [10:0] TX_CRC1 = 11'h020;
-  localparam [10:0] TX_LAST = 11'h040;
-  localparam [10:0] TX_DONE = 11'h080;
-  localparam [10:0] TX_INIT = 11'h100;
-  localparam [10:0] TX_REGW = 11'h200;
-  localparam [10:0] TX_WAIT = 11'h400;
+  localparam [11:0] TX_IDLE = 12'h001;
+  localparam [11:0] TX_XPID = 12'h002;
+  localparam [11:0] TX_HSK0 = 12'h004;
+  localparam [11:0] TX_DATA = 12'h008;
+  localparam [11:0] TX_CRC0 = 12'h010;
+  localparam [11:0] TX_CRC1 = 12'h020;
+  localparam [11:0] TX_LAST = 12'h040;
+  localparam [11:0] TX_DONE = 12'h080;
+  localparam [11:0] TX_INIT = 12'h100;
+  localparam [11:0] TX_REGW = 12'h200;
+  localparam [11:0] TX_WAIT = 12'h400;
+  localparam [11:0] TX_CONT = 12'h800;
 
   localparam [1:0] LS_EOP = 2'b00;
 
 
   // -- Signals & State -- //
 
-  reg [10:0] xsend;
+  reg [11:0] xsend;
   reg dir_q;
   reg phy_done_q, hsk_done_q, usb_done_q;
 
@@ -129,13 +130,19 @@ module ulpi_encoder #(
     if (reset) begin
       xsend <= TX_INIT;
     end else if (dir_q || ulpi_dir) begin
-      xsend <= xsend;  //  == TX_XPID ? TX_IDLE : xsend;
+      xsend <= xsend == TX_XPID ? TX_CONT : xsend;
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
-          xsend <= hsk_send_i ? TX_HSK0 :
+          xsend <= hsk_send_i && ulpi_nxt ? TX_DONE :
                    s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
                    TX_IDLE;
+        end
+
+        TX_CONT: begin
+          // Resume a transaction, after a "collision"
+          xsend <= TX_XPID;
+          // #10 $fatal;
         end
 
         TX_XPID: begin
@@ -218,7 +225,8 @@ module ulpi_encoder #(
 
   assign pdata_w = phy_nopid_i ? 8'h40 : phy_write_i ? phy_addr_i : 8'd0;
 
-  assign svalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
+  assign svalid_w = ulpi_dir || dir_q ? 1'b0 :
+                    xsend == TX_INIT ? phy_write_i || phy_nopid_i :
                     xsend == TX_IDLE ? hsk_send_i || s_tvalid :
                     xsend == TX_DATA ? sready_w :
                     xsend == TX_XPID ? s_tvalid && s_tkeep && sready_w :
@@ -227,8 +235,9 @@ module ulpi_encoder #(
   assign slast_w = xsend == TX_INIT ? phy_stop_i :
                    xsend == TX_REGW ? 1'b0 :
                    xsend == TX_WAIT ? 1'b1 : ulpi_nxt && (xsend == TX_LAST || hsk_send_i);
-  assign sdata_w = xsend == TX_INIT || xsend == TX_REGW ? pdata_w :
-                   xsend == TX_WAIT ? 8'd0 : uvalid_w ? udata_w : 8'd0;
+  assign sdata_w = ulpi_dir || dir_q || xsend == TX_WAIT ? 8'd0 :
+                   xsend == TX_INIT || xsend == TX_REGW ? pdata_w :
+                   uvalid_w ? udata_w : 8'd0;
 
   // Load the 'temp. reg.' of the skid-buffer:
   //  - with ULPI PHY register value, when writing to a ULPI PHY register;
@@ -237,20 +246,26 @@ module ulpi_encoder #(
   //  - with '0x00' when issuing a USB handshake packet;
   //  - with 'data[0]' (and data-overflows due to flow-control), when performing
   //    USB data 'IN' transactions;
-  assign tvalid_w = xsend == TX_INIT ? phy_write_i || phy_nopid_i :
+  assign tvalid_w = ulpi_dir || dir_q ? 1'b0 :
+                    xsend == TX_INIT ? phy_write_i || phy_nopid_i :
                     xsend == TX_IDLE ? hsk_send_i || s_tvalid && s_tkeep :
                     1'b0;
-  assign tlast_w = xsend == TX_INIT ? phy_nopid_i : xsend == TX_WAIT ? ulpi_nxt :
-                   xsend == TX_IDLE && hsk_send_i ? 1'b1 :
-                   xsend == TX_REGW || xsend == TX_WAIT || xsend == TX_DATA ? 1'b0 : s_tlast;
+  assign tlast_w = xsend == TX_IDLE && hsk_send_i ? 1'b1 :
+                   xsend == TX_INIT || xsend == TX_REGW || xsend == TX_WAIT || xsend == TX_DATA ? 1'b0 : s_tlast;
   assign tdata_w = xsend == TX_INIT || xsend == TX_REGW ? (phy_nopid_i ? 8'd0 : phy_data_i) :
                    xsend == TX_IDLE && hsk_send_i ? 8'd0 : s_tdata;
 
-  // assign s_tready = sready_w && !ulpi_dir && high_speed_i;
-  assign s_tready = sready_w && high_speed_i;
+  assign s_tready = sready_w && !ulpi_dir && !dir_q && high_speed_i;
 
 
   // -- Skid Register with Loadable, Overflow Register -- //
+
+  wire mvalid_w, mready_w, mlast_w;
+  wire [7:0] mdata_w;
+
+  assign mready_w  = ulpi_nxt;
+  assign ulpi_stp  = mlast_w;
+  assign ulpi_data = !ulpi_dir ? mdata_w : 8'bz;
 
   skid_loader #(
       .RESET_TDATA(1),
@@ -260,7 +275,7 @@ module ulpi_encoder #(
       .LOADER(1)
   ) U_SKID3 (
       .clock(clock),
-      .reset(reset || ulpi_dir || xsend == TX_DONE),
+      .reset(reset || xsend == TX_DONE),
 
       .s_tvalid(svalid_w),
       .s_tready(sready_w),
@@ -272,10 +287,10 @@ module ulpi_encoder #(
       .t_tlast (tlast_w),
       .t_tdata (tdata_w),
 
-      .m_tvalid(),
-      .m_tready(ulpi_nxt),
-      .m_tlast (ulpi_stp),
-      .m_tdata (ulpi_data)
+      .m_tvalid(mvalid_w),
+      .m_tready(mready_w),
+      .m_tlast (mlast_w),
+      .m_tdata (mdata_w)
   );
 
 
@@ -288,6 +303,7 @@ module ulpi_encoder #(
   always @* begin
     case (xsend)
       TX_IDLE: dbg_xsend = "IDLE";
+      TX_CONT: dbg_xsend = "CONT";
       TX_XPID: dbg_xsend = "XPID";
       TX_DATA: dbg_xsend = "DATA";
       TX_CRC0: dbg_xsend = "CRC0";

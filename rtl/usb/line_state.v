@@ -64,17 +64,17 @@ module line_state #(
   localparam integer SWITCH_TIME = 6000;  // ~100 us
 `endif
 
-  localparam [3:0] ST_POWER_ON = 4'h1;
-  localparam [3:0] ST_CHIRP_KJ = 4'h2;
-  localparam [3:0] ST_HS_MODE = 4'h4;
-  localparam [3:0] ST_FS_START = 4'h5;
-  localparam [3:0] ST_FS_NEXT0 = 4'h6;
-  localparam [3:0] ST_FS_NEXT1 = 4'h7;
-  localparam [3:0] ST_WAIT_SE0 = 4'h8;
-  localparam [3:0] ST_CHIRP_K0 = 4'h9;
-  localparam [3:0] ST_CHIRP_K1 = 4'ha;
-  localparam [3:0] ST_CHIRP_K2 = 4'hb;
-  localparam [3:0] ST_HS_START = 4'hc;
+  localparam [3:0] ST_POWER_ON = 4'd0;
+  localparam [3:0] ST_FS_START = 4'd1;
+  localparam [3:0] ST_FS_NEXT0 = 4'd2;
+  localparam [3:0] ST_FS_NEXT1 = 4'd3;
+  localparam [3:0] ST_WAIT_SE0 = 4'd4;
+  localparam [3:0] ST_CHIRP_K0 = 4'd5;
+  localparam [3:0] ST_CHIRP_K1 = 4'd6;
+  localparam [3:0] ST_CHIRP_K2 = 4'd7;
+  localparam [3:0] ST_CHIRP_KJ = 4'd8;
+  localparam [3:0] ST_HS_START = 4'd9;
+  localparam [3:0] ST_HS_MODE = 4'd10;
 
 
   // -- State & Signals -- //
@@ -82,7 +82,7 @@ module line_state #(
   reg [3:0] state, snext;
   reg dir_q, nxt_q, set_q, nop_q, stp_q;
   reg [7:0] dat_q, adr_q, val_q;
-  reg rx_cmd_q, chirp_kj_q;
+  reg rx_cmd_q, chirp_kj_q, chirp_k_q;
 
   reg pulse_2_5us, pulse_1_0ms;
   reg [7:0] count_2_5us;
@@ -100,6 +100,7 @@ module line_state #(
   assign usb_reset_o  = state == ST_HS_START;
 
   assign ls_host_se0_o = LineState == 2'b00;
+  assign ls_chirpk_o = chirp_k_q;
   assign ls_chirpkj_o = chirp_kj_q;
 
   assign pulse_2_5us_o = pulse_2_5us;
@@ -151,6 +152,10 @@ module line_state #(
       VbusStateQ <= VbusStateW;
       RxEventQ   <= RxEventW;
     end
+  end
+
+  always @(posedge clock) begin
+    chirp_k_q <= state == ST_CHIRP_K1;
   end
 
 
@@ -277,9 +282,15 @@ module line_state #(
     end else begin
       case (state)
         ST_POWER_ON: begin
-          // state      <= kj_start_i ? ST_CHIRP_KJ : state;
-          state <= ST_FS_START;
-          {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+          // state <= ST_FS_START;
+          // {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+          if (pulse_2_5us) begin
+            state <= ST_FS_START;
+            {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+          end else begin
+            state <= state;
+            {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
+          end
           chirp_kj_q <= 1'b0;
         end
 

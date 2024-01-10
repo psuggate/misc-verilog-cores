@@ -83,6 +83,7 @@ module fake_ulpi_phy (
   assign rx_cmd_w = {2'b01, tx_start_w ? 2'b01 : 2'b00, 2'b11, line_state_w};
 
   assign line_state_w = state == ST_INIT ? 2'b01 :
+                        state == ST_WAIT || state == ST_SEND ? 2'b01 :
                         state == ST_KJKJ ? (kj_count[3] ? 2'b10 : 2'b01) :
                         state == ST_CHRP ? 2'b10 : 2'b00;
 
@@ -366,7 +367,7 @@ module fake_ulpi_phy (
 
         ST_CHRP: begin
           // Wait for the K-chirp
-          state <= ulpi_stp_i ? snext : state;
+          state <= pulse_2_5us ? snext : state;
           nxt_q <= 1'b1;
           dat_q <= 8'hAA;
           dir_q <= 1'b0;

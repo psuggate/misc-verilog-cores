@@ -37,12 +37,6 @@ module ulpi_axis_bridge #(
     output usb_clock_o,
     output usb_reset_o,  // USB core is in reset state
 
-    // Status flags for IN/OUT FIFOs, and the USB core
-    output fifo_in_full_o,
-    output fifo_out_full_o,
-    output fifo_out_overflow_o,
-    output fifo_has_data_o,
-
     output configured_o,
     output has_telemetry_o,
     output [7:0] usb_conf_o,
@@ -54,7 +48,6 @@ module ulpi_axis_bridge #(
     output usb_hs_enabled_o,
     output usb_idle_o,  // USB core is idling
     output usb_suspend_o,  // USB core has been suspended
-    output ulpi_rx_overflow_o,
 
     // USB Bulk Transfer parameters and data-streams
     input blk_in_ready_i,
@@ -163,6 +156,9 @@ module ulpi_axis_bridge #(
   reg usb_idle_q;
 
   assign usb_idle_o = usb_idle_q;
+  assign usb_vbus_valid_o = VbusState == 2'b11;
+  assign usb_hs_enabled_o = high_speed_w;
+  assign usb_suspend_o = 1'b1; // todo: ...
 
   assign s_axis_tready_o = ~tele_sel_q & mux_tready_w;
 
@@ -262,10 +258,15 @@ module ulpi_axis_bridge #(
   end
 
 
-  // -- Bulk IN Status -- //
+  // -- Bulk IN and Telemetry Control Signals -- //
 
   always @(posedge clock) begin
-    tele_sel_q <= blk_endpt_o == ENDPOINT2;
+    if (reset) begin
+      tele_sel_q <= 1'b0;
+    end else begin
+      tele_sel_q <= blk_endpt_o == ENDPOINT2;
+    end
+
     blk_in_ready_q <= blk_in_ready_i || tele_level_w[9:4] != 0;
   end
 
@@ -344,6 +345,7 @@ module ulpi_axis_bridge #(
       .crc_error_o  (crc_err_o),
       .crc_valid_o  (crc_vld_o),
       .decode_idle_o(decode_idle_w),
+      .usb_sof_o(usb_sof_o),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
