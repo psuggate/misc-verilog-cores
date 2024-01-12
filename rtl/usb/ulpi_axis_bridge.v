@@ -158,7 +158,7 @@ module ulpi_axis_bridge #(
   assign usb_idle_o = usb_idle_q;
   assign usb_vbus_valid_o = VbusState == 2'b11;
   assign usb_hs_enabled_o = high_speed_w;
-  assign usb_suspend_o = 1'b1; // todo: ...
+  assign usb_suspend_o = 1'b1;  // todo: ...
 
   assign s_axis_tready_o = ~tele_sel_q & mux_tready_w;
 
@@ -313,6 +313,7 @@ module ulpi_axis_bridge #(
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
       .phy_stop_o (phy_stop_w),
+      .phy_busy_i (phy_busy_w),
       .phy_done_i (phy_done_w),
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w),
@@ -342,8 +343,8 @@ module ulpi_axis_bridge #(
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
 
-      .crc_error_o  (crc_err_o),
-      .crc_valid_o  (crc_vld_o),
+      .crc_error_o(crc_err_o),
+      .crc_valid_o(crc_vld_o),
       .decode_idle_o(decode_idle_w),
       .usb_sof_o(usb_sof_o),
 
@@ -362,12 +363,15 @@ module ulpi_axis_bridge #(
       .m_tdata (ulpi_rx_tdata_w)
   );
 
+  wire [11:0] enc_state_w;
+
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
       .reset(~areset_n),
 
       .high_speed_i (high_speed_w),
       .encode_idle_o(encode_idle_w),
+      .enc_state_o  (enc_state_w),
 
       .LineState(LineState),
       .VbusState(VbusState),

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jan  5 06:30:44 2024
+[*] Fri Jan 12 08:37:35 2024
 [*]
 [dumpfile] "./startup_hsmode_tb.vcd"
-[dumpfile_mtime] "Fri Jan  5 06:29:21 2024"
-[dumpfile_size] 82493
+[dumpfile_mtime] "Fri Jan 12 08:24:43 2024"
+[dumpfile_size] 34292
 [savefile] "./startup_hsmode_tb.gtkw"
-[timestart] 154000
+[timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-18.617355 1650000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.040150 1520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] startup_hsmode_tb.
 [treeopen] startup_hsmode_tb.U_ENCODER1.
 [sst_width] 233
@@ -45,8 +45,6 @@ startup_hsmode_tb.ulpi_data[7:0]
 @820
 [color] 7
 startup_hsmode_tb.U_ENCODER1.dbg_xsend[39:0]
-@22
-startup_hsmode_tb.U_ENCODER1.xsend[8:0]
 @28
 startup_hsmode_tb.U_ENCODER1.phy_write_i
 startup_hsmode_tb.U_ENCODER1.phy_nopid_i
@@ -92,10 +90,14 @@ startup_hsmode_tb.U_ULPI_PHY0.tx_start_w
 startup_hsmode_tb.U_ULPI_PHY0.dat_q[7:0]
 @28
 startup_hsmode_tb.U_ULPI_PHY0.ls_changed_w
-@23
+@22
 [color] 2
 startup_hsmode_tb.U_ULPI_PHY0.kj_count[3:0]
 @1000200
 -FakeULPI
+@28
+startup_hsmode_tb.U_ENCODER1.sready_w
+@29
+startup_hsmode_tb.U_ENCODER1.high_speed_i
 [pattern_trace] 1
 [pattern_trace] 0

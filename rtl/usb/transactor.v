@@ -168,6 +168,7 @@ module transactor #(
   reg [3:0] state, xctrl;
   reg [7:0] xbulk;
 
+  reg [3:0] tuser_q;
   reg trn_zero_q;  // zero-size data transfer ??
   reg trn_send_q;
   reg [1:0] trn_type_q;
@@ -207,7 +208,8 @@ module transactor #(
 
   // assign usb_tready_o = state == ST_BULK ? blk_tready_i || xbulk == BLK_DATO_ERR : 1'b1;  // todo: ...
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
-  assign usb_tuser_o  = trn_send_q ? {trn_type_q, 2'b11} : hsend_q ? {htype_q, 2'b10} : 4'hx;
+  assign usb_tuser_o  = tuser_q;
+  // trn_send_q ? {trn_type_q, 2'b11} : hsend_q ? {htype_q, 2'b10} : 4'hx;
 
   assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
   assign blk_tlast_o  = usb_tlast_i;
@@ -300,6 +302,18 @@ module transactor #(
         end
 
       end
+    end
+  end
+
+  always @(posedge clock) begin
+    if (!hsend_q && eop_rx_q) begin
+      tuser_q <= {HSK_ACK, 2'b10};
+    end else if (xctrl == CTL_DATO_TOK && tok_recv_i && tok_type_i == TOK_IN) begin
+      tuser_q <= {DATA1, 2'b11};
+    end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
+      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+    end else if (xbulk == BLK_IDLE && tok_recv_i && tok_type_i == TOK_IN) begin
+      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
     end
   end
 

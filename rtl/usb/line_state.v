@@ -17,7 +17,7 @@ module line_state #(
 
     // USB-core status and control-signals
     output high_speed_o,
-   output usb_reset_o,
+    output usb_reset_o,
 
     // UTMI+ equivalent state-signals
     output [1:0] LineState,
@@ -42,6 +42,7 @@ module line_state #(
     output phy_write_o,
     output phy_nopid_o,
     output phy_stop_o,
+    input phy_busy_i,
     input phy_done_i,
     output [7:0] phy_addr_o,
     output [7:0] phy_data_o
@@ -97,7 +98,7 @@ module line_state #(
   assign iob_dat_o = dat_q;
 
   assign high_speed_o = state == ST_HS_MODE;
-  assign usb_reset_o  = state == ST_HS_START;
+  assign usb_reset_o = state == ST_HS_START;
 
   assign ls_host_se0_o = LineState == 2'b00;
   assign ls_chirpk_o = chirp_k_q;
@@ -270,6 +271,8 @@ module line_state #(
     end
   end
 
+  // `define __slow_start
+
   always @(posedge clock) begin
     if (reset) begin
       state      <= ST_POWER_ON;
@@ -282,8 +285,10 @@ module line_state #(
     end else begin
       case (state)
         ST_POWER_ON: begin
-          // state <= ST_FS_START;
-          // {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+`ifndef __slow_start
+          state <= ST_FS_START;
+          {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+`else
           if (pulse_2_5us) begin
             state <= ST_FS_START;
             {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
@@ -291,6 +296,7 @@ module line_state #(
             state <= state;
             {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
           end
+`endif
           chirp_kj_q <= 1'b0;
         end
 
@@ -310,8 +316,8 @@ module line_state #(
           if (phy_done_i) begin
             state <= ST_FS_NEXT1;
             set_q <= 1'b0;
-          end else begin
-            set_q <= ulpi_nxt ? 1'b0 : 1'b1;
+          // end else begin
+          //   set_q <= ulpi_nxt ? 1'b0 : 1'b1;
           end
         end
 
@@ -348,7 +354,9 @@ module line_state #(
             state <= ST_CHIRP_K2;
             stp_q <= 1'b1;
           end
-          nop_q <= 1'b0;
+          if (phy_done_i) begin
+            nop_q <= 1'b0;
+          end
         end
 
         ST_CHIRP_K2: begin
@@ -356,17 +364,19 @@ module line_state #(
           // todo: issue stop, then wait for 'RX CMD' ('squelch')
           state <= LineState == 2'b00 ? ST_CHIRP_KJ : state;
           nop_q <= 1'b0;
-          stp_q <= 1'b0;
+          if (phy_busy_i) begin
+            stp_q <= 1'b0;
+          end
         end
 
         //
         //  Attempt to handshake for HS-mode
         ///
         ST_CHIRP_KJ: begin
-          state      <= kj_ended_q ? ST_HS_START : state;
-          set_q      <= 1'b0;
-          stp_q      <= 1'b0; // kj_ended_q ? 1'b1 : 1'b0;
-          chirp_kj_q <= kj_start_q && pulse_2_5us && !kj_valid_q;
+          state                 <= kj_ended_q ? ST_HS_START : state;
+          set_q                 <= 1'b0;
+          stp_q                 <= 1'b0;  // kj_ended_q ? 1'b1 : 1'b0;
+          chirp_kj_q            <= kj_start_q && pulse_2_5us && !kj_valid_q;
           {set_q, adr_q, val_q} <= {kj_ended_q, 8'h84, 8'h40};
         end
 

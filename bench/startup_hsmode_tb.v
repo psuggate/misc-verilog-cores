@@ -8,7 +8,7 @@ module startup_hsmode_tb;
     $dumpfile("startup_hsmode_tb.vcd");
     $dumpvars;
 
-    #12000 $finish;  // todo ...
+    #2000 $finish;  // todo ...
   end
 
 
@@ -133,7 +133,7 @@ module startup_hsmode_tb;
       .iob_nxt_o(),
       .iob_dat_o(),
 
-      .high_speed_o(),
+      .high_speed_o(high_speed_w),
 
       .kj_start_i(1'b0),
 
@@ -143,6 +143,7 @@ module startup_hsmode_tb;
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
       .phy_stop_o (phy_stop_w),
+      .phy_busy_i (phy_busy_w),
       .phy_done_i (phy_done_w),
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w)

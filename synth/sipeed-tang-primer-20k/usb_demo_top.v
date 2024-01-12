@@ -83,7 +83,7 @@ module usb_demo_top (
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
 
-  assign m_tkeep = m_tvalid; // todo: ...
+  assign m_tkeep = m_tvalid;  // todo: ...
 
 
   //
@@ -255,6 +255,9 @@ module usb_demo_top (
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
   // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
   assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
+  // wire [11:0] xsend;
+  // assign xsend = U_ULPI_USB0.enc_state_w;
+  // assign cbits = xsend[11:8];
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin

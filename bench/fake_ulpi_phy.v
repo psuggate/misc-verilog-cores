@@ -44,7 +44,7 @@ module fake_ulpi_phy (
 
   reg [3:0] state, snext;
 
-  reg dir_q, nxt_q, rdy_q, hss_q, run_q;
+  reg dir_q, nxt_q, rdy_q, val_q, hss_q, run_q;
   reg [7:0] dat_q;
 
   reg tvalid;
@@ -234,6 +234,7 @@ module fake_ulpi_phy (
 
       dir_q <= 1'b0;
       nxt_q <= 1'b0;
+      val_q <= 1'b0;
       rdy_q <= 1'b0;
       dat_q <= 'bx;
       hss_q <= 1'b0;
@@ -242,6 +243,7 @@ module fake_ulpi_phy (
       case (state)
         default: begin  // ST_IDLE
           rdy_q <= 1'b0;
+          val_q <= 1'b0;
           dat_q <= 'bz;
 
           if (reg_pid_w) begin
@@ -341,11 +343,12 @@ module fake_ulpi_phy (
         //  ULPI PHY Configuration
         ///
         ST_REGW: begin
+          val_q <= 1'b1;
           if (ulpi_stp_i) begin
             state <= ST_IDLE;
             nxt_q <= 1'b0;
           end else begin
-            nxt_q <= 1'b1;
+            nxt_q <= ~val_q;  // 1'b1;
           end
         end
 
