@@ -26,8 +26,8 @@ module ulpi_reset #(
 
   assign usb_reset  = reset_delay[2];
 
-  // assign usb_clock  = PLLEN ? clockd : ~ulpi_clk;
-  assign usb_clock  = PLLEN ? clockd : ulpi_clk;
+  assign usb_clock  = PLLEN ? clockd : ~ulpi_clk;
+  // assign usb_clock  = PLLEN ? clockd : ulpi_clk;
   assign ddr_clock  = PLLEN ? clockp : 1'b0;
 
 

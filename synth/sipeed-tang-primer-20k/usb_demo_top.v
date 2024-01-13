@@ -6,6 +6,9 @@ module usb_demo_top (
 
     output [5:0] leds,
 
+    input  uart_rx,
+    output uart_tx,
+
     // USB ULPI pins on the dev-board
     input ulpi_clk,
     output ulpi_rst,
@@ -254,7 +257,7 @@ module usb_demo_top (
 
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
   // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
-  assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
+  // assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
   // wire [11:0] xsend;
   // assign xsend = U_ULPI_USB0.enc_state_w;
   // assign cbits = xsend[11:8];
@@ -303,11 +306,6 @@ module usb_demo_top (
     end
   end
 
-
-  always @(posedge ddr_clock) begin
-    dcount <= dcount + 1;
-  end
-
   always @(posedge ulpi_clk) begin
     ucount <= ucount + 1;
   end
@@ -315,6 +313,198 @@ module usb_demo_top (
   always @(posedge clock) begin
     pcount <= pcount + 1;
   end
+
+
+  //
+  //  Status via UART
+  ///
+  // localparam [15:0] UART_PRESCALE = 16'd65; // For: 60.0 MHz / (115200 * 8)
+  // localparam [15:0] UART_PRESCALE = 16'd781;  // For: 60.0 MHz / (9600 * 8)
+  localparam [15:0] UART_PRESCALE = 16'd3125;  // For: 60.0 MHz / (2400 * 8)
+  localparam [63:0] UART_GARBAGES = "TART013\n";
+
+  reg [2:0] scount;
+
+  reg svalid, mready, merror;
+  reg [7:0] sdata;
+  wire sready, mvalid;
+  wire [7:0] mdata, sdata_w;
+  wire rx_busy_w, tx_busy_w, rx_orun_w, rx_ferr_w;
+  reg [7:0] garbo[7:0];
+
+  genvar ii;
+  generate
+
+    for (ii = 7; ii >= 0; ii--) begin : g_set_garbage_rom
+      // assign garbo[ii] = UART_GARBAGES[{ii[2:0], 3'd7} : {ii[2:0], 3'd0}];
+      assign garbo[7 - ii] = UART_GARBAGES[ii*8+7-:8];
+    end
+
+  endgenerate
+
+  assign cbits   = {dcount[10], merror, rx_busy_w, tx_busy_w};
+  assign sdata_w = garbo[scount];
+
+  reg stb_q;
+  reg [15:0] pre_q;
+  wire [15:0] pnext;
+
+  assign pnext = pre_q == 16'd130 ? 16'd30 : pre_q + 16'd1;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      stb_q <= 1'b0;
+      pre_q <= UART_PRESCALE;
+    end else if (svalid && sready && dcount[10] && !stb_q) begin
+      pre_q <= pnext;
+      stb_q <= 1'b1;
+    end else if (!dcount[10]) begin
+      stb_q <= 1'b0;
+    end
+  end
+
+
+  //
+  //  Produce an endless stream of garbage
+  ///
+  // `define __use_uart_echo
+`ifdef __use_uart_echo
+  wire fvalid, fready, xvalid, xready;
+  wire [7:0] fdata, xdata;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      dcount <= 0;
+      merror <= 1'b0;
+    end else begin
+      if (xvalid && xready) begin
+        dcount <= dcount + 1;
+      end
+      if (rx_orun_w || rx_ferr_w) begin
+        merror <= 1'b1;
+      end
+    end
+  end
+
+  sync_fifo #(
+      .WIDTH (8),
+      .ABITS (11),
+      .OUTREG(3)
+  ) U_UART_FIFO1 (
+      .clock(clock),
+      .reset(reset),
+
+      .level_o(),
+
+      .valid_i(fvalid),
+      .ready_o(fready),
+      .data_i (fdata),
+
+      .valid_o(xvalid),
+      .ready_i(xready),
+      .data_o (xdata)
+  );
+
+
+  uart #(
+      .DATA_WIDTH(8)
+  ) U_UART1 (
+      .clk(clock),
+      .rst(reset),
+
+      .s_axis_tvalid(xvalid),
+      .s_axis_tready(xready),
+      .s_axis_tdata (xdata),
+
+      .m_axis_tvalid(fvalid),
+      .m_axis_tready(fready),
+      .m_axis_tdata (fdata),
+
+      .rxd(uart_rx),
+      .txd(uart_tx),
+
+      .rx_busy(rx_busy_w),
+      .tx_busy(tx_busy_w),
+      .rx_overrun_error(rx_orun_w),
+      .rx_frame_error(rx_ferr_w),
+
+      .prescale(UART_PRESCALE)
+  );
+
+`else
+
+  always @(posedge clock) begin
+    if (reset) begin
+      svalid <= 1'b0;
+      sdata  <= UART_GARBAGES[7:0];
+      scount <= 3'd1;
+      mready <= 1'b0;
+      merror <= 1'b0;
+      dcount <= 0;
+    end else begin
+      mready <= 1'b1;
+      if (rx_orun_w || rx_ferr_w || mvalid && mdata == 8'd99) begin
+        merror <= 1'b1;
+      end else if (mvalid && mdata == 8'd120) begin
+        merror <= 1'b0;
+      end
+
+      if (svalid && sready) begin
+        svalid <= 1'b0;
+      end else if (!tx_busy_w && !svalid && sready) begin
+        svalid <= 1'b1;
+        if (!dcount[0]) begin
+          sdata <= 8'd0;
+        end else begin
+          sdata <= sdata_w;
+          /*
+          case (scount)
+            3'd0: sdata <= 8'd84;
+            3'd1: sdata <= 8'd65;
+            3'd2: sdata <= 8'd82;
+            3'd3: sdata <= 8'd84;
+            3'd4: sdata <= 8'd48;
+            3'd5: sdata <= 8'd49;
+            // 3'd6: sdata <= 8'd13;
+            3'd6: sdata <= 8'd48;
+            default: sdata <= 8'd10;
+          endcase
+          */
+          scount <= scount + 3'd1;
+        end
+        dcount <= dcount + 1;
+      end
+    end
+  end
+
+
+  uart #(
+      .DATA_WIDTH(8)
+  ) U_UART1 (
+      .clk(clock),
+      .rst(reset),
+
+      .s_axis_tvalid(svalid),
+      .s_axis_tready(sready),
+      .s_axis_tdata (sdata),
+
+      .m_axis_tvalid(mvalid),
+      .m_axis_tready(mready),
+      .m_axis_tdata (mdata),
+
+      .rxd(uart_rx),
+      .txd(uart_tx),
+
+      .rx_busy(rx_busy_w),
+      .tx_busy(tx_busy_w),
+      .rx_overrun_error(rx_orun_w),
+      .rx_frame_error(rx_ferr_w),
+
+      // .prescale(pre_q)
+      .prescale(UART_PRESCALE)
+  );
+
+`endif
 
 
 endmodule  // usb_demo_top
