@@ -363,7 +363,7 @@ module ulpi_axis_bridge #(
       .m_tdata (ulpi_rx_tdata_w)
   );
 
-  wire [11:0] enc_state_w;
+  wire [9:0] enc_state_w;
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
@@ -626,7 +626,6 @@ module ulpi_axis_bridge #(
       .m_tdata (tel_tdata_w),
       .m_tready(tel_tready_w)
   );
-
 
 
 endmodule  // ulpi_axis_bridge
