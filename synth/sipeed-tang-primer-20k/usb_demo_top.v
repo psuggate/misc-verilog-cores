@@ -257,7 +257,7 @@ module usb_demo_top (
 
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
   // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
-  // assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
+  assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
   // wire [11:0] xsend;
   // assign xsend = U_ULPI_USB0.enc_state_w;
   // assign cbits = xsend[11:8];
@@ -342,7 +342,7 @@ module usb_demo_top (
 
   endgenerate
 
-  assign cbits   = {dcount[10], merror, rx_busy_w, tx_busy_w};
+  // assign cbits   = {dcount[10], merror, rx_busy_w, tx_busy_w};
   assign sdata_w = garbo[scount];
 
   reg stb_q;

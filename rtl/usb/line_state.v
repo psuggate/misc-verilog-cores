@@ -67,23 +67,25 @@ module line_state #(
 
   localparam [3:0] ST_POWER_ON = 4'd0;
   localparam [3:0] ST_FS_START = 4'd1;
-  localparam [3:0] ST_FS_NEXT0 = 4'd2;
-  localparam [3:0] ST_FS_NEXT1 = 4'd3;
-  localparam [3:0] ST_WAIT_SE0 = 4'd4;
-  localparam [3:0] ST_CHIRP_K0 = 4'd5;
-  localparam [3:0] ST_CHIRP_K1 = 4'd6;
-  localparam [3:0] ST_CHIRP_K2 = 4'd7;
-  localparam [3:0] ST_CHIRP_KJ = 4'd8;
-  localparam [3:0] ST_HS_START = 4'd9;
-  localparam [3:0] ST_HS_MODE = 4'd10;
+  localparam [3:0] ST_FS_LSSE0 = 4'd2;
+  localparam [3:0] ST_WAIT_SE0 = 4'd3;
+  localparam [3:0] ST_CHIRP_K0 = 4'd4;
+  localparam [3:0] ST_CHIRP_K1 = 4'd5;
+  localparam [3:0] ST_CHIRP_K2 = 4'd6;
+  localparam [3:0] ST_CHIRP_KJ = 4'd7;
+  localparam [3:0] ST_HS_START = 4'd8;
+  localparam [3:0] ST_IDLE = 4'd9;
+  localparam [3:0] ST_SUSPEND = 4'd10;
+  localparam [3:0] ST_RESUME = 4'd11;
+  localparam [3:0] ST_RESET = 4'd12;
 
 
   // -- State & Signals -- //
 
   reg [3:0] state, snext;
-  reg dir_q, nxt_q, set_q, nop_q, stp_q;
+  reg dir_q, nxt_q, set_q, nop_q, stp_q, hse_q, rst_q;
   reg [7:0] dat_q, adr_q, val_q;
-  reg rx_cmd_q, chirp_kj_q, chirp_k_q;
+  reg rx_cmd_q, ckj_q, chirp_k_q;
 
   reg pulse_2_5us, pulse_1_0ms;
   reg [7:0] count_2_5us;
@@ -97,12 +99,12 @@ module line_state #(
   assign iob_nxt_o = nxt_q;
   assign iob_dat_o = dat_q;
 
-  assign high_speed_o = state == ST_HS_MODE;
-  assign usb_reset_o = state == ST_HS_START;
+  assign high_speed_o = state == ST_IDLE && hse_q;
+  assign usb_reset_o = rst_q;
 
   assign ls_host_se0_o = LineState == 2'b00;
   assign ls_chirpk_o = chirp_k_q;
-  assign ls_chirpkj_o = chirp_kj_q;
+  assign ls_chirpkj_o = ckj_q;
 
   assign pulse_2_5us_o = pulse_2_5us;
   assign pulse_1_0ms_o = pulse_1_0ms;
@@ -155,8 +157,18 @@ module line_state #(
     end
   end
 
+  // State-output registers
   always @(posedge clock) begin
-    chirp_k_q <= state == ST_CHIRP_K1;
+    if (reset) begin
+      rst_q <= 1'b0;
+    end else begin
+      if (state == ST_RESET) begin
+        rst_q <= 1'b1;
+      end else if (state == ST_IDLE) begin
+        rst_q <= 1'b0;
+      end
+      chirp_k_q <= state == ST_CHIRP_K1;
+    end
   end
 
 
@@ -213,12 +225,117 @@ module line_state #(
     end
   end
 
+  // Pulse-signal & timer(-counter) for 2.5 us, and for a constant line-state
+  reg ls_pulse_2_5us, ls_pulse_1_0ms, ls_pulse_3_0ms;
+  reg [7:0] ls_count_2_5us;
+  reg [8:0] ls_count_1_0ms;
+  reg [1:0] ls_count_3_0ms;
 
-  // -- Main LineState and Start-Up FSM -- //
+  always @(posedge clock) begin
+    if (reset || ls_changed) begin
+      ls_pulse_2_5us <= 1'b0;
+      ls_count_2_5us <= 8'd0;
+    end else begin
+      if (ls_count_2_5us == COUNT_2_5_US) begin
+        ls_pulse_2_5us <= 1'b1;
+        ls_count_2_5us <= 8'd0;
+      end else begin
+        ls_pulse_2_5us <= 1'b0;
+        ls_count_2_5us <= ls_count_2_5us + 8'd1;
+      end
+    end
+  end
+
+  // Pulse-signal & timer(-counter) for 1.0 ms, and for a constant line-state
+  always @(posedge clock) begin
+    if (reset || ls_changed) begin
+      ls_pulse_1_0ms <= 1'b0;
+      ls_count_1_0ms <= 9'd0;
+    end else if (ls_pulse_2_5us) begin
+      if (ls_count_1_0ms == COUNT_1_0_MS) begin
+        ls_pulse_1_0ms <= 1'b1;
+        ls_count_1_0ms <= 9'd0;
+      end else begin
+        ls_pulse_1_0ms <= 1'b0;
+        ls_count_1_0ms <= ls_count_1_0ms + 9'd1;
+      end
+    end else begin
+      ls_pulse_1_0ms <= 1'b0;
+    end
+  end
+
+  // Pulse-signal (/timer) for a 3.0 ms duration and constant line-state
+  always @(posedge clock) begin
+    if (reset || ls_changed) begin
+      ls_pulse_3_0ms <= 1'b0;
+      ls_count_3_0ms <= 2'd0;
+    end else if (ls_pulse_1_0ms) begin
+      if (ls_count_3_0ms == 2'd2) begin
+        ls_pulse_3_0ms <= 1'b1;
+        ls_count_3_0ms <= 2'd0;
+      end else begin
+        ls_pulse_3_0ms <= 1'b0;
+        ls_count_3_0ms <= ls_count_3_0ms + 2'd1;
+      end
+    end else begin
+      ls_pulse_3_0ms <= 1'b0;
+    end
+  end
+
+  // Pulse-signal (/timer) for 21 ms duration and constant line-state
+  reg ls_pulse_21_ms;
+  reg [2:0] ls_count_21_ms;
+  always @(posedge clock) begin
+    if (reset || ls_changed) begin
+      ls_pulse_21_ms <= 1'b0;
+      ls_count_21_ms <= 2'd0;
+    end else if (ls_pulse_3_0ms) begin
+      if (ls_count_21_ms == 3'd6) begin
+        ls_pulse_21_ms <= 1'b1;
+        ls_count_21_ms <= 3'd0;
+      end else begin
+        ls_pulse_21_ms <= 1'b0;
+        ls_count_21_ms <= ls_count_21_ms + 3'd1;
+      end
+    end else begin
+      ls_pulse_21_ms <= 1'b0;
+    end
+  end
+
+
+  // -- Speed-neogiation LineState and Chirp-control -- //
 
   reg kj_start_q, kj_valid_q, kj_ended_q;
   reg  [2:0] kj_count_q;
   wire [2:0] kj_cnext_w = kj_count_q + 3'd1;
+
+  always @(posedge clock) begin
+    if (state == ST_CHIRP_KJ) begin
+      // After the start of each J/K, wait at least 2.5 us before considering it
+      // as a valid symbol.
+      if (kj_ended_q) begin
+        // Keep asserted until state-change
+      end else
+      if (!kj_start_q && ls_changed) begin
+        kj_start_q <= 1'b1;
+        kj_valid_q <= 1'b0;
+        kj_ended_q <= 1'b0;
+      end else if (kj_start_q && pulse_2_5us && !kj_valid_q) begin
+        kj_start_q <= 1'b0;
+        kj_valid_q <= 1'b1;
+        kj_count_q <= kj_cnext_w;
+        kj_ended_q <= kj_cnext_w == 3'd6;
+      end
+    end else begin
+      kj_start_q <= 1'b0;
+      kj_valid_q <= 1'b0;
+      kj_ended_q <= 1'b0;
+      kj_count_q <= 3'd0;
+    end
+  end
+
+
+  // -- Main USB ULPI PHY LineState FSM -- //
 
   /**
    * Initialisation sequence:
@@ -250,86 +367,88 @@ module line_state #(
    * During this sequence, issue a 'reset' to the USB core.
    */
   always @(posedge clock) begin
-    if (state == ST_CHIRP_KJ) begin
-      // After the start of each J/K, wait at least 2.5 us before considering it
-      // as a valid symbol.
-      if (!kj_start_q && ls_changed) begin
-        kj_start_q <= 1'b1;
-        kj_valid_q <= 1'b0;
-        kj_ended_q <= 1'b0;
-      end else if (kj_start_q && pulse_2_5us && !kj_valid_q) begin
-        kj_start_q <= 1'b0;
-        kj_valid_q <= 1'b1;
-        kj_count_q <= kj_cnext_w;
-        kj_ended_q <= kj_cnext_w == 3'd6;
-      end
-    end else begin
-      kj_start_q <= 1'b0;
-      kj_valid_q <= 1'b0;
-      kj_ended_q <= 1'b0;
-      kj_count_q <= 3'd0;
-    end
-  end
-
-  // `define __slow_start
-
-  always @(posedge clock) begin
     if (reset) begin
-      state      <= ST_POWER_ON;
-      set_q      <= 1'b0;
-      nop_q      <= 1'b0;
-      stp_q      <= 1'b0;
-      chirp_kj_q <= 1'b0;
+      state <= ST_POWER_ON;
+      hse_q <= 1'b0;
+      set_q <= 1'b0;
+      nop_q <= 1'b0;
+      stp_q <= 1'b0;
+      ckj_q <= 1'b0;
     end else if (dir_q || ulpi_dir) begin
       set_q <= 1'b0;
     end else begin
       case (state)
         ST_POWER_ON: begin
-`ifndef __slow_start
-          state <= ST_FS_START;
-          {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
-`else
-          if (pulse_2_5us) begin
-            state <= ST_FS_START;
+          if (!phy_done_i) begin
             {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
           end else begin
-            state <= state;
+            state <= ST_FS_START;
             {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
           end
-`endif
-          chirp_kj_q <= 1'b0;
+          // state <= phy_busy_i ? ST_FS_START : state;
+          // {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
+          ckj_q <= 1'b0;
         end
+
+        ST_IDLE: begin
+          if (ls_pulse_3_0ms && LineState == 2'b00) begin
+            state <= ST_RESET;
+          end else if (ls_pulse_3_0ms && LineState == 2'b01) begin
+            state <= ST_SUSPEND;
+          end
+        end
+
+        ST_RESET: begin
+          // todo: ...
+        end
+
+        ST_SUSPEND: begin
+          // todo: ...
+          if (ulpi_dir && LineState != 2'b10 && ls_pulse_21_ms) begin
+            stp_q <= 1'b1;
+            state <= ST_RESUME;
+          end
+        end
+
+        ST_RESUME: begin
+          // todo: assert & hold 'stp' ...
+          if (phy_done_i) begin
+            state <= ST_IDLE;
+            {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
+          end else begin
+            // Set the Xcvrs to HS-mode
+            hse_q <= 1'b1;
+            {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h40};
+          end
+        end
+
 
         //
-        //  Switch to FS-mode on start-up or reset
+        //  Switch to FS-mode on start-up, reset, or suspend
         ///
         ST_FS_START: begin
+          hse_q <= 1'b0;
           if (phy_done_i) begin
-            state <= ST_FS_NEXT0;
-            {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h45};
+            state <= ST_FS_LSSE0;
+            {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
           end else begin
-            set_q <= ulpi_nxt ? 1'b0 : 1'b1;
+            {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h45};
           end
         end
 
-        ST_FS_NEXT0: begin
-          if (phy_done_i) begin
-            state <= ST_FS_NEXT1;
-            set_q <= 1'b0;
-          // end else begin
-          //   set_q <= ulpi_nxt ? 1'b0 : 1'b1;
-          end
-        end
-
-        ST_FS_NEXT1: begin
+        ST_FS_LSSE0: begin
           state <= LineState == 2'b00 ? ST_WAIT_SE0 : state;
           set_q <= 1'b0;
         end
 
         ST_WAIT_SE0: begin
-          if (pulse_2_5us) begin
+          if (ls_changed) begin
+            state <= ST_FS_LSSE0;
+            set_q <= 1'b0;
+          end else if (ls_pulse_2_5us) begin
             // Set the Xcvrs to HS-mode
             state <= ST_CHIRP_K0;
+            hse_q <= 1'b1;
             {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h54};
           end else begin
             set_q <= 1'b0;
@@ -342,15 +461,12 @@ module line_state #(
             state <= ST_CHIRP_K1;
             set_q <= 1'b0;  // todo: issue 'NO PID' here ??
             nop_q <= 1'b1;
-          end else begin
-            set_q <= ulpi_nxt ? 1'b0 : 1'b1;
           end
         end
 
         ST_CHIRP_K1: begin
           // todo: start timer when 'nxt' arrives ??
-          // if (ulpi_nxt) begin
-          if (pulse_1_0ms) begin
+          if (ls_pulse_1_0ms) begin
             state <= ST_CHIRP_K2;
             stp_q <= 1'b1;
           end
@@ -362,7 +478,7 @@ module line_state #(
         ST_CHIRP_K2: begin
           // Wait at least 1.0 ms
           // todo: issue stop, then wait for 'RX CMD' ('squelch')
-          state <= LineState == 2'b00 ? ST_CHIRP_KJ : state;
+          state <= LineState == 2'b00 && phy_done_i ? ST_CHIRP_KJ : state;
           nop_q <= 1'b0;
           if (phy_busy_i) begin
             stp_q <= 1'b0;
@@ -373,28 +489,23 @@ module line_state #(
         //  Attempt to handshake for HS-mode
         ///
         ST_CHIRP_KJ: begin
-          state                 <= kj_ended_q ? ST_HS_START : state;
-          set_q                 <= 1'b0;
-          stp_q                 <= 1'b0;  // kj_ended_q ? 1'b1 : 1'b0;
-          chirp_kj_q            <= kj_start_q && pulse_2_5us && !kj_valid_q;
-          {set_q, adr_q, val_q} <= {kj_ended_q, 8'h84, 8'h40};
+          if (kj_ended_q) begin
+            state <= ST_HS_START;
+            {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h40};
+          end
+          stp_q <= 1'b0;
+          ckj_q <= kj_start_q && pulse_2_5us && !kj_valid_q;
         end
 
         ST_HS_START: begin
-          stp_q <= 1'b0;
+          // stp_q <= 1'b0;
           if (phy_done_i) begin
-            state <= ST_HS_MODE;
-            set_q <= 1'b0;
+            state <= ST_IDLE;
+            {set_q, adr_q, val_q} <= {1'b0, 8'd0, 8'd0};
           end else begin
-            set_q <= ulpi_nxt ? 1'b0 : 1'b1;
+            hse_q <= 1'b1;
+            {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h40};
           end
-        end
-
-        ST_HS_MODE: begin
-          state      <= state;
-          set_q      <= 1'b0;
-          stp_q      <= 1'b0;
-          chirp_kj_q <= 1'b0;
         end
       endcase
     end
@@ -411,15 +522,17 @@ module line_state #(
     case (state)
       ST_POWER_ON: dbg_state = "POWER_ON";
       ST_FS_START: dbg_state = "FS_START";
-      ST_FS_NEXT0: dbg_state = "FS_NEXT0";
-      ST_FS_NEXT1: dbg_state = "FS_NEXT1";
+      ST_FS_LSSE0: dbg_state = "FS_LSSE0";
       ST_WAIT_SE0: dbg_state = "WAIT_SE0";
       ST_CHIRP_K0: dbg_state = "CHIRP_K0";
       ST_CHIRP_K1: dbg_state = "CHIRP_K1";
       ST_CHIRP_K2: dbg_state = "CHIRP_K2";
       ST_CHIRP_KJ: dbg_state = "CHIRP_KJ";
       ST_HS_START: dbg_state = "HS_START";
-      ST_HS_MODE: dbg_state = "HS_MODE";
+      ST_RESET: dbg_state = "RESET";
+      ST_SUSPEND: dbg_state = "SUSPEND";
+      ST_RESUME: dbg_state = "RESUME";
+      ST_IDLE: dbg_state = "IDLE";
       default: dbg_state = "XXXX";
     endcase
   end

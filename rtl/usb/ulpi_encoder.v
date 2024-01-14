@@ -56,7 +56,7 @@ module ulpi_encoder #(
   localparam [9:0] TX_DONE = 10'h040;
   localparam [9:0] TX_INIT = 10'h080;
   localparam [9:0] TX_REGW = 10'h100;
-  localparam [9:0] TX_WAIT = 10'h200;
+  localparam [9:0] TX_STOP = 10'h200;
 
   localparam [1:0] LS_EOP = 2'b00;
 
@@ -64,7 +64,7 @@ module ulpi_encoder #(
   // -- Signals & State -- //
 
   reg [9:0] xsend, xsend_q;
-  reg dir_q;
+  reg dir_q, stp_q;
   reg phy_done_q, hsk_done_q, usb_done_q;
 
   // Transmit datapath MUX signals
@@ -105,13 +105,14 @@ module ulpi_encoder #(
   always @(posedge clock) begin
     xsend_q <= xsend;
 
-    phy_done_q <= xsend == TX_INIT && phy_nopid_i && !phy_done_q || xsend == TX_WAIT;
-    hsk_done_q <= xsend == TX_WAIT && hsk_send_i;
+    phy_done_q <= xsend == TX_INIT && phy_nopid_i && !phy_done_q || xsend == TX_STOP && !phy_done_q && !phy_stop_i;
+    hsk_done_q <= xsend == TX_STOP && hsk_send_i;
     usb_done_q <= xsend == TX_DONE && ulpi_stp && !hsk_send_i;
   end
 
   always @(posedge clock) begin
     dir_q <= ulpi_dir;
+    stp_q <= ulpi_stp;
   end
 
 
@@ -152,7 +153,7 @@ module ulpi_encoder #(
           end else if (!high_speed_i) begin
             // Need to negotiate HS-mode
             xsend <= phy_write_i && tready_w || phy_nopid_i ? TX_INIT :
-                     phy_stop_i ? TX_WAIT : TX_IDLE;
+                     phy_stop_i ? TX_STOP : TX_IDLE;
           end else begin
             // Running in HS-mode
             xsend <= hsk_send_i || s_tvalid ? TX_XPID :
@@ -163,7 +164,7 @@ module ulpi_encoder #(
 
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
-          xsend <= mvalid_w ? (hsk_send_i ? TX_WAIT : TX_DATA) : xsend;
+          xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) : xsend;
         end
 
         TX_DATA: begin
@@ -196,7 +197,8 @@ module ulpi_encoder #(
           // Todo: should get the current 'LineState' from the ULPI decoder
           //   module, as this module is Tx-only ??
           //
-          xsend <= !ulpi_nxt && !ulpi_stp && ulpi_data == 8'd0 ? TX_IDLE : xsend;
+          xsend <= !ulpi_stp && stp_q ? TX_IDLE : xsend;
+          // xsend <= !ulpi_nxt && !ulpi_stp && ulpi_data == 8'd0 ? TX_IDLE : xsend;
         end
 
         //
@@ -209,12 +211,12 @@ module ulpi_encoder #(
 
         TX_REGW: begin
           // Write to a PHY register
-          xsend <= ulpi_nxt ? TX_WAIT : xsend;
+          xsend <= ulpi_nxt ? TX_STOP : xsend;
         end
 
-        TX_WAIT: begin
+        TX_STOP: begin
           // Wait for the PHY to accept a 'ulpi_data' value
-          xsend <= TX_DONE;
+          xsend <= phy_stop_i ? xsend : TX_DONE;
         end
       endcase
     end
@@ -227,13 +229,6 @@ module ulpi_encoder #(
   // ULPI output registers using an AXI-style skid-buffer, so that PHY commands
   // and AXI overruns can be easily handled.
   //
-  // Load the 'temp. reg.' of the skid-buffer:
-  //  - with ULPI PHY register value, when writing to a ULPI PHY register;
-  //  - with '0x40' when issuing a 'NO PID' command; e.g., to initiate a K-chirp
-  //    during High-Speed negotiation;
-  //  - with '0x00' when issuing a USB handshake packet;
-  //  - with 'data[0]' (and data-overflows due to flow-control), when performing
-  //    USB data 'IN' transactions;
   always @* begin
     // Source -> ULPI stream
     svalid = 1'b0;
@@ -245,12 +240,7 @@ module ulpi_encoder #(
     tlast  = 1'b0;
     tdata  = 8'd0;
 
-    if (ulpi_dir || dir_q) begin
-      svalid = 1'b0;
-      sdata  = 8'd0;
-      tvalid = 1'b0;
-      sdata  = 8'd0;
-    end else begin
+    if (!ulpi_dir && !dir_q) begin
       case (xsend)
         TX_IDLE: begin
           if (s_tvalid && sready_w && s_tkeep) begin
@@ -261,14 +251,19 @@ module ulpi_encoder #(
             tdata  = s_tdata;
           end
         end
+
         //
         //  USB Packet Transmit
         ///
         TX_XPID: begin
-          svalid = hsk_send_i || !mvalid_w;
-          sready = !mvalid_w && sready_w;
-          sdata  = usb_pid_w;
+          // Note: needs to be able to "resume," after being interrupted by the
+          //   ULPI PHY (before the Link has sent the first 'PID' byte)
+          svalid = hsk_send_i || !mvalid_w || mready_w && s_tvalid && s_tkeep;
+          sready = sready_w && (!mvalid_w || mready_w);
+          sdata  = mvalid_w && mready_w ? s_tdata : usb_pid_w;
           if (hsk_send_i) begin
+            // Load the temp-reg. with the "stop" value, for USB handshake
+            // packets
             tvalid = 1'b1;
             tlast  = 1'b1;
           end
@@ -296,6 +291,7 @@ module ulpi_encoder #(
           sready = s_tvalid && !s_tkeep;
           slast  = 1'b1;
         end
+
         //
         //  Initialisation & Reset
         ///
@@ -309,10 +305,11 @@ module ulpi_encoder #(
         end
         TX_REGW: begin
         end
+
         //
         //  Finish Transaction
         ///
-        TX_WAIT: begin
+        TX_STOP: begin
           svalid = 1'b1;
           slast  = 1'b1;
         end
@@ -328,6 +325,14 @@ module ulpi_encoder #(
   assign mready_w  = ulpi_nxt;
   assign ulpi_stp  = mlast_w;
   assign ulpi_data = !ulpi_dir ? mdata_w : 8'bz;
+
+  // Load the 'temp. reg.' of the skid-buffer:
+  //  - with ULPI PHY register value, when writing to a ULPI PHY register;
+  //  - with '0x40' when issuing a 'NO PID' command; e.g., to initiate a K-chirp
+  //    during High-Speed negotiation;
+  //  - with '0x00' when issuing a USB handshake packet;
+  //  - with 'data[0]' (and data-overflows due to flow-control), when performing
+  //    USB data 'IN' transactions;
 
   skid_loader #(
       .RESET_TDATA(1),
@@ -373,7 +378,7 @@ module ulpi_encoder #(
       TX_DONE: dbg_xsend = "DONE";
       TX_INIT: dbg_xsend = "INIT";
       TX_REGW: dbg_xsend = "REGW";
-      TX_WAIT: dbg_xsend = "WAIT";
+      TX_STOP: dbg_xsend = "STOP";
       default: dbg_xsend = "XXXX";
     endcase
   end
