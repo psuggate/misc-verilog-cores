@@ -433,8 +433,11 @@ module usb_demo_top (
 
 `else
 
+  wire [7:0] line_state = 8'd48 + U_ULPI_USB0.U_LINESTATE1.LineStateW;
+  wire [7:0] init_state = 8'd65 + U_ULPI_USB0.U_LINESTATE1.state;
+
   always @(posedge clock) begin
-    if (reset) begin
+    if (reset || 1'b1) begin
       svalid <= 1'b0;
       sdata  <= UART_GARBAGES[7:0];
       scount <= 3'd1;
@@ -456,20 +459,17 @@ module usb_demo_top (
         if (!dcount[0]) begin
           sdata <= 8'd0;
         end else begin
-          sdata <= sdata_w;
-          /*
+          // sdata <= sdata_w;
           case (scount)
             3'd0: sdata <= 8'd84;
-            3'd1: sdata <= 8'd65;
+            3'd1: sdata <= line_state;
             3'd2: sdata <= 8'd82;
-            3'd3: sdata <= 8'd84;
+            3'd3: sdata <= init_state;
             3'd4: sdata <= 8'd48;
             3'd5: sdata <= 8'd49;
-            // 3'd6: sdata <= 8'd13;
             3'd6: sdata <= 8'd48;
             default: sdata <= 8'd10;
           endcase
-          */
           scount <= scount + 3'd1;
         end
         dcount <= dcount + 1;

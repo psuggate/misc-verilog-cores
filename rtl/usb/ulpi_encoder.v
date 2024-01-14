@@ -157,7 +157,7 @@ module ulpi_encoder #(
           end else begin
             // Running in HS-mode
             xsend <= hsk_send_i || s_tvalid ? TX_XPID :
-                     s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
+                     // s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
                      TX_IDLE;
           end
         end
@@ -300,7 +300,7 @@ module ulpi_encoder #(
           slast  = phy_stop_i;
           sdata  = phy_write_i ? phy_addr_i : phy_nopid_i ? 8'h40 : 8'd0;
           tvalid = phy_write_i || phy_nopid_i;
-          tlast  = phy_nopid_i;
+          tlast  = 1'b0;
           tdata  = phy_write_i ? phy_data_i : 8'd0;
         end
         TX_REGW: begin

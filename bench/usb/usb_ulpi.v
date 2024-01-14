@@ -535,8 +535,8 @@ module usb_ulpi #(
   always @* begin
     case (state)
       STATE_POWER_ON: dbg_state = "POWER_ON";
-      STATE_WRITE_REGA: dbg_state = "WRITE_REGA";
-      STATE_WRITE_REGD: dbg_state = "WRITE_REGD";
+      STATE_WRITE_REGA: dbg_state = "REGA";
+      STATE_WRITE_REGD: dbg_state = "REGD";
       STATE_STP: dbg_state = "STP";
       STATE_RESET: dbg_state = "RESET";
       STATE_SUSPEND: dbg_state = "SUSPEND";

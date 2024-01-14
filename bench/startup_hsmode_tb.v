@@ -135,8 +135,6 @@ module startup_hsmode_tb;
 
       .high_speed_o(high_speed_w),
 
-      .kj_start_i(1'b0),
-
       .pulse_2_5us_o(pulse_2_5us_w),
       .pulse_1_0ms_o(pulse_1_0ms_w),
 

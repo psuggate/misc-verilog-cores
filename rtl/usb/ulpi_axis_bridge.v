@@ -318,8 +318,6 @@ module ulpi_axis_bridge #(
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w),
 
-      .kj_start_i(1'b0),  // todo: for timing chirp minimum periods
-
       .pulse_2_5us_o(pulse_2_5us_w),
       .pulse_1_0ms_o(pulse_1_0ms_w)
   );

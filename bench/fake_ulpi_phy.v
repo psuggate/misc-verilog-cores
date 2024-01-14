@@ -84,7 +84,7 @@ module fake_ulpi_phy (
 
   assign line_state_w = state == ST_INIT ? 2'b01 :
                         state == ST_WAIT || state == ST_SEND ? 2'b01 :
-                        state == ST_KJKJ ? (kj_count[3] ? 2'b10 : 2'b01) :
+                        state == ST_KJKJ ? (kj_count[3] ? 2'b01 : 2'b10) :
                         state == ST_CHRP ? 2'b10 : 2'b00;
 
 
