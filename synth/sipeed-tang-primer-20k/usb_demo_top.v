@@ -263,7 +263,8 @@ module usb_demo_top (
   // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
-  assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
+  assign cbits = U_ULPI_USB0.U_USB_ULPI0.state;
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin
