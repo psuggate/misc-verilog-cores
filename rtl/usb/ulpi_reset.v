@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 module ulpi_reset #(
-    parameter PHASE = "1000",
+    parameter [31:0] PHASE = "1000",
     parameter PLLEN = 0
 ) (
     input areset_n,
@@ -15,10 +15,17 @@ module ulpi_reset #(
     output ddr_clock   // 120 MHz, PLL output, phase-shifted
 );
 
+  // todo: good enough ??
+  localparam NEGATE_CLOCK = PHASE[31:24] == "1";
 
   reg [4:0] reset_count = 5'd0;
   reg [2:0] reset_delay = 3'd7;
   wire locked, clockd, clockp;
+
+  initial begin
+    $display("ULPI Reset module:");
+    $display(" - Clock-negation: %1d", NEGATE_CLOCK);
+  end
 
 
   assign ulpi_rst_n = reset_count[4];
@@ -26,7 +33,7 @@ module ulpi_reset #(
 
   assign usb_reset  = reset_delay[2];
 
-  assign usb_clock  = PLLEN ? clockd : ~ulpi_clk;
+  assign usb_clock  = PLLEN ? clockd : NEGATE_CLOCK ? ~ulpi_clk : ulpi_clk;
   // assign usb_clock  = PLLEN ? clockd : ulpi_clk;
   assign ddr_clock  = PLLEN ? clockp : 1'b0;
 

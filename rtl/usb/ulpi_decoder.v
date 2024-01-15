@@ -122,7 +122,7 @@ module ulpi_decoder (
   // This signal goes high if 'RxActive' (or 'dir') de-asserts during packet Rx
   reg end_q;
   wire rx_end_w =
-       ibuf_dir && ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive ||
+       dir_q && ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive ||
        !ibuf_dir && ulpi_dir;
 
   always @(posedge clock) begin
@@ -212,7 +212,7 @@ module ulpi_decoder (
       low_q <= 1'b1;
       token_data <= 11'd0;
     end else begin
-      if (!tok_q && pid_vld_w && istoken_w) begin
+      if (!tok_q && pid_vld_w && istoken_w && !pid_q) begin
         tok_q <= 1'b1;
         low_q <= 1'b1;
       end else if (tok_q && ulpi_nxt) begin

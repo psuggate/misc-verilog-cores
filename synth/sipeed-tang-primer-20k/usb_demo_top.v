@@ -53,6 +53,7 @@ module usb_demo_top (
 
   ulpi_reset #(
       .PHASE("0111"),
+      // .PHASE("1000"),
       .PLLEN(ULPI_DDR_MODE)
   ) U_RESET0 (
       .areset_n (rst_n),
@@ -67,6 +68,51 @@ module usb_demo_top (
       .ddr_clock(ddr_clock)  // 120 MHz, PLL output, phase-shifted
   );
 
+
+  reg [31:0] pcount;
+
+  always @(posedge clock) begin
+    pcount <= pcount + 1;
+  end
+
+
+// `define __startup_check
+`ifdef __startup_check
+
+  reg dir_q, stp_q;
+  reg [7:0] dat_q;
+  reg [1:0] LineState;
+
+  reg [6:0] count;
+  wire [6:0] cnext = count - 7'd1;
+
+  assign ulpi_data = ulpi_dir ? 8'bz : dat_q;
+  assign cbits = {pcount[25] | dir_q, stp_q, LineState};
+
+  always @(posedge clock) begin
+    dir_q <= ulpi_dir;
+
+    if (reset) begin
+      stp_q <= 1'b1;
+      dat_q <= 8'd0;
+      count <= 7'd100;
+      LineState <= 2'b00;
+    end else begin
+      if (count != 7'd0) begin
+        stp_q <= 1'b1;
+        count <= cnext;
+      end else begin
+        stp_q <= 1'b0;
+      end
+
+      if (dir_q && ulpi_dir && !ulpi_nxt) begin
+        LineState <= ulpi_data[1:0];
+      end
+    end
+  end
+
+
+`else
 
   // Local Signals //
   wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
@@ -243,7 +289,7 @@ module usb_demo_top (
 
   // Miscellaneous
   reg [23:0] count;
-  reg [31:0] ucount, pcount, dcount;
+  reg [31:0] ucount, dcount;
   reg sof_q, ctl_latch_q = 0, crc_error_q = 0;
   reg  blk_valid_q = 0;
 
@@ -503,6 +549,8 @@ module usb_demo_top (
       // .prescale(pre_q)
       .prescale(UART_PRESCALE)
   );
+
+`endif
 
 `endif
 

@@ -1,6 +1,14 @@
 `timescale 1ns / 100ps
 module usb_core_tb;
 
+  parameter [31:0] PHASE = "1000";
+  localparam NEGATE_CLOCK = PHASE[31:24] == "1";
+
+  initial begin
+    $display("ULPI Reset module:");
+    $display(" - Clock-negation: %1d", NEGATE_CLOCK);
+  end
+
 
   // -- Simulation Data -- //
 
