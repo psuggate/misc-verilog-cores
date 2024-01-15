@@ -69,53 +69,15 @@ module usb_demo_top (
   );
 
 
+  // For a Basic LED Flasher //
   reg [31:0] pcount;
 
   always @(posedge clock) begin
     pcount <= pcount + 1;
   end
 
-
-// `define __startup_check
-`ifdef __startup_check
-
-  reg dir_q, stp_q;
-  reg [7:0] dat_q;
-  reg [1:0] LineState;
-
-  reg [6:0] count;
-  wire [6:0] cnext = count - 7'd1;
-
-  assign ulpi_data = ulpi_dir ? 8'bz : dat_q;
-  assign cbits = {pcount[25] | dir_q, stp_q, LineState};
-
-  always @(posedge clock) begin
-    dir_q <= ulpi_dir;
-
-    if (reset) begin
-      stp_q <= 1'b1;
-      dat_q <= 8'd0;
-      count <= 7'd100;
-      LineState <= 2'b00;
-    end else begin
-      if (count != 7'd0) begin
-        stp_q <= 1'b1;
-        count <= cnext;
-      end else begin
-        stp_q <= 1'b0;
-      end
-
-      if (dir_q && ulpi_dir && !ulpi_nxt) begin
-        LineState <= ulpi_data[1:0];
-      end
-    end
-  end
-
-
-`else
-
   // Local Signals //
-  wire device_usb_idle_w, dev_crc_err_w, usb_hs_enabled_w;
+  wire device_usb_idle_w, crc_error_w, usb_hs_enabled_w;
   wire usb_sof, configured, blk_cycle_w, has_telemetry_w, timeout_w;
 
   // Data-path //
@@ -168,7 +130,7 @@ module usb_demo_top (
       .usb_hs_enabled_o(usb_hs_enabled_w),
       .usb_idle_o(device_usb_idle_w),
       .usb_sof_o(usb_sof),
-      .crc_err_o(dev_crc_err_w),
+      .crc_err_o(crc_error_w),
       .timeout_o(timeout_w),
 
       // USB bulk endpoint data-paths
@@ -333,7 +295,7 @@ module usb_demo_top (
 
     if (usb_reset) begin
       crc_error_q <= 1'b0;
-    end else if (dev_crc_err_w) begin
+    end else if (crc_error_w) begin
       crc_error_q <= 1'b1;
     end
   end
@@ -382,7 +344,6 @@ module usb_demo_top (
   generate
 
     for (ii = 7; ii >= 0; ii--) begin : g_set_garbage_rom
-      // assign garbo[ii] = UART_GARBAGES[{ii[2:0], 3'd7} : {ii[2:0], 3'd0}];
       assign garbo[7 - ii] = UART_GARBAGES[ii*8+7-:8];
     end
 
@@ -413,10 +374,18 @@ module usb_demo_top (
   //
   //  Produce an endless stream of garbage
   ///
-  // `define __use_uart_echo
-`ifdef __use_uart_echo
-  wire fvalid, fready, xvalid, xready;
+`define __capture_telemetry
+`ifdef __capture_telemetry
+
+  wire fready, xvalid, xready;
   wire [7:0] fdata, xdata;
+
+  reg tstart, tcycle;
+  wire terror;
+  wire [9:0] tlevel;
+  wire tvalid, tlast, tkeep;
+  reg tready;
+  wire [7:0] tdata;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -431,6 +400,145 @@ module usb_demo_top (
       end
     end
   end
+
+
+  // -- Telemetry Read-Back Logic -- //
+
+  wire uvalid, uready;
+  wire [7:0] udata, tbyte0_w, tbyte1_w;
+  reg fvalid, flast;
+  reg [3:0] tindex;
+  reg [7:0] tbyte0, tbyte1, tbyte2, tbyte3, wspace;
+
+  assign tbyte0_w = (tdata[3:0] < 4'd10 ? 8'd48 : 8'd65) + tdata[3:0];
+  assign tbyte1_w = (tdata[7:4] < 4'd10 ? 8'd48 : 8'd65) + tdata[7:4];
+  assign uready = ~tcycle;
+  assign fdata = tindex == 4'h3 ? 8'd0 :
+                 tindex == 4'h4 ? tbyte3 :
+                 tindex == 4'h5 ? 8'd0 :
+                 tindex == 4'h6 ? tbyte2 :
+                 tindex == 4'h7 ? 8'd0 :
+                 tindex == 4'h8 ? tbyte1 :
+                 tindex == 4'h9 ? 8'd0 :
+                 tindex == 4'ha ? tbyte0 :
+                 tindex == 4'hb ? 8'd0 :
+                 tindex == 4'hc ? wspace :
+                 "-";
+
+  always @(posedge clock) begin
+    if (reset) begin
+      tstart <= 1'b0;
+      tcycle <= 1'b0;
+      tready <= 1'b0;
+      tindex <= 4'h0;
+      fvalid <= 1'b0;
+      flast  <= 1'b0;
+    end else begin
+      case (tindex)
+        4'h0: begin
+          fvalid <= 1'b0;
+          flast  <= 1'b0;
+          if (uvalid && udata == "a") begin
+            tstart <= 1'b1;
+            tcycle <= 1'b1;
+            tready <= 1'b1;
+            tindex <= 4'h1;
+          end else begin
+            tstart <= 1'b0;
+            tcycle <= 1'b0;
+            tready <= 1'b0;
+          end
+        end
+        4'h1: begin
+          tstart <= 1'b0;
+          fvalid <= 1'b0;
+          if (tvalid && tkeep && tready) begin
+            tready <= 1'b1;
+            tindex <= 4'h2;
+            tbyte0 <= tbyte0_w;
+            tbyte1 <= tbyte1_w;
+          end
+        end
+        4'h2: begin
+          fvalid <= 1'b0;
+          flast  <= tvalid && tlast && tready;
+          if (tvalid && tkeep && tready) begin
+            tready <= 1'b0;
+            tindex <= 4'h3;
+            tbyte2 <= tbyte0_w;
+            tbyte3 <= tbyte1_w;
+            wspace <= tlast ? "\n" : " ";
+          end
+        end
+        4'h3, 4'h4, 4'h5, 4'h6, 4'h7, 4'h8, 4'h9, 4'ha, 4'hb: begin
+          fvalid <= 1'b1;
+          if (fvalid && fready) begin
+            tindex <= tindex + 4'h1;
+          end
+        end
+        4'hc: begin
+          // Decide whether there are more bytes, or if the packet has been
+          // completed
+          if (fvalid && fready) begin
+            tready <= ~flast;
+            tindex <= flast ? 4'hd : 4'h1;
+            fvalid <= 1'b0;
+          end else begin
+            fvalid <= 1'b1;
+          end
+        end
+        4'hd: begin
+          // Wait for the packet to be sent
+          tcycle <= 1'b0;
+          if (!xvalid) begin
+            tindex <= 4'h0;
+          end
+        end
+      endcase
+    end
+  end
+
+
+  // -- Telemetry Logger -- //
+
+  wire [3:0] usb_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_state_w;
+  wire [3:0] ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
+  wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
+
+
+  // Capture telemetry, so that it can be read back from EP1
+  bulk_telemetry #(
+      .ENDPOINT(4'd2)
+  ) U_TELEMETRY1 (
+      .clock(clock),
+      .reset(1'b0),
+      .usb_enum_i(1'b1),
+
+      .crc_error_i(crc_error_w),
+      .usb_state_i(usb_state_w),
+      .ctl_state_i(ctl_state_w),
+      .blk_state_i(blk_state_w),
+
+      .start_i (tstart),
+      .select_i(tcycle),
+      .endpt_i (4'd2),
+      .error_o (terror),
+      .level_o (tlevel),
+
+      // Unused
+      .s_tvalid(1'b0),
+      .s_tready(),
+      .s_tlast (1'b0),
+      .s_tkeep (1'b0),
+      .s_tdata (8'hx),
+
+      // AXI4-Stream for telemetry data
+      .m_tvalid(tvalid),
+      .m_tlast (tlast),
+      .m_tkeep (tkeep),
+      .m_tdata (tdata),
+      .m_tready(tready)
+  );
 
   sync_fifo #(
       .WIDTH (8),
@@ -462,9 +570,9 @@ module usb_demo_top (
       .s_axis_tready(xready),
       .s_axis_tdata (xdata),
 
-      .m_axis_tvalid(fvalid),
-      .m_axis_tready(fready),
-      .m_axis_tdata (fdata),
+      .m_axis_tvalid(uvalid),
+      .m_axis_tready(uready),
+      .m_axis_tdata (udata),
 
       .rxd(uart_rx),
       .txd(uart_tx),
@@ -549,8 +657,6 @@ module usb_demo_top (
       // .prescale(pre_q)
       .prescale(UART_PRESCALE)
   );
-
-`endif
 
 `endif
 
