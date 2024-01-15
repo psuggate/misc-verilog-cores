@@ -18,6 +18,7 @@ module line_state #(
     // USB-core status and control-signals
     output high_speed_o,
     output usb_reset_o,
+    output ulpi_rx_cmd_o,
 
     // UTMI+ equivalent state-signals
     output [1:0] LineState,
@@ -93,6 +94,7 @@ module line_state #(
 
   assign high_speed_o = hs_mode_q;
   assign usb_reset_o = rst_q;
+  assign ulpi_rx_cmd_o = rx_cmd_q;
 
   assign pulse_2_5us_o = ls_pulse_2_5us;
   assign pulse_1_0ms_o = ls_pulse_1_0ms;
@@ -115,12 +117,14 @@ module line_state #(
 
   // -- USB Line State & PHY Events -- //
 
-  wire ls_changed;
-  reg ls_diff_q;
+  wire ls_changed, rx_cmd_w, new_ls_w;
+  reg new_ls_q;
   wire [1:0] LineStateW, VbusStateW, RxEventW, OpModeW;
   reg [1:0] LineStateQ, VbusStateQ, RxEventQ, OpModeQ;
 
-  assign ls_changed = rx_cmd_q && (LineStateW != LineStateQ);
+  assign rx_cmd_w = dir_q && ulpi_dir && !ulpi_nxt;
+  assign new_ls_w = rx_cmd_q && (LineStateW != LineStateQ);
+  assign ls_changed = new_ls_q; // rx_cmd_q && (LineStateW != LineStateQ);
 
   assign LineStateW = dat_q[1:0];
   assign VbusStateW = dat_q[3:2];
@@ -132,8 +136,8 @@ module line_state #(
 
   // Pipeline the LineState changes, so that IOB registers can be used
   always @(posedge clock) begin
-    rx_cmd_q <= dir_q && ulpi_dir && !ulpi_nxt;
-    ls_diff_q <= ls_changed;
+    rx_cmd_q <= rx_cmd_w;
+    new_ls_q <= new_ls_w;
 
     if (reset || state == ST_FS_START) begin
       hs_mode_q <= 1'b0;
@@ -273,11 +277,11 @@ module line_state #(
       // as a valid symbol.
       if (ls_pulse_2_5us) begin
         kj_valid_q <= 1'b1;
-      end else if (ls_diff_q) begin
+      end else if (new_ls_q) begin
         kj_valid_q <= 1'b0;
       end
 
-      if (ls_diff_q && LineState == 2'b01) begin
+      if (new_ls_q && LineState == 2'b01) begin
         kj_count_q <= kj_cnext_w;
         kj_ended_q <= kj_ended_q || kj_cnext_w == 3'd3;
       end

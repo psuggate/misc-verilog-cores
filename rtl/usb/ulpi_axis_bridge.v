@@ -145,7 +145,7 @@ module ulpi_axis_bridge #(
 
   // -- Global Signals and Assignments -- //
 
-  wire usb_reset_w, ulpi_rst_nw;
+  wire usb_reset_w, ulpi_rst_nw, ulpi_rx_cmd_w;
 
   reg rst_nq, rst_nr, rst_n1, rst_n0;
   wire clock, reset;
@@ -309,6 +309,7 @@ module ulpi_axis_bridge #(
 
       .high_speed_o(high_speed_w),
       .usb_reset_o (usb_reset_w),
+      .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
