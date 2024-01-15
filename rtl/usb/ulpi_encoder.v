@@ -156,9 +156,7 @@ module ulpi_encoder #(
                      phy_stop_i ? TX_STOP : TX_IDLE;
           end else begin
             // Running in HS-mode
-            xsend <= hsk_send_i || s_tvalid ? TX_XPID :
-                     // s_tvalid ? (!s_tkeep && s_tlast ? TX_CRC0 : TX_XPID) :
-                     TX_IDLE;
+            xsend <= hsk_send_i || s_tvalid ? TX_XPID : TX_IDLE;
           end
         end
 
@@ -192,13 +190,14 @@ module ulpi_encoder #(
           // Wait for the PHY to signal that the USB LineState represents End-of
           // -Packet (EOP), indicating that the packet has been sent
           //
-          // Todo: the USB 2.0 spec. also gives a tick-count until the packet is
-          //   considered to be sent ??
-          // Todo: should get the current 'LineState' from the ULPI decoder
-          //   module, as this module is Tx-only ??
+          // Todo:
+          //  - the USB 2.0 spec. also gives a tick-count until the packet is
+          //    considered to be sent ??
+          //  - should wait for the current 'LineState' from the ULPI decoder
+          //    module, via 'RX CMD', as the USB3317C datasheet states that an
+          //    'RX CMD' follows every transmission (see pp.40) ??
           //
           xsend <= !ulpi_stp && stp_q ? TX_IDLE : xsend;
-          // xsend <= !ulpi_nxt && !ulpi_stp && ulpi_data == 8'd0 ? TX_IDLE : xsend;
         end
 
         //

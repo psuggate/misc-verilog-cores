@@ -18,7 +18,9 @@ module line_state #(
     // USB-core status and control-signals
     output high_speed_o,
     output usb_reset_o,
+    output ls_changed_o,
     output ulpi_rx_cmd_o,
+    output ulpi_idle_o,
 
     // UTMI+ equivalent state-signals
     output [1:0] LineState,
@@ -77,10 +79,12 @@ module line_state #(
   reg dir_q, nxt_q, set_q, nop_q, stp_q, hse_q, rst_q;
   reg [7:0] dat_q, adr_q, val_q;
   reg rx_cmd_q, hs_mode_q;
+  reg new_ls_q, is_idle_q;
 
   // Pulse-signal & timer(-counter) for 2.5 us, and for a constant line-state
-  reg ls_pulse_2_5us, ls_pulse_1_0ms, ls_pulse_3_0ms, ls_pulse_21_ms;
-  reg [7:0] ls_count_2_5us;
+  reg pulse_2_5us, ls_pulse_1_0ms, ls_pulse_3_0ms, ls_pulse_21_ms, pulse_100us;
+  reg [7:0] count_2_5us;
+  reg [5:0] count_100us;
   reg [8:0] ls_count_1_0ms;
   reg [1:0] ls_count_3_0ms;
   reg [2:0] ls_count_21_ms;
@@ -94,9 +98,11 @@ module line_state #(
 
   assign high_speed_o = hs_mode_q;
   assign usb_reset_o = rst_q;
+  assign ls_changed_o = new_ls_q;
   assign ulpi_rx_cmd_o = rx_cmd_q;
+  assign ulpi_idle_o = is_idle_q;
 
-  assign pulse_2_5us_o = ls_pulse_2_5us;
+  assign pulse_2_5us_o = pulse_2_5us;
   assign pulse_1_0ms_o = ls_pulse_1_0ms;
 
   assign phy_write_o = set_q;
@@ -118,13 +124,12 @@ module line_state #(
   // -- USB Line State & PHY Events -- //
 
   wire ls_changed, rx_cmd_w, new_ls_w;
-  reg new_ls_q;
   wire [1:0] LineStateW, VbusStateW, RxEventW, OpModeW;
   reg [1:0] LineStateQ, VbusStateQ, RxEventQ, OpModeQ;
 
   assign rx_cmd_w = dir_q && ulpi_dir && !ulpi_nxt;
   assign new_ls_w = rx_cmd_q && (LineStateW != LineStateQ);
-  assign ls_changed = new_ls_q; // rx_cmd_q && (LineStateW != LineStateQ);
+  assign ls_changed = new_ls_q;  // rx_cmd_q && (LineStateW != LineStateQ);
 
   assign LineStateW = dat_q[1:0];
   assign VbusStateW = dat_q[3:2];
@@ -136,8 +141,9 @@ module line_state #(
 
   // Pipeline the LineState changes, so that IOB registers can be used
   always @(posedge clock) begin
-    rx_cmd_q <= rx_cmd_w;
-    new_ls_q <= new_ls_w;
+    rx_cmd_q  <= rx_cmd_w;
+    new_ls_q  <= new_ls_w;
+    is_idle_q <= !reset && hse_q && state == ST_IDLE;
 
     if (reset || state == ST_FS_START) begin
       hs_mode_q <= 1'b0;
@@ -147,7 +153,7 @@ module line_state #(
 
     if (reset) begin
       // LineStateQ <= 2'b01;  // 'J', apparently
-      LineStateQ <= 2'b10;  // 'J', apparently
+      LineStateQ <= 2'b10;  // 'K', apparently
       VbusStateQ <= 2'b00;
       RxEventQ   <= 2'b00;
     end else if (rx_cmd_q) begin
@@ -174,30 +180,27 @@ module line_state #(
   // -- Timers for 2.5 us & 1.0 ms Pulses -- //
 
   always @(posedge clock) begin
-    if (reset || ls_changed) begin
-    // if (reset) begin
-      ls_pulse_2_5us <= 1'b0;
-      ls_count_2_5us <= 8'd0;
+    // if (reset || ls_changed) begin
+    if (reset) begin
+      pulse_2_5us <= 1'b0;
+      count_2_5us <= 8'd0;
     end else begin
-      if (ls_count_2_5us == COUNT_2_5_US) begin
-        ls_pulse_2_5us <= 1'b1;
-        ls_count_2_5us <= 8'd0;
+      if (count_2_5us == COUNT_2_5_US) begin
+        pulse_2_5us <= 1'b1;
+        count_2_5us <= 8'd0;
       end else begin
-        ls_pulse_2_5us <= 1'b0;
-        ls_count_2_5us <= ls_count_2_5us + 8'd1;
+        pulse_2_5us <= 1'b0;
+        count_2_5us <= count_2_5us + 8'd1;
       end
     end
   end
 
   // Pulse-signal (/timer) for 100 us duration
-  reg pulse_100us;
-  reg [5:0] count_100us;
-
   always @(posedge clock) begin
     if (reset || state == ST_FS_START && phy_done_i) begin
       pulse_100us <= 1'b0;
       count_100us <= 6'd0;
-    end else if (ls_pulse_2_5us) begin
+    end else if (pulse_2_5us) begin
       if (count_100us == COUNT_100_US) begin
         pulse_100us <= 1'b1;
         count_100us <= 6'd0;
@@ -215,7 +218,7 @@ module line_state #(
     if (reset || ls_changed) begin
       ls_pulse_1_0ms <= 1'b0;
       ls_count_1_0ms <= 9'd0;
-    end else if (ls_pulse_2_5us) begin
+    end else if (pulse_2_5us) begin
       if (ls_count_1_0ms == COUNT_1_0_MS) begin
         ls_pulse_1_0ms <= 1'b1;
         ls_count_1_0ms <= 9'd0;
@@ -275,7 +278,7 @@ module line_state #(
     if (state == ST_CHIRP_KJ) begin
       // After the start of each J/K, wait at least 2.5 us before considering it
       // as a valid symbol.
-      if (ls_pulse_2_5us) begin
+      if (pulse_2_5us) begin
         kj_valid_q <= 1'b1;
       end else if (new_ls_q) begin
         kj_valid_q <= 1'b0;
@@ -355,7 +358,7 @@ module line_state #(
         end
 
         ST_RESET: begin
-          state <= ls_pulse_2_5us ? ST_FS_START : state;
+          state <= pulse_2_5us ? ST_FS_START : state;
           // todo: ...
         end
 
@@ -405,7 +408,7 @@ module line_state #(
           if (ls_changed) begin
             state <= ST_FS_LSSE0;
             set_q <= 1'b0;
-          end else if (ls_pulse_2_5us) begin
+          end else if (pulse_2_5us) begin
             // Set the Xcvrs to HS-mode
             state <= ST_CHIRP_K0;
             hse_q <= 1'b1;
@@ -441,13 +444,6 @@ module line_state #(
           nop_q <= 1'b0;
           stp_q <= 1'b0;
           state <= ST_CHIRP_KJ;
-          /*
-          state <= LineState == 2'b00 && (phy_done_i || ls_pulse_2_5us) ? ST_CHIRP_KJ : state;
-          nop_q <= 1'b0;
-          if (phy_busy_i) begin
-            stp_q <= 1'b0;
-          end
-          */
         end
 
         //
@@ -456,7 +452,6 @@ module line_state #(
         ST_CHIRP_KJ: begin
           if (kj_ended_q && kj_valid_q) begin
             state <= ST_HS_START;
-            // {set_q, adr_q, val_q} <= {1'b1, 8'h84, 8'h40};
           end
           stp_q <= 1'b0;
         end
