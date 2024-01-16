@@ -21,6 +21,7 @@ module line_state #(
     output ls_changed_o,
     output ulpi_rx_cmd_o,
     output ulpi_idle_o,
+    output [3:0] phy_state_o,
 
     // UTMI+ equivalent state-signals
     output [1:0] LineState,
@@ -101,6 +102,7 @@ module line_state #(
   assign ls_changed_o = new_ls_q;
   assign ulpi_rx_cmd_o = rx_cmd_q;
   assign ulpi_idle_o = is_idle_q;
+  assign phy_state_o = state;
 
   assign pulse_2_5us_o = pulse_2_5us;
   assign pulse_1_0ms_o = ls_pulse_1_0ms;

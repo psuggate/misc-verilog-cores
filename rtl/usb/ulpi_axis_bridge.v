@@ -146,6 +146,8 @@ module ulpi_axis_bridge #(
   // -- Global Signals and Assignments -- //
 
   wire usb_reset_w, ulpi_rst_nw, ulpi_rx_cmd_w;
+  wire timeout_w;
+  wire [2:0] err_code_w;
 
   reg rst_nq, rst_nr, rst_n1, rst_n0;
   wire clock, reset;
@@ -154,6 +156,8 @@ module ulpi_axis_bridge #(
   wire [9:0] tele_level_w;
 
   reg usb_idle_q;
+
+  assign timeout_o = timeout_w;
 
   assign usb_idle_o = usb_idle_q;
   assign usb_vbus_valid_o = VbusState == 2'b11;
@@ -284,6 +288,9 @@ module ulpi_axis_bridge #(
 
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
+  wire [3:0] phy_state_w, usb_state_w, ctl_state_w;
+  wire [7:0] blk_state_w;
+
   //
   //  Monitors USB 'LineState', and coordinates the high-speed negotiation on
   //  start-up.
@@ -310,6 +317,7 @@ module ulpi_axis_bridge #(
       .high_speed_o(high_speed_w),
       .usb_reset_o (usb_reset_w),
       .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
+      .phy_state_o (phy_state_w),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
@@ -412,7 +420,8 @@ module ulpi_axis_bridge #(
       .reset(reset),
 
       .usb_addr_i(usb_addr_w),
-      .usb_timeout_error_o(timeout_o),
+      .err_code_o(err_code_w),
+      .usb_timeout_error_o(timeout_w),
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
@@ -576,10 +585,6 @@ module ulpi_axis_bridge #(
 
   // -- USB Telemetry Control Endpoint -- //
 
-  wire [3:0] usb_state_w, ctl_state_w;
-  wire [7:0] blk_state_w;
-
-
   assign has_telemetry_o = tele_level_w[9:2] != 0;
 
   assign usb_state_w = U_TRANSACT1.xfer_state_w;
@@ -601,6 +606,9 @@ module ulpi_axis_bridge #(
 `endif
 
       .crc_error_i(crc_err_o),
+      .timeout_i  (timeout_w),
+      .phy_state_i(phy_state_w),
+      .usb_error_i(err_code_w),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),

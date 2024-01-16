@@ -380,8 +380,8 @@ module usb_demo_top (
   wire fready, xvalid, xready;
   wire [7:0] fdata, xdata;
 
-  reg tstart, tcycle;
-  wire terror;
+  reg tstart;
+  wire terror, tcycle;
   wire [9:0] tlevel;
   wire tvalid, tlast, tkeep;
   reg tready;
@@ -404,6 +404,44 @@ module usb_demo_top (
 
   // -- Telemetry Read-Back Logic -- //
 
+  wire uvalid, uready;
+  wire [7:0] udata;
+
+  assign uready = 1'b1;
+
+  always @(posedge clock) begin
+    if (!tcycle && uvalid && udata == "a") begin
+      tstart <= 1'b1;
+    end else begin
+      tstart <= 1'b0;
+    end
+  end
+
+  hex_dump
+    #( .UNICODE(1),
+       .BLOCK_SRAM(1)
+  ) U_HEXDUMP1 (
+   .clock(clock),
+   .reset(reset),
+
+   .start_dump_i(tstart),
+   .is_dumping_o(tcycle),
+   .fifo_level_o(),
+
+   .s_tvalid(tvalid),
+   .s_tready(tready),
+   .s_tlast(tlast),
+   .s_tkeep(tkeep),
+   .s_tdata(tdata),
+
+   .m_tvalid(xvalid),
+   .m_tready(xready),
+   .m_tlast(),
+   .m_tkeep(),
+   .m_tdata(xdata)
+   );
+
+/*
   wire uvalid, uready;
   wire [7:0] udata, tbyte0_w, tbyte1_w;
   reg fvalid, flast;
@@ -497,10 +535,12 @@ module usb_demo_top (
       endcase
     end
   end
-
+*/
 
   // -- Telemetry Logger -- //
 
+  wire [3:0] phy_state_w = U_ULPI_USB0.phy_state_w;
+  wire [2:0] err_code_w = U_ULPI_USB0.err_code_w;
   wire [3:0] usb_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_state_w;
   wire [3:0] ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
@@ -515,6 +555,9 @@ module usb_demo_top (
       .usb_enum_i(1'b1),
 
       .crc_error_i(crc_error_w),
+      .timeout_i  (timeout_w),
+      .phy_state_i(phy_state_w),
+      .usb_error_i(err_code_w),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),
@@ -540,6 +583,7 @@ module usb_demo_top (
       .m_tready(tready)
   );
 
+/*
   sync_fifo #(
       .WIDTH (8),
       .ABITS (11),
@@ -558,7 +602,7 @@ module usb_demo_top (
       .ready_i(xready),
       .data_o (xdata)
   );
-
+*/
 
   uart #(
       .DATA_WIDTH(8)

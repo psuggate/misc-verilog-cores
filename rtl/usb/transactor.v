@@ -11,6 +11,7 @@ module transactor #(
     input [6:0] usb_addr_i,
 
     output usb_timeout_error_o,
+    output [2:0] err_code_o,
 
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
@@ -131,8 +132,8 @@ module transactor #(
   localparam [7:0] BLK_DATO_RX = 8'h10;
   localparam [7:0] BLK_DATO_ACK = 8'h20;
   localparam [7:0] BLK_DATO_NAK = 8'h20;
-  localparam [7:0] BLK_DATO_ERR = 8'h40;
-  localparam [7:0] BLK_DONE = 8'h80;
+  localparam [7:0] BLK_DONE = 8'h40;
+  localparam [7:0] BLK_DATO_ERR = 8'h80;
 
   localparam ST_IDLE = 4'h1;
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
@@ -145,7 +146,7 @@ module transactor #(
   localparam ER_TOKN = 3'h3;
   localparam ER_ADDR = 3'h4;
   localparam ER_ENDP = 3'h5;
-  localparam ER_CONF = 3'h6;
+  // localparam ER_CONF = 3'h6;
 
 
   // -- Module State and Signals -- //
@@ -178,6 +179,8 @@ module transactor #(
 
 
   // -- Input and Output Signal Assignments -- //
+
+  assign err_code_o   = err_code_q;
 
   assign usb_send_o   = trn_send_q;
   assign usb_type_o   = trn_type_q;

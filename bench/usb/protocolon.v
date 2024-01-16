@@ -398,12 +398,13 @@ module protocolon #(
 
   // -- USB Telemetry Control Endpoint -- //
 
-  wire [3:0] usb_state_w, ctl_state_w;
+  wire [3:0] phy_state_w, usb_state_w, ctl_state_w;
   wire [7:0] blk_state_w;
 
 
   assign has_telemetry_o = tele_level_w[9:2] != 0;
 
+  assign phy_state_w = 4'bx;
   assign usb_state_w = U_USB_TRN0.xfer_state_w;
   assign ctl_state_w = U_USB_TRN0.xctrl;
   assign blk_state_w = U_USB_TRN0.xbulk;
@@ -423,6 +424,9 @@ module protocolon #(
 `endif
 
       .crc_error_i(crc_err_w),
+      .timeout_i  (timeout_o),
+      .phy_state_i(phy_state_w),
+      .usb_error_i(3'dx),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),

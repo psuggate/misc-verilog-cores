@@ -8,6 +8,9 @@ module bulk_telemetry #(
     input usb_enum_i,
 
     input crc_error_i,
+    input timeout_i,
+    input [3:0] phy_state_i,
+    input [2:0] usb_error_i,
     input [3:0] usb_state_i,
     input [3:0] ctl_state_i,
     input [7:0] blk_state_i,
@@ -34,11 +37,13 @@ module bulk_telemetry #(
 
   // -- Current USB Configuration State -- //
 
-  reg sel_q, crc_error_q;
-  reg [3:0] usb_state_q, ctl_state_q;
-  reg [7:0] blk_state_q;
-  wire changed_w, ready_w, last_w;
-  wire [16:0] previous_w, current_w;
+  reg [2:0] err_code_q;
+
+  reg sel_q, crc_error_q, usb_dump_q;
+  reg [3:0] phy_state_q, ctl_state_q;
+  reg [2:0] blk_state_q;
+  wire diff_w, ready_w, last_w;
+  wire [15:0] prev_w, curr_w;
   wire a_tvalid_w, a_tready_w, a_tlast_w;
   wire [7:0] a_tdata_w;
 
@@ -55,23 +60,54 @@ module bulk_telemetry #(
   assign m_tdata = sel_q ? a_tdata_w : 8'bx;
 
 
+  // -- Conversions and Packing -- //
+
+  reg usb_dump_x;
+  reg [2:0] blk_state_x, err_code_x;
+
+  always @* begin
+    usb_dump_x = usb_state_i == 4'h8;
+
+    if (timeout_i) begin
+      err_code_x = 3'd7;
+    end else begin
+      err_code_x = usb_error_i;
+    end
+
+    case (blk_state_i)
+      8'h01: blk_state_x = 3'd0;
+      8'h02: blk_state_x = 3'd1;
+      8'h04: blk_state_x = 3'd2;
+      8'h08: blk_state_x = 3'd3;
+      8'h10: blk_state_x = 3'd4;
+      8'h20: blk_state_x = 3'd5;
+      8'h40: blk_state_x = 3'd6;
+      default: blk_state_x = 3'd7;
+    endcase
+  end
+
+
   // -- State-Change Detection and Telemetry Capture -- //
 
-  assign previous_w = {crc_error_q, usb_state_q, ctl_state_q, blk_state_q};
-  assign current_w = {crc_error_i, usb_state_i, ctl_state_i, blk_state_i};
-  assign changed_w = usb_enum_i && previous_w != current_w;
+  assign prev_w = {crc_error_q, err_code_q, usb_dump_q, blk_state_q, ctl_state_q, phy_state_q};
+  assign curr_w = {crc_error_i, err_code_x, usb_dump_x, blk_state_x, ctl_state_i, phy_state_i};
+  assign diff_w = usb_enum_i && prev_w != curr_w;
 
   always @(posedge clock) begin
     if (reset) begin
       crc_error_q <= 1'b0;
-      usb_state_q <= 4'h0;
+      err_code_q  <= 3'd0;
+      usb_dump_q  <= 1'b0;
       ctl_state_q <= 4'h0;
-      blk_state_q <= 8'h0;
+      blk_state_q <= 4'h0;
+      phy_state_q <= 4'h0;
     end else begin
       crc_error_q <= crc_error_i;
-      usb_state_q <= usb_state_i;
+      err_code_q  <= err_code_x;
+      usb_dump_q  <= usb_dump_x;
       ctl_state_q <= ctl_state_i;
-      blk_state_q <= blk_state_i;
+      blk_state_q <= blk_state_x;
+      phy_state_q <= phy_state_i;
     end
   end
 
@@ -87,7 +123,7 @@ module bulk_telemetry #(
     if (reset) begin
       count <= 3'd0;
     end else begin
-      if (changed_w && ready_w) begin
+      if (diff_w && ready_w) begin
         count <= cnext[2:0];
       end
     end
@@ -112,13 +148,13 @@ module bulk_telemetry #(
   // -- Block SRAM FIFO for Telemetry -- //
 
   wire x_tvalid, x_tready, x_tlast;
-  wire [16:0] x_tdata;
+  wire [15:0] x_tdata;
 
   generate
     if (1) begin : g_sync_fifo
 
       sync_fifo #(
-          .WIDTH (18),
+          .WIDTH (17),
           .ABITS (10),
           .OUTREG(3)
       ) U_TELEMETRY0 (
@@ -127,9 +163,9 @@ module bulk_telemetry #(
 
           .level_o(level_o),
 
-          .valid_i(changed_w),
+          .valid_i(diff_w),
           .ready_o(ready_w),
-          .data_i ({last_w, current_w}),
+          .data_i ({last_w, curr_w}),
 
           .valid_o(x_tvalid),
           .ready_i(x_tready),
@@ -162,9 +198,9 @@ module bulk_telemetry #(
           .rst(reset),
 
           // AXI input
-          .s_axis_tdata(current_w[15:0]),
+          .s_axis_tdata(curr_w),
           .s_axis_tkeep(2'b11),
-          .s_axis_tvalid(changed_w),
+          .s_axis_tvalid(diff_w),
           .s_axis_tready(ready_w),
           .s_axis_tlast(last_w),
           .s_axis_tid(1'b0),
@@ -174,7 +210,7 @@ module bulk_telemetry #(
           .pause_req(1'b0),
 
           // AXI output
-          .m_axis_tdata(x_tdata[15:0]),
+          .m_axis_tdata(x_tdata),
           .m_axis_tkeep(),
           .m_axis_tvalid(x_tvalid),
           .m_axis_tready(x_tready),

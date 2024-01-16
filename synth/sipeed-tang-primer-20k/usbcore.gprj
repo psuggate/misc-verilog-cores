@@ -11,6 +11,7 @@
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/axis_skid.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/axis/skid_loader.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
+        <File path="/home/patrick/dev/misc-verilog-cores/rtl/misc/hex_dump.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/uart/uart.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/uart/uart_rx.v" type="file.verilog" enable="1"/>
         <File path="/home/patrick/dev/misc-verilog-cores/rtl/uart/uart_tx.v" type="file.verilog" enable="1"/>
