@@ -344,7 +344,7 @@ module usb_demo_top (
   generate
 
     for (ii = 7; ii >= 0; ii--) begin : g_set_garbage_rom
-      assign garbo[7 - ii] = UART_GARBAGES[ii*8+7-:8];
+      assign garbo[7-ii] = UART_GARBAGES[ii*8+7-:8];
     end
 
   endgenerate
@@ -374,7 +374,7 @@ module usb_demo_top (
   //
   //  Produce an endless stream of garbage
   ///
-`define __capture_telemetry
+  `define __capture_telemetry
 `ifdef __capture_telemetry
 
   wire fready, xvalid, xready;
@@ -417,125 +417,6 @@ module usb_demo_top (
     end
   end
 
-  hex_dump
-    #( .UNICODE(1),
-       .BLOCK_SRAM(1)
-  ) U_HEXDUMP1 (
-   .clock(clock),
-   .reset(reset),
-
-   .start_dump_i(tstart),
-   .is_dumping_o(tcycle),
-   .fifo_level_o(),
-
-   .s_tvalid(tvalid),
-   .s_tready(tready),
-   .s_tlast(tlast),
-   .s_tkeep(tkeep),
-   .s_tdata(tdata),
-
-   .m_tvalid(xvalid),
-   .m_tready(xready),
-   .m_tlast(),
-   .m_tkeep(),
-   .m_tdata(xdata)
-   );
-
-/*
-  wire uvalid, uready;
-  wire [7:0] udata, tbyte0_w, tbyte1_w;
-  reg fvalid, flast;
-  reg [3:0] tindex;
-  reg [7:0] tbyte0, tbyte1, tbyte2, tbyte3, wspace;
-
-  assign tbyte0_w = (tdata[3:0] < 4'd10 ? 8'd48 : 8'd65) + tdata[3:0];
-  assign tbyte1_w = (tdata[7:4] < 4'd10 ? 8'd48 : 8'd65) + tdata[7:4];
-  assign uready = ~tcycle;
-  assign fdata = tindex == 4'h3 ? 8'd0 :
-                 tindex == 4'h4 ? tbyte3 :
-                 tindex == 4'h5 ? 8'd0 :
-                 tindex == 4'h6 ? tbyte2 :
-                 tindex == 4'h7 ? 8'd0 :
-                 tindex == 4'h8 ? tbyte1 :
-                 tindex == 4'h9 ? 8'd0 :
-                 tindex == 4'ha ? tbyte0 :
-                 tindex == 4'hb ? 8'd0 :
-                 tindex == 4'hc ? wspace :
-                 "-";
-
-  always @(posedge clock) begin
-    if (reset) begin
-      tstart <= 1'b0;
-      tcycle <= 1'b0;
-      tready <= 1'b0;
-      tindex <= 4'h0;
-      fvalid <= 1'b0;
-      flast  <= 1'b0;
-    end else begin
-      case (tindex)
-        4'h0: begin
-          fvalid <= 1'b0;
-          flast  <= 1'b0;
-          if (uvalid && udata == "a") begin
-            tstart <= 1'b1;
-            tcycle <= 1'b1;
-            tready <= 1'b1;
-            tindex <= 4'h1;
-          end else begin
-            tstart <= 1'b0;
-            tcycle <= 1'b0;
-            tready <= 1'b0;
-          end
-        end
-        4'h1: begin
-          tstart <= 1'b0;
-          fvalid <= 1'b0;
-          if (tvalid && tkeep && tready) begin
-            tready <= 1'b1;
-            tindex <= 4'h2;
-            tbyte0 <= tbyte0_w;
-            tbyte1 <= tbyte1_w;
-          end
-        end
-        4'h2: begin
-          fvalid <= 1'b0;
-          flast  <= tvalid && tlast && tready;
-          if (tvalid && tkeep && tready) begin
-            tready <= 1'b0;
-            tindex <= 4'h3;
-            tbyte2 <= tbyte0_w;
-            tbyte3 <= tbyte1_w;
-            wspace <= tlast ? "\n" : " ";
-          end
-        end
-        4'h3, 4'h4, 4'h5, 4'h6, 4'h7, 4'h8, 4'h9, 4'ha, 4'hb: begin
-          fvalid <= 1'b1;
-          if (fvalid && fready) begin
-            tindex <= tindex + 4'h1;
-          end
-        end
-        4'hc: begin
-          // Decide whether there are more bytes, or if the packet has been
-          // completed
-          if (fvalid && fready) begin
-            tready <= ~flast;
-            tindex <= flast ? 4'hd : 4'h1;
-            fvalid <= 1'b0;
-          end else begin
-            fvalid <= 1'b1;
-          end
-        end
-        4'hd: begin
-          // Wait for the packet to be sent
-          tcycle <= 1'b0;
-          if (!xvalid) begin
-            tindex <= 4'h0;
-          end
-        end
-      endcase
-    end
-  end
-*/
 
   // -- Telemetry Logger -- //
 
@@ -583,26 +464,29 @@ module usb_demo_top (
       .m_tready(tready)
   );
 
-/*
-  sync_fifo #(
-      .WIDTH (8),
-      .ABITS (11),
-      .OUTREG(3)
-  ) U_UART_FIFO1 (
+  hex_dump #(
+      .UNICODE(1),
+      .BLOCK_SRAM(1)
+  ) U_HEXDUMP1 (
       .clock(clock),
       .reset(reset),
 
-      .level_o(),
+      .start_dump_i(tstart),
+      .is_dumping_o(tcycle),
+      .fifo_level_o(),
 
-      .valid_i(fvalid),
-      .ready_o(fready),
-      .data_i (fdata),
+      .s_tvalid(tvalid),
+      .s_tready(tready),
+      .s_tlast (tlast),
+      .s_tkeep (tkeep),
+      .s_tdata (tdata),
 
-      .valid_o(xvalid),
-      .ready_i(xready),
-      .data_o (xdata)
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tlast (),
+      .m_tkeep (),
+      .m_tdata (xdata)
   );
-*/
 
   uart #(
       .DATA_WIDTH(8)

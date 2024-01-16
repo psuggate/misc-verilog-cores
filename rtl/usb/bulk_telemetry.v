@@ -75,13 +75,13 @@ module bulk_telemetry #(
     end
 
     case (blk_state_i)
-      8'h01: blk_state_x = 3'd0;
-      8'h02: blk_state_x = 3'd1;
-      8'h04: blk_state_x = 3'd2;
-      8'h08: blk_state_x = 3'd3;
-      8'h10: blk_state_x = 3'd4;
-      8'h20: blk_state_x = 3'd5;
-      8'h40: blk_state_x = 3'd6;
+      8'h01:   blk_state_x = 3'd0;
+      8'h02:   blk_state_x = 3'd1;
+      8'h04:   blk_state_x = 3'd2;
+      8'h08:   blk_state_x = 3'd3;
+      8'h10:   blk_state_x = 3'd4;
+      8'h20:   blk_state_x = 3'd5;
+      8'h40:   blk_state_x = 3'd6;
       default: blk_state_x = 3'd7;
     endcase
   end

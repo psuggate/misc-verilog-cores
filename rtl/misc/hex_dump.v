@@ -1,27 +1,27 @@
 `timescale 1ns / 100ps
-module hex_dump
-#( parameter UNICODE = 1,
-   parameter BLOCK_SRAM = 1
+module hex_dump #(
+    parameter UNICODE = 1,
+    parameter BLOCK_SRAM = 1
 ) (
-   input         clock,
-   input         reset,
+    input clock,
+    input reset,
 
-   input         start_dump_i,
-   output        is_dumping_o,
-   output [10:0] fifo_level_o,
+    input         start_dump_i,
+    output        is_dumping_o,
+    output [10:0] fifo_level_o,
 
-   input         s_tvalid,
-   output        s_tready,
-   input         s_tlast,
-   input         s_tkeep,
-   input [7:0]   s_tdata,
+    input        s_tvalid,
+    output       s_tready,
+    input        s_tlast,
+    input        s_tkeep,
+    input  [7:0] s_tdata,
 
-   output        m_tvalid,
-   input         m_tready,
-   output        m_tlast,
-   output        m_tkeep,
-   output [7:0]  m_tdata
-   );
+    output       m_tvalid,
+    input        m_tready,
+    output       m_tlast,
+    output       m_tkeep,
+    output [7:0] m_tdata
+);
 
   localparam ABITS = BLOCK_SRAM ? 11 : 4;
   localparam ASB = ABITS - 1;
@@ -39,7 +39,7 @@ module hex_dump
   assign fifo_level_o = BLOCK_SRAM ? level_w : {7'b0, level_w};
 
   assign s_tready = tready;
-  assign m_tkeep  = m_tvalid;
+  assign m_tkeep = m_tvalid;
 
   // Nibble-to-(ASCII-)hex conversion
   assign tbyte0_w = (s_tdata[3:0] < 4'd10 ? 8'd48 : 8'd65) + s_tdata[3:0];
@@ -118,7 +118,7 @@ module hex_dump
           // Hex-convert & serialise the two input bytes
           fvalid <= 1'b1;
           if (fvalid && fready) begin
-            state  <= snext;
+            state <= snext;
           end
         end
         4'hc: begin
@@ -136,7 +136,7 @@ module hex_dump
           // Wait for the packet to be sent
           tcycle <= 1'b0;
           if (!m_tvalid) begin
-            state  <= 4'h0;
+            state <= 4'h0;
           end
         end
       endcase
@@ -166,4 +166,4 @@ module hex_dump
   );
 
 
-endmodule // hex_dump
+endmodule  // hex_dump
