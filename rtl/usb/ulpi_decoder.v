@@ -186,7 +186,10 @@ module ulpi_decoder (
 
   // -- USB PID Parser -- //
 
-  assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN || rx_pid_pw == {SPC_PING, PID_SPECIAL};
+  // assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN && rx_pid_pw[3:2] != TOK_SOF ||
+  //                    rx_pid_pw == {SPC_PING, PID_SPECIAL};
+  assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN ||
+                     rx_pid_pw == {SPC_PING, PID_SPECIAL};
   assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_pw == rx_pid_nw;
   assign rx_pid_pw = ulpi_data[3:0];
   assign rx_pid_nw = ~ulpi_data[7:4];
@@ -212,6 +215,13 @@ module ulpi_decoder (
       low_q <= 1'b1;
       token_data <= 11'd0;
     end else begin
+      // Decode USB Start-of-Frame (SOF) Packets
+      if (!tok_q && pid_vld_w && rx_pid_pw[3:2] == TOK_SOF && !pid_q) begin
+        sof_q <= 1'b1;
+      end else if (end_q) begin
+        sof_q <= 1'b0;
+      end
+
       if (!tok_q && pid_vld_w && istoken_w && !pid_q) begin
         tok_q <= 1'b1;
         low_q <= 1'b1;
@@ -231,7 +241,7 @@ module ulpi_decoder (
   end
 
   always @(posedge clock) begin
-    tok_recv_q <= tok_q && end_q && rx_crc5_w == dat_q[7:3];
+    tok_recv_q <= tok_q && !sof_q && end_q && rx_crc5_w == dat_q[7:3];
     sof_recv_q <= sof_q && end_q && rx_crc5_w == dat_q[7:3];  // todo: ...
     hsk_recv_q <= hsk_q && end_q;
     usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...

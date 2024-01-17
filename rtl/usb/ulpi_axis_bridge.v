@@ -334,6 +334,9 @@ module ulpi_axis_bridge #(
 
   // -- ULPI Decoder & Encoder -- //
 
+  wire sof_rx_recv_w;
+  assign usb_sof_o = sof_rx_recv_w;
+
   ulpi_decoder U_DECODER1 (
       .clock(clock),
       .reset(~areset_n),
@@ -353,7 +356,7 @@ module ulpi_axis_bridge #(
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),
       .decode_idle_o(decode_idle_w),
-      .usb_sof_o(usb_sof_o),
+      .usb_sof_o(sof_rx_recv_w),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -438,7 +441,6 @@ module ulpi_axis_bridge #(
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_recv_w),
       .usb_type_i(ulpi_rx_tuser_w[3:2]),
-      .usb_send_o(usb_tx_send_w),
       .usb_busy_i(usb_tx_busy_w),
       .usb_sent_i(usb_tx_done_w),
 
@@ -599,7 +601,7 @@ module ulpi_axis_bridge #(
       .clock(clock),
 `ifdef __icarus
       .reset(reset),
-      .usb_enum_i(usb_enum_w),
+      .usb_enum_i(~reset),
 `else
       .reset(1'b0),
       .usb_enum_i(1'b1),

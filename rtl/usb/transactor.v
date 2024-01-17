@@ -71,10 +71,8 @@ module transactor #(
     // DATA0/1 info from the decoder, and to the encoder
     input usb_recv_i,
     input [1:0] usb_type_i,
-    output usb_send_o,
     input usb_busy_i,
     input usb_sent_i,
-    output [1:0] usb_type_o,
 
     // USB control & bulk data received from host
     input usb_tvalid_i,
@@ -171,8 +169,6 @@ module transactor #(
 
   reg [3:0] tuser_q;
   reg trn_zero_q;  // zero-size data transfer ??
-  reg trn_send_q;
-  reg [1:0] trn_type_q;
 
   reg hsend_q;
   reg [1:0] htype_q;
@@ -181,9 +177,6 @@ module transactor #(
   // -- Input and Output Signal Assignments -- //
 
   assign err_code_o   = err_code_q;
-
-  assign usb_send_o   = trn_send_q;
-  assign usb_type_o   = trn_type_q;
 
   assign hsk_send_o   = hsend_q;
   assign hsk_type_o   = htype_q;
@@ -275,7 +268,6 @@ module transactor #(
         //   logics
         if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK) begin
           odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
-          // $display(">>%8t: DATA%1d[%1d] -> DATA%1d[%1d]", $time, odd_w ? 1 : 0, tok_endp_i, nod_w ? 1 : 0, tok_endp_i);
         end else if (xctrl == CTL_STATUS_ACK) begin
           odds_q[tok_endp_i] <= 1'b0;  // Status is always '1'
         end else if (xctrl == CTL_SETUP_ACK) begin
@@ -285,7 +277,6 @@ module transactor #(
       end else if (hsk_recv_i && hsk_type_i == HSK_ACK) begin
         // ACK received in response to IN data xfer (to host)
         if (xbulk == BLK_DATI_ACK || xctrl == CTL_DATI_ACK) begin
-          // $display("Toggle, woggle");
           odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
         end else if (xctrl == CTL_STATUS_ACK) begin
           odds_q[tok_endp_i] <= 1'b0;
@@ -307,7 +298,9 @@ module transactor #(
   end
 
   always @(posedge clock) begin
-    if (!hsend_q && eop_rx_q) begin
+    if (reset) begin
+      tuser_q <= 4'd0;
+    end else if (!hsend_q && eop_rx_q) begin
       tuser_q <= {HSK_ACK, 2'b10};
     end else if (xctrl == CTL_DATO_TOK && tok_recv_i && tok_type_i == TOK_IN) begin
       tuser_q <= {DATA1, 2'b11};
@@ -368,88 +361,29 @@ module transactor #(
     end
   end
 
-  /*
-  // Control transfer handshakes
-  always @(posedge clock) begin
-    if (reset) begin
-      hsend_q <= 1'b0;
-      htype_q <= 2'bx;
-    end else if (!hsend_q && state == ST_CTRL) begin
-      case (xctrl)
-        CTL_SETUP_RX, CTL_DATO_RX, CTL_STATUS_RX: begin
-          hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i ||
-                     usb_zero_w && usb_type_i == DATA1;
-          htype_q <= HSK_ACK;
-        end
-        default: begin
-          hsend_q <= 1'b0;
-          htype_q <= 2'bx;
-        end
-      endcase
-    end else if (!hsend_q && state == ST_BULK) begin
-      case (xbulk)
-        BLK_DATO_RX: begin
-          hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i;
-          htype_q <= HSK_ACK;
-        end
-
-        BLK_DATO_ERR: begin
-          hsend_q <= usb_tvalid_i && usb_tready_o && usb_tlast_i;
-          htype_q <= HSK_NAK;
-        end
-
-        default: begin
-          hsend_q <= 1'b0;
-          htype_q <= 2'bx;
-        end
-      endcase
-    end else if (hsk_sent_i) begin
-      hsend_q <= 1'b0;
-      htype_q <= 2'bx;
-    end else begin
-      hsend_q <= hsend_q;
-      htype_q <= htype_q;
-    end
-  end
-*/
-
 
   // -- Datapath to the USB Packet Encoder (for IN Transfers) -- //
 
   always @(posedge clock) begin
     if (reset || usb_busy_i) begin
       trn_zero_q <= 1'b0;
-      trn_send_q <= 1'b0;
-      trn_type_q <= trn_type_q;
     end else if (state == ST_CTRL) begin
       if (xctrl == CTL_DATO_TOK && tok_recv_i && tok_type_i == TOK_IN) begin
         // Tx STATUS OUT (ZDP)
         trn_zero_q <= 1'b1;
-        trn_send_q <= 1'b1;
-        trn_type_q <= DATA1;
       end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
         trn_zero_q <= 1'b0;
-        trn_send_q <= 1'b1;
-        trn_type_q <= odd_w ? DATA1 : DATA0;  // todo: odd/even
       end else begin
         trn_zero_q <= trn_zero_q;
-        trn_send_q <= trn_send_q;
-        trn_type_q <= trn_type_q;
       end
     end else if (state == ST_BULK) begin
       if (xbulk == BLK_IDLE && tok_type_i == TOK_IN) begin
         trn_zero_q <= ~blk_in_ready_i;
-        trn_send_q <= 1'b1;
-        trn_type_q <= odd_w ? DATA1 : DATA0;  // todo: odd/even
       end else begin
         trn_zero_q <= trn_zero_q;
-        trn_send_q <= trn_send_q;
-        trn_type_q <= trn_type_q;
       end
     end else begin
       trn_zero_q <= trn_zero_q;
-      trn_send_q <= trn_send_q;
-      trn_type_q <= trn_type_q;
     end
   end
 
@@ -591,7 +525,6 @@ module transactor #(
         BLK_DATI_TX, BLK_DATI_ZDP: begin
           // Send a zero-data packet, because we do not have a full packet, and
           // a ZDP will avoid timing-out 'libusb' ??
-          // if (!trn_send_q && usb_busy_i) begin
           if (usb_sent_i) begin
             xbulk <= BLK_DATI_ACK;
           end
@@ -868,7 +801,8 @@ module transactor #(
 
   wire we_are_waiting;
   assign we_are_waiting = tok_recv_i && (tok_type_i == TOK_OUT || tok_type_i == TOK_SETUP) ||
-                          usb_sent_i && (trn_type_q == DATA0 || trn_type_q == DATA1) ||
+                          usb_sent_i && (tuser_q == {DATA0, 2'b11} || tuser_q == {DATA1, 2'b11}) ||
+                          // usb_sent_i && (tuser_q[3:2] == DATA0 || tuser_q[3:2] == DATA1) ||
                           hsk_sent_i && (xctrl == CTL_SETUP_ACK || xctrl == CTL_DATO_ACK);
 
   always @(posedge clock) begin

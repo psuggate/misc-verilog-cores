@@ -1,6 +1,7 @@
 `timescale 1ns / 100ps
 module bulk_telemetry #(
-    parameter [3:0] ENDPOINT = 4'd2
+    parameter [3:0] ENDPOINT = 4'd2,
+    parameter PACKET_SIZE = 8
 ) (
     input clock,
     input reset,
@@ -34,15 +35,17 @@ module bulk_telemetry #(
     output [7:0] m_tdata
 );
 
+  localparam CBITS = $clog2(PACKET_SIZE);
+  localparam CZERO = {CBITS{1'b0}};
+  localparam CSB   = CBITS - 1;
+
 
   // -- Current USB Configuration State -- //
 
-  reg [2:0] err_code_q;
-
   reg sel_q, crc_error_q, usb_dump_q;
   reg [3:0] phy_state_q, ctl_state_q;
-  reg [2:0] blk_state_q;
-  wire diff_w, ready_w, last_w;
+  reg [2:0] blk_state_q, err_code_q;
+  wire diff_w, valid_w, ready_w, last_w;
   wire [15:0] prev_w, curr_w;
   wire a_tvalid_w, a_tready_w, a_tlast_w;
   wire [7:0] a_tdata_w;
@@ -58,6 +61,8 @@ module bulk_telemetry #(
   assign m_tlast = sel_q ? a_tlast_w : 1'bx;
   assign m_tkeep = sel_q && a_tvalid_w;
   assign m_tdata = sel_q ? a_tdata_w : 8'bx;
+
+  assign valid_w = diff_w & ready_w;
 
 
   // -- Conversions and Packing -- //
@@ -98,15 +103,15 @@ module bulk_telemetry #(
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
       usb_dump_q  <= 1'b0;
+      blk_state_q <= 3'd0;
       ctl_state_q <= 4'h0;
-      blk_state_q <= 4'h0;
       phy_state_q <= 4'h0;
     end else begin
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;
       usb_dump_q  <= usb_dump_x;
-      ctl_state_q <= ctl_state_i;
       blk_state_q <= blk_state_x;
+      ctl_state_q <= ctl_state_i;
       phy_state_q <= phy_state_i;
     end
   end
@@ -114,18 +119,16 @@ module bulk_telemetry #(
 
   // -- Telemetry Framer -- //
 
-  reg  [2:0] count;
-  wire [3:0] cnext = count + 3'd1;
+  reg  [CSB:0] count;
+  wire [CBITS:0] cnext = count + {{CBITS{1'b0}}, 1'b1};
 
-  assign last_w = cnext[3];
+  assign last_w = cnext[CBITS];
 
   always @(posedge clock) begin
     if (reset) begin
-      count <= 3'd0;
-    end else begin
-      if (diff_w && ready_w) begin
-        count <= cnext[2:0];
-      end
+      count <= CZERO;
+    end else if (valid_w) begin
+      count <= cnext[CSB:0];
     end
   end
 
@@ -163,7 +166,7 @@ module bulk_telemetry #(
 
           .level_o(level_o),
 
-          .valid_i(diff_w),
+          .valid_i(valid_w),
           .ready_o(ready_w),
           .data_i ({last_w, curr_w}),
 

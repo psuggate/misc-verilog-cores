@@ -26,7 +26,7 @@ module hex_dump #(
   localparam ABITS = BLOCK_SRAM ? 11 : 4;
   localparam ASB = ABITS - 1;
 
-  reg tstart, tcycle, tready, fvalid, plast;
+  reg tcycle, tready, fvalid, plast;
   reg [3:0] state;
   reg [7:0] tbyte0, tbyte1, tbyte2, tbyte3, wspace;
   wire flast, fready;
@@ -42,8 +42,8 @@ module hex_dump #(
   assign m_tkeep = m_tvalid;
 
   // Nibble-to-(ASCII-)hex conversion
-  assign tbyte0_w = (s_tdata[3:0] < 4'd10 ? 8'd48 : 8'd65) + s_tdata[3:0];
-  assign tbyte1_w = (s_tdata[7:4] < 4'd10 ? 8'd48 : 8'd65) + s_tdata[7:4];
+  assign tbyte0_w = (s_tdata[3:0] < 4'd10 ? 8'd48 : 8'd55) + s_tdata[3:0];
+  assign tbyte1_w = (s_tdata[7:4] < 4'd10 ? 8'd48 : 8'd55) + s_tdata[7:4];
 
   // When producing Unicode strings, each character is 16-bit, and the first
   // byte is '0x00'.
@@ -67,7 +67,6 @@ module hex_dump #(
 
   always @(posedge clock) begin
     if (reset) begin
-      tstart <= 1'b0;
       tcycle <= 1'b0;
       tready <= 1'b0;
       state  <= 4'h0;
@@ -80,12 +79,10 @@ module hex_dump #(
           plast  <= 1'b0;
           if (s_tvalid && start_dump_i) begin
             // Start conversion to hex
-            tstart <= 1'b1;
             tcycle <= 1'b1;
             tready <= 1'b1;
             state  <= 4'h1;
           end else begin
-            tstart <= 1'b0;
             tcycle <= 1'b0;
             tready <= 1'b0;
           end
@@ -93,7 +90,6 @@ module hex_dump #(
         4'h1: begin
           // Capture the least-significant byte (first byte, but will be dumped
           // second)
-          tstart <= 1'b0;
           fvalid <= 1'b0;
           if (s_tvalid && s_tkeep && tready) begin
             tready <= 1'b1;
