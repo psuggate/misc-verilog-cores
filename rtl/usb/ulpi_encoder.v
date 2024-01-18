@@ -105,7 +105,8 @@ module ulpi_encoder #(
   always @(posedge clock) begin
     xsend_q <= xsend;
 
-    phy_done_q <= xsend == TX_INIT && phy_nopid_i && !phy_done_q || xsend == TX_STOP && !phy_done_q && !phy_stop_i;
+    phy_done_q <= xsend == TX_INIT && phy_nopid_i && !phy_done_q ||
+                  xsend == TX_STOP && !phy_done_q && !phy_stop_i;
     hsk_done_q <= xsend == TX_STOP && hsk_send_i;
     usb_done_q <= xsend == TX_DONE && ulpi_stp && !hsk_send_i;
   end
@@ -348,7 +349,7 @@ module ulpi_encoder #(
       .s_tlast (slast),
       .s_tdata (sdata),
 
-      .t_tvalid(tvalid),  // If OUTREG > 2, allow the temp-register to be
+      .t_tvalid(tvalid),    // If OUTREG > 2, allow the temp-register to be
       .t_tready(tready_w),  // explicitly loaded
       .t_tlast (tlast),
       .t_tdata (tdata),

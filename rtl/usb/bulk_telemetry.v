@@ -7,6 +7,11 @@ module bulk_telemetry #(
     input reset,
 
     input usb_enum_i,
+    input usb_sof_i,
+    input usb_recv_i,
+    input usb_sent_i,
+    input tok_recv_i,
+    input high_speed_i,
 
     input crc_error_i,
     input timeout_i,
@@ -37,12 +42,12 @@ module bulk_telemetry #(
 
   localparam CBITS = $clog2(PACKET_SIZE);
   localparam CZERO = {CBITS{1'b0}};
-  localparam CSB   = CBITS - 1;
+  localparam CSB = CBITS - 1;
 
 
   // -- Current USB Configuration State -- //
 
-  reg sel_q, crc_error_q, usb_dump_q;
+  reg sel_q, crc_error_q, usb_sof_q;
   reg [3:0] phy_state_q, ctl_state_q;
   reg [2:0] blk_state_q, err_code_q;
   wire diff_w, valid_w, ready_w, last_w;
@@ -67,14 +72,19 @@ module bulk_telemetry #(
 
   // -- Conversions and Packing -- //
 
-  reg usb_dump_x;
   reg [2:0] blk_state_x, err_code_x;
 
   always @* begin
-    usb_dump_x = usb_state_i == 4'h8;
-
     if (timeout_i) begin
       err_code_x = 3'd7;
+    end else if (usb_state_i == 4'h8) begin
+      err_code_x = 3'd6;
+    end else if (usb_sent_i) begin
+      err_code_x = 3'd5;
+    end else if (usb_recv_i) begin
+      err_code_x = 3'd4;
+    end else if (tok_recv_i) begin
+      err_code_x = 3'd3;
     end else begin
       err_code_x = usb_error_i;
     end
@@ -92,24 +102,42 @@ module bulk_telemetry #(
   end
 
 
+  // -- USB Start-of-Frames Every 32 ms -- //
+
+  reg [7:0] sof_count;
+  wire [8:0] sof_cnext = {1'b0, sof_count} + (high_speed_i ? 9'd1 : 9'd8);
+  wire usb_sof_w = usb_sof_i && sof_cnext[8];
+
+  // In HS-mode, there are 8x SOF per millisecond
+  always @(posedge clock) begin
+    if (reset) begin
+      sof_count <= 8'd0;
+      usb_sof_q <= 1'b0;
+    end else begin
+      if (usb_sof_i && !usb_sof_q) begin
+        sof_count <= sof_cnext[7:0];
+      end
+      usb_sof_q <= usb_sof_w;
+    end
+  end
+
+
   // -- State-Change Detection and Telemetry Capture -- //
 
-  assign prev_w = {crc_error_q, err_code_q, usb_dump_q, blk_state_q, ctl_state_q, phy_state_q};
-  assign curr_w = {crc_error_i, err_code_x, usb_dump_x, blk_state_x, ctl_state_i, phy_state_i};
+  assign prev_w = {crc_error_q, err_code_q, usb_sof_q, blk_state_q, ctl_state_q, phy_state_q};
+  assign curr_w = {crc_error_i, err_code_x, usb_sof_w, blk_state_x, ctl_state_i, phy_state_i};
   assign diff_w = usb_enum_i && prev_w != curr_w;
 
   always @(posedge clock) begin
     if (reset) begin
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
-      usb_dump_q  <= 1'b0;
       blk_state_q <= 3'd0;
       ctl_state_q <= 4'h0;
       phy_state_q <= 4'h0;
     end else begin
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;
-      usb_dump_q  <= usb_dump_x;
       blk_state_q <= blk_state_x;
       ctl_state_q <= ctl_state_i;
       phy_state_q <= phy_state_i;
@@ -119,7 +147,7 @@ module bulk_telemetry #(
 
   // -- Telemetry Framer -- //
 
-  reg  [CSB:0] count;
+  reg  [  CSB:0] count;
   wire [CBITS:0] cnext = count + {{CBITS{1'b0}}, 1'b1};
 
   assign last_w = cnext[CBITS];
@@ -154,7 +182,7 @@ module bulk_telemetry #(
   wire [15:0] x_tdata;
 
   generate
-    if (1) begin : g_sync_fifo
+    if (0) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (17),

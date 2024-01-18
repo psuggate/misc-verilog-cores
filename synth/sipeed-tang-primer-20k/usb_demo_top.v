@@ -42,7 +42,7 @@ module usb_demo_top (
 
   // -- Signals -- //
 
-  // Globalists //
+  // Global signals //
   wire clock, reset, usb_clock, usb_reset;
   wire ddr_clock, locked;
   wire [3:0] cbits;
@@ -78,8 +78,8 @@ module usb_demo_top (
   end
 
   // Local Signals //
-  wire device_usb_idle_w, crc_error_w, usb_hs_enabled_w;
-  wire usb_sof, configured, blk_cycle_w, has_telemetry_w, timeout_w;
+  wire device_usb_idle_w, crc_error_w, hs_enabled_w;
+  wire usb_sof_w, configured, blk_cycle_w, has_telemetry_w, timeout_w;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast;
@@ -128,9 +128,9 @@ module usb_demo_top (
 
       .configured_o(configured),
       .has_telemetry_o(has_telemetry_w),
-      .usb_hs_enabled_o(usb_hs_enabled_w),
+      .usb_hs_enabled_o(hs_enabled_w),
       .usb_idle_o(device_usb_idle_w),
-      .usb_sof_o(usb_sof),
+      .usb_sof_o(usb_sof_w),
       .crc_err_o(crc_error_w),
       .timeout_o(timeout_w),
 
@@ -261,15 +261,10 @@ module usb_demo_top (
 
   wire xfer_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_idle_w;
   wire xfer_error_w = U_ULPI_USB0.U_TRANSACT1.xfer_dzdp_w && bulk_in_ready_q;
-  // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_dzdp_w || U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
-  // wire xfer_error_w = U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xfer_derr_w;
 
   // assign cbits = {ucount[24], pcount[24], ulpi_rst, locked};
   // assign cbits = {blinky_w, ctl_latch_q, xfer_state_w, blk_valid_q};
   assign cbits = U_ULPI_USB0.U_LINESTATE1.state;
-  // wire [11:0] xsend;
-  // assign xsend = U_ULPI_USB0.enc_state_w;
-  // assign cbits = xsend[11:8];
 
   always @(posedge usb_clock) begin
     if (usb_reset) begin
@@ -279,18 +274,6 @@ module usb_demo_top (
     end else if (timeout_w) begin
       ctl_latch_q <= 1'b1;
     end
-
-    /*
-    if (ctl0_error_w) begin
-      ctl_latch_q <= 1'b1;
-    end
-
-    if (usb_reset) begin
-      blk_valid_q <= 1'b0;
-    end else begin
-      blk_valid_q <= bulk_in_ready_q || bulk_out_ready_q;  // m_tvalid;
-    end
-     */
 
     blk_valid_q <= has_telemetry_w;
 
@@ -307,9 +290,9 @@ module usb_demo_top (
       count <= 0;
       sof_q <= 1'b0;
     end else begin
-      sof_q <= usb_sof;
+      sof_q <= usb_sof_w;
 
-      if (usb_sof && !sof_q) begin
+      if (usb_sof_w && !sof_q) begin
         count <= count + 1;
       end
     end
@@ -374,6 +357,9 @@ module usb_demo_top (
   wire [3:0] ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
 
+  wire usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
+  wire usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
+  wire tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
 
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
@@ -382,10 +368,15 @@ module usb_demo_top (
   ) U_TELEMETRY1 (
       .clock(clock),
       .reset(1'b0),
-      .usb_enum_i(1'b1),
 
+      .usb_enum_i(1'b1),
+      .usb_sof_i(usb_sof_w),
+      .usb_recv_i  (usb_rx_recv_w),
+      .usb_sent_i  (usb_tx_done_w),
+      .tok_recv_i  (tok_rx_recv_w),
+      .high_speed_i(hs_enabled_w),
       .crc_error_i(crc_error_w),
-      .timeout_i  (timeout_w),
+      .timeout_i(timeout_w),
       .phy_state_i(phy_state_w),
       .usb_error_i(err_code_w),
       .usb_state_i(usb_state_w),

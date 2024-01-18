@@ -156,7 +156,9 @@ module ulpi_axis_bridge #(
   wire [9:0] tele_level_w;
 
   reg usb_idle_q;
+  wire sof_rx_recv_w;
 
+  assign usb_sof_o = sof_rx_recv_w;
   assign timeout_o = timeout_w;
 
   assign usb_idle_o = usb_idle_q;
@@ -255,7 +257,7 @@ module ulpi_axis_bridge #(
       if (ctl0_cycle_w) begin
         ctl_sel_q <= 1'b1;
       end
-      if (usb_sof_o) begin
+      if (sof_rx_recv_w) begin
         usb_sof_q <= 1'b1;
       end
     end
@@ -314,6 +316,7 @@ module ulpi_axis_bridge #(
       .iob_nxt_o(iob_nxt_w),
       .iob_dat_o(iob_dat_w),
 
+      .usb_sof_i   (sof_rx_recv_w),
       .high_speed_o(high_speed_w),
       .usb_reset_o (usb_reset_w),
       .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
@@ -333,9 +336,6 @@ module ulpi_axis_bridge #(
 
 
   // -- ULPI Decoder & Encoder -- //
-
-  wire sof_rx_recv_w;
-  assign usb_sof_o = sof_rx_recv_w;
 
   ulpi_decoder U_DECODER1 (
       .clock(clock),
@@ -607,8 +607,13 @@ module ulpi_axis_bridge #(
       .usb_enum_i(1'b1),
 `endif
 
+      .usb_sof_i(sof_rx_recv_w),
+      .usb_recv_i  (usb_rx_recv_w),
+      .usb_sent_i  (usb_tx_done_w),
+      .tok_recv_i  (tok_rx_recv_w),
+      .high_speed_i(high_speed_w),
       .crc_error_i(crc_err_o),
-      .timeout_i  (timeout_w),
+      .timeout_i(timeout_w),
       .phy_state_i(phy_state_w),
       .usb_error_i(err_code_w),
       .usb_state_i(usb_state_w),

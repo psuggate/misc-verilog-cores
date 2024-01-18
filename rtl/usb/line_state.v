@@ -16,6 +16,7 @@ module line_state #(
     input [7:0] ulpi_data,
 
     // USB-core status and control-signals
+    input usb_sof_i,
     output high_speed_o,
     output usb_reset_o,
     output ls_changed_o,
@@ -130,7 +131,7 @@ module line_state #(
   reg [1:0] LineStateQ, VbusStateQ, RxEventQ, OpModeQ;
 
   assign rx_cmd_w = dir_q && ulpi_dir && !ulpi_nxt;
-  assign new_ls_w = rx_cmd_q && (LineStateW != LineStateQ);
+  assign new_ls_w = rx_cmd_q && (LineStateW != LineStateQ) || usb_sof_i;
   assign ls_changed = new_ls_q;  // rx_cmd_q && (LineStateW != LineStateQ);
 
   assign LineStateW = dat_q[1:0];

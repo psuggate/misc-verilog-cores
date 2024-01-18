@@ -687,7 +687,6 @@ module transactor #(
           //  - to be compliant, we have to check bytes-sent !?
           //  - catch Rx errors (indicated by the PHY) !?
           if (eop_rx_q) begin
-            // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_DATO_ACK;
           end
         end
@@ -802,8 +801,8 @@ module transactor #(
   wire we_are_waiting;
   assign we_are_waiting = tok_recv_i && (tok_type_i == TOK_OUT || tok_type_i == TOK_SETUP) ||
                           usb_sent_i && (tuser_q == {DATA0, 2'b11} || tuser_q == {DATA1, 2'b11}) ||
-                          // usb_sent_i && (tuser_q[3:2] == DATA0 || tuser_q[3:2] == DATA1) ||
-                          hsk_sent_i && (xctrl == CTL_SETUP_ACK || xctrl == CTL_DATO_ACK);
+      // usb_sent_i && (tuser_q[3:2] == DATA0 || tuser_q[3:2] == DATA1) ||
+      hsk_sent_i && (xctrl == CTL_SETUP_ACK || xctrl == CTL_DATO_ACK);
 
   always @(posedge clock) begin
     if (reset) begin
