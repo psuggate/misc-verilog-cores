@@ -1,0 +1,64 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Jan 20 23:22:29 2024
+[*]
+[dumpfile] "./hex_dump_tb.vcd"
+[dumpfile_mtime] "Sat Jan 20 23:21:25 2024"
+[dumpfile_size] 14828
+[savefile] "./hex_dump_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] 2559 -28
+*-16.481674 670000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 126
+[sst_expanded] 1
+[sst_vpaned_height] 298
+@28
+hex_dump_tb.clock
+hex_dump_tb.reset
+@800200
+-Control
+@28
+[color] 7
+hex_dump_tb.tcycle
+[color] 6
+hex_dump_tb.tstart
+@24
+[color] 2
+hex_dump_tb.tcount[2:0]
+hex_dump_tb.tlevel[10:0]
+@28
+[color] 1
+hex_dump_tb.t_err
+@29
+[color] 1
+hex_dump_tb.x_err
+@1000200
+-Control
+@800200
+-In
+@28
+hex_dump_tb.tvalid
+hex_dump_tb.tready
+hex_dump_tb.tlast
+@22
+hex_dump_tb.tdata[7:0]
+@1000200
+-In
+@800200
+-Out
+@28
+[color] 7
+hex_dump_tb.xdone
+[color] 3
+hex_dump_tb.xvalid
+[color] 3
+hex_dump_tb.xready
+hex_dump_tb.xlast
+@22
+hex_dump_tb.xdata[7:0]
+@1000200
+-Out
+[pattern_trace] 1
+[pattern_trace] 0

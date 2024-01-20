@@ -9,7 +9,7 @@ IVC	?= iverilog
 OPT	:= -g2005-sv -D__icarus -Wall
 
 SRC	:= $(wildcard *.v)
-DEP	:= $(wildcard ../fifo/*.v) $(wildcard ../axis/*.v)
+DEP	:= $(wildcard ../fifo/*.v) $(wildcard ../axis/*.v) ../../bench/flow_check.v
 RTL	:= $(filter-out %_tb.v, $(SRC) $(DEP))
 BENCH	:= $(filter %_tb.v, $(SRC))
 OUT	:= $(BENCH:%.v=../../build/%.out)
