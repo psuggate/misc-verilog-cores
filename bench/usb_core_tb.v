@@ -79,6 +79,11 @@ module usb_core_tb;
     enumerate <= 1'b0;
     @(posedge clock);
 
+    #1000 @(posedge clock);
+    while (!host_usb_sof_w) begin
+      @(posedge clock);
+    end
+
     #4000 @(posedge clock);
     $finish;
   end

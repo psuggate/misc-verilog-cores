@@ -69,6 +69,9 @@ module ulpi_decoder (
   reg [3:0] rx_tuser;
   reg [7:0] rx_tdata;
 
+  reg [3:0] endp_q;
+  reg [6:0] addr_q;
+
   // ULPI parser signals
   reg cyc_q, pid_q, dir_q;
   reg [7:0] dat_q;
@@ -100,8 +103,10 @@ module ulpi_decoder (
   assign usb_sof_o = sof_recv_q;
   assign tok_recv_o = tok_recv_q;
   assign tok_ping_o = 1'b0; // todo: ...
-  assign tok_addr_o = token_data[6:0];
-  assign tok_endp_o = token_data[10:7];
+  assign tok_addr_o = addr_q;
+  assign tok_endp_o = endp_q;
+  // assign tok_addr_o = token_data[6:0];
+  // assign tok_endp_o = token_data[10:7];
   assign hsk_recv_o = hsk_recv_q;
   assign usb_recv_o = usb_recv_q;
 
@@ -137,7 +142,7 @@ module ulpi_decoder (
       rx_tvalid <= 1'b0;
       rx_tkeep <= 1'bx;
       rx_tlast <= 1'bx;
-      // rx_tuser <= 4'hx;
+      rx_tuser <= 4'ha;
       rx_tdata <= 8'hx;
     end else begin
       if (cyc_q && end_q) begin
@@ -213,6 +218,8 @@ module ulpi_decoder (
       tok_q <= 1'b0;
       sof_q <= 1'b0;
       low_q <= 1'b1;
+      endp_q <= 0;
+      addr_q <= 0;
       token_data <= 11'd0;
     end else begin
       // Decode USB Start-of-Frame (SOF) Packets
@@ -226,6 +233,11 @@ module ulpi_decoder (
         tok_q <= 1'b1;
         low_q <= 1'b1;
       end else if (tok_q && ulpi_nxt) begin
+        if (low_q && !sof_q) begin
+          {endp_q[0], addr_q} <= ulpi_data;
+        end else if (!sof_q) begin
+          endp_q[3:1] <= ulpi_data[2:0];
+        end
         token_data[7:0] <= low_q ? ulpi_data : token_data[7:0];
         token_data[10:8] <= low_q ? token_data[10:8] : ulpi_data[2:0];
         low_q <= ~low_q;
@@ -250,7 +262,6 @@ module ulpi_decoder (
 
   // -- Early CRC16 calculation -- //
 
-  // assign rx_crc5_w = crc5({ulpi_data[2:0], token_data[7:0]});
   assign rx_crc5_w = crc5(token_data);
   assign crc16_w   = crc16(ulpi_data, crc16_q);
 

@@ -310,7 +310,8 @@ module usb_demo_top (
   //
   //  Status via UART
   ///
-  localparam [15:0] UART_PRESCALE = 16'd65;  // For: 60.0 MHz / (115200 * 8)
+  localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
+  // localparam [15:0] UART_PRESCALE = 16'd65;  // For: 60.0 MHz / (115200 * 8)
   // localparam [15:0] UART_PRESCALE = 16'd781;  // For: 60.0 MHz / (9600 * 8)
   // localparam [15:0] UART_PRESCALE = 16'd3125;  // For: 60.0 MHz / (2400 * 8)
   localparam [63:0] UART_GARBAGES = "TART013\n";
@@ -356,6 +357,8 @@ module usb_demo_top (
   wire [3:0] usb_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_state_w;
   wire [3:0] ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
+  wire [3:0] usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
+  wire [3:0] tok_endpt_w = U_ULPI_USB0.tok_endp_w;
 
   wire usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   wire usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
@@ -367,13 +370,15 @@ module usb_demo_top (
       .PACKET_SIZE(8)
   ) U_TELEMETRY1 (
       .clock(clock),
-      .reset(1'b0),
+      .reset(reset),
 
       .usb_enum_i(1'b1),
       .usb_sof_i(usb_sof_w),
-      .usb_recv_i  (usb_rx_recv_w),
-      .usb_sent_i  (usb_tx_done_w),
-      .tok_recv_i  (tok_rx_recv_w),
+      .usb_tuser_i(usb_tuser_w),
+      .usb_endpt_i(tok_endpt_w),
+      .usb_recv_i(usb_rx_recv_w),
+      .usb_sent_i(usb_tx_done_w),
+      .tok_recv_i(tok_rx_recv_w),
       .high_speed_i(hs_enabled_w),
       .crc_error_i(crc_error_w),
       .timeout_i(timeout_w),

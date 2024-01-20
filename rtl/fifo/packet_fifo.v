@@ -68,10 +68,10 @@ module packet_fifo (
   wire fetch_w, store_w, match_w, wfull_w, empty_w, reject_a, accept_a;
   wire [ABITS:0] level_w, waddr_w, raddr_w;
 
-      // Optional extra stage of registers, so that block SRAMs can be used.
-      reg xvalid, xlast;
-      wire xready;
-      reg [MSB:0] xdata;
+  // Optional extra stage of registers, so that block SRAMs can be used.
+  reg xvalid, xlast;
+  wire xready;
+  reg [MSB:0] xdata;
 
 
   assign level_o = level_q;

@@ -608,9 +608,11 @@ module ulpi_axis_bridge #(
 `endif
 
       .usb_sof_i(sof_rx_recv_w),
-      .usb_recv_i  (usb_rx_recv_w),
-      .usb_sent_i  (usb_tx_done_w),
-      .tok_recv_i  (tok_rx_recv_w),
+      .usb_tuser_i(ulpi_rx_tuser_w),
+      .usb_endpt_i(tok_endp_w),
+      .usb_recv_i(usb_rx_recv_w),
+      .usb_sent_i(usb_tx_done_w),
+      .tok_recv_i(tok_rx_recv_w),
       .high_speed_i(high_speed_w),
       .crc_error_i(crc_err_o),
       .timeout_i(timeout_w),

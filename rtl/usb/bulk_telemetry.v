@@ -15,6 +15,8 @@ module bulk_telemetry #(
 
     input crc_error_i,
     input timeout_i,
+    input [3:0] usb_endpt_i,
+    input [3:0] usb_tuser_i,
     input [3:0] phy_state_i,
     input [2:0] usb_error_i,
     input [3:0] usb_state_i,
@@ -48,10 +50,10 @@ module bulk_telemetry #(
   // -- Current USB Configuration State -- //
 
   reg sel_q, crc_error_q, usb_sof_q;
-  reg [3:0] phy_state_q, ctl_state_q;
+  reg [3:0] phy_state_q, ctl_state_q, usb_state_q, usb_endpt_q, usb_tuser_q;
   reg [2:0] blk_state_q, err_code_q;
   wire diff_w, valid_w, ready_w, last_w;
-  wire [15:0] prev_w, curr_w;
+  wire [31:0] prev_w, curr_w;
   wire a_tvalid_w, a_tready_w, a_tlast_w;
   wire [7:0] a_tdata_w;
 
@@ -124,8 +126,30 @@ module bulk_telemetry #(
 
   // -- State-Change Detection and Telemetry Capture -- //
 
-  assign prev_w = {crc_error_q, err_code_q, usb_sof_q, blk_state_q, ctl_state_q, phy_state_q};
-  assign curr_w = {crc_error_i, err_code_x, usb_sof_w, blk_state_x, ctl_state_i, phy_state_i};
+  assign prev_w = {
+    4'd0,
+    usb_endpt_q,
+    usb_tuser_q,
+    usb_state_q,
+    crc_error_q,
+    err_code_q,
+    usb_sof_q,
+    blk_state_q,
+    ctl_state_q,
+    phy_state_q
+  };
+  assign curr_w = {
+    4'd0,
+    usb_endpt_i,
+    usb_tuser_i,
+    usb_state_i,
+    crc_error_i,
+    err_code_x,
+    usb_sof_w,
+    blk_state_x,
+    ctl_state_i,
+    phy_state_i
+  };
   assign diff_w = usb_enum_i && prev_w != curr_w;
 
   always @(posedge clock) begin
@@ -135,12 +159,18 @@ module bulk_telemetry #(
       blk_state_q <= 3'd0;
       ctl_state_q <= 4'h0;
       phy_state_q <= 4'h0;
+      usb_endpt_q <= 4'h0;
+      usb_tuser_q <= 4'h0;
+      usb_state_q <= 4'h0;
     end else begin
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;
       blk_state_q <= blk_state_x;
       ctl_state_q <= ctl_state_i;
       phy_state_q <= phy_state_i;
+      usb_endpt_q <= usb_endpt_i;
+      usb_tuser_q <= usb_tuser_i;
+      usb_state_q <= usb_state_i;
     end
   end
 
@@ -179,14 +209,14 @@ module bulk_telemetry #(
   // -- Block SRAM FIFO for Telemetry -- //
 
   wire x_tvalid, x_tready, x_tlast;
-  wire [15:0] x_tdata;
+  wire [31:0] x_tdata;
 
   generate
     if (0) begin : g_sync_fifo
 
       sync_fifo #(
-          .WIDTH (17),
-          .ABITS (10),
+          .WIDTH (33),
+          .ABITS (9),
           .OUTREG(3)
       ) U_TELEMETRY0 (
           .clock(clock),
@@ -206,10 +236,10 @@ module bulk_telemetry #(
     end else begin : g_axis_fifo
 
       axis_fifo #(
-          .DEPTH(1024),
-          .DATA_WIDTH(16),
+          .DEPTH(512),
+          .DATA_WIDTH(32),
           .KEEP_ENABLE(0),
-          .KEEP_WIDTH(2),
+          .KEEP_WIDTH(4),
           .LAST_ENABLE(1),
           .ID_ENABLE(0),
           .ID_WIDTH(1),
@@ -230,7 +260,7 @@ module bulk_telemetry #(
 
           // AXI input
           .s_axis_tdata(curr_w),
-          .s_axis_tkeep(2'b11),
+          .s_axis_tkeep(4'hf),
           .s_axis_tvalid(diff_w),
           .s_axis_tready(ready_w),
           .s_axis_tlast(last_w),
@@ -260,9 +290,9 @@ module bulk_telemetry #(
   endgenerate
 
   axis_adapter #(
-      .S_DATA_WIDTH(16),
+      .S_DATA_WIDTH(32),
       .S_KEEP_ENABLE(1),
-      .S_KEEP_WIDTH(2),
+      .S_KEEP_WIDTH(4),
       .M_DATA_WIDTH(8),
       .M_KEEP_ENABLE(1),
       .M_KEEP_WIDTH(1),
@@ -277,8 +307,8 @@ module bulk_telemetry #(
       .rst(reset),
 
       // AXI input
-      .s_axis_tdata(x_tdata[15:0]),
-      .s_axis_tkeep(2'b11),
+      .s_axis_tdata(x_tdata),
+      .s_axis_tkeep(4'hf),
       .s_axis_tvalid(x_tvalid),
       .s_axis_tready(x_tready),
       .s_axis_tlast(x_tlast),
