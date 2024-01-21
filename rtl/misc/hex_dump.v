@@ -2,7 +2,7 @@
 module hex_dump #(
     parameter UNICODE = 1,
     parameter BLOCK_SRAM = 1,
-    parameter DODGY_FIFO = 0
+    parameter DODGY_FIFO = 1
 ) (
     input clock,
     input reset,

@@ -1,15 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jan 20 23:22:29 2024
+[*] Sun Jan 21 00:56:21 2024
 [*]
 [dumpfile] "./hex_dump_tb.vcd"
-[dumpfile_mtime] "Sat Jan 20 23:21:25 2024"
-[dumpfile_size] 14828
+[dumpfile_mtime] "Sun Jan 21 00:56:12 2024"
+[dumpfile_size] 63796
 [savefile] "./hex_dump_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
-[pos] 2559 -28
-*-16.481674 670000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] -1 -1
+*-17.481674 640000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] hex_dump_tb.
+[treeopen] hex_dump_tb.U_HEXDUMP1.
+[treeopen] hex_dump_tb.U_HEXDUMP1.g_sync_fifo.
 [sst_width] 233
 [signals_width] 126
 [sst_expanded] 1
@@ -31,7 +34,6 @@ hex_dump_tb.tlevel[10:0]
 @28
 [color] 1
 hex_dump_tb.t_err
-@29
 [color] 1
 hex_dump_tb.x_err
 @1000200
@@ -56,9 +58,50 @@ hex_dump_tb.xvalid
 [color] 3
 hex_dump_tb.xready
 hex_dump_tb.xlast
-@22
+@820
+[color] 5
 hex_dump_tb.xdata[7:0]
 @1000200
 -Out
+@800200
+-FIFO
+@28
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.ready_o
+[color] 3
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.store_w
+[color] 3
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.fetch_w
+@22
+[color] 2
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.raddr[4:0]
+[color] 2
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.waddr[4:0]
+@c00820
+hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+@28
+(0)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(1)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(2)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(3)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(4)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(5)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(6)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+(7)hex_dump_tb.U_HEXDUMP1.fdata[7:0]
+@1401200
+-group_end
+@820
+hex_dump_tb.U_HEXDUMP1.m_tdata[7:0]
+@c00200
+-Internal
+@22
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.raddr_w[4:0]
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.raddr_next[4:0]
+hex_dump_tb.U_HEXDUMP1.g_sync_fifo.U_UART_FIFO1.waddr_next[4:0]
+@1401200
+-Internal
+@1000200
+-FIFO
+@23
+hex_dump_tb.U_HEXDUMP1.state[3:0]
 [pattern_trace] 1
 [pattern_trace] 0

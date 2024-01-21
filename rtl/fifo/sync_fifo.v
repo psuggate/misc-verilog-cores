@@ -84,9 +84,9 @@ module sync_fifo (
   wire rempty_next = raddr_next[ASB:0] == waddr[ASB:0] && fetch_w && !store_w;
   wire rempty_curr = match_w && waddr[ABITS] == raddr[ABITS] && fetch_w == store_w;
 
-  assign #3 match_w = waddr[ASB:0] == raddr[ASB:0];
-  assign #3 wfull_w = wrfull_curr | wrfull_next;
-  assign #3 empty_w = rempty_curr | rempty_next;
+  assign match_w = waddr[ASB:0] == raddr[ASB:0];
+  assign wfull_w = wrfull_curr | wrfull_next;
+  assign empty_w = rempty_curr | rempty_next;
 
   assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0];
   assign waddr_w = store_w ? waddr_next : waddr;
@@ -105,7 +105,7 @@ module sync_fifo (
       wready <= ~wfull_w;
 
       if (store_w) begin
-        sram[waddr] <= data_i;
+        sram[waddr[ASB:0]] <= data_i;
         waddr <= waddr_next;
       end
     end
@@ -158,8 +158,8 @@ module sync_fifo (
 
       // Suitable for Xilinx Distributed SRAM's, and similar, with fast, async
       // reads.
-      assign #3 store_w = wready && valid_i;
-      assign #3 fetch_w = rvalid && ready_i;
+      assign store_w = wready && valid_i;
+      assign fetch_w = rvalid && ready_i;
 
       assign valid_o = rvalid;
       assign data_o = sram[raddr[ASB:0]];
@@ -183,13 +183,13 @@ module sync_fifo (
        *  1) no space;
        *  2) a free skid-register;
        */
-      assign #3 store_w = valid_i && wready && noreg_w;
+      assign store_w = valid_i && wready && noreg_w;
 
       /**
        * Read from the SRAM whenever the output DFF is empty, or if there will be
        * a transfer at the next edge, and the SRAM is not empty.
        */
-      assign #3 fetch_w = rvalid && (!xvalid || xvalid && xready_w);
+      assign fetch_w = rvalid && (!xvalid || xvalid && xready_w);
 
 
       // -- First-Word Fall-Through -- //

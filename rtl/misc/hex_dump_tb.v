@@ -8,8 +8,8 @@ module hex_dump_tb;
   localparam BYTES_PER_LINE = 8;
   localparam SIMULATION_LEN = 4000;
   localparam RANDOM_READIES = 1;
-  localparam USE_BLOCK_SRAM = 0;
-  localparam USE_DODGY_FIFO = 1;
+  localparam USE_BLOCK_SRAM = 0; // 1;
+  localparam USE_DODGY_FIFO = 1; // 0;
 
 
   // -- Simulation Data -- //
@@ -71,8 +71,6 @@ module hex_dump_tb;
         if (tlast) begin
           tvalid <= 1'b0;
         end
-      end else begin
-        tstart <= 1'b0;
       end
     end
   end
@@ -109,7 +107,7 @@ module hex_dump_tb;
       xready <= 1'b0;
     end else begin
       if (RANDOM_READIES) begin
-        xready <= $urandom & tcycle;
+        xready <= $urandom;
       end else begin
         xready <= 1'b1;
       end
