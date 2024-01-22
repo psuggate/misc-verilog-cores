@@ -168,14 +168,11 @@ module line_state #(
 
   // State-output registers
   always @(posedge clock) begin
-    if (reset) begin
+    if (state == ST_RESET || state == ST_POWER_ON) begin
+      // if (state == ST_RESET) begin
+      rst_q <= 1'b1;
+    end else if (reset || state == ST_IDLE) begin
       rst_q <= 1'b0;
-    end else begin
-      if (state == ST_RESET) begin
-        rst_q <= 1'b1;
-      end else if (state == ST_IDLE) begin
-        rst_q <= 1'b0;
-      end
     end
   end
 

@@ -354,7 +354,7 @@ module usb_demo_top (
 
   wire [3:0] phy_state_w = U_ULPI_USB0.phy_state_w;
   wire [2:0] err_code_w = U_ULPI_USB0.err_code_w;
-  wire [3:0] usb_state_w = U_ULPI_USB0.U_TRANSACT1.xfer_state_w;
+  wire [3:0] usb_state_w = U_ULPI_USB0.U_TRANSACT1.state;
   wire [3:0] ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
   wire [3:0] usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
@@ -370,9 +370,10 @@ module usb_demo_top (
       .PACKET_SIZE(8)
   ) U_TELEMETRY1 (
       .clock(clock),
-      .reset(reset),
+      .reset(1'b0), // reset),
 
       .usb_enum_i(1'b1),
+      .usb_reset_i(usb_reset),
       .usb_sof_i(usb_sof_w),
       .usb_tuser_i(usb_tuser_w),
       .usb_endpt_i(tok_endpt_w),

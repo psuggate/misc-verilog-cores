@@ -8,6 +8,7 @@ module bulk_telemetry #(
     input reset,
 
     input usb_enum_i,
+    input usb_reset_i,
     input usb_sof_i,
     input usb_recv_i,
     input usb_sent_i,
@@ -50,7 +51,7 @@ module bulk_telemetry #(
 
   // -- Current USB Configuration State -- //
 
-  reg sel_q, crc_error_q, usb_sof_q;
+  reg sel_q, crc_error_q, usb_sof_q, usb_reset_q;
   reg [3:0] phy_state_q, ctl_state_q, usb_state_q, usb_endpt_q, usb_tuser_q;
   reg [2:0] blk_state_q, err_code_q;
   wire diff_w, valid_w, ready_w, last_w;
@@ -128,7 +129,8 @@ module bulk_telemetry #(
   // -- State-Change Detection and Telemetry Capture -- //
 
   assign prev_w = {
-    4'd0,
+    3'd0,
+    usb_reset_q,
     usb_endpt_q,
     usb_tuser_q,
     usb_state_q,
@@ -140,7 +142,8 @@ module bulk_telemetry #(
     phy_state_q
   };
   assign curr_w = {
-    4'd0,
+    3'd0,
+    usb_reset_i,
     usb_endpt_i,
     usb_tuser_i,
     usb_state_i,
@@ -155,6 +158,7 @@ module bulk_telemetry #(
 
   always @(posedge clock) begin
     if (reset) begin
+      usb_reset_q <= 1'b0;
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
       blk_state_q <= 3'd0;
@@ -164,6 +168,7 @@ module bulk_telemetry #(
       usb_tuser_q <= 4'h0;
       usb_state_q <= 4'h0;
     end else begin
+      usb_reset_q <= usb_reset_i;
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;
       blk_state_q <= blk_state_x;

@@ -420,7 +420,7 @@ module ulpi_axis_bridge #(
       .PIPELINED(1)
   ) U_TRANSACT1 (
       .clock(clock),
-      .reset(reset),
+      .reset(~rst_nq),
 
       .usb_addr_i(usb_addr_w),
       .err_code_o(err_code_w),
@@ -608,6 +608,7 @@ module ulpi_axis_bridge #(
 `endif
 
       .usb_sof_i(sof_rx_recv_w),
+      .usb_reset_i(usb_reset_w),
       .usb_tuser_i(ulpi_rx_tuser_w),
       .usb_endpt_i(tok_endp_w),
       .usb_recv_i(usb_rx_recv_w),

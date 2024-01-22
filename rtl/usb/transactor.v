@@ -136,7 +136,7 @@ module transactor #(
   localparam ST_IDLE = 4'h1;
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
   localparam ST_BULK = 4'h4;  // USB Bulk Transfer
-  localparam ST_DUMP = 4'h8;  // ignoring xfer, or bad shit happened
+  localparam ST_DUMP = 4'h8;  // ignoring xfer, or bad things happened
 
   localparam ER_NONE = 3'h0;
   localparam ER_BLKI = 3'h1;
@@ -653,14 +653,27 @@ module transactor #(
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
 
+  reg setup_q;
+
   always @(posedge clock) begin
-    if (state == ST_CTRL) begin
+    if (reset || eop_tx_q) begin
+      setup_q <= 1'b0;
+    end else if (tok_recv_i && tok_type_i == TOK_SETUP) begin
+      setup_q <= 1'b1;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset || state != ST_CTRL) begin
+      // Just wait and Rx SETUP data
+      xctrl <= CTL_SETUP_RX;
+    end else begin
       case (xctrl)
         //
         // Setup Stage
         ///
         default: begin  // CTL_SETUP_RX
-          if (eop_rx_q) begin
+          if (setup_q && eop_rx_q) begin
             // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xctrl <= CTL_SETUP_ACK;
           end else begin
@@ -779,9 +792,6 @@ module transactor #(
         end
 
       endcase
-    end else begin
-      // Just wait and Rx SETUP data
-      xctrl <= CTL_SETUP_RX;
     end
   end
 
