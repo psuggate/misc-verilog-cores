@@ -8,8 +8,8 @@ module hex_dump_tb;
   localparam BYTES_PER_LINE = 8;
   localparam SIMULATION_LEN = 4000;
   localparam RANDOM_READIES = 1;
-  localparam USE_BLOCK_SRAM = 0; // 1;
-  localparam USE_DODGY_FIFO = 1; // 0;
+  localparam USE_BLOCK_SRAM = 0;  // 1;
+  localparam USE_SMALL_FIFO = 0;  // 1;
 
 
   // -- Simulation Data -- //
@@ -42,7 +42,7 @@ module hex_dump_tb;
 
   reg tstart, tvalid;
   reg [CSB:0] tcount;
-  reg [7:0] tdata;
+  reg [  7:0] tdata;
   wire tcycle, tready, tlast, tkeep;
   wire [10:0] tlevel;
 
@@ -50,8 +50,8 @@ module hex_dump_tb;
   wire xvalid, xlast;
   wire [7:0] xdata;
 
-  assign tlast  = tcount == {CBITS{1'b1}};
-  assign tkeep  = tvalid;
+  assign tlast = tcount == {CBITS{1'b1}};
+  assign tkeep = tvalid;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -85,7 +85,8 @@ module hex_dump_tb;
       @(posedge clock);
     end
     @(posedge clock);
-    $display("%10t: Terminating due to AXIS flow-control error (T: %d, X: %d)", $time, t_err, x_err);
+    $display("%10t: Terminating due to AXIS flow-control error (T: %d, X: %d)", $time, t_err,
+             x_err);
     $finish;
   end
 
@@ -150,7 +151,7 @@ module hex_dump_tb;
   hex_dump #(
       .UNICODE(UNICODE_OUTPUT),
       .BLOCK_SRAM(USE_BLOCK_SRAM),
-      .DODGY_FIFO(USE_DODGY_FIFO)
+      .SMALL_FIFO(USE_SMALL_FIFO)
   ) U_HEXDUMP1 (
       .clock(clock),
       .reset(reset),
@@ -173,4 +174,4 @@ module hex_dump_tb;
   );
 
 
-endmodule // hex_dump_tb
+endmodule  // hex_dump_tb

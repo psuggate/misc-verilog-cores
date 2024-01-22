@@ -162,7 +162,7 @@ module sync_fifo (
       assign fetch_w = rvalid && ready_i;
 
       assign valid_o = rvalid;
-      assign data_o = sram[raddr[ASB:0]];
+      assign data_o  = sram[raddr[ASB:0]];
 
     end // g_async
   else if (OUTREG > 0) begin : g_outregs
@@ -176,20 +176,20 @@ module sync_fifo (
       //     behind existing data (or else ordering won't be preserved);
       //  3) SRAM data is being transferred, but the temp-reg is not ready; OR,
       //  4) both the temp- and output registers are full.
-      assign noreg_w = OUTREG < 2 || rvalid || xvalid && !tready || !sready;
+      assign noreg_w  = OUTREG < 2 || rvalid || xvalid && !tready || !sready;
 
       /**
        * Write data into the SRAM unless there is:
        *  1) no space;
        *  2) a free skid-register;
        */
-      assign store_w = valid_i && wready && noreg_w;
+      assign store_w  = valid_i && wready && noreg_w;
 
       /**
        * Read from the SRAM whenever the output DFF is empty, or if there will be
        * a transfer at the next edge, and the SRAM is not empty.
        */
-      assign fetch_w = rvalid && (!xvalid || xvalid && xready_w);
+      assign fetch_w  = rvalid && (!xvalid || xvalid && xready_w);
 
 
       // -- First-Word Fall-Through -- //
@@ -198,7 +198,7 @@ module sync_fifo (
 
       assign tvalid_w = !rvalid && xvalid && valid_i && wready;
       assign svalid_w = xvalid || !xvalid && !rvalid && valid_i && OUTREG > 1;
-      assign sdata_w = !xvalid && valid_i && sready && OUTREG > 1 ? data_i : xdata;
+      assign sdata_w  = !xvalid && valid_i && sready && OUTREG > 1 ? data_i : xdata;
 
 
       // -- SRAM Output-Register -- //

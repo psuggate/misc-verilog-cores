@@ -113,7 +113,7 @@ module packet_fifo (
       if (reject_a) begin
         waddr <= paddr;
       end else if (store_w) begin
-        sram[waddr] <= {last_i, data_i};
+        sram[waddr[ASB:0]] <= {last_i, data_i};
         waddr <= waddr_next;
       end
     end

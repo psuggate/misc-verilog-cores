@@ -102,7 +102,7 @@ module ulpi_decoder (
 
   assign usb_sof_o = sof_recv_q;
   assign tok_recv_o = tok_recv_q;
-  assign tok_ping_o = 1'b0; // todo: ...
+  assign tok_ping_o = 1'b0;  // todo: ...
   assign tok_addr_o = addr_q;
   assign tok_endp_o = endp_q;
   // assign tok_addr_o = token_data[6:0];
@@ -193,8 +193,7 @@ module ulpi_decoder (
 
   // assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN && rx_pid_pw[3:2] != TOK_SOF ||
   //                    rx_pid_pw == {SPC_PING, PID_SPECIAL};
-  assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN ||
-                     rx_pid_pw == {SPC_PING, PID_SPECIAL};
+  assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN || rx_pid_pw == {SPC_PING, PID_SPECIAL};
   assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_pw == rx_pid_nw;
   assign rx_pid_pw = ulpi_data[3:0];
   assign rx_pid_nw = ~ulpi_data[7:4];
@@ -256,7 +255,8 @@ module ulpi_decoder (
     tok_recv_q <= tok_q && !sof_q && end_q && rx_crc5_w == dat_q[7:3];
     sof_recv_q <= sof_q && end_q && rx_crc5_w == dat_q[7:3];  // todo: ...
     hsk_recv_q <= hsk_q && end_q;
-    usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...
+    // usb_recv_q <= cyc_q && rx_end_w && !tok_q && crc16_w == 16'h800d;  // todo: ...
+    usb_recv_q <= cyc_q && end_q && !tok_q && crc16_q == 16'h800d;  // todo: ...
   end
 
 

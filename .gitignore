@@ -7,3 +7,5 @@ impl/
 logs/
 target/
 *.log
+.stack-work/
+*~

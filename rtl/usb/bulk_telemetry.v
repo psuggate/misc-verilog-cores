@@ -1,7 +1,8 @@
 `timescale 1ns / 100ps
 module bulk_telemetry #(
     parameter [3:0] ENDPOINT = 4'd2,
-    parameter PACKET_SIZE = 8
+    parameter PACKET_SIZE = 8,
+    parameter SMALL_FIFO = 1
 ) (
     input clock,
     input reset,
@@ -212,7 +213,7 @@ module bulk_telemetry #(
   wire [31:0] x_tdata;
 
   generate
-    if (0) begin : g_sync_fifo
+    if (!SMALL_FIFO) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (33),

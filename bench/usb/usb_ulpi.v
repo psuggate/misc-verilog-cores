@@ -161,8 +161,7 @@ module usb_ulpi #(
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
       usb_line_state <= 2'b10;
-    end else
-    if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
+    end else if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
       if (state == STATE_CHIRPKJ) begin
         if (ulpi_data_in[1:0] == 2'b01) begin
           chirp_kj_counter <= chirp_kj_counter + 1;

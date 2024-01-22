@@ -2,7 +2,7 @@
 module hex_dump #(
     parameter UNICODE = 1,
     parameter BLOCK_SRAM = 1,
-    parameter DODGY_FIFO = 1
+    parameter SMALL_FIFO = 1
 ) (
     input clock,
     input reset,
@@ -159,27 +159,27 @@ module hex_dump #(
   // -- Output Buffer -- //
 
   generate
-    if (DODGY_FIFO) begin : g_sync_fifo
+    if (!SMALL_FIFO) begin : g_sync_fifo
 
-  // todo: should be optional (or, external) ...
-  sync_fifo #(
-      .WIDTH (9),
-      .ABITS (ABITS),
-      .OUTREG(BLOCK_SRAM ? 3 : 0)
-  ) U_UART_FIFO1 (
-      .clock(clock),
-      .reset(reset),
+      // todo: should be optional (or, external) ...
+      sync_fifo #(
+          .WIDTH (9),
+          .ABITS (ABITS),
+          .OUTREG(BLOCK_SRAM ? 3 : 0)
+      ) U_UART_FIFO1 (
+          .clock(clock),
+          .reset(reset),
 
-      .level_o(level_w),
+          .level_o(level_w),
 
-      .valid_i(fvalid),
-      .ready_o(fready),
-      .data_i ({flast, fdata}),
+          .valid_i(fvalid),
+          .ready_o(fready),
+          .data_i ({flast, fdata}),
 
-      .valid_o(m_tvalid),
-      .ready_i(m_tready),
-      .data_o ({m_tlast, m_tdata})
-  );
+          .valid_o(m_tvalid),
+          .ready_i(m_tready),
+          .data_o ({m_tlast, m_tdata})
+      );
 
     end else begin : g_axis_fifo
 
