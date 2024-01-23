@@ -108,11 +108,11 @@ module bulk_telemetry #(
   end
 
 
-  // -- USB Start-of-Frames Every 32 ms -- //
+  // -- USB Start-of-Frames Every 256 ms -- //
 
-  reg [7:0] sof_count;
-  wire [8:0] sof_cnext = {1'b0, sof_count} + (high_speed_i ? 9'd1 : 9'd8);
-  wire usb_sof_w = usb_sof_i && sof_cnext[8];
+  reg [10:0] sof_count;
+  wire [11:0] sof_cnext = {1'b0, sof_count} + (high_speed_i ? 12'd1 : 12'd8);
+  wire usb_sof_w = usb_sof_i && sof_cnext[11];
 
   // In HS-mode, there are 8x SOF per millisecond
   always @(posedge clock) begin
@@ -121,7 +121,7 @@ module bulk_telemetry #(
       usb_sof_q <= 1'b0;
     end else begin
       if (usb_sof_i && !usb_sof_q) begin
-        sof_count <= sof_cnext[7:0];
+        sof_count <= sof_cnext[10:0];
       end
       usb_sof_q <= usb_sof_w;
     end

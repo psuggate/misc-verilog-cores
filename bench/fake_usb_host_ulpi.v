@@ -121,7 +121,7 @@ module fake_usb_host_ulpi (
 
     $display("%10t: FETCH config DESCRIPTOR (9 bytes)", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 9);
-    $display("%10t: FETCH config DESCRIPTOR (32 bytes)", $time);
+    $display("%10t: FETCH config DESCRIPTOR (39 bytes)", $time);
     recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 39);
     desc_done_q <= 1'b1;
 

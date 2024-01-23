@@ -126,13 +126,12 @@ module line_state #(
 
   // -- USB Line State & PHY Events -- //
 
-  wire ls_changed, rx_cmd_w, new_ls_w;
+  wire rx_cmd_w, new_ls_w;
   wire [1:0] LineStateW, VbusStateW, RxEventW, OpModeW;
   reg [1:0] LineStateQ, VbusStateQ, RxEventQ, OpModeQ;
 
   assign rx_cmd_w = dir_q && ulpi_dir && !ulpi_nxt;
   assign new_ls_w = rx_cmd_q && (LineStateW != LineStateQ) || usb_sof_i;
-  assign ls_changed = new_ls_q;  // rx_cmd_q && (LineStateW != LineStateQ);
 
   assign LineStateW = dat_q[1:0];
   assign VbusStateW = dat_q[3:2];
@@ -180,7 +179,6 @@ module line_state #(
   // -- Timers for 2.5 us & 1.0 ms Pulses -- //
 
   always @(posedge clock) begin
-    // if (reset || ls_changed) begin
     if (reset) begin
       pulse_2_5us <= 1'b0;
       count_2_5us <= 8'd0;
@@ -215,7 +213,7 @@ module line_state #(
 
   // Pulse-signal & timer(-counter) for 1.0 ms, and for a constant line-state
   always @(posedge clock) begin
-    if (reset || ls_changed) begin
+    if (reset || new_ls_q) begin
       ls_pulse_1_0ms <= 1'b0;
       ls_count_1_0ms <= 9'd0;
     end else if (pulse_2_5us) begin
@@ -233,7 +231,7 @@ module line_state #(
 
   // Pulse-signal (/timer) for a 3.0 ms duration and constant line-state
   always @(posedge clock) begin
-    if (reset || ls_changed) begin
+    if (reset || new_ls_q) begin
       ls_pulse_3_0ms <= 1'b0;
       ls_count_3_0ms <= 2'd0;
     end else if (ls_pulse_1_0ms) begin
@@ -251,7 +249,7 @@ module line_state #(
 
   // Pulse-signal (/timer) for 21 ms duration and constant line-state
   always @(posedge clock) begin
-    if (reset || ls_changed) begin
+    if (reset || new_ls_q) begin
       ls_pulse_21_ms <= 1'b0;
       ls_count_21_ms <= 2'd0;
     end else if (ls_pulse_3_0ms) begin
@@ -405,7 +403,7 @@ module line_state #(
         end
 
         ST_WAIT_SE0: begin
-          if (ls_changed) begin
+          if (new_ls_q) begin
             state <= ST_FS_LSSE0;
             set_q <= 1'b0;
           end else if (pulse_2_5us) begin

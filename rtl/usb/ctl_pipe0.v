@@ -152,32 +152,32 @@ module ctl_pipe0 #(
   localparam [DSB:0] USB_DESC = DESC_HAS_STRINGS == 1 ? {{16'h0, 16'h0, 16'h1}, SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {{16'h0, 16'h0, 16'h1}, CONFIG_DESC, DEVICE_DESC};
 
   // Descriptor ROM parameters //
-  localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
-  localparam integer ABITS = $clog2(DESC_SIZE + 1);
-  // localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE);
-  // localparam integer ABITS = $clog2(DESC_SIZE);
+  // localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
+  // localparam integer ABITS = $clog2(DESC_SIZE + 1);
+  localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE);
+  localparam integer ABITS = $clog2(DESC_SIZE);
   localparam integer ASB = ABITS - 1;
 
   // Indices within the descriptor ROM //
-  localparam [ASB:0] DESC_CONFIG_START = DEVICE_DESC_LEN;
-  localparam [ASB:0] DESC_STRING_START = DEVICE_DESC_LEN + CONFIG_DESC_LEN;
+  localparam integer DESC_CONFIG_START = DEVICE_DESC_LEN;
+  localparam integer DESC_STRING_START = DEVICE_DESC_LEN + CONFIG_DESC_LEN;
 
-  localparam [ASB:0] DESC_START0 = DESC_STRING_START;
-  localparam [ASB:0] DESC_START1 = DESC_START0 + STR_DESC_LEN;
-  localparam [ASB:0] DESC_START2 = DESC_START1 + MANUFACTURER_STR_DESC_LEN;
-  localparam [ASB:0] DESC_START3 = DESC_START2 + PRODUCT_STR_DESC_LEN;
+  localparam integer DESC_START0 = DESC_STRING_START;
+  localparam integer DESC_START1 = DESC_START0 + STR_DESC_LEN;
+  localparam integer DESC_START2 = DESC_START1 + MANUFACTURER_STR_DESC_LEN;
+  localparam integer DESC_START3 = DESC_START2 + PRODUCT_STR_DESC_LEN;
 
-  localparam [ASB:0] DESC_END0 = DEVICE_DESC_LEN - 1;
-  localparam [ASB:0] DESC_END1 = DESC_STRING_START - 1;
-  localparam [ASB:0] DESC_END2 = DESC_START1 - 1;
-  localparam [ASB:0] DESC_END3 = DESC_START2 - 1;
-  localparam [ASB:0] DESC_END4 = DESC_START3 - 1;
-  localparam [ASB:0] DESC_END5 = DESC_START3 + SERIAL_STR_DESC_LEN - 1;
+  localparam integer DESC_END0 = DEVICE_DESC_LEN - 1;
+  localparam integer DESC_END1 = DESC_STRING_START - 1;
+  localparam integer DESC_END2 = DESC_START1 - 1;
+  localparam integer DESC_END3 = DESC_START2 - 1;
+  localparam integer DESC_END4 = DESC_START3 - 1;
+  localparam integer DESC_END5 = DESC_START3 + SERIAL_STR_DESC_LEN - 1;
 
-  localparam [ASB:0] DESC_STATUS_START = DESC_START3 + SERIAL_STR_DESC_LEN;
-  localparam [ASB:0] DESC_END6 = DESC_END5 + 2;
-  localparam [ASB:0] DESC_END7 = DESC_END5 + 4;
-  localparam [ASB:0] DESC_END8 = DESC_END5 + 6;
+  localparam integer DESC_STATUS_START = DESC_START3 + SERIAL_STR_DESC_LEN;
+  localparam integer DESC_END6 = DESC_END5 + 2;
+  localparam integer DESC_END7 = DESC_END5 + 4;
+  localparam integer DESC_END8 = DESC_END5 + 6;
 
 
   // -- Current USB Configuration State -- //
@@ -212,21 +212,10 @@ module ctl_pipe0 #(
 
   endgenerate
 
-  integer ii;
-  initial begin : g_init_rom
-    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
-      descriptor[ii] = USB_DESC >> (ii * 8) & 8'hff;
-      desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
-                       ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
-                       ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
-    end
-  end
-  */
-
   genvar ii;
   generate
     for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
-      initial begin : g_soggy
+      initial begin : g_init_rom
 
         descriptor[ii] = USB_DESC[ii*8+7:ii*8];
         desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
@@ -236,6 +225,17 @@ module ctl_pipe0 #(
     end
 
   endgenerate
+  */
+
+  integer ii;
+  initial begin : g_init_rom
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      descriptor[ii] = USB_DESC >> (ii * 8) & 8'hff;
+      desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
+                       ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
+                       ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
+    end
+  end
 
 
   // -- Signal Output Assignments -- //
@@ -334,9 +334,9 @@ module ctl_pipe0 #(
 
   // -- Read Address for Fetching Descriptors -- //
 
-  localparam [ASB:0] DESC_STATUS0_INDEX = DESC_STATUS_START;
-  localparam [ASB:0] DESC_STATUS1_INDEX = DESC_STATUS_START + 2;
-  localparam [ASB:0] DESC_STATUS2_INDEX = DESC_STATUS_START + 4;
+  localparam integer DESC_STATUS0_INDEX = DESC_STATUS_START;
+  localparam integer DESC_STATUS1_INDEX = DESC_STATUS_START + 2;
+  localparam integer DESC_STATUS2_INDEX = DESC_STATUS_START + 4;
 
   assign mem_next = mem_addr + 1;
 
@@ -363,6 +363,8 @@ module ctl_pipe0 #(
       end
     end else if (chop_ready_w && get_desc_q) begin
       mem_addr <= mem_next;
+    end else if (!select_i) begin
+      mem_addr <= 0;
     end
   end
 
@@ -415,6 +417,7 @@ module ctl_pipe0 #(
     end
     $display("Control PIPE0 config ROM size: %3d (bytes)", DESC_ROM_SIZE);
     $display("Control PIPE0 address bits:    %3d (bits)", ABITS);
+    // $display("LASTS:\n - %3d\n - %3d\n - %3d\n - %3d\n - %3d", DESC_END0, DESC_END1, DESC_END2, DESC_END3, DESC_END4);
   end
 
 `endif
