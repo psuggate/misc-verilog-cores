@@ -17,6 +17,7 @@ module bulk_telemetry #(
 
     input crc_error_i,
     input timeout_i,
+    input [1:0] LineState,
     input [3:0] usb_endpt_i,
     input [3:0] usb_tuser_i,
     input [3:0] phy_state_i,
@@ -54,6 +55,7 @@ module bulk_telemetry #(
   reg sel_q, crc_error_q, usb_sof_q, usb_reset_q;
   reg [3:0] phy_state_q, ctl_state_q, usb_state_q, usb_endpt_q, usb_tuser_q;
   reg [2:0] blk_state_q, err_code_q;
+  reg [1:0] linestate_q;
   wire diff_w, valid_w, ready_w, last_w;
   wire [31:0] prev_w, curr_w;
   wire a_tvalid_w, a_tready_w, a_tlast_w;
@@ -129,7 +131,8 @@ module bulk_telemetry #(
   // -- State-Change Detection and Telemetry Capture -- //
 
   assign prev_w = {
-    3'd0,
+    1'b0,
+    linestate_q,
     usb_reset_q,
     usb_endpt_q,
     usb_tuser_q,
@@ -142,7 +145,8 @@ module bulk_telemetry #(
     phy_state_q
   };
   assign curr_w = {
-    3'd0,
+    1'b0,
+    LineState,
     usb_reset_i,
     usb_endpt_i,
     usb_tuser_i,
@@ -154,10 +158,11 @@ module bulk_telemetry #(
     ctl_state_i,
     phy_state_i
   };
-  assign diff_w = usb_enum_i && prev_w != curr_w;
+  assign diff_w = usb_enum_i && prev_w[28:0] != curr_w[28:0];
 
   always @(posedge clock) begin
     if (reset) begin
+      linestate_q <= 2'b01; // 'J'
       usb_reset_q <= 1'b0;
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
@@ -168,6 +173,7 @@ module bulk_telemetry #(
       usb_tuser_q <= 4'h0;
       usb_state_q <= 4'h0;
     end else begin
+      linestate_q <= LineState;
       usb_reset_q <= usb_reset_i;
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;

@@ -17,7 +17,26 @@ module ctl_pipe0 #(
     parameter PRODUCT = "",
     parameter SERIAL_LEN = 0,
     parameter SERIAL = "",
-    parameter CONFIG_DESC_LEN = 18,
+
+    parameter integer DEVICE_DESC_LEN = 18,
+    parameter [143:0] DEVICE_DESC = {
+      8'h01,  /* bNumConfigurations = 1 */
+      (SERIAL_LEN == 0 ? 8'h00 : 8'h03),  /* iSerialNumber */
+      (PRODUCT_LEN == 0 ? 8'h00 : 8'h02),  /* iProduct */
+      (MANUFACTURER_LEN == 0 ? 8'h00 : 8'h01),  /* iManufacturer */
+      16'h0000,  /* bcdDevice */
+      PRODUCT_ID[15:0],  /* idProduct */
+      VENDOR_ID[15:0],  /* idVendor */
+      8'h40,  /* bMaxPacketSize = 64 */
+      8'h00,  /* bDeviceProtocol */
+      8'h00,  /* bDeviceSubClass */
+      8'hFF,  /* bDeviceClass = None */
+      16'h0200,  /* bcdUSB = USB 2.0 */
+      8'h01,  /* bDescriptionType = Device Descriptor */
+      8'h12  /* bLength = 18 */
+    },
+
+    parameter integer CONFIG_DESC_LEN = 18,
     parameter CONFIG_DESC = {
       /* Interface descriptor */
       8'h00,  /* iInterface */
@@ -38,8 +57,7 @@ module ctl_pipe0 #(
       16'h0012,  /* wTotalLength = 18 */
       8'h02,  /* bDescriptionType = Configuration Descriptor */
       8'h09  /* bLength = 9 */
-    },
-    parameter integer HIGH_SPEED = 1
+    }
 ) (
     input reset,
     input clock,
@@ -51,7 +69,7 @@ module ctl_pipe0 #(
     output configured_o,
     output usb_enum_o,
     output [6:0] usb_addr_o,
-    output [7:0] usb_conf_o,
+    output [2:0] usb_conf_o,
 
     input [ 3:0] req_endpt_i,
     input [ 7:0] req_type_i,
@@ -106,44 +124,6 @@ module ctl_pipe0 #(
     end
   endfunction
 
-  /* Full Speed Descriptor */
-  localparam [18*8-1:0] DEVICE_DESC_FS = {
-    8'h01,  /* bNumConfigurations = 1 */
-    (SERIAL_LEN == 0 ? 8'h00 : 8'h03),  /* iSerialNumber */
-    (PRODUCT_LEN == 0 ? 8'h00 : 8'h02),  /* iProduct */
-    (MANUFACTURER_LEN == 0 ? 8'h00 : 8'h01),  /* iManufacturer */
-    16'h0000,  /* bcdDevice */
-    PRODUCT_ID,  /* idProduct */
-    VENDOR_ID,  /* idVendor */
-    8'h40,  /* bMaxPacketSize = 64 */
-    8'h00,  /* bDeviceProtocol */
-    8'h00,  /* bDeviceSubClass */
-    8'hFF,  /* bDeviceClass = None */
-    16'h0110,  /* bcdUSB = USB 1.1 */
-    8'h01,  /* bDescriptionType = Device Descriptor */
-    8'h12  /* bLength = 18 */
-  };
-
-  /* High Speed Descriptor */
-  localparam [18*8-1:0] DEVICE_DESC_HS = {
-    8'h01,  /* bNumConfigurations = 1 */
-    (SERIAL_LEN == 0 ? 8'h00 : 8'h03),  /* iSerialNumber */
-    (PRODUCT_LEN == 0 ? 8'h00 : 8'h02),  /* iProduct */
-    (MANUFACTURER_LEN == 0 ? 8'h00 : 8'h01),  /* iManufacturer */
-    16'h0000,  /* bcdDevice */
-    PRODUCT_ID,  /* idProduct */
-    VENDOR_ID,  /* idVendor */
-    8'h40,  /* bMaxPacketSize = 64 */
-    8'h00,  /* bDeviceProtocol */
-    8'h00,  /* bDeviceSubClass */
-    8'hFF,  /* bDeviceClass = None */
-    16'h0200,  /* bcdUSB = USB 2.0 */
-    8'h01,  /* bDescriptionType = Device Descriptor */
-    8'h12  /* bLength = 18 */
-  };
-
-  localparam [18*8-1:0] DEVICE_DESC = (HIGH_SPEED) ? {DEVICE_DESC_HS} : {DEVICE_DESC_FS};
-
   localparam [4*8-1:0] STR_DESC = {
     16'h0409,
     8'h03,  /* bDescriptorType = String Descriptor */
@@ -154,7 +134,6 @@ module ctl_pipe0 #(
   localparam [PRODUCT_LEN*16+15:0] PRODUCT_STR_DESC = desc_product(PRODUCT);
   localparam [SERIAL_LEN*16+15:0] SERIAL_STR_DESC = desc_serial(SERIAL);
 
-  localparam integer DEVICE_DESC_LEN = 18;
   localparam integer STR_DESC_LEN = 4;
   localparam integer MANUFACTURER_STR_DESC_LEN = 2 + 2 * MANUFACTURER_LEN;
   localparam integer PRODUCT_STR_DESC_LEN = 2 + 2 * PRODUCT_LEN;
@@ -163,18 +142,23 @@ module ctl_pipe0 #(
   localparam integer DESC_SIZE_NOSTR = DEVICE_DESC_LEN + CONFIG_DESC_LEN + 6;
   localparam integer DESC_SIZE_STR   =
              DESC_SIZE_NOSTR + STR_DESC_LEN + MANUFACTURER_STR_DESC_LEN +
-             PRODUCT_STR_DESC_LEN + SERIAL_STR_DESC_LEN + 6;
+             PRODUCT_STR_DESC_LEN + SERIAL_STR_DESC_LEN;
 
   localparam DESC_HAS_STRINGS = MANUFACTURER_LEN > 0 || PRODUCT_LEN > 0 || SERIAL_LEN > 0 ? 1 : 0;
 
-  localparam integer DESC_SIZE = (DESC_HAS_STRINGS == 1) ? {DESC_SIZE_STR} : {DESC_SIZE_NOSTR};
+  // Complete descriptor size information //
+  localparam integer DESC_SIZE = DESC_HAS_STRINGS == 1 ? DESC_SIZE_STR : DESC_SIZE_NOSTR;
   localparam integer DSB = DESC_SIZE * 8 - 1;
-  localparam [DSB:0] USB_DESC = (DESC_HAS_STRINGS == 1) ? {{16'h0, 16'h0, 16'h1}, SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {{16'h0, 16'h0, 16'h1}, CONFIG_DESC, DEVICE_DESC};
+  localparam [DSB:0] USB_DESC = DESC_HAS_STRINGS == 1 ? {{16'h0, 16'h0, 16'h1}, SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {{16'h0, 16'h0, 16'h1}, CONFIG_DESC, DEVICE_DESC};
 
+  // Descriptor ROM parameters //
   localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
   localparam integer ABITS = $clog2(DESC_SIZE + 1);
+  // localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE);
+  // localparam integer ABITS = $clog2(DESC_SIZE);
   localparam integer ASB = ABITS - 1;
 
+  // Indices within the descriptor ROM //
   localparam [ASB:0] DESC_CONFIG_START = DEVICE_DESC_LEN;
   localparam [ASB:0] DESC_STRING_START = DEVICE_DESC_LEN + CONFIG_DESC_LEN;
 
@@ -183,7 +167,7 @@ module ctl_pipe0 #(
   localparam [ASB:0] DESC_START2 = DESC_START1 + MANUFACTURER_STR_DESC_LEN;
   localparam [ASB:0] DESC_START3 = DESC_START2 + PRODUCT_STR_DESC_LEN;
 
-  localparam [ASB:0] DESC_END0 = DESC_CONFIG_START - 1;
+  localparam [ASB:0] DESC_END0 = DEVICE_DESC_LEN - 1;
   localparam [ASB:0] DESC_END1 = DESC_STRING_START - 1;
   localparam [ASB:0] DESC_END2 = DESC_START1 - 1;
   localparam [ASB:0] DESC_END3 = DESC_START2 - 1;
@@ -215,14 +199,40 @@ module ctl_pipe0 #(
   reg [7:0] descriptor[0:DESC_ROM_SIZE-1];
   reg desc_tlast[0:DESC_ROM_SIZE-1];
 
+  /*
   genvar ii;
   generate
 
-    for (ii = 0; ii < DESC_ROM_SIZE; ii++) begin : g_set_descriptor_rom
-      assign descriptor[ii] = ii < DESC_SIZE ? USB_DESC[ii*8+7:ii*8] : ii;
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
       assign desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
                               ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
                               ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
+    end
+
+  endgenerate
+
+  integer ii;
+  initial begin : g_init_rom
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      descriptor[ii] = USB_DESC >> (ii * 8) & 8'hff;
+      desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
+                       ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
+                       ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
+    end
+  end
+  */
+
+  genvar ii;
+  generate
+    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
+      initial begin : g_soggy
+
+        descriptor[ii] = USB_DESC[ii*8+7:ii*8];
+        desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
+                         ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
+                         ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
+      end
     end
 
   endgenerate
@@ -298,15 +308,6 @@ module ctl_pipe0 #(
     std_req <= req_type_i[6:0] == {2'b00, 5'b00000} && req_endpt_i == 4'h0;
     start_q <= start_i;
 
-    /*
-     clr_feat_q <= 1'b0;
-     set_feat_q <= 1'b0;
-
-     get_conf_q <= 1'b0;
-     get_face_q <= 1'b0;
-     */
-    // get_stat_q <= 1'b0;
-
     // Only be fussy on writes
     if (select_i && start_i && std_req) begin
       set_addr_q <= req_args_i == 8'h05;
@@ -333,6 +334,10 @@ module ctl_pipe0 #(
 
   // -- Read Address for Fetching Descriptors -- //
 
+  localparam [ASB:0] DESC_STATUS0_INDEX = DESC_STATUS_START;
+  localparam [ASB:0] DESC_STATUS1_INDEX = DESC_STATUS_START + 2;
+  localparam [ASB:0] DESC_STATUS2_INDEX = DESC_STATUS_START + 4;
+
   assign mem_next = mem_addr + 1;
 
   always @(posedge clock) begin
@@ -348,9 +353,9 @@ module ctl_pipe0 #(
         endcase
       end else if (req_args_i[7:0] == 8'd0) begin
         case (req_type_i[1:0])
-          2'd0: mem_addr <= DESC_STATUS_START;
-          2'd1: mem_addr <= DESC_STATUS_START + 2;
-          2'd2: mem_addr <= DESC_STATUS_START + 4;
+          2'd0: mem_addr <= DESC_STATUS0_INDEX;
+          2'd1: mem_addr <= DESC_STATUS1_INDEX;
+          2'd2: mem_addr <= DESC_STATUS2_INDEX;
           default: mem_addr <= 0;
         endcase
       end else begin
@@ -370,7 +375,7 @@ module ctl_pipe0 #(
 
       adr_q <= 7'd0;
       enm_q <= 1'b0;
-      cfg_q <= 8'd0;
+      cfg_q <= 3'd0;
       set_q <= 1'b0;
     end else begin
 
@@ -387,7 +392,7 @@ module ctl_pipe0 #(
 
       if (set_conf_q) begin
         set_q <= 1'b1;
-        cfg_q <= req_value_i[7:0];
+        cfg_q <= req_value_i[2:0];
       end
 
     end

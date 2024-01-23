@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Jan 21 01:23:42 2024
+[*] Tue Jan 23 05:00:43 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Jan 21 01:23:02 2024"
-[dumpfile_size] 725453
+[dumpfile_mtime] "Tue Jan 23 04:59:07 2024"
+[dumpfile_size] 742905
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 0
+[timestart] 1534200
 [size] 2560 1376
 [pos] -1 -1
-*-20.118729 2090000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.118729 1910000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
 [treeopen] U_USB_BRIDGE1.U_ENCODER1.U_SKID3.
@@ -198,6 +198,10 @@ U_USB_BRIDGE1.tok_rx_recv_w
 U_USB_BRIDGE1.sof_rx_recv_w
 U_USB_BRIDGE1.hsk_rx_recv_w
 U_USB_BRIDGE1.usb_rx_recv_w
+U_USB_BRIDGE1.U_TRANSACT1.tok_type_i[1:0]
+@22
+U_USB_BRIDGE1.U_TRANSACT1.usb_tuser_i[3:0]
+@28
 [color] 3
 U_USB_BRIDGE1.U_TRANSACT1.eop_rx_q
 U_USB_BRIDGE1.U_TRANSACT1.eop_tx_q
@@ -346,7 +350,7 @@ U_USB_BRIDGE1.ctl0_cycle_w
 -CtlPipe0
 @800200
 -Telemetry
-@c00201
+@c00200
 -Internal
 @28
 U_USB_BRIDGE1.U_TELEMETRY2.reset
@@ -408,8 +412,12 @@ U_USB_BRIDGE1.U_TELEMETRY2.a_tready_w
 U_USB_BRIDGE1.U_TELEMETRY2.a_tlast_w
 @22
 U_USB_BRIDGE1.U_TELEMETRY2.a_tdata_w[7:0]
-@1401201
+@1401200
 -Internal
+@28
+U_USB_BRIDGE1.U_TELEMETRY2.reset
+@29
+U_USB_BRIDGE1.U_TELEMETRY2.diff_w
 @28
 U_USB_BRIDGE1.blk_start_o
 U_USB_BRIDGE1.blk_cycle_o

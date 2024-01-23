@@ -4,6 +4,8 @@ module usb_core_tb;
   parameter [31:0] PHASE = "1000";
   localparam NEGATE_CLOCK = PHASE[31:24] == "1";
 
+  localparam PIPELINED = 1;
+
   initial begin
     $display("ULPI Reset module:");
     $display(" - Clock-negation: %1d", NEGATE_CLOCK);
@@ -288,6 +290,7 @@ module usb_core_tb;
   assign ulpi_data2 = ulpi_dir ? ulpi_data : 8'bz;
 
   ulpi_axis_bridge #(
+      .PIPELINED(PIPELINED),
       .EP1_CONTROL(0),
       .ENDPOINT1  (1),
       .EP2_CONTROL(0),

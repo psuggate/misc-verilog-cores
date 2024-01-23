@@ -40,7 +40,7 @@ module protocolon #(
     output configured_o,
     output has_telemetry_o,
     output [6:0] usb_addr_o,
-    output [7:0] usb_conf_o,
+    output [2:0] usb_conf_o,
     output usb_sof_o,
     output crc_err_o,
     output timeout_o,
@@ -364,10 +364,7 @@ module protocolon #(
 
       // Product info
       .VENDOR_ID (VENDOR_ID),
-      .PRODUCT_ID(PRODUCT_ID),
-
-      // Of course
-      .HIGH_SPEED(HIGH_SPEED)
+      .PRODUCT_ID(PRODUCT_ID)
   ) U_CFG_PIPE0 (
       .clock(clock),
       .reset(reset),
@@ -377,7 +374,7 @@ module protocolon #(
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o[7:0]),
+      .usb_conf_o  (usb_conf_o),
       .usb_enum_o  (usb_enum_w),
       .usb_addr_o  (usb_addr_w),
 

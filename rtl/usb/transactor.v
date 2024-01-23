@@ -736,7 +736,7 @@ module transactor #(
             xctrl <= hsk_type_i == HSK_ACK ? CTL_DATI_TOK : CTL_DONE;
           end else if (tok_recv_i || usb_recv_i || terr_q) begin  // Non-ACK
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
-            // xctrl <= CTL_DONE;
+            xctrl <= CTL_DONE;
           end
         end
 

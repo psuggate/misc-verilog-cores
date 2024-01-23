@@ -27,6 +27,8 @@ module usb_demo_top (
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
   parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago";
+  // parameter integer VENDOR_LENGTH = 3;
+  // parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "Uni";
 
   parameter [15:0] PRODUCT_ID = 16'h0003;
   parameter integer PRODUCT_LENGTH = 8;
@@ -36,6 +38,7 @@ module usb_demo_top (
   localparam FPGA_VENDOR = "gowin";
   localparam FPGA_FAMILY = "gw2a";
 
+  localparam PIPELINED = 1;
   localparam HIGH_SPEED = 1'b1;
   localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
 
@@ -102,6 +105,7 @@ module usb_demo_top (
   // Core Under New Tests
   ///
   ulpi_axis_bridge #(
+      .PIPELINED(PIPELINED),
       .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
@@ -359,6 +363,7 @@ module usb_demo_top (
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
   wire [3:0] usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
   wire [3:0] tok_endpt_w = U_ULPI_USB0.tok_endp_w;
+  wire [1:0] LineState   = U_ULPI_USB0.LineState;
 
   wire usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   wire usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
@@ -372,6 +377,7 @@ module usb_demo_top (
       .clock(clock),
       .reset(1'b0), // reset),
 
+      .LineState(LineState),
       .usb_enum_i(1'b1),
       .usb_reset_i(usb_reset),
       .usb_sof_i(usb_sof_w),

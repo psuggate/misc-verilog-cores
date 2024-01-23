@@ -1,5 +1,7 @@
 `timescale 1ns / 100ps
 module ulpi_axis_bridge #(
+    parameter PIPELINED = 1,
+
     parameter EP1_BULK_IN  = 1,
     parameter EP1_BULK_OUT = 1,
     parameter EP1_CONTROL  = 0,
@@ -39,7 +41,7 @@ module ulpi_axis_bridge #(
 
     output configured_o,
     output has_telemetry_o,
-    output [7:0] usb_conf_o,
+    output [2:0] usb_conf_o,
     output usb_sof_o,
     output crc_err_o,
     output crc_vld_o,
@@ -79,13 +81,13 @@ module ulpi_axis_bridge #(
 
   localparam HIGH_SPEED = 1;
 
-  localparam CONFIG_DESC_LEN = 9;
-  localparam INTERFACE_DESC_LEN = 9;
-  localparam EP1_IN_DESC_LEN = 7;
-  localparam EP1_OUT_DESC_LEN = 7;
-  localparam EP2_IN_DESC_LEN = 7;
+  localparam integer CONFIG_DESC_LEN = 9;
+  localparam integer INTERFACE_DESC_LEN = 9;
+  localparam integer EP1_IN_DESC_LEN = 7;
+  localparam integer EP1_OUT_DESC_LEN = 7;
+  localparam integer EP2_IN_DESC_LEN = 7;
 
-  localparam CONFIG_DESC = {
+  localparam [71:0] CONFIG_DESC = {
     8'h32,  // bMaxPower = 100 mA
     8'hC0,  // bmAttributes = Self-powered
     8'h00,  // iConfiguration
@@ -96,7 +98,7 @@ module ulpi_axis_bridge #(
     8'h09  // bLength = 9
   };
 
-  localparam INTERFACE_DESC = {
+  localparam [71:0] INTERFACE_DESC = {
     8'h00,  // iInterface
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
@@ -108,7 +110,7 @@ module ulpi_axis_bridge #(
     8'h09  // bLength = 9
   };
 
-  localparam EP1_IN_DESC = {
+  localparam [55:0] EP1_IN_DESC = {
     8'h00,  // bInterval
     16'h0200,  // wMaxPacketSize = 512 bytes
     8'h02,  // bmAttributes = Bulk
@@ -117,7 +119,7 @@ module ulpi_axis_bridge #(
     8'h07  // bLength = 7
   };
 
-  localparam EP1_OUT_DESC = {
+  localparam [55:0] EP1_OUT_DESC = {
     8'h00,  // bInterval
     16'h0200,  // wMaxPacketSize = 512 bytes
     8'h02,  // bmAttributes = Bulk
@@ -126,7 +128,7 @@ module ulpi_axis_bridge #(
     8'h07  // bLength = 7
   };
 
-  localparam EP2_IN_DESC = {
+  localparam [55:0] EP2_IN_DESC = {
     8'h00,  // bInterval
     16'h0200,  // wMaxPacketSize = 512 bytes
     8'h02,  // bmAttributes = Bulk
@@ -417,7 +419,7 @@ module ulpi_axis_bridge #(
   // -- FSM for USB packets, handshakes, etc. -- //
 
   transactor #(
-      .PIPELINED(1)
+      .PIPELINED(PIPELINED)
   ) U_TRANSACT1 (
       .clock(clock),
       .reset(~rst_nq),
@@ -519,7 +521,7 @@ module ulpi_axis_bridge #(
 
   axis_skid #(
       .WIDTH (9),
-      .BYPASS(1)
+      .BYPASS(PIPELINED == 0)
   ) U_AXIS_SKID2 (
       .clock(clock),
       .reset(reset),
@@ -553,10 +555,7 @@ module ulpi_axis_bridge #(
 
       // Product info
       .VENDOR_ID (VENDOR_ID),
-      .PRODUCT_ID(PRODUCT_ID),
-
-      // Of course
-      .HIGH_SPEED(HIGH_SPEED)
+      .PRODUCT_ID(PRODUCT_ID)
   ) U_CFG_PIPE0 (
       .clock(clock),
       .reset(reset),
@@ -566,7 +565,7 @@ module ulpi_axis_bridge #(
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o[7:0]),
+      .usb_conf_o  (usb_conf_o),
       .usb_enum_o  (usb_enum_w),
       .usb_addr_o  (usb_addr_w),
 
@@ -607,6 +606,7 @@ module ulpi_axis_bridge #(
       .usb_enum_i(1'b1),
 `endif
 
+      .LineState(LineState),
       .usb_sof_i(sof_rx_recv_w),
       .usb_reset_i(usb_reset_w),
       .usb_tuser_i(ulpi_rx_tuser_w),

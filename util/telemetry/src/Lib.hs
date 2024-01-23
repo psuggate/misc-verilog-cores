@@ -20,6 +20,7 @@ module Lib
   , blkState
   , ctlState
   , phyState
+  , usbLS
 
   , dump
   , toNibble
@@ -28,7 +29,7 @@ module Lib
 where
 
 import           Control.Lens           (makeLenses, (%~), (.~), (^.))
-import           Data.Bits              ((.&.))
+import           Data.Bits              (shiftR, (.&.))
 import qualified Data.Text.Lazy         as T
 import qualified Data.Text.Lazy.Builder as B
 import           Data.Vector.Unboxed    (Vector, (!))
@@ -84,16 +85,17 @@ data PhyState
   | PhyHSStart
   | PhyIdle
   | PhySuspend
+  | PhyResume
   | PhyReset
   deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
 
 data UsbToken
-  = Reserved
-  | UsbOUT
-  | UsbACK
-  | UsbDATA0
-  | UsbPING
-  | UsbSOF
+  = Reserved -- 0b0000
+  | UsbOUT -- 0b0001
+  | UsbACK -- 0b0010
+  | UsbDATA0 -- 0b0011
+  | UsbPING -- 0b0100
+  | UsbSOF -- 0b0101
   | UsbNYET
   | UsbDATA2
   | UsbSPLIT
@@ -101,7 +103,7 @@ data UsbToken
   | UsbNAK
   | UsbDATA1
   | UsbERR
-  | UsbSETUP
+  | UsbSETUP -- 0b1101
   | UsbSTALL
   | UsbMDATA
   deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
@@ -117,6 +119,9 @@ data Transact
   | TrnTimeout
   deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
 
+data LineState = LS0 | LSJ | LSK | LS1
+  deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
+
 data Entry = Entry { _usbReset :: !Bool
                    , _usbEndpt :: !Word8
                    , _usbToken :: !UsbToken
@@ -127,6 +132,7 @@ data Entry = Entry { _usbReset :: !Bool
                    , _blkState :: !BulkState
                    , _ctlState :: !CtrlState
                    , _phyState :: !PhyState
+                   , _usbLS    :: !LineState
                    } deriving (Eq, Generic, Show)
 
 makeLenses ''Entry
@@ -163,17 +169,17 @@ toNib8  = inline toNibble
 toNibble :: Integral i => Char -> i
 toNibble c
   | c >= '0' && c <= '9' = fromIntegral $ ord c - ord '0'
-  | c >= 'A' && c <= 'F' = fromIntegral $ ord c - ord 'A'
-  | c >= 'a' && c <= 'f' = fromIntegral $ ord c - ord 'A'
+  | c >= 'A' && c <= 'F' = fromIntegral $ ord c - ord 'A' + 10
+  | c >= 'a' && c <= 'f' = fromIntegral $ ord c - ord 'A' + 10
   | otherwise = error . fromString $ printf "Can not nibblise: %c\n" c
 
 
 -- * Parser
 ------------------------------------------------------------------------------
 decodeTelemetry :: Vector Char -> Entry
-decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy
+decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy uls
   where
-    rst = toNib8 (ts!4) /= 0
+    rst = toNib8 (ts!4) .&. 1 /= 0
     ept = toNib8 (ts!5)
     tok = toEnum $ toNibble (ts!6)
     usb = toEnum $ toNibble (ts!7)
@@ -183,6 +189,7 @@ decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy
     blk = toEnum $ toNibble (ts!1) .&. 7
     ctl = toEnum $ toNibble (ts!2)
     phy = toEnum $ toNibble (ts!3)
+    uls = toEnum . flip shiftR 1 $ toNibble (ts!4) .&. 6
 
 parseTelemetry :: FilePath -> IO [Entry]
 parseTelemetry fp = do
@@ -196,7 +203,7 @@ dump []     = pure ()
 dump (x:xs) = putStrLn (entry 0 x) >> step 1 x xs
 
 entry :: Int -> Entry -> String
-entry i q@(Entry _ _ _ _ e _ _ _ _ _) = printf "%04d => %s" i str'
+entry i q@(Entry _ _ _ _ e _ _ _ _ _ _) = printf "%04d => %s" i str'
   where
     rst' = reset (q & usbReset .~ True) q
     usb' = xusb  (q & usbState .~ UsbDump) q
@@ -206,18 +213,17 @@ entry i q@(Entry _ _ _ _ e _ _ _ _ _) = printf "%04d => %s" i str'
     sof' = xsof  (q & usbSof   .~ False) q
     fun' = endpt (q & usbEndpt %~ succ) q
     phy' = xphy  (q & phyState %~ succ) q
-    str' = B.toLazyText $ mconcat [rst', usb', trn', fun', ctl', crc', sof', phy']
+    str' = B.toLazyText $ mconcat [usb', trn', fun', ctl', crc', sof', rst', phy']
 
 step :: Int -> Entry -> [Entry] -> IO ()
 step _ _    []  = pure ()
 step i _   [y]  = putStrLn (entry i y)
 step i x (y:ys) = putStrLn s >> step (i+1) y ys
   where
-    fs = [reset, xusb, usbrx, endpt, xctl, xcrc, xsof, xphy]
+    fs = [xusb, usbrx, endpt, xctl, xcrc, xsof, reset, xphy]
     ts = B.toLazyText . mconcat $ (\f -> f x y) <$> fs
     s  | y^.phyState == PhyPowerOn = entry i y
        | otherwise                 = printf "%04d => %s" i ts
-    -- s  = if y^.phyState == PhyPowerOn then entry i y else printf "%04d => %s" i ts
 
 
 -- ** Builders
@@ -229,9 +235,10 @@ reset x y
   | otherwise   = B.fromText "      "
 
 xphy :: Entry -> Entry -> B.Builder
-xphy x y = B.fromLazyText pre' <> B.fromLazyText phy'
+xphy x y = B.fromLazyText pre' <> uls' <> B.singleton ':' <> B.fromLazyText phy'
   where
-    pre' = if x^.phyState /= y^.phyState then "PHY: " else "     "
+    pre' = if x^.phyState /= y^.phyState then " PHY:" else "     "
+    uls' = B.fromLazyText . T.drop 2 . show $ y^.usbLS
     phy' = T.take 8 $ T.drop 3 (show (y^.phyState)) <> "       "
 
 xusb :: Entry -> Entry -> B.Builder
@@ -244,7 +251,7 @@ xctl :: Entry -> Entry -> B.Builder
 xctl x y = B.fromText pre' <> B.fromLazyText ctl'
   where
     ctl' = T.take 11 $ T.drop 4 (show (y^.ctlState)) <> "          "
-    pre' = if x^.ctlState /= y^.ctlState then "CTL: " else "     "
+    pre' = if x^.ctlState /= y^.ctlState then " CTL:" else "     "
 
 xsof :: Entry -> Entry -> B.Builder
 xsof x y
@@ -276,6 +283,7 @@ usbrx x y = B.fromText tok <> B.fromLazyText trn <> B.singleton ' '
       | x^.transact == ytt = "       "
       | otherwise          = T.drop 3 . show $ y^.transact
     yut = y^.usbToken
+    -- tok = case yut of
     tok
       | x^.usbToken /= yut = case yut of
           Reserved -> "---   "
