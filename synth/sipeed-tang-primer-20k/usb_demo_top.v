@@ -411,7 +411,7 @@ module usb_demo_top (
   );
 
   hex_dump #(
-      .UNICODE(1),
+      .UNICODE(0),
       .BLOCK_SRAM(1)
   ) U_HEXDUMP1 (
       .clock(clock),

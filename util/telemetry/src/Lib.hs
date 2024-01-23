@@ -27,13 +27,13 @@ module Lib
   )
 where
 
-import           Control.Lens        (makeLenses, (^.))
-import           Data.Bits           ((.&.))
-import           Data.Char           (toUpper)
-import qualified Data.List           as L
-import qualified Data.Text.Lazy      as T
-import           Data.Vector.Unboxed (Vector, (!))
-import qualified Data.Vector.Unboxed as Vec
+import           Control.Lens           (makeLenses, (%~), (.~), (^.))
+import           Data.Bits              ((.&.))
+import qualified Data.Text.Lazy         as T
+import qualified Data.Text.Lazy.Builder as B
+import           Data.Vector.Unboxed    (Vector, (!))
+import qualified Data.Vector.Unboxed    as Vec
+import           GHC.Exts               (inline)
 import           Relude
 import           Text.Printf
 
@@ -157,6 +157,9 @@ instance Enum UsbState where
 toTokens :: Text -> Vector Char
 toTokens  = Vec.fromList . filter (\x -> x /= '-') . toString
 
+toNib8 :: Char -> Word8
+toNib8  = inline toNibble
+
 toNibble :: Integral i => Char -> i
 toNibble c
   | c >= '0' && c <= '9' = fromIntegral $ ord c - ord '0'
@@ -170,13 +173,13 @@ toNibble c
 decodeTelemetry :: Vector Char -> Entry
 decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy
   where
-    rst = toNibble (ts!4) /= 0
-    ept = toNibble (ts!5)
+    rst = toNib8 (ts!4) /= 0
+    ept = toNib8 (ts!5)
     tok = toEnum $ toNibble (ts!6)
     usb = toEnum $ toNibble (ts!7)
-    crc = toNibble (ts!0) >= 8
+    crc = toNib8 (ts!0) >= 8
     trn = toEnum $ toNibble (ts!0) .&. 7
-    sof = toNibble (ts!1) >= 8
+    sof = toNib8 (ts!1) >= 8
     blk = toEnum $ toNibble (ts!1) .&. 7
     ctl = toEnum $ toNibble (ts!2)
     phy = toEnum $ toNibble (ts!3)
@@ -193,91 +196,102 @@ dump []     = pure ()
 dump (x:xs) = putStrLn (entry 0 x) >> step 1 x xs
 
 entry :: Int -> Entry -> String
-entry i (Entry r f t u e x s b c p) = printf "%04d => %sPHY: %s" i rst' phy'
+entry i q@(Entry _ _ _ _ e _ _ _ _ _) = printf "%04d => %s" i str'
   where
-    rst' = if r then "[RST] " else replicate 6 ' '
-    phy' = T.drop 3 $ show p
-
-reset :: Entry -> Entry -> String
-reset x y
-  | y^.usbReset = "[RST] "
-  | x^.usbReset = " ---  "
-  | otherwise   = replicate 6 ' '
-
-xphy :: Entry -> Entry -> String
-xphy x y
-  | x^.phyState /= y^.phyState = printf "PHY: %s" phy'
-  | otherwise = printf "     %s" phy'
-  where
-    phy' = pad 8 . L.drop 3 . show $ y^.phyState
-
-xusb :: Entry -> Entry -> String
-xusb x y
-  | x^.usbState == y^.usbState = replicate 5 ' '
-  | otherwise = printf "%s " . map toUpper . L.drop 3 . show $ y^.usbState
-
-xctl :: Entry -> Entry -> String
-xctl x y
-  | x^.ctlState /= y^.ctlState = printf "CTL: %s " ctl'
-  | otherwise = printf "     %s " ctl'
-  where
-    ctl' = pad 10 . L.drop 4 . show $ y^.ctlState
-
-xsof :: Entry -> Entry -> String
-xsof x y
-  | x^.usbSof /= y^.usbSof = "SoF "
-  | otherwise = replicate 4 ' '
-
-xcrc :: Entry -> Entry -> String
-xcrc x y
-  | y^.crcError = "CRC "
-  | x^.crcError = "--- "
-  | otherwise = replicate 4 ' '
-
-endpt :: Entry -> Entry -> String
-endpt x y
-  | x^.usbEndpt /= y^.usbEndpt = printf "EP: 0x%1x " (y^.usbEndpt)
-  | otherwise = replicate 7 ' '
-
-usbrx :: Entry -> Entry -> String
-usbrx x y
-  | y^.transact == TrnErrNone  = replicate 14 ' '
-  | x^.usbToken /= y^.usbToken
-  , x^.transact /= y^.transact = tok ++ trn
-  | x^.transact /= y^.transact = replicate 6 ' ' ++ trn
-  | x^.usbToken /= y^.usbToken = tok ++ replicate 8 ' '
-  | otherwise = replicate 14 ' '
-  where
-    trn = printf "%s " . T.drop 3 . show $ y^.transact
-    tok = case y^.usbToken of
-      Reserved -> "---   "
-      UsbOUT   -> "OUT   "
-      UsbACK   -> "ACK   "
-      UsbDATA0 -> "DATA0 "
-      UsbPING  -> "PING  "
-      UsbSOF   -> "SOF   "
-      UsbNYET  -> "NYET  "
-      UsbDATA2 -> "DATA2 "
-      UsbSPLIT -> "SPLIT "
-      UsbIN    -> "IN    "
-      UsbNAK   -> "NAK   "
-      UsbDATA1 -> "DATA1 "
-      UsbERR   -> "ERR   "
-      UsbSETUP -> "SETUP "
-      UsbSTALL -> "STALL "
-      UsbMDATA -> "MDATA "
-
-pad :: Int -> String -> String
-pad n xs
-  | m < n = xs ++ replicate (n - m) ' '
-  | otherwise = xs
-  where
-    m = length xs
+    rst' = reset (q & usbReset .~ True) q
+    usb' = xusb  (q & usbState .~ UsbDump) q
+    trn' = usbrx (q & transact .~ TrnErrBlkI & usbToken .~ Reserved) q
+    ctl' = xctl  (q & ctlState .~ CtrlDone) q
+    crc' = xcrc  (q & crcError .~ not e) q
+    sof' = xsof  (q & usbSof   .~ False) q
+    fun' = endpt (q & usbEndpt %~ succ) q
+    phy' = xphy  (q & phyState %~ succ) q
+    str' = B.toLazyText $ mconcat [rst', usb', trn', fun', ctl', crc', sof', phy']
 
 step :: Int -> Entry -> [Entry] -> IO ()
-step i x    []  = putStrLn (entry i x)
+step _ _    []  = pure ()
+step i _   [y]  = putStrLn (entry i y)
 step i x (y:ys) = putStrLn s >> step (i+1) y ys
   where
-    fs = [reset, xphy, xusb, xctl, xcrc, xsof, usbrx, endpt]
-    ts = concatMap (\f -> f x y) fs
-    s  = printf "%04d => %s" i ts
+    fs = [reset, xusb, usbrx, endpt, xctl, xcrc, xsof, xphy]
+    ts = B.toLazyText . mconcat $ (\f -> f x y) <$> fs
+    s  | y^.phyState == PhyPowerOn = entry i y
+       | otherwise                 = printf "%04d => %s" i ts
+    -- s  = if y^.phyState == PhyPowerOn then entry i y else printf "%04d => %s" i ts
+
+
+-- ** Builders
+------------------------------------------------------------------------------
+reset :: Entry -> Entry -> B.Builder
+reset x y
+  | y^.usbReset = B.fromText "[RST] "
+  | x^.usbReset = B.fromText " ---  "
+  | otherwise   = B.fromText "      "
+
+xphy :: Entry -> Entry -> B.Builder
+xphy x y = B.fromLazyText pre' <> B.fromLazyText phy'
+  where
+    pre' = if x^.phyState /= y^.phyState then "PHY: " else "     "
+    phy' = T.take 8 $ T.drop 3 (show (y^.phyState)) <> "       "
+
+xusb :: Entry -> Entry -> B.Builder
+xusb x y = B.fromLazyText yus <> B.singleton ' '
+  where
+    yuc = T.toUpper . T.drop 3 . show $ y^.usbState
+    yus = if x^.usbState == y^.usbState then "    " else yuc
+
+xctl :: Entry -> Entry -> B.Builder
+xctl x y = B.fromText pre' <> B.fromLazyText ctl'
+  where
+    ctl' = T.take 11 $ T.drop 4 (show (y^.ctlState)) <> "          "
+    pre' = if x^.ctlState /= y^.ctlState then "CTL: " else "     "
+
+xsof :: Entry -> Entry -> B.Builder
+xsof x y
+  | x^.usbSof /= y^.usbSof = B.fromText "SoF "
+  | otherwise              = B.fromText "    "
+
+xcrc :: Entry -> Entry -> B.Builder
+xcrc x y
+  | y^.crcError = B.fromText "CRC "
+  | x^.crcError = B.fromText "--- "
+  | otherwise   = B.fromText "    "
+
+endpt :: Entry -> Entry -> B.Builder
+endpt x y
+  | y^.transact == TrnErrNone
+  , x^.usbToken == y^.usbToken
+  , x^.usbEndpt == yue = B.fromText "    "
+  | otherwise = B.fromText "EP" <> yuc <> B.singleton ' '
+  where
+    yue = y^.usbEndpt
+    yuc = B.singleton . chr . fromIntegral . (yue +) $ if yue > 9 then 55 else 48
+
+usbrx :: Entry -> Entry -> B.Builder
+usbrx x y = B.fromText tok <> B.fromLazyText trn <> B.singleton ' '
+  where
+    ytt = y^.transact
+    trn
+      | ytt == TrnErrNone  = "       "
+      | x^.transact == ytt = "       "
+      | otherwise          = T.drop 3 . show $ y^.transact
+    yut = y^.usbToken
+    tok
+      | x^.usbToken /= yut = case yut of
+          Reserved -> "---   "
+          UsbOUT   -> "OUT   "
+          UsbACK   -> "ACK   "
+          UsbDATA0 -> "DATA0 "
+          UsbPING  -> "PING  "
+          UsbSOF   -> "SOF   "
+          UsbNYET  -> "NYET  "
+          UsbDATA2 -> "DATA2 "
+          UsbSPLIT -> "SPLIT "
+          UsbIN    -> "IN    "
+          UsbNAK   -> "NAK   "
+          UsbDATA1 -> "DATA1 "
+          UsbERR   -> "ERR   "
+          UsbSETUP -> "SETUP "
+          UsbSTALL -> "STALL "
+          UsbMDATA -> "MDATA "
+      | otherwise = "      "
