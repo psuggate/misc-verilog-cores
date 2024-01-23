@@ -4,18 +4,13 @@ github:              "psuggate/telemetry"
 license:             BSD-3-Clause
 author:              "Patrick Suggate"
 maintainer:          "patrick.suggate@gmail.com"
-copyright:           "2022 Patrick Suggate"
+copyright:           "2024 Patrick Suggate"
 
 extra-source-files:
 - README.md
 
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
+synopsis:            Telemetry parser and decoder for a USB core
+category:            Data
 description:         Please see the README on GitHub at <https://github.com/psuggate/telemetry#readme>
 
 default-extensions:
@@ -28,7 +23,6 @@ dependencies:
 - base >= 4.7 && < 5
 - lens
 - relude
-# - streamly >= 0.10 && < 0.11
 - text
 - vector
 

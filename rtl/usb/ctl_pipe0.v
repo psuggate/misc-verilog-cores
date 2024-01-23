@@ -152,8 +152,6 @@ module ctl_pipe0 #(
   localparam [DSB:0] USB_DESC = DESC_HAS_STRINGS == 1 ? {{16'h0, 16'h0, 16'h1}, SERIAL_STR_DESC, PRODUCT_STR_DESC, MANUFACTURER_STR_DESC, STR_DESC, CONFIG_DESC, DEVICE_DESC} : {{16'h0, 16'h0, 16'h1}, CONFIG_DESC, DEVICE_DESC};
 
   // Descriptor ROM parameters //
-  // localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE + 1);
-  // localparam integer ABITS = $clog2(DESC_SIZE + 1);
   localparam integer DESC_ROM_SIZE = 1 << $clog2(DESC_SIZE);
   localparam integer ABITS = $clog2(DESC_SIZE);
   localparam integer ASB = ABITS - 1;
@@ -198,34 +196,6 @@ module ctl_pipe0 #(
 
   reg [7:0] descriptor[0:DESC_ROM_SIZE-1];
   reg desc_tlast[0:DESC_ROM_SIZE-1];
-
-  /*
-  genvar ii;
-  generate
-
-    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
-      assign descriptor[ii] = USB_DESC[ii*8+7:ii*8];
-      assign desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
-                              ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
-                              ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
-    end
-
-  endgenerate
-
-  genvar ii;
-  generate
-    for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
-      initial begin : g_init_rom
-
-        descriptor[ii] = USB_DESC[ii*8+7:ii*8];
-        desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
-                         ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
-                         ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
-      end
-    end
-
-  endgenerate
-  */
 
   integer ii;
   initial begin : g_init_rom
@@ -363,8 +333,6 @@ module ctl_pipe0 #(
       end
     end else if (chop_ready_w && get_desc_q) begin
       mem_addr <= mem_next;
-    end else if (!select_i) begin
-      mem_addr <= 0;
     end
   end
 
@@ -417,7 +385,6 @@ module ctl_pipe0 #(
     end
     $display("Control PIPE0 config ROM size: %3d (bytes)", DESC_ROM_SIZE);
     $display("Control PIPE0 address bits:    %3d (bits)", ABITS);
-    // $display("LASTS:\n - %3d\n - %3d\n - %3d\n - %3d\n - %3d", DESC_END0, DESC_END1, DESC_END2, DESC_END3, DESC_END4);
   end
 
 `endif
