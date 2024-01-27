@@ -65,6 +65,7 @@ module ctl_pipe0 #(
     input  select_i,
     input  start_i,
     output error_o,
+    output done_o,
 
     output configured_o,
     output usb_enum_o,
@@ -183,6 +184,7 @@ module ctl_pipe0 #(
   reg [6:0] adr_q = 7'h00;
   reg [7:0] cfg_q = 8'h00;
   reg enm_q = 1'b0, set_q = 1'b0;
+  reg ctl_done_q;
 
 
   // -- Local Control-Transfer State and Signals -- //
@@ -195,22 +197,28 @@ module ctl_pipe0 #(
   // -- Descriptor ROM -- //
 
   reg [7:0] descriptor[0:DESC_ROM_SIZE-1];
-  reg desc_tlast[0:DESC_ROM_SIZE-1];
+  // reg desc_tlast[0:DESC_ROM_SIZE-1];
+  reg [DESC_ROM_SIZE-1:0] desc_tlast;
 
   integer ii;
   initial begin : g_init_rom
     for (ii = 0; ii < DESC_SIZE; ii++) begin : g_set_descriptor_rom
       descriptor[ii] = USB_DESC >> (ii * 8) & 8'hff;
-      desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
-                       ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
-                       ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
+      // desc_tlast[ii] = ii==DESC_END0 || ii==DESC_END1 || ii==DESC_END2 ||
+      //                  ii==DESC_END3 || ii==DESC_END4 || ii==DESC_END5 ||
+      //                  ii==DESC_END6 || ii==DESC_END7 || ii==DESC_END8 ;
     end
+    desc_tlast = (1<<DESC_END0) | (1<<DESC_END1) | (1<<DESC_END2) |
+                 (1<<DESC_END3) | (1<<DESC_END4) | (1<<DESC_END5) |
+                 (1<<DESC_END6) | (1<<DESC_END7) | (1<<DESC_END8);
   end
 
 
   // -- Signal Output Assignments -- //
 
   assign error_o = err_q;
+  // assign error_o = chop_valid_w && chop_ready_w && chop_last_w;
+  assign done_o  = ctl_done_q;
 
   assign usb_enum_o = enm_q;
   assign usb_addr_o = adr_q;
@@ -222,8 +230,13 @@ module ctl_pipe0 #(
   // Burst-Chopper for Descriptor Data
   ///
 
+  localparam MAXLEN = 64;
+  localparam MBITS = $clog2(MAXLEN + 1);
+  localparam MSB = MBITS - 1;
+  localparam MZERO = {MBITS{1'b0}};
+
   reg act_q;
-  reg [6:0] len_q;
+  reg [MSB:0] len_q;
   wire chop_valid_w, chop_ready_w, chop_stop_w, chop_last_w;
   wire [7:0] chop_data_w;
 
@@ -242,12 +255,15 @@ module ctl_pipe0 #(
       end
     end
 
-    len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
+    if (!select_i) begin
+      len_q <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
+    // len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
+    end
   end
 
   axis_chop #(
       .WIDTH (8),
-      .MAXLEN(64),
+      .MAXLEN(MAXLEN),
       .BYPASS(0)
   ) axis_skid_inst (
       .clock(clock),
@@ -342,6 +358,7 @@ module ctl_pipe0 #(
   always @(posedge clock) begin
     if (reset) begin
       get_desc_q <= 1'b0;
+      ctl_done_q <= 1'b0;
 
       adr_q <= 7'd0;
       enm_q <= 1'b0;
@@ -365,6 +382,11 @@ module ctl_pipe0 #(
         cfg_q <= req_value_i[2:0];
       end
 
+      if (select_i && (set_addr_q || set_conf_q || set_face_q)) begin
+        ctl_done_q <= 1'b1;
+      end else begin
+        ctl_done_q <= 1'b0;
+      end
     end
   end
 

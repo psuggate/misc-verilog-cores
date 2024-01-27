@@ -21,23 +21,21 @@ module usb_demo_top (
 
   // -- Constants -- //
 
-  parameter integer SERIAL_LENGTH = 8;
-  parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001";
-
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
-  parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "University of Otago";
-  // parameter integer VENDOR_LENGTH = 3;
-  // parameter [VENDOR_LENGTH*8-1:0] VENDOR_STRING = "Uni";
+  localparam integer VSB = VENDOR_LENGTH*8-1;
+  parameter [VSB:0] VENDOR_STRING = "University of Otago";
 
   parameter [15:0] PRODUCT_ID = 16'h0003;
   parameter integer PRODUCT_LENGTH = 8;
-  parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB";
+  localparam integer PSB = PRODUCT_LENGTH*8-1;
+  parameter [PSB:0] PRODUCT_STRING = "TART USB";
 
-  // USB configuration
-  localparam FPGA_VENDOR = "gowin";
-  localparam FPGA_FAMILY = "gw2a";
+  parameter integer SERIAL_LENGTH = 8;
+  localparam integer SSB = SERIAL_LENGTH*8-1;
+  parameter [SSB:0] SERIAL_STRING = "TART0001";
 
+  // USB-core configuration
   localparam PIPELINED = 1;
   localparam HIGH_SPEED = 1'b1;
   localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
@@ -365,6 +363,8 @@ module usb_demo_top (
   wire [3:0] tok_endpt_w = U_ULPI_USB0.tok_endp_w;
   wire [1:0] LineState   = U_ULPI_USB0.LineState;
 
+  wire ctl_cycle_w = U_ULPI_USB0.ctl0_cycle_w;
+  wire ctl_error_w = U_ULPI_USB0.ctl0_error_w;
   wire usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   wire usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
   wire tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
@@ -380,6 +380,8 @@ module usb_demo_top (
       .LineState(LineState),
       .usb_enum_i(1'b1),
       .usb_reset_i(usb_reset),
+      .ctl_cycle_i(ctl_cycle_w),
+      .ctl_error_i(ctl_error_w),
       .usb_sof_i(usb_sof_w),
       .usb_tuser_i(usb_tuser_w),
       .usb_endpt_i(tok_endpt_w),

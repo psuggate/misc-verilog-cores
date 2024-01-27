@@ -16,6 +16,7 @@ module transactor #(
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
     output ctl_cycle_o,
+    input ctl_done_i,
     input ctl_error_i,
     output [3:0] ctl_endpt_o,
     output [7:0] ctl_rtype_o,
@@ -371,6 +372,8 @@ module transactor #(
       if (xctrl == CTL_DATO_TOK && tok_recv_i && tok_type_i == TOK_IN) begin
         // Tx STATUS OUT (ZDP)
         trn_zero_q <= 1'b1;
+      end else if (trn_zero_q && mux_tready_w) begin
+        trn_zero_q <= 1'b0;
       end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
         trn_zero_q <= 1'b0;
       end else begin
@@ -401,23 +404,51 @@ module transactor #(
   assign mux_tkeep_w  = blk_sel_w ? blk_tkeep_i : ctl_sel_w ? ctl_tkeep_i : 1'b0;
   assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_sel_w ? ctl_tdata_i : 8'bx;
 
-  axis_skid #(
-      .WIDTH (9),
-      .BYPASS(PIPELINED == 0)
-  ) U_AXIS_SKID1 (
-      .clock(clock),
-      .reset(reset),
+  localparam USE_ULPI_TX_FIFO = 0;
 
-      .s_tvalid(mux_tvalid_w),
-      .s_tready(mux_tready_w),
-      .s_tlast (mux_tlast_w),
-      .s_tdata ({mux_tkeep_w, mux_tdata_w}),
+  generate
+    if (USE_ULPI_TX_FIFO) begin : g_ulpi_tx_fifo
+      sync_fifo #(
+          .WIDTH (10),
+          .ABITS (4),
+          .OUTREG(0)
+      ) U_TXFIFO1 (
+          .clock(clock),
+          .reset(reset),
 
-      .m_tvalid(usb_tvalid_o),
-      .m_tready(usb_tready_i),
-      .m_tlast (usb_tlast_o),
-      .m_tdata ({usb_tkeep_o, usb_tdata_o})
-  );
+          .level_o(),
+
+          .valid_i(mux_tvalid_w),
+          .ready_o(mux_tready_w),
+          .data_i ({mux_tkeep_w, mux_tlast_w, mux_tdata_w}),
+
+          .valid_o(usb_tvalid_o),
+          .ready_i(usb_tready_i),
+          .data_o ({usb_tkeep_o, usb_tlast_o, usb_tdata_o})
+      );
+
+    end else begin : g_ulpi_tx_skid
+
+      axis_skid #(
+          .WIDTH (9),
+          .BYPASS(PIPELINED == 0)
+      ) U_AXIS_SKID1 (
+          .clock(clock),
+          .reset(reset),
+
+          .s_tvalid(mux_tvalid_w),
+          .s_tready(mux_tready_w),
+          .s_tlast (mux_tlast_w),
+          .s_tdata ({mux_tkeep_w, mux_tdata_w}),
+
+          .m_tvalid(usb_tvalid_o),
+          .m_tready(usb_tready_i),
+          .m_tlast (usb_tlast_o),
+          .m_tdata ({usb_tkeep_o, usb_tdata_o})
+      );
+
+    end
+  endgenerate
 
 
   // -- Transaction FSM -- //
@@ -570,6 +601,10 @@ module transactor #(
 
   // -- Parser for Control Transfer Parameters -- //
 
+  wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_done_i;
+  wire ctl_get_done_w = ctl_rtype_q[7] & ctl_tvalid_i & ctl_tready_o & ctl_tlast_i;
+  wire ctl_done_w = ctl_cycle_q & (ctl_set_done_w | ctl_get_done_w);
+
   // Todo:
   //  - conditional expr. does not exclude enough scenarios !?
   //  - "parse" the request-type for PIPE0 ??
@@ -604,9 +639,10 @@ module transactor #(
       end
     end else begin
       ctl_start_q <= 1'b0;
-      if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
-        ctl_cycle_q <= 1'b0;
-      end
+      ctl_cycle_q <= ctl_done_w ? 1'b0 : ctl_cycle_q;
+      // if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
+      //   ctl_cycle_q <= 1'b0;
+      // end
     end
   end
 
@@ -652,17 +688,6 @@ module transactor #(
   //   for Bulk Transfers, during the "Data Stage," but the first data packet is
   //   always a 'DATA1' (if there is one), following by the usual toggling.
   //
-
-  reg setup_q;
-
-  always @(posedge clock) begin
-    if (reset || eop_tx_q) begin
-      setup_q <= 1'b0;
-    end else if (tok_recv_i && tok_type_i == TOK_SETUP) begin
-      setup_q <= 1'b1;
-    end
-  end
-
   always @(posedge clock) begin
     if (reset || state != ST_CTRL) begin
       // Just wait and Rx SETUP data
@@ -673,8 +698,7 @@ module transactor #(
         // Setup Stage
         ///
         default: begin  // CTL_SETUP_RX
-          if (setup_q && eop_rx_q) begin
-            // if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+          if (eop_rx_q) begin
             xctrl <= CTL_SETUP_ACK;
           end else begin
             xctrl <= CTL_SETUP_RX;
@@ -683,6 +707,7 @@ module transactor #(
 
         CTL_SETUP_ACK: begin
           if (hsk_sent_i) begin
+            // xctrl <= ctl_length_o == 0 || ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
             xctrl <= ctl_length_o == 0 ? CTL_DATO_TOK : 
                      ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
           end
@@ -798,15 +823,21 @@ module transactor #(
 
   // -- Turnaround Timer -- //
 
-  localparam [6:0] MAX_TURNAROUND = 7'd91;
+  // localparam TIMER = 91; // Value from the USB 2.0 spec.
+  localparam TIMER = 255;
+  localparam TBITS = $clog2(TIMER);
+  localparam TSB = TBITS - 1;
+  localparam TZERO = {TBITS{1'b0}};
+  localparam TUNIT = {{TSB{1'b0}}, 1'b1};
+  localparam [TSB:0] MAX_TURNAROUND = TIMER;
 
-  reg [6:0] tcount;
+  reg [TSB:0] tcount;
   reg actv_q, terr_q;
-  wire [7:0] tcnext;
+  wire [TBITS:0] tcnext;
 
   assign usb_timeout_error_o = terr_q;
 
-  assign tcnext = tcount - 7'd1;
+  assign tcnext = tcount - TUNIT;
 
   wire we_are_waiting;
   assign we_are_waiting = tok_recv_i && (tok_type_i == TOK_OUT || tok_type_i == TOK_SETUP) ||
@@ -816,7 +847,7 @@ module transactor #(
 
   always @(posedge clock) begin
     if (reset) begin
-      tcount <= 7'd0;
+      tcount <= TZERO;
       actv_q <= 1'b0;
       terr_q <= 1'b0;
     end else begin
@@ -827,8 +858,8 @@ module transactor #(
         actv_q <= 1'b0;
         terr_q <= 1'b0;
       end else if (actv_q) begin
-        tcount <= tcnext[6:0];
-        if (tcnext[7]) begin
+        tcount <= tcnext[TSB:0];
+        if (tcnext[TBITS]) begin
           actv_q <= 1'b0;
           terr_q <= 1'b1;
         end

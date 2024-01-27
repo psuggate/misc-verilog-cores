@@ -20,6 +20,7 @@ module Lib
   , blkState
   , ctlState
   , phyState
+  , ctlCycle
   , usbLS
 
   , dump
@@ -44,7 +45,7 @@ data UsbState
   | UsbCtrl
   | UsbBulk
   | UsbDump
-  deriving (Eq, Ord, Generic, Read, Show)
+  deriving (Eq, Ord, Generic, Read, Show, Bounded, Enum)
 
 data BulkState
   = BulkIdle
@@ -122,7 +123,7 @@ data Transact
 data LineState = LS0 | LSJ | LSK | LS1
   deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
 
-data Entry = Entry { _usbReset :: !Bool
+data Entry = Entry { _usbReset :: !Bool -- Reset to (downstream) USB cores
                    , _usbEndpt :: !Word8
                    , _usbToken :: !UsbToken
                    , _usbState :: !UsbState
@@ -132,6 +133,8 @@ data Entry = Entry { _usbReset :: !Bool
                    , _blkState :: !BulkState
                    , _ctlState :: !CtrlState
                    , _phyState :: !PhyState
+                   , _ctlCycle :: !Bool
+                   , _ctlError :: !Bool
                    , _usbLS    :: !LineState
                    } deriving (Eq, Generic, Show)
 
@@ -140,6 +143,7 @@ makeLenses ''Entry
 
 -- * Some Instances
 ------------------------------------------------------------------------------
+{-- }
 instance Bounded UsbState where
   minBound = UsbIdle
   maxBound = UsbDump
@@ -156,6 +160,7 @@ instance Enum UsbState where
     UsbCtrl -> 2
     UsbBulk -> 4
     UsbDump -> 8
+--}
 
 
 -- * Helpers
@@ -177,19 +182,21 @@ toNibble c
 -- * Parser
 ------------------------------------------------------------------------------
 decodeTelemetry :: Vector Char -> Entry
-decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy uls
+decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy cyc cer uls
   where
     rst = toNib8 (ts!4) .&. 1 /= 0
     ept = toNib8 (ts!5)
     tok = toEnum $ toNibble (ts!6)
-    usb = toEnum $ toNibble (ts!7)
+    usb = toEnum $ toNibble (ts!7) .&. 3
     crc = toNib8 (ts!0) >= 8
     trn = toEnum $ toNibble (ts!0) .&. 7
     sof = toNib8 (ts!1) >= 8
     blk = toEnum $ toNibble (ts!1) .&. 7
     ctl = toEnum $ toNibble (ts!2)
     phy = toEnum $ toNibble (ts!3)
-    uls = toEnum . flip shiftR 1 $ toNibble (ts!4) .&. 6
+    cyc = toNib8 (ts!4) .&. 2 /= 0
+    cer = toNib8 (ts!7) .&. 8 /= 0
+    uls = toEnum . flip shiftR 2 $ toNibble (ts!4) .&. 6
 
 parseTelemetry :: FilePath -> IO [Entry]
 parseTelemetry fp = do
@@ -203,17 +210,18 @@ dump []     = pure ()
 dump (x:xs) = putStrLn (entry 0 x) >> step 1 x xs
 
 entry :: Int -> Entry -> String
-entry i q@(Entry _ _ _ _ e _ _ _ _ _ _) = printf "%04d => %s" i str'
+entry i q = printf "%04d => %s" i str'
   where
     rst' = reset (q & usbReset .~ True) q
     usb' = xusb  (q & usbState .~ UsbDump) q
     trn' = usbrx (q & transact .~ TrnErrBlkI & usbToken .~ Reserved) q
     ctl' = xctl  (q & ctlState .~ CtrlDone) q
-    crc' = xcrc  (q & crcError .~ not e) q
+    crc' = xcrc  (q & crcError %~ not) q
     sof' = xsof  (q & usbSof   .~ False) q
     fun' = endpt (q & usbEndpt %~ succ) q
-    phy' = xphy  (q & phyState %~ succ) q
+    phy' = xphy  (q & phyState %~ yuck) q
     str' = B.toLazyText $ mconcat [usb', trn', fun', ctl', crc', sof', rst', phy']
+    yuck = toEnum . flip mod 13 . succ  . fromEnum
 
 step :: Int -> Entry -> [Entry] -> IO ()
 step _ _    []  = pure ()
@@ -248,10 +256,15 @@ xusb x y = B.fromLazyText yus <> B.singleton ' '
     yus = if x^.usbState == y^.usbState then "    " else yuc
 
 xctl :: Entry -> Entry -> B.Builder
-xctl x y = B.fromText pre' <> B.fromLazyText ctl'
+xctl x y = B.fromText pre' <> B.fromLazyText ctl' <> B.fromText cyc'
   where
     ctl' = T.take 11 $ T.drop 4 (show (y^.ctlState)) <> "          "
     pre' = if x^.ctlState /= y^.ctlState then " CTL:" else "     "
+    cyc' = case (y^.ctlError, y^.ctlCycle) of
+      (True , True ) -> "EC "
+      (True , False) -> "E  "
+      (False, True ) -> " C "
+      _              -> "   "
 
 xsof :: Entry -> Entry -> B.Builder
 xsof x y

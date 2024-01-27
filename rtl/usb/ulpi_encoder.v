@@ -163,7 +163,9 @@ module ulpi_encoder #(
 
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
-          xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) : xsend;
+          xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) :
+                   s_tvalid && s_tready && s_tlast ? TX_CRC0 : xsend;
+          // xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) : xsend;
         end
 
         TX_DATA: begin
@@ -259,7 +261,11 @@ module ulpi_encoder #(
           // Note: needs to be able to "resume," after being interrupted by the
           //   ULPI PHY (before the Link has sent the first 'PID' byte)
           svalid = hsk_send_i || !mvalid_w || mready_w && s_tvalid && s_tkeep;
+          //
+          // -- TODO !!
+          // sready = sready_w && mvalid_w;
           sready = sready_w && (!mvalid_w || mready_w);
+          //
           sdata  = mvalid_w && mready_w ? s_tdata : usb_pid_w;
           if (hsk_send_i) begin
             // Load the temp-reg. with the "stop" value, for USB handshake

@@ -222,7 +222,7 @@ module ulpi_axis_bridge #(
   wire usb_enum_w;
   wire [6:0] usb_addr_w;
 
-  wire ctl0_start_w, ctl0_cycle_w, ctl0_error_w;
+  wire ctl0_start_w, ctl0_cycle_w, ctl0_done_w, ctl0_error_w;
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
   wire [7:0] ctl0_tdata_w;
 
@@ -485,6 +485,7 @@ module ulpi_axis_bridge #(
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),
       .ctl_cycle_o(ctl0_cycle_w),
+      .ctl_done_i(ctl0_done_w),
       .ctl_error_i(ctl0_error_w),
 
       .ctl_endpt_o (ctl_endpt_w),
@@ -563,6 +564,7 @@ module ulpi_axis_bridge #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
+      .done_o  (ctl0_done_w),
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
@@ -608,6 +610,8 @@ module ulpi_axis_bridge #(
 `endif
 
       .LineState(LineState),
+      .ctl_cycle_i(ctl0_cycle_w),
+      .ctl_error_i(ctl0_error_w),
       .usb_sof_i(sof_rx_recv_w),
       .usb_reset_i(usb_reset_w),
       .usb_tuser_i(ulpi_rx_tuser_w),
