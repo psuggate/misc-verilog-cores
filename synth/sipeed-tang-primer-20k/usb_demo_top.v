@@ -23,16 +23,16 @@ module usb_demo_top (
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
-  localparam integer VSB = VENDOR_LENGTH*8-1;
+  localparam integer VSB = VENDOR_LENGTH * 8 - 1;
   parameter [VSB:0] VENDOR_STRING = "University of Otago";
 
   parameter [15:0] PRODUCT_ID = 16'h0003;
   parameter integer PRODUCT_LENGTH = 8;
-  localparam integer PSB = PRODUCT_LENGTH*8-1;
+  localparam integer PSB = PRODUCT_LENGTH * 8 - 1;
   parameter [PSB:0] PRODUCT_STRING = "TART USB";
 
   parameter integer SERIAL_LENGTH = 8;
-  localparam integer SSB = SERIAL_LENGTH*8-1;
+  localparam integer SSB = SERIAL_LENGTH * 8 - 1;
   parameter [SSB:0] SERIAL_STRING = "TART0001";
 
   // USB-core configuration
@@ -160,7 +160,7 @@ module usb_demo_top (
   // -- Loop-back FIFO for Testing -- //
 
   generate
-    if (1) begin : g_sync_fifo
+    if (0) begin : g_sync_fifo
 
       sync_fifo #(
           .WIDTH (9),
@@ -361,7 +361,7 @@ module usb_demo_top (
   wire [7:0] blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
   wire [3:0] usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
   wire [3:0] tok_endpt_w = U_ULPI_USB0.tok_endp_w;
-  wire [1:0] LineState   = U_ULPI_USB0.LineState;
+  wire [1:0] LineState = U_ULPI_USB0.LineState;
 
   wire ctl_cycle_w = U_ULPI_USB0.ctl0_cycle_w;
   wire ctl_error_w = U_ULPI_USB0.ctl0_error_w;
@@ -375,7 +375,7 @@ module usb_demo_top (
       .PACKET_SIZE(8)
   ) U_TELEMETRY1 (
       .clock(clock),
-      .reset(1'b0), // reset),
+      .reset(1'b0),   // reset),
 
       .LineState(LineState),
       .usb_enum_i(1'b1),

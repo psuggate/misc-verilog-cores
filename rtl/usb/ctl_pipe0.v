@@ -229,7 +229,6 @@ module ctl_pipe0 #(
   //
   // Burst-Chopper for Descriptor Data
   ///
-
   localparam MAXLEN = 64;
   localparam MBITS = $clog2(MAXLEN + 1);
   localparam MSB = MBITS - 1;

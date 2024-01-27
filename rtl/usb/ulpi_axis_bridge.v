@@ -141,9 +141,7 @@ module ulpi_axis_bridge #(
   localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
   localparam integer CSB = CONF_DESC_BITS - 1;
   // localparam [CSB:0] CONF_DESC_VALS = {
-  localparam CONF_DESC_VALS = {
-    EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC
-  };
+  localparam CONF_DESC_VALS = {EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
 
   // -- Global Signals and Assignments -- //
@@ -432,18 +430,15 @@ module ulpi_axis_bridge #(
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
       .tok_ping_i(tok_rx_ping_w),
-      .tok_type_i(ulpi_rx_tuser_w[3:2]),
       .tok_addr_i(tok_addr_w),
       .tok_endp_i(tok_endp_w),
 
       .hsk_recv_i(hsk_rx_recv_w),
-      .hsk_type_i(ulpi_rx_tuser_w[3:2]),
       .hsk_send_o(hsk_tx_send_w),
       .hsk_sent_i(hsk_tx_done_w),
 
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_recv_w),
-      .usb_type_i(ulpi_rx_tuser_w[3:2]),
       .usb_busy_i(usb_tx_busy_w),
       .usb_sent_i(usb_tx_done_w),
 
@@ -485,7 +480,7 @@ module ulpi_axis_bridge #(
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),
       .ctl_cycle_o(ctl0_cycle_w),
-      .ctl_done_i(ctl0_done_w),
+      .ctl_done_i (ctl0_done_w),
       .ctl_error_i(ctl0_error_w),
 
       .ctl_endpt_o (ctl_endpt_w),

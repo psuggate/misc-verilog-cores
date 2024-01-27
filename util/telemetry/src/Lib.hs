@@ -141,28 +141,6 @@ data Entry = Entry { _usbReset :: !Bool -- Reset to (downstream) USB cores
 makeLenses ''Entry
 
 
--- * Some Instances
-------------------------------------------------------------------------------
-{-- }
-instance Bounded UsbState where
-  minBound = UsbIdle
-  maxBound = UsbDump
-
-instance Enum UsbState where
-  toEnum = \case
-    1 -> UsbIdle
-    2 -> UsbCtrl
-    4 -> UsbBulk
-    8 -> UsbDump
-    i -> error . fromString $ printf "Invalid 'UsbState': %d" i
-  fromEnum = \case
-    UsbIdle -> 1
-    UsbCtrl -> 2
-    UsbBulk -> 4
-    UsbDump -> 8
---}
-
-
 -- * Helpers
 ------------------------------------------------------------------------------
 toTokens :: Text -> Vector Char
