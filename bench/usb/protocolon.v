@@ -1,5 +1,5 @@
 `timescale 1ns / 100ps
-module protocol #(
+module protocolon #(
     parameter [3:0] ENDPOINT1 = 1,
     parameter [3:0] ENDPOINT2 = 2,
     parameter CONFIG_DESC_LEN = 18,
@@ -40,7 +40,7 @@ module protocol #(
     output configured_o,
     output has_telemetry_o,
     output [6:0] usb_addr_o,
-    output [7:0] usb_conf_o,
+    output [2:0] usb_conf_o,
     output usb_sof_o,
     output crc_err_o,
     output timeout_o,
@@ -159,7 +159,7 @@ module protocol #(
 
   // -- Encode/decode USB packets, over the AXI4 streams -- //
 
-  encode_packet #(
+  encodenator #(
       .TOKEN(0)
   ) U_ENCODER0 (
       .reset(reset),
@@ -190,7 +190,7 @@ module protocol #(
       .trn_tdata_i (usb_tx_tdata_w)
   );
 
-  decode_packet U_DECODER0 (
+  decodenator U_DECODER0 (
       .reset(reset),
       .clock(clock),
 
@@ -233,7 +233,7 @@ module protocol #(
   wire [7:0] tel_tdata_w;
 
 
-  transactor #(
+  transient #(
       .PIPELINED(1)
   ) U_USB_TRN0 (
       .clock(clock),
@@ -364,10 +364,7 @@ module protocol #(
 
       // Product info
       .VENDOR_ID (VENDOR_ID),
-      .PRODUCT_ID(PRODUCT_ID),
-
-      // Of course
-      .HIGH_SPEED(HIGH_SPEED)
+      .PRODUCT_ID(PRODUCT_ID)
   ) U_CFG_PIPE0 (
       .clock(clock),
       .reset(reset),
@@ -377,7 +374,7 @@ module protocol #(
       .error_o (ctl0_error_w),
 
       .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o[7:0]),
+      .usb_conf_o  (usb_conf_o),
       .usb_enum_o  (usb_enum_w),
       .usb_addr_o  (usb_addr_w),
 
@@ -398,12 +395,13 @@ module protocol #(
 
   // -- USB Telemetry Control Endpoint -- //
 
-  wire [3:0] usb_state_w, ctl_state_w;
+  wire [3:0] phy_state_w, usb_state_w, ctl_state_w;
   wire [7:0] blk_state_w;
 
 
   assign has_telemetry_o = tele_level_w[9:2] != 0;
 
+  assign phy_state_w = 4'bx;
   assign usb_state_w = U_USB_TRN0.xfer_state_w;
   assign ctl_state_w = U_USB_TRN0.xctrl;
   assign blk_state_w = U_USB_TRN0.xbulk;
@@ -414,15 +412,13 @@ module protocol #(
       .ENDPOINT(ENDPOINT2)
   ) U_TELEMETRY2 (
       .clock(clock),
-`ifdef __icarus
       .reset(reset),
-      .usb_enum_i(usb_enum_w),
-`else
-      .reset(1'b0),
       .usb_enum_i(1'b1),
-`endif
 
       .crc_error_i(crc_err_w),
+      .timeout_i  (timeout_o),
+      .phy_state_i(phy_state_w),
+      .usb_error_i(3'dx),
       .usb_state_i(usb_state_w),
       .ctl_state_i(ctl_state_w),
       .blk_state_i(blk_state_w),
@@ -432,12 +428,6 @@ module protocol #(
       .endpt_i (blk_endpt_o),
       .error_o (),
       .level_o (tele_level_w),
-
-      // Unused
-      .s_tvalid(1'b0),
-      .s_tready(),
-      .s_tlast (1'b0),
-      .s_tdata (8'hx),
 
       // AXI4-Stream for telemetry data
       .m_tvalid(tel_tvalid_w),

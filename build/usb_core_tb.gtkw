@@ -1,29 +1,42 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Dec 10 08:30:08 2023
+[*] Sun Jan 28 02:57:48 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Dec 10 08:28:48 2023"
-[dumpfile_size] 396495
+[dumpfile_mtime] "Sun Jan 28 02:32:38 2024"
+[dumpfile_size] 743915
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 0
+[timestart] 9040300
 [size] 2560 1376
 [pos] -1 -1
-*-19.753487 8170000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] U_ULPI_USB0.
-[treeopen] U_ULPI_USB0.U_USB_CTRL0.
-[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.
-[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.
-[treeopen] U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.U_AXIS_SKID1.
+*-16.446142 9510000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] U_USB_BRIDGE1.
+[treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
+[treeopen] U_USB_BRIDGE1.U_DECODER1.
+[treeopen] U_USB_BRIDGE1.U_ENCODER1.U_SKID3.
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 190
+[signals_width] 158
 [sst_expanded] 1
-[sst_vpaned_height] 799
+[sst_vpaned_height] 903
 @28
 usb_core_tb.clock
 usb_core_tb.reset
+[color] 1
+usb_core_tb.U_FAKE_USB0.crc_err_o
+@800200
+-Moar
+@28
+[color] 3
+U_USB_BRIDGE1.crc_vld_o
+[color] 1
+U_USB_BRIDGE1.crc_err_o
+@820
+[color] 7
+usb_core_tb.U_FAKE_USB0.dbg_state[119:0]
+@420
+usb_core_tb.recv_data.count
 @c00200
 -Globals
 @28
@@ -34,36 +47,32 @@ usb_core_tb.usb_rst_n
 [color] 3
 usb_core_tb.U_FAKE_USB0.dev_configured_i
 usb_core_tb.enumerate
-U_ULPI_USB0.usb_sof_o
 @1401200
 -Globals
+@c00200
+-TB
 @28
-[color] 1
-usb_core_tb.U_FAKE_USB0.crc_err_o
-[color] 1
-U_ULPI_USB0.U_USB_CTRL0.crc_err_o
-@820
-[color] 7
-usb_core_tb.U_FAKE_USB0.dbg_state[119:0]
-@22
 [color] 2
-U_ULPI_USB0.U_USB_CTRL0.usb_addr_w[6:0]
-@28
-[color] 3
-U_ULPI_USB0.blk_cycle_o
-[color] 2
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.we_are_waiting
+usb_core_tb.svalid
+usb_core_tb.sready
+usb_core_tb.slast
+usb_core_tb.skeep
 @22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tcount[6:0]
+usb_core_tb.sdata[7:0]
 @28
-[color] 1
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.terr_q
-@420
-usb_core_tb.recv_data.count
-@28
-U_ULPI_USB0.ulpi_rst_nw
+usb_core_tb.mvalid
+usb_core_tb.mready
+usb_core_tb.mlast
+usb_core_tb.mkeep
+@22
+usb_core_tb.mdata[7:0]
+@1401200
+-TB
+@1000200
+-Moar
 @c00200
 -Host
+-Other
 @28
 usb_core_tb.enum_done
 usb_core_tb.configured
@@ -72,15 +81,53 @@ usb_core_tb.usb_rx_tready_w
 usb_core_tb.usb_rx_tlast_w
 @22
 usb_core_tb.usb_rx_tdata_w[7:0]
-usb_core_tb.flevel[10:0]
-@28
-rddata_fifo_inst.incr_w
-rddata_fifo_inst.decr_w
-rddata_fifo_inst.valid_o
-rddata_fifo_inst.ready_i
-@22
-rddata_fifo_inst.data_o[8:0]
+@1401200
+-Other
 @c00200
+-PHY
+@820
+[color] 7
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dbg_state[39:0]
+@800200
+-Internal
+@28
+[color] 3
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.pulse_2_5us
+[color] 2
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.hss_q
+[color] 7
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.run_q
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.ls_diff_q
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.ls_changed_w
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.curr_ls_q[1:0]
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.last_ls_q[1:0]
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.line_state_w[1:0]
+@22
+[color] 2
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.kj_count[3:0]
+@28
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.rx_start_w
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.tx_start_w
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dir_q
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.nxt_q
+@22
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dat_q[7:0]
+@28
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.pid_vld_w
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.non_pid_w
+[color] 3
+usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.reg_pid_w
+@c00200
+-Enc
+@28
+usb_core_tb.U_FAKE_USB0.ulpi_rx_tvalid_w
+usb_core_tb.U_FAKE_USB0.ulpi_rx_tready_w
+usb_core_tb.U_FAKE_USB0.ulpi_rx_tlast_w
+@22
+usb_core_tb.U_FAKE_USB0.ulpi_rx_tdata_w[7:0]
+@1401200
+-Enc
+@800200
 -Dec
 @28
 [color] 3
@@ -98,55 +145,7 @@ usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.rx_vld1
 @22
 [color] 2
 usb_core_tb.U_FAKE_USB0.U_RX_USB_PACKET0.crc16_q[15:0]
-@1401200
--Dec
 @800200
--PHY
-@820
-[color] 7
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dbg_state[39:0]
-@c00200
--Internal
-@22
-usb_core_tb.U_FAKE_USB0.state[3:0]
-@28
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.rx_start_w
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.tx_start_w
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dir_q
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.nxt_q
-@22
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.dat_q[7:0]
-@28
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.pid_vld_w
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.non_pid_w
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.reg_pid_w
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.tvalid
-@22
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.tdata[7:0]
-@28
-usb_core_tb.U_FAKE_USB0.tstart
-usb_core_tb.U_FAKE_USB0.tdone
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tdone_o
-usb_core_tb.U_FAKE_USB0.srecv
-usb_core_tb.U_FAKE_USB0.stype[1:0]
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tvalid_i
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tlast_i
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tready_o
-@22
-usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_i[7:0]
-@1401200
--Internal
-@c00200
--Enc
-@28
-usb_core_tb.U_FAKE_USB0.ulpi_rx_tvalid_w
-usb_core_tb.U_FAKE_USB0.ulpi_rx_tready_w
-usb_core_tb.U_FAKE_USB0.ulpi_rx_tlast_w
-@22
-usb_core_tb.U_FAKE_USB0.ulpi_rx_tdata_w[7:0]
-@1401200
--Enc
-@c00200
 -Dec
 @28
 usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tvalid_o
@@ -154,11 +153,12 @@ usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tready_i
 usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tlast_o
 @22
 usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_o[7:0]
-@1401200
--Dec
 @1000200
--PHY
+-Dec
+-Dec
+-Internal
 @1401200
+-PHY
 -Host
 @800200
 -ULPI
@@ -167,259 +167,349 @@ usb_core_tb.usb_clock
 usb_core_tb.ulpi_dir
 usb_core_tb.ulpi_nxt
 usb_core_tb.ulpi_stp
-@22
+@c00022
 usb_core_tb.ulpi_data[7:0]
+@28
+(0)usb_core_tb.ulpi_data[7:0]
+(1)usb_core_tb.ulpi_data[7:0]
+(2)usb_core_tb.ulpi_data[7:0]
+(3)usb_core_tb.ulpi_data[7:0]
+(4)usb_core_tb.ulpi_data[7:0]
+(5)usb_core_tb.ulpi_data[7:0]
+(6)usb_core_tb.ulpi_data[7:0]
+(7)usb_core_tb.ulpi_data[7:0]
+@1401200
+-group_end
 @1000200
 -ULPI
 @800200
 -Device
-@820
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_state[39:0]
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xctrl[119:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.xcptr[2:0]
-@820
-[color] 7
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.dbg_xbulk[119:0]
-@800200
--Trn
-@28
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_recv_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_recv_q
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_type_i[1:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_zero_w
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tvalid_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tready_o
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tlast_i
-U_ULPI_USB0.U_USB_CTRL0.usb_tvalid_o
-@800200
--Bulk
--OUT
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tvalid_o
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tready_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tlast_o
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tdata_o[7:0]
-@1000200
--OUT
-@800200
--IN
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_in_ready_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tvalid_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tready_o
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tlast_i
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.blk_tdata_i[7:0]
-@1000200
--IN
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tvalid_o
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tready_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tlast_o
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tdata_o[7:0]
-@1000200
--Bulk
-@c00200
--Mux
-@28
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.mux_tvalid_w
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.mux_tready_w
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.mux_tlast_w
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.mux_tdata_w[7:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tvalid_o
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tready_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tlast_o
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_tdata_o[7:0]
-@800200
--Skid
-@1000200
--Skid
-@1401200
--Mux
-@800200
--Hsk
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsend_q
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.htype_q[1:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_sent_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.hsk_recv_i
-@1000200
--Hsk
-@800200
--Dat
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_send_q
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_sent_i
-[color] 2
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.usb_busy_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_zero_q
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.trn_type_q[1:0]
-@1000200
--Dat
-@800200
--Tok
-@28
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_recv_i
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_type_i[1:0]
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_addr_i[6:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.tok_endp_i[3:0]
-@1000200
--Tok
--Trn
-@800200
--Tx
--Enc
-@22
-[color] 2
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.crc16_q[15:0]
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.crc16_nw[15:0]
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xsrc_q
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xdat_q
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.zero_q
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.xcrc_q
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tx_tready_i
+@800201
+-Transact
 @29
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tvalid
-@28
-U_ULPI_USB0.U_USB_CTRL0.usb_tx_tvalid_w
-U_ULPI_USB0.U_USB_CTRL0.usb_tx_tready_w
-U_ULPI_USB0.U_USB_CTRL0.usb_tx_tlast_w
-@22
-U_ULPI_USB0.U_USB_CTRL0.usb_tx_tdata_w[7:0]
-@800200
--Tx
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tvalid
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tlast
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tx_tready_i
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.tdata[7:0]
-@1000200
--Tx
-@c00200
--Rx
-@28
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tsend_i
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_ttype_i[1:0]
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tdone_o
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tvalid_i
-U_ULPI_USB0.U_USB_CTRL0.U_ENCODER0.trn_tlast_i
-@1401200
--Rx
-@1000200
--Enc
-@28
-U_ULPI_USB0.ulpi_tx_tvalid_w
-U_ULPI_USB0.ulpi_tx_tready_w
-U_ULPI_USB0.ulpi_tx_tlast_w
-@22
-U_ULPI_USB0.ulpi_tx_tdata_w[7:0]
-@1000200
--Tx
-@c00200
--Rx
-@800200
--Internal
-@28
 [color] 3
-U_ULPI_USB0.U_USB_ULPI0.dir_q
-[color] 7
-U_ULPI_USB0.U_USB_ULPI0.cyc_q
-@22
-U_ULPI_USB0.U_USB_ULPI0.dat_q[7:0]
-@1000200
--Internal
-@28
-U_ULPI_USB0.ulpi_rx_tvalid_w
-U_ULPI_USB0.ulpi_rx_tready_w
-U_ULPI_USB0.ulpi_rx_tlast_w
-@22
-U_ULPI_USB0.ulpi_rx_tdata_w[7:0]
-@1401200
--Rx
-@c00200
--Control
-@800200
--EP1
-@28
-U_ULPI_USB0.U_USB_CTRL0.has_telemetry_o
-@1000200
--EP1
-@c00200
--Mux
-@28
-U_ULPI_USB0.U_USB_CTRL0.mux_tready_w
-@1401200
--Mux
-@800200
--Internal
-@28
+U_USB_BRIDGE1.U_TRANSACT1.eop_rx_q
 [color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.select_i
-[color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.start_i
-[color] 1
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.error_o
+U_USB_BRIDGE1.U_TRANSACT1.eop_tx_q
 [color] 2
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tvalid_o
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tready_i
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tlast_o
-@22
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.m_tdata_o[7:0]
-@c00200
--Chop
-@28
+U_USB_BRIDGE1.U_TRANSACT1.we_are_waiting
+@25
 [color] 7
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.active_i
+U_USB_BRIDGE1.U_TRANSACT1.tcount[7:0]
+@29
+U_USB_BRIDGE1.tok_rx_recv_w
+U_USB_BRIDGE1.sof_rx_recv_w
+U_USB_BRIDGE1.hsk_rx_recv_w
+U_USB_BRIDGE1.usb_rx_recv_w
+@23
+U_USB_BRIDGE1.U_TRANSACT1.usb_tuser_i[3:0]
+@821
+[color] 7
+U_USB_BRIDGE1.U_TRANSACT1.dbg_state[39:0]
+[color] 7
+U_USB_BRIDGE1.U_TRANSACT1.dbg_xbulk[119:0]
+[color] 7
+U_USB_BRIDGE1.U_TRANSACT1.dbg_xctrl[119:0]
+@29
+[color] 2
+U_USB_BRIDGE1.U_TRANSACT1.odd0_w
+@800201
+-MUX
+@29
+U_USB_BRIDGE1.U_TRANSACT1.ctl_sel_w
+U_USB_BRIDGE1.U_TRANSACT1.blk_sel_w
+U_USB_BRIDGE1.U_TRANSACT1.trn_zero_q
+U_USB_BRIDGE1.U_TRANSACT1.mux_tvalid_w
+U_USB_BRIDGE1.U_TRANSACT1.mux_tready_w
+U_USB_BRIDGE1.U_TRANSACT1.mux_tlast_w
+U_USB_BRIDGE1.U_TRANSACT1.mux_tkeep_w
+@23
+U_USB_BRIDGE1.U_TRANSACT1.mux_tdata_w[7:0]
+@1000201
+-MUX
+-Transact
+@c00200
+-LineState
+@28
+U_USB_BRIDGE1.U_LINESTATE1.reset
+[color] 7
+U_USB_BRIDGE1.LineState[1:0]
+@820
+[color] 7
+U_USB_BRIDGE1.U_LINESTATE1.dbg_state[95:0]
+@28
+U_USB_BRIDGE1.U_ENCODER1.phy_write_i
+U_USB_BRIDGE1.U_ENCODER1.phy_nopid_i
+U_USB_BRIDGE1.U_ENCODER1.phy_stop_i
+U_USB_BRIDGE1.U_ENCODER1.phy_busy_o
+U_USB_BRIDGE1.U_ENCODER1.phy_done_o
+@c00200
+-Extra
+@22
+U_USB_BRIDGE1.U_ENCODER1.phy_addr_i[7:0]
+U_USB_BRIDGE1.U_ENCODER1.phy_data_i[7:0]
+@28
+U_USB_BRIDGE1.U_LINESTATE1.kj_count_q[2:0]
+U_USB_BRIDGE1.U_LINESTATE1.kj_valid_q
+U_USB_BRIDGE1.U_LINESTATE1.kj_ended_q
 [color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.frame_q
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_valid_w
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_ready_w
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_last_w
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.chop_stop_w
+U_USB_BRIDGE1.U_LINESTATE1.pulse_100us
+[color] 2
+U_USB_BRIDGE1.U_LINESTATE1.ls_pulse_1_0ms
+@1401200
+-Extra
+-LineState
+@c00200
+-Tx
+@28
+U_USB_BRIDGE1.ulpi_tx_tvalid_w
+U_USB_BRIDGE1.ulpi_tx_tready_w
+U_USB_BRIDGE1.ulpi_tx_tlast_w
+U_USB_BRIDGE1.ulpi_tx_tkeep_w
+@22
+U_USB_BRIDGE1.ulpi_tx_tuser_w[3:0]
+U_USB_BRIDGE1.ulpi_tx_tdata_w[7:0]
 @800200
--Internal
+-Enc
+@820
+[color] 7
+U_USB_BRIDGE1.U_ENCODER1.dbg_xsend[39:0]
+@28
+U_USB_BRIDGE1.hsk_tx_send_w
+U_USB_BRIDGE1.hsk_tx_done_w
+U_USB_BRIDGE1.usb_tx_done_w
+U_USB_BRIDGE1.U_ENCODER1.dir_q
+@22
+[color] 2
+U_USB_BRIDGE1.U_ENCODER1.crc16_q[15:0]
+U_USB_BRIDGE1.U_ENCODER1.crc16_nw[15:0]
+@800200
+-Source
 @28
 [color] 3
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.sready_next
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.sready
+U_USB_BRIDGE1.U_ENCODER1.svalid
+[color] 2
+U_USB_BRIDGE1.U_ENCODER1.sready_w
+U_USB_BRIDGE1.U_ENCODER1.slast
 @22
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.remain_w[6:0]
-U_ULPI_USB0.U_USB_CTRL0.U_CFG_PIPE0.axis_skid_inst.g_chop.remain_q[6:0]
+U_USB_BRIDGE1.U_ENCODER1.sdata[7:0]
 @1000200
--Internal
-@1401200
--Chop
-@1000200
--Internal
+-Source
+@28
+[color] 3
+U_USB_BRIDGE1.U_ENCODER1.tvalid
+[color] 2
+U_USB_BRIDGE1.U_ENCODER1.tready_w
+U_USB_BRIDGE1.U_ENCODER1.tlast
+@22
+U_USB_BRIDGE1.U_ENCODER1.tdata[7:0]
 @800200
--Transfer
+-Output
+@28
+U_USB_BRIDGE1.U_ENCODER1.mvalid_w
+U_USB_BRIDGE1.U_ENCODER1.mready_w
+U_USB_BRIDGE1.U_ENCODER1.mlast_w
 @22
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rtype_o[7:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_rargs_o[7:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_value_o[15:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_index_o[15:0]
-U_ULPI_USB0.U_USB_CTRL0.U_USB_TRN0.ctl_length_o[15:0]
+U_USB_BRIDGE1.U_ENCODER1.mdata_w[7:0]
 @1000200
--Transfer
+-Output
+-Enc
 @1401200
--Control
+-Tx
+@c00200
+-Rx
+@28
+U_USB_BRIDGE1.ulpi_rx_tvalid_w
+U_USB_BRIDGE1.ulpi_rx_tready_w
+U_USB_BRIDGE1.ulpi_rx_tlast_w
+U_USB_BRIDGE1.ulpi_rx_tkeep_w
+@22
+U_USB_BRIDGE1.ulpi_rx_tuser_w[3:0]
+U_USB_BRIDGE1.ulpi_rx_tdata_w[7:0]
+@800200
+-Dec
+@28
+U_USB_BRIDGE1.U_DECODER1.cyc_q
+U_USB_BRIDGE1.U_DECODER1.hsk_q
+U_USB_BRIDGE1.U_DECODER1.tok_q
+U_USB_BRIDGE1.U_DECODER1.sof_q
+U_USB_BRIDGE1.U_DECODER1.pid_q
+[color] 3
+U_USB_BRIDGE1.U_DECODER1.end_q
+U_USB_BRIDGE1.U_DECODER1.rx_end_w
+@22
+[color] 2
+U_USB_BRIDGE1.U_DECODER1.crc16_q[15:0]
+U_USB_BRIDGE1.U_DECODER1.crc16_w[15:0]
+U_USB_BRIDGE1.U_DECODER1.rx_crc5_w[4:0]
 @1000200
+-Dec
+@1401200
+-Rx
+@c00200
+-CtlPipe0
+@28
+[color] 1
+U_USB_BRIDGE1.ctl0_error_w
+[color] 3
+U_USB_BRIDGE1.ctl0_start_w
+U_USB_BRIDGE1.ctl0_cycle_w
+U_USB_BRIDGE1.ctl0_done_w
+@22
+[color] 7
+U_USB_BRIDGE1.U_CFG_PIPE0.req_type_i[7:0]
+U_USB_BRIDGE1.U_CFG_PIPE0.req_args_i[7:0]
+U_USB_BRIDGE1.U_CFG_PIPE0.req_value_i[15:0]
+U_USB_BRIDGE1.U_CFG_PIPE0.req_index_i[15:0]
+U_USB_BRIDGE1.U_CFG_PIPE0.req_length_i[15:0]
+@28
+[color] 3
+U_USB_BRIDGE1.U_CFG_PIPE0.chop_stop_w
+U_USB_BRIDGE1.U_CFG_PIPE0.chop_valid_w
+U_USB_BRIDGE1.U_CFG_PIPE0.chop_ready_w
+U_USB_BRIDGE1.U_CFG_PIPE0.chop_last_w
+@22
+U_USB_BRIDGE1.U_CFG_PIPE0.chop_data_w[7:0]
+@28
+U_USB_BRIDGE1.U_CFG_PIPE0.set_q
+U_USB_BRIDGE1.U_CFG_PIPE0.set_addr_q
+U_USB_BRIDGE1.U_CFG_PIPE0.set_conf_q
+U_USB_BRIDGE1.U_CFG_PIPE0.set_face_q
+@1401200
+-CtlPipe0
+@c00200
+-Telemetry
+-Internal
+@28
+U_USB_BRIDGE1.U_TELEMETRY2.reset
+[color] 3
+U_USB_BRIDGE1.U_TELEMETRY2.diff_w
+U_USB_BRIDGE1.U_TELEMETRY2.ready_w
+U_USB_BRIDGE1.U_TELEMETRY2.last_w
+@22
+U_USB_BRIDGE1.U_TELEMETRY2.usb_tuser_i[3:0]
+U_USB_BRIDGE1.U_TELEMETRY2.usb_endpt_i[3:0]
+U_USB_BRIDGE1.U_TELEMETRY2.usb_state_i[3:0]
+@c00022
+U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+@28
+(0)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(1)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(2)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(3)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(4)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(5)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(6)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(7)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(8)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(9)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(10)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(11)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(12)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(13)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(14)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(15)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(16)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(17)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(18)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(19)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(20)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(21)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(22)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(23)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(24)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(25)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(26)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(27)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(28)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(29)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(30)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(31)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+@1401200
+-group_end
+@22
+U_USB_BRIDGE1.U_TELEMETRY2.curr_w[31:0]
+@28
+[color] 2
+U_USB_BRIDGE1.U_TELEMETRY2.x_tvalid
+U_USB_BRIDGE1.U_TELEMETRY2.x_tready
+U_USB_BRIDGE1.U_TELEMETRY2.x_tlast
+U_USB_BRIDGE1.U_TELEMETRY2.a_tvalid_w
+U_USB_BRIDGE1.U_TELEMETRY2.a_tready_w
+U_USB_BRIDGE1.U_TELEMETRY2.a_tlast_w
+@22
+U_USB_BRIDGE1.U_TELEMETRY2.a_tdata_w[7:0]
+@1401200
+-Internal
+@28
+U_USB_BRIDGE1.U_TELEMETRY2.reset
+U_USB_BRIDGE1.U_TELEMETRY2.diff_w
+@22
+U_USB_BRIDGE1.U_TELEMETRY2.curr_w[31:0]
+@c00022
+U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+@28
+(0)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(1)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(2)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(3)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(4)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(5)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(6)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(7)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(8)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(9)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(10)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(11)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(12)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(13)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(14)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(15)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(16)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(17)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(18)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(19)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(20)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(21)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(22)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(23)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(24)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(25)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(26)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(27)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(28)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(29)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(30)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+(31)U_USB_BRIDGE1.U_TELEMETRY2.prev_w[31:0]
+@1401200
+-group_end
+@28
+U_USB_BRIDGE1.blk_start_o
+U_USB_BRIDGE1.blk_cycle_o
+@22
+U_USB_BRIDGE1.blk_endpt_o[3:0]
+@28
+[color] 3
+U_USB_BRIDGE1.tele_sel_q
+@22
+[color] 2
+U_USB_BRIDGE1.tele_level_w[9:0]
+@28
+U_USB_BRIDGE1.tel_tvalid_w
+U_USB_BRIDGE1.tel_tready_w
+U_USB_BRIDGE1.tel_tkeep_w
+U_USB_BRIDGE1.tel_tlast_w
+@22
+U_USB_BRIDGE1.tel_tdata_w[7:0]
+@1401200
+-Telemetry
+@800200
+-Old
+@28
+usb_core_tb.bulk_in_ready_q
+usb_core_tb.bulk_out_ready_q
+@1000200
+-Old
 -Device
 [pattern_trace] 1
 [pattern_trace] 0

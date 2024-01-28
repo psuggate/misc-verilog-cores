@@ -1,0 +1,53 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Jan 26 08:23:54 2024
+[*]
+[dumpfile] "./axis_chop_tb.vcd"
+[dumpfile_mtime] "Fri Jan 26 06:31:44 2024"
+[dumpfile_size] 7798
+[savefile] "./axis_chop_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] -1 -1
+*-16.679852 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis_chop_tb.
+[sst_width] 233
+[signals_width] 110
+[sst_expanded] 1
+[sst_vpaned_height] 298
+@28
+axis_chop_tb.clock
+axis_chop_tb.reset
+[color] 3
+axis_chop_tb.act_q
+@420
+[color] 7
+axis_chop_tb.send_data.count
+@28
+[color] 2
+axis_chop_tb.fin_w
+@23
+[color] 4
+axis_chop_tb.len_q[6:0]
+@800200
+-In
+@28
+axis_chop_tb.mvalid
+axis_chop_tb.mready
+axis_chop_tb.mlast
+@22
+axis_chop_tb.mdata[7:0]
+@1000200
+-In
+@800200
+-Out
+@28
+axis_chop_tb.svalid
+axis_chop_tb.sready
+axis_chop_tb.slast
+@22
+axis_chop_tb.sdata[7:0]
+@1000200
+-Out
+[pattern_trace] 1
+[pattern_trace] 0

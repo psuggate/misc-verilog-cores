@@ -46,6 +46,8 @@ module fake_usb_host_ulpi (
   localparam HIGH_SPEED = 1;
   localparam TOKEN = 1;
 
+  localparam [15:0] LANG_EN_US = {8'h4, 8'h9};
+
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
   localparam [1:0] TOK_IN = 2'b10;
@@ -63,10 +65,11 @@ module fake_usb_host_ulpi (
 
   // -- State & Signals -- //
 
-  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q, blki_done_q, tele_done_q;
+  reg enum_done_q, desc_done_q, conf_done_q, str0_done_q, blko_done_q;
+  reg blki_done_q, tele_done_q, prod_done_q;
   wire [6:0] dev_addr_w;
 
-  reg mvalid, sready, hsend, tstart, tvalid, tlast;
+  reg mvalid, sready, hsend, tstart, tvalid, tkeep, tlast;
   wire srecv, svalid, mready, slast, hdone, tready;
   reg [1:0] htype, ttype;
   reg  [7:0] tdata;
@@ -113,16 +116,13 @@ module fake_usb_host_ulpi (
     enabled();
     #80 while (state != ST_DESC) @(posedge clock);
 
-    // wait (dev_configured_i);
-    // @(posedge clock);
-
     $display("%10t: FETCH device DESCRIPTOR", $time);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00}, 64);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h01, 8'h00}, 16'h0, 64);
 
     $display("%10t: FETCH config DESCRIPTOR (9 bytes)", $time);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 9);
-    $display("%10t: FETCH config DESCRIPTOR (32 bytes)", $time);
-    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 39);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 16'h0, 9);
+    $display("%10t: FETCH config DESCRIPTOR (39 bytes)", $time);
+    recv_control(7'h00, 4'h0, 8'h80, 8'h06, {8'h02, 8'h00}, 16'h0, 39);
     desc_done_q <= 1'b1;
 
     @(posedge clock);
@@ -155,7 +155,7 @@ module fake_usb_host_ulpi (
 
     // Default ADDR, Pipe0 ENDP, SETUP, Device Req, Set Addr, New ADDR
     $display("%10t: Setting USB device configuration", $time);
-    send_control(DEV_ADDR, 4'h0, 8'h00, 8'h09, 16'h0001);
+    send_control(DEV_ADDR, 4'h0, 8'h00, 8'h09, 16'h0001, 16'h0);
 
     while (!dev_configured_i) @(posedge clock);
     @(posedge clock);
@@ -165,14 +165,14 @@ module fake_usb_host_ulpi (
     $display("%10t: USB configured", $time);
   end
 
-  // Read the device-configuration descriptor
+  // Read the STRING DESCRIPTOR for the serial-number, from the device
   initial begin : g_read_serial
     enabled();
     #80 while (!conf_done_q) @(posedge clock);
     #80 while (state != ST_STR0) @(posedge clock);
 
     $display("%10t: FETCH device SERIAL#", $time);
-    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h03}, 64);
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h03}, LANG_EN_US, 64);
     str0_done_q <= 1'b1;
 
     $display("%10t: SERIAL from device ...", $time);
@@ -180,7 +180,6 @@ module fake_usb_host_ulpi (
 
   initial begin : g_bulk_out
     enabled();
-    // #80 while (!str0_done_q) @(posedge clock);
     #80 while (state != ST_BLKO) @(posedge clock);
 
     #80 $display("%10t: BULK data OUT", $time);
@@ -218,6 +217,25 @@ module fake_usb_host_ulpi (
     $display("%10t: Telemetry data IN finished ...", $time);
   end
 
+  //
+  //  Moar
+  ///
+  initial begin : g_product_string
+    enabled();
+    #80 while (state != ST_PROD) @(posedge clock);
+
+    $display("%10t: FETCH STRING DESCRIPTOR (0)", $time);
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h00}, 16'h0, 4);
+
+    $display("%10t: STRING LANGUAGE = todo ...", $time);
+
+    $display("%10t: FETCH PRODUCT STRING", $time);
+    recv_control(DEV_ADDR, 4'h0, 8'h80, 8'h06, {8'h03, 8'h02}, LANG_EN_US, 255);
+    prod_done_q <= 1'b1;
+
+    $display("%10t: FETCH PRODUCT STRING finished ...", $time);
+  end
+
 
   // -- Fake ULPI -- //
 
@@ -229,6 +247,7 @@ module fake_usb_host_ulpi (
   localparam ST_BLKO = 4'h5;
   localparam ST_BLKI = 4'h6;
   localparam ST_TELE = 4'h7;
+  localparam ST_PROD = 4'h8;
   localparam ST_IDLE = 4'hf;
 
   reg [3:0] state;
@@ -243,6 +262,7 @@ module fake_usb_host_ulpi (
       blko_done_q <= 1'b0;
       blki_done_q <= 1'b0;
       tele_done_q <= 1'b0;
+      prod_done_q <= 1'b0;
 
       sready <= 1'b0;
       mvalid <= 1'b0;
@@ -255,7 +275,8 @@ module fake_usb_host_ulpi (
         ST_STR0: state <= str0_done_q ? ST_BLKO : state;
         ST_BLKO: state <= blko_done_q ? ST_BLKI : state;
         ST_BLKI: state <= blki_done_q ? ST_TELE : state;
-        ST_TELE: state <= tele_done_q ? ST_IDLE : state;
+        ST_TELE: state <= tele_done_q ? ST_PROD : state;
+        ST_PROD: state <= prod_done_q ? ST_IDLE : state;
         default: begin
           // $display("%10t: Hello!", $time);
         end
@@ -315,12 +336,13 @@ module fake_usb_host_ulpi (
       .tok_type_i(ktype_q),
       .tok_data_i(kdata_q),
 
-      .trn_tsend_i(tstart),
-      .trn_ttype_i(ttype),
-      .trn_tdone_o(tdone),
+      .dat_send_i(tstart),
+      .dat_type_i(ttype),
+      .dat_done_o(tdone),
 
       .trn_tvalid_i(tvalid),
       .trn_tready_o(tready),
+      .trn_tkeep_i (tkeep),
       .trn_tlast_i (tlast),
       .trn_tdata_i (tdata)
   );
@@ -483,8 +505,9 @@ module fake_usb_host_ulpi (
     input [7:0] rtype;
     input [7:0] rargs;
     input [15:0] value;
+    input [15:0] index;
     begin
-      send_setup(addr, endp, {16'h0, 16'h0, value, rargs, rtype});
+      send_setup(addr, endp, {16'h0, index, value, rargs, rtype});
       recv_status(addr, endp);
     end
   endtask  // send_control
@@ -496,11 +519,14 @@ module fake_usb_host_ulpi (
     input [7:0] rtype;
     input [7:0] rargs;
     input [15:0] value;
-    input [6:0] length;
+    input [15:0] index;
+    input [7:0] length;
     begin
       reg [63:0] data;
       // Note: Control Transfer IN packet-size is 64B (High-Speed)
-      send_setup(addr, endp, {{9'h0, length}, 16'h0, value, rargs, rtype});
+      // Note: Control Transfer IN packet-size when reading STRING DESCRIPTORs
+      //  is 255B (High-Speed)
+      send_setup(addr, endp, {{8'h0, length}, index, value, rargs, rtype});
 
       send_token(addr, endp, TOK_IN);  // Data Stage
       recv_data1();
@@ -640,6 +666,7 @@ module fake_usb_host_ulpi (
       ST_BLKO: dbg_state = "BLKO";
       ST_BLKI: dbg_state = "BLKI";
       ST_TELE: dbg_state = "TELE";
+      ST_PROD: dbg_state = "PROD";
       ST_IDLE: dbg_state = "IDLE";
 
       default: dbg_state = "UNKNOWN";

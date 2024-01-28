@@ -42,11 +42,11 @@ module usb_ulpi #(
 );
 
 `ifdef __icarus
-  localparam integer SUSPEND_TIME = 190;  // ~3 ms
+  localparam integer SUSPEND_TIME = 19;  // ~3 ms
   localparam integer RESET_TIME = 190;  // ~3 ms
-  localparam integer CHIRP_K_TIME = 660;  // ~1 ms
-  localparam integer CHIRP_KJ_TIME = 12;  // ~2 us
-  localparam integer SWITCH_TIME = 60;  // ~100 us 
+  localparam integer CHIRP_K_TIME = 31;  // ~1 ms
+  localparam integer CHIRP_KJ_TIME = 3;  // ~2 us
+  localparam integer SWITCH_TIME = 20;  // ~100 us 
 `else
   localparam integer SUSPEND_TIME = 190000;  // ~3 ms
   localparam integer RESET_TIME = 190000;  // ~3 ms
@@ -56,7 +56,7 @@ module usb_ulpi #(
 `endif
 
   localparam [3:0]
-	STATE_INIT = 4'h0, 
+	STATE_POWER_ON = 4'h0, 
 	STATE_WRITE_REGA = 4'h1,
 	STATE_WRITE_REGD = 4'h2,
 	STATE_STP = 4'h3,
@@ -159,7 +159,9 @@ module usb_ulpi #(
   // -- Chirping & 'LineState' -- //
 
   always @(posedge ulpi_clk) begin
-    if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
+    if (!rst_n) begin
+      usb_line_state <= 2'b10;
+    end else if (dir_q && ulpi_dir && !ulpi_nxt && (ulpi_data_in[1:0] != usb_line_state)) begin
       if (state == STATE_CHIRPKJ) begin
         if (ulpi_data_in[1:0] == 2'b01) begin
           chirp_kj_counter <= chirp_kj_counter + 1;
@@ -334,7 +336,7 @@ module usb_ulpi #(
 
   always @(posedge ulpi_clk) begin
     if (!rst_n) begin
-      state <= STATE_INIT;
+      state <= STATE_POWER_ON;
       ulpi_data_out_buf <= 8'h00;
     end else if (dir_q || ulpi_dir) begin
       // We are not driving //
@@ -344,7 +346,7 @@ module usb_ulpi #(
     end else begin
       // We are driving //
       case (state)
-        default: begin  // STATE_INIT
+        default: begin  // STATE_POWER_ON
           state <= STATE_WRITE_REGA;
           snext <= STATE_SWITCH_FSSTART;
           ulpi_data_out_buf <= 8'h8A;
@@ -521,6 +523,36 @@ module usb_ulpi #(
       endcase
     end
   end
+
+
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [95:0] dbg_state;
+
+  always @* begin
+    case (state)
+      STATE_POWER_ON: dbg_state = "POWER_ON";
+      STATE_WRITE_REGA: dbg_state = "REGA";
+      STATE_WRITE_REGD: dbg_state = "REGD";
+      STATE_STP: dbg_state = "STP";
+      STATE_RESET: dbg_state = "RESET";
+      STATE_SUSPEND: dbg_state = "SUSPEND";
+      STATE_IDLE: dbg_state = "IDLE";
+      STATE_TX: dbg_state = "TX";
+      STATE_TX_LAST: dbg_state = "TX_LAST";
+      STATE_CHIRP_START: dbg_state = "CHIRP_START";
+      STATE_CHIRP_STARTK: dbg_state = "CHIRP_STARTK";
+      STATE_CHIRPK: dbg_state = "CHIRPK";
+      STATE_CHIRPKJ: dbg_state = "CHIRPKJ";
+      STATE_SWITCH_FSSTART: dbg_state = "SW_FSSTART";
+      STATE_SWITCH_FS: dbg_state = "SWITCH_FS";
+      default: dbg_state = "XXXX";
+    endcase
+  end
+
+`endif
 
 
 endmodule  // usb_ulpi

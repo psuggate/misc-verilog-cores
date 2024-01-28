@@ -21,7 +21,7 @@ module axis_chop (
   //
   // Chops a transfer at 'length_i'.
   //
-  // Note: to resumer a chopped transfer, assert 'active_i' with a suitable
+  // Note: to resume a chopped transfer, assert 'active_i' with a suitable
   //   'length_i' at least one cycle before asserting 'm_tready' & 's_tvalid'.
   ///
 
@@ -62,6 +62,8 @@ module axis_chop (
       assign s_tready = m_tready;
       assign m_tlast  = s_tlast;
       assign m_tdata  = s_tdata;
+
+      assign final_o = m_tvalid && m_tready && m_tlast;
 
       initial begin
         $display("=> Bypassing AXI-S chop-register");

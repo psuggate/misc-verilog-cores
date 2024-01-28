@@ -5,7 +5,7 @@
 //  Copyright (c) 2021 Dmitry Matyunin
 //  Copyright (c) 2023 Patrick Suggate
 //
-module decode_packet (
+module decodenator (
     input reset,
     input clock,
 
