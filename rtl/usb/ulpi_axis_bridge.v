@@ -153,11 +153,24 @@ module ulpi_axis_bridge #(
   reg rst_nq, rst_nr, rst_n1, rst_n0;
   wire clock, reset;
 
-  reg blk_in_ready_q, tele_sel_q;
+  reg blk_in_ready_q, tele_sel_q, usb_idle_q;
   wire [9:0] tele_level_w;
-
-  reg usb_idle_q;
   wire sof_rx_recv_w;
+
+  // ULPI signals
+  wire [7:0] ulpi_data_iw, ulpi_data_ow;
+
+
+  assign usb_clock_o = clock;
+  assign usb_reset_o = reset;
+
+  assign clock = ulpi_clock_i;
+  assign reset = ~rst_nq;
+  assign ulpi_rst_nw = rst_n1;
+  assign reset_no = ulpi_rst_nw;
+
+  assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
+  assign ulpi_data_iw = ulpi_data_io;
 
   assign usb_sof_o = sof_rx_recv_w;
   assign timeout_o = timeout_w;
@@ -169,13 +182,6 @@ module ulpi_axis_bridge #(
 
   assign s_axis_tready_o = ~tele_sel_q & mux_tready_w;
 
-  assign usb_clock_o = clock;
-  assign usb_reset_o = reset;
-
-  assign clock = ulpi_clock_i;
-  assign reset = ~rst_nq;
-  assign ulpi_rst_nw = rst_n1;
-  assign reset_no = ulpi_rst_nw;
 
   // Compute the reset signals
   always @(posedge clock or negedge areset_n) begin
@@ -185,12 +191,6 @@ module ulpi_axis_bridge #(
       {rst_nq, rst_nr, rst_n1, rst_n0} <= {rst_nr & ~usb_reset_w, rst_n1, rst_n0, areset_n};
     end
   end
-
-  // ULPI signals
-  wire [7:0] ulpi_data_iw, ulpi_data_ow;
-
-  assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
-  assign ulpi_data_iw = ulpi_data_io;
 
 
   // -- Local Signals and Assignments -- //
@@ -291,8 +291,10 @@ module ulpi_axis_bridge #(
 
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
+  wire usb_idle_w;
   wire [3:0] phy_state_w, usb_state_w, ctl_state_w;
   wire [7:0] blk_state_w;
+
 
   //
   //  Monitors USB 'LineState', and coordinates the high-speed negotiation on
@@ -317,11 +319,11 @@ module ulpi_axis_bridge #(
       .iob_nxt_o(iob_nxt_w),
       .iob_dat_o(iob_dat_w),
 
-      .usb_sof_i   (sof_rx_recv_w),
-      .high_speed_o(high_speed_w),
-      .usb_reset_o (usb_reset_w),
+      .usb_sof_i    (sof_rx_recv_w),
+      .high_speed_o (high_speed_w),
+      .usb_reset_o  (usb_reset_w),
       .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
-      .phy_state_o (phy_state_w),
+      .phy_state_o  (phy_state_w),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
@@ -340,8 +342,7 @@ module ulpi_axis_bridge #(
 
   ulpi_decoder U_DECODER1 (
       .clock(clock),
-      .reset(~areset_n),
-      // .reset(reset),
+      .reset(reset),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -374,15 +375,12 @@ module ulpi_axis_bridge #(
       .m_tdata (ulpi_rx_tdata_w)
   );
 
-  wire [9:0] enc_state_w;
-
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
       .reset(~areset_n),
 
       .high_speed_i (high_speed_w),
       .encode_idle_o(encode_idle_w),
-      .enc_state_o  (enc_state_w),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -421,11 +419,12 @@ module ulpi_axis_bridge #(
       .PIPELINED(PIPELINED)
   ) U_TRANSACT1 (
       .clock(clock),
-      .reset(~rst_nq),
+      .reset(reset),
 
       .usb_addr_i(usb_addr_w),
       .err_code_o(err_code_w),
       .usb_timeout_error_o(timeout_w),
+      .usb_device_idle_o(usb_idle_w),
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
@@ -596,13 +595,8 @@ module ulpi_axis_bridge #(
       .ENDPOINT(ENDPOINT2)
   ) U_TELEMETRY2 (
       .clock(clock),
-`ifdef __icarus
       .reset(reset),
-      .usb_enum_i(~reset),
-`else
-      .reset(1'b0),
       .usb_enum_i(1'b1),
-`endif
 
       .LineState(LineState),
       .ctl_cycle_i(ctl0_cycle_w),
@@ -628,13 +622,6 @@ module ulpi_axis_bridge #(
       .endpt_i (blk_endpt_o),
       .error_o (),
       .level_o (tele_level_w),
-
-      // Unused
-      .s_tvalid(1'b0),
-      .s_tready(),
-      .s_tlast (1'b0),
-      .s_tkeep (1'b0),
-      .s_tdata (8'hx),
 
       // AXI4-Stream for telemetry data
       .m_tvalid(tel_tvalid_w),

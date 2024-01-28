@@ -412,13 +412,8 @@ module protocolon #(
       .ENDPOINT(ENDPOINT2)
   ) U_TELEMETRY2 (
       .clock(clock),
-`ifdef __icarus
       .reset(reset),
-      .usb_enum_i(usb_enum_w),
-`else
-      .reset(1'b0),
       .usb_enum_i(1'b1),
-`endif
 
       .crc_error_i(crc_err_w),
       .timeout_i  (timeout_o),
@@ -433,13 +428,6 @@ module protocolon #(
       .endpt_i (blk_endpt_o),
       .error_o (),
       .level_o (tele_level_w),
-
-      // Unused
-      .s_tvalid(1'b0),
-      .s_tready(),
-      .s_tlast (1'b0),
-      .s_tkeep (1'b0),
-      .s_tdata (8'hx),
 
       // AXI4-Stream for telemetry data
       .m_tvalid(tel_tvalid_w),

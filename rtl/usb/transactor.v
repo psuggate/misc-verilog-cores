@@ -11,6 +11,7 @@ module transactor #(
     input [6:0] usb_addr_i,
 
     output usb_timeout_error_o,
+    output usb_device_idle_o,
     output [2:0] err_code_o,
 
     // USB Control Transfer parameters and data-streams
@@ -62,10 +63,9 @@ module transactor #(
     input [6:0] tok_addr_i,
     input [3:0] tok_endp_i,
 
-    input hsk_recv_i,
+    input  hsk_recv_i,
     output hsk_send_o,
-    input hsk_sent_i,
-    output [1:0] hsk_type_o,
+    input  hsk_sent_i,
 
     // DATA0/1 info from the decoder, and to the encoder
     input usb_recv_i,
@@ -90,6 +90,8 @@ module transactor #(
 
 
   // -- Module Constants -- //
+
+  localparam USE_ULPI_TX_FIFO = 0;
 
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
@@ -170,53 +172,55 @@ module transactor #(
   reg hsend_q;
   reg [1:0] htype_q;
 
+  reg terr_q;
+
 
   // -- Input and Output Signal Assignments -- //
 
-  assign err_code_o   = err_code_q;
+  assign usb_timeout_error_o = terr_q;
 
-  assign hsk_send_o   = hsend_q;
-  assign hsk_type_o   = htype_q;
+  assign err_code_o = err_code_q;
 
-  assign blk_start_o  = state == ST_BULK && xbulk == BLK_IDLE;
-  assign blk_cycle_o  = state == ST_BULK;
-  assign blk_endpt_o  = tok_endp_i;  // todo: ??
+  assign hsk_send_o = hsend_q;
 
-  assign ctl_cycle_o  = ctl_cycle_q;
-  assign ctl_start_o  = ctl_start_q;
-  assign ctl_endpt_o  = tok_endp_i;  // todo: ??
+  assign blk_start_o = state == ST_BULK && xbulk == BLK_IDLE;
+  assign blk_cycle_o = state == ST_BULK;
+  assign blk_endpt_o = tok_endp_i;  // todo: ??
 
-  assign ctl_rtype_o  = ctl_rtype_q;
-  assign ctl_rargs_o  = ctl_rargs_q;
-  assign ctl_value_o  = {ctl_valhi_q, ctl_vallo_q};
-  assign ctl_index_o  = {ctl_idxhi_q, ctl_idxlo_q};
+  assign ctl_cycle_o = ctl_cycle_q;
+  assign ctl_start_o = ctl_start_q;
+  assign ctl_endpt_o = tok_endp_i;  // todo: ??
+
+  assign ctl_rtype_o = ctl_rtype_q;
+  assign ctl_rargs_o = ctl_rargs_q;
+  assign ctl_value_o = {ctl_valhi_q, ctl_vallo_q};
+  assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
   assign ctl_tvalid_o = 1'b0;  // usb_tready_i;
-  assign ctl_tlast_o  = 1'b0;
-  assign ctl_tdata_o  = 8'h00;
+  assign ctl_tlast_o = 1'b0;
+  assign ctl_tdata_o = 8'h00;
 
   assign blk_tready_o = mux_tready_w && xbulk == BLK_DATI_TX;
   assign ctl_tready_o = mux_tready_w && xctrl == CTL_DATI_TX;
 
   assign usb_tready_o = xbulk == BLK_DATO_RX ? blk_tready_i : 1'b1;  // todo: ...
-  assign usb_tuser_o  = tuser_q;
+  assign usb_tuser_o = tuser_q;
 
   assign blk_tvalid_o = xbulk == BLK_DATO_RX ? usb_tvalid_i : 1'b0;
-  assign blk_tlast_o  = usb_tlast_i;
-  assign blk_tkeep_o  = usb_tkeep_i;
-  assign blk_tdata_o  = usb_tdata_i;
+  assign blk_tlast_o = usb_tlast_i;
+  assign blk_tkeep_o = usb_tkeep_i;
+  assign blk_tdata_o = usb_tdata_i;
 
 
   // -- Monitoring & Telemetry -- //
 
+  wire usb_idle_w;
   wire [3:0] xfer_state_w, ctrl_state_w;
   wire [7:0] bulk_state_w;
 
-  // wire xfer_idle_w = state == ST_IDLE;
-  wire xfer_idle_w = state == ST_BULK && xbulk == BLK_DATI_TX;
-  wire xfer_dzdp_w = xbulk == BLK_DATI_ZDP;
-  wire xfer_derr_w = xbulk == BLK_DATO_ERR;
+  assign usb_idle_w = state == ST_IDLE || xctrl == CTL_DONE || xbulk == BLK_DONE;
+  assign usb_device_idle_o = usb_idle_w;
 
   assign xfer_state_w = state;
   assign ctrl_state_w = xctrl;
@@ -346,15 +350,10 @@ module transactor #(
   // -- FSM to Issue Handshake Packets -- //
 
   always @(posedge clock) begin
-    if (reset) begin
+    if (reset || hsk_sent_i) begin
       hsend_q <= 1'b0;
-      htype_q <= 2'bx;
     end else if (!hsend_q && eop_rx_q) begin
       hsend_q <= 1'b1;
-      htype_q <= HSK_ACK;
-    end else if (hsk_sent_i) begin
-      hsend_q <= 1'b0;
-      htype_q <= 2'bx;
     end
   end
 
@@ -399,8 +398,6 @@ module transactor #(
   assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : trn_zero_q;
   assign mux_tkeep_w  = blk_sel_w ? blk_tkeep_i : ctl_sel_w ? ctl_tkeep_i : 1'b0;
   assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_sel_w ? ctl_tdata_i : 8'bx;
-
-  localparam USE_ULPI_TX_FIFO = 0;
 
   generate
     if (USE_ULPI_TX_FIFO) begin : g_ulpi_tx_fifo
@@ -820,20 +817,18 @@ module transactor #(
   localparam TUNIT = {{TSB{1'b0}}, 1'b1};
   localparam [TSB:0] MAX_TURNAROUND = TIMER;
 
+  reg actv_q;
+  wire we_are_waiting;
   reg [TSB:0] tcount;
-  reg actv_q, terr_q;
   wire [TBITS:0] tcnext;
 
-  assign usb_timeout_error_o = terr_q;
-
   assign tcnext = tcount - TUNIT;
-
-  wire we_are_waiting;
-  assign we_are_waiting = tok_recv_i && (usb_tuser_i[3:2] == TOK_OUT ||
-                                         usb_tuser_i[3:2] == TOK_SETUP) ||
+  assign we_are_waiting = tok_recv_i && (usb_tuser_i == {TOK_OUT, 2'b01} ||
+                                         usb_tuser_i == {TOK_SETUP, 2'b01}) ||
                           usb_sent_i && (tuser_q == {DATA0, 2'b11} ||
                                          tuser_q == {DATA1, 2'b11}) ||
-      hsk_sent_i && (xctrl == CTL_SETUP_ACK || xctrl == CTL_DATO_ACK);
+                          hsk_sent_i && (xctrl == CTL_SETUP_ACK ||
+                                         xctrl == CTL_DATO_ACK);
 
   always @(posedge clock) begin
     if (reset) begin
@@ -844,6 +839,7 @@ module transactor #(
       if (xctrl == CTL_STATUS_TX && usb_sent_i || we_are_waiting) begin
         tcount <= MAX_TURNAROUND;
         actv_q <= 1'b1;
+        terr_q <= 1'b0;
       end else if (usb_recv_i || tok_recv_i || hsk_recv_i) begin
         actv_q <= 1'b0;
         terr_q <= 1'b0;
@@ -853,7 +849,7 @@ module transactor #(
           actv_q <= 1'b0;
           terr_q <= 1'b1;
         end
-      end else if (xctrl == CTL_DONE || state == ST_IDLE) begin
+      end else if (usb_idle_w) begin
         terr_q <= 1'b0;
       end
     end

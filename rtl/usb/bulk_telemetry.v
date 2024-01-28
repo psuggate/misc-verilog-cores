@@ -34,12 +34,6 @@ module bulk_telemetry #(
     output error_o,
     output [9:0] level_o,
 
-    input s_tvalid,
-    output s_tready,
-    input s_tlast,
-    input s_tkeep,
-    input [7:0] s_tdata,
-
     output m_tvalid,
     input m_tready,
     output m_tlast,
@@ -68,7 +62,6 @@ module bulk_telemetry #(
 
   assign error_o = 1'b0;
 
-  assign s_tready = sel_q;
   assign m_tvalid = sel_q && a_tvalid_w;
   assign a_tready_w = sel_q && m_tready;
   assign m_tlast = sel_q ? a_tlast_w : 1'bx;
@@ -176,7 +169,7 @@ module bulk_telemetry #(
 
   always @(posedge clock) begin
     if (reset) begin
-      linestate_q <= 2'b01; // 'J'
+      linestate_q <= 2'b01;  // 'J'
       ctl_cycle_q <= 1'b0;
       ctl_error_q <= 1'b0;
       usb_reset_q <= 1'b0;

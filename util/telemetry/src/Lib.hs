@@ -53,10 +53,10 @@ data BulkState
   | BulkDataInZDP
   | BulkDataInAck
   | BulkDataOutRx
-  | BulkDataOutErr
   | BulkDataOutAck
-  | BulkDataOutNak
+--   | BulkDataOutNak
   | BulkDone
+  | BulkDataOutErr
   deriving (Eq, Ord, Bounded, Enum, Generic, Read, Show)
 
 data CtrlState
@@ -193,12 +193,13 @@ entry i q = printf "%04d => %s" i str'
     rst' = reset (q & usbReset .~ True) q
     usb' = xusb  (q & usbState .~ UsbDump) q
     trn' = usbrx (q & transact .~ TrnErrBlkI & usbToken .~ Reserved) q
+    blk' = bulk  (q & blkState %~ \x -> if x == BulkDone then BulkIdle else BulkDone) q
     ctl' = xctl  (q & ctlState .~ CtrlDone) q
     crc' = xcrc  (q & crcError %~ not) q
     sof' = xsof  (q & usbSof   .~ False) q
     fun' = endpt (q & usbEndpt %~ succ) q
     phy' = xphy  (q & phyState %~ yuck) q
-    str' = B.toLazyText $ mconcat [usb', trn', fun', ctl', crc', sof', rst', phy']
+    str' = B.toLazyText $ mconcat [usb', trn', fun', blk', ctl', crc', sof', rst', phy']
     yuck = toEnum . flip mod 13 . succ  . fromEnum
 
 step :: Int -> Entry -> [Entry] -> IO ()
@@ -206,7 +207,7 @@ step _ _    []  = pure ()
 step i _   [y]  = putStrLn (entry i y)
 step i x (y:ys) = putStrLn s >> step (i+1) y ys
   where
-    fs = [xusb, usbrx, endpt, xctl, xcrc, xsof, reset, xphy]
+    fs = [xusb, usbrx, endpt, bulk, xctl, xcrc, xsof, reset, xphy]
     ts = B.toLazyText . mconcat $ (\f -> f x y) <$> fs
     s  | y^.phyState == PhyPowerOn = entry i y
        | otherwise                 = printf "%04d => %s" i ts
@@ -294,3 +295,10 @@ usbrx x y = B.fromText tok <> B.fromLazyText trn <> B.singleton ' '
           UsbSTALL -> "STALL "
           UsbMDATA -> "MDATA "
       | otherwise = "      "
+
+bulk :: Entry -> Entry -> B.Builder
+bulk x y = B.fromText pre' <> B.fromLazyText blk' <> B.singleton ' '
+  where
+    pre' | x^.blkState /= y^.blkState = "BLK:"
+         | otherwise = "    "
+    blk' = T.take 10 . (<> "        ") . T.drop 4 . show $ y^.blkState
