@@ -6,6 +6,12 @@ module usb_core_tb;
 
   localparam PIPELINED = 1;
 
+  // USB BULK IN/OUT SRAM parameters
+  parameter USE_SYNC_FIFO = 0;
+  localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
+  localparam integer FSB = FIFO_LEVEL_BITS - 1;
+  localparam integer BULK_FIFO_SIZE = 2048;
+
   initial begin
     $display("ULPI Reset module:");
     $display(" - Clock-negation: %1d", NEGATE_CLOCK);
@@ -226,7 +232,7 @@ module usb_core_tb;
   wire bulk_start_w, bulk_cycle_w;
   wire [3:0] bulk_endpt_w;
   wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
-  wire [10:0] level_w;
+  wire [FSB:0] level_w;
 
   assign bsvalid_w = mvalid && bulk_cycle_w;
   assign bsready_w = mready && bulk_cycle_w;
@@ -295,6 +301,10 @@ module usb_core_tb;
 
   // -- Loop-back FIFO for Testing -- //
 
+  // Loop-back FIFO for Testing //
+  generate
+    if (USE_SYNC_FIFO) begin : g_sync_fifo
+
   sync_fifo #(
       .WIDTH (10),
       .ABITS (11),
@@ -313,6 +323,82 @@ module usb_core_tb;
       .ready_i(bmready_w),
       .data_o ({skeep, slast, sdata})
   );
+
+    end else begin : g_axis_fifo
+
+      axis_fifo #(
+          .DEPTH(BULK_FIFO_SIZE),
+          .DATA_WIDTH(8),
+          .KEEP_ENABLE(1),
+          .KEEP_WIDTH(1),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(0),
+          .ID_WIDTH(1),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(0),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_BULK_FIFO0 (
+          .clk(dev_clock),
+          .rst(dev_reset),
+
+          .s_axis_tdata (mdata),  // AXI4-Stream input
+          .s_axis_tkeep (mkeep),
+          .s_axis_tvalid(bsvalid_w),
+          .s_axis_tready(mready),
+          .s_axis_tlast (mlast),
+          .s_axis_tid   (1'b0),
+          .s_axis_tdest (1'b0),
+          .s_axis_tuser (1'b0),
+
+          .pause_req(1'b0),
+
+          .m_axis_tdata(sdata),  // AXI4-Stream output
+          .m_axis_tkeep(skeep),
+          .m_axis_tvalid(svalid),
+          .m_axis_tready(bmready_w),
+          .m_axis_tlast(slast),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+
+          .status_depth(level_w),  // Status
+          .status_overflow(),
+          .status_bad_frame(),
+          .status_good_frame()
+      );
+
+    end
+  endgenerate
+
+
+`ifdef __hippies
+  sync_fifo #(
+      .WIDTH (10),
+      .ABITS (11),
+      .OUTREG(3)
+  ) rddata_fifo_inst (
+      .clock(dev_clock),
+      .reset(dev_reset),
+
+      .level_o(level_w),
+
+      .valid_i(bsvalid_w),
+      .ready_o(mready),
+      .data_i ({mkeep, mlast, mdata}),
+
+      .valid_o(svalid),
+      .ready_i(bmready_w),
+      .data_o ({skeep, slast, sdata})
+  );
+`endif
 
 
 endmodule  // usb_core_tb

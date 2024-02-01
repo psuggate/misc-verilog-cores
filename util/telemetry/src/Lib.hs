@@ -191,7 +191,7 @@ entry :: Int -> Entry -> String
 entry i q = printf "%04d => %s" i str'
   where
     rst' = reset (q & usbReset .~ True) q
-    usb' = xusb  (q & usbState .~ UsbDump) q
+    usb' = xusb  (q & usbState %~ \x -> if x == UsbDump then UsbIdle else UsbDump) q
     trn' = usbrx (q & transact .~ TrnErrBlkI & usbToken .~ Reserved) q
     blk' = bulk  (q & blkState %~ \x -> if x == BulkDone then BulkIdle else BulkDone) q
     ctl' = xctl  (q & ctlState .~ CtrlDone) q

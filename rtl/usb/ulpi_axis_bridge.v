@@ -426,6 +426,10 @@ module ulpi_axis_bridge #(
       .usb_timeout_error_o(timeout_w),
       .usb_device_idle_o(usb_idle_w),
 
+      .usb_state_o (usb_state_w),
+      .ctl_state_o (ctl_state_w),
+      .blk_state_o (blk_state_w),
+
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
       .tok_ping_i(tok_rx_ping_w),
@@ -584,38 +588,42 @@ module ulpi_axis_bridge #(
   // -- USB Telemetry Control Endpoint -- //
 
   assign has_telemetry_o = tele_level_w[9:2] != 0;
-
-  assign usb_state_w = U_TRANSACT1.xfer_state_w;
+/*
+  assign usb_state_w = U_TRANSACT1.state;
   assign ctl_state_w = U_TRANSACT1.xctrl;
   assign blk_state_w = U_TRANSACT1.xbulk;
-
+*/
 
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
-      .ENDPOINT(ENDPOINT2)
+      .ENDPOINT(ENDPOINT2),
+      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
   ) U_TELEMETRY2 (
       .clock(clock),
       .reset(reset),
       .usb_enum_i(1'b1),
+      .high_speed_i(high_speed_w),
 
-      .LineState(LineState),
+      .LineState(LineState), // Byte 3
       .ctl_cycle_i(ctl0_cycle_w),
-      .ctl_error_i(ctl0_error_w),
-      .usb_sof_i(sof_rx_recv_w),
       .usb_reset_i(usb_reset_w),
-      .usb_tuser_i(ulpi_rx_tuser_w),
       .usb_endpt_i(tok_endp_w),
+
+      .usb_tuser_i(ulpi_rx_tuser_w), // Byte 2
+      .ctl_error_i(ctl0_error_w),
+      .usb_state_i(usb_state_w),
+      .crc_error_i(crc_err_o),
+
+      .usb_error_i(err_code_w), // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
-      .high_speed_i(high_speed_w),
-      .crc_error_i(crc_err_o),
       .timeout_i(timeout_w),
-      .phy_state_i(phy_state_w),
-      .usb_error_i(err_code_w),
-      .usb_state_i(usb_state_w),
-      .ctl_state_i(ctl_state_w),
+      .usb_sof_i(sof_rx_recv_w),
       .blk_state_i(blk_state_w),
+
+      .ctl_state_i(ctl_state_w), // Byte 0
+      .phy_state_i(phy_state_w),
 
       .start_i (blk_start_o),
       .select_i(blk_cycle_o),

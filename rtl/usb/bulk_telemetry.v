@@ -2,7 +2,8 @@
 module bulk_telemetry #(
     parameter [3:0] ENDPOINT = 4'd2,
     parameter PACKET_SIZE = 8,
-    parameter SMALL_FIFO = 1
+    parameter SMALL_FIFO = 1,
+    parameter FIFO_DEPTH = 2048
 ) (
     input clock,
     input reset,
@@ -32,7 +33,7 @@ module bulk_telemetry #(
     input start_i,
     input [3:0] endpt_i,
     output error_o,
-    output [9:0] level_o,
+    output [$clog2(FIFO_DEPTH) + SMALL_FIFO - 1:0] level_o,
 
     output m_tvalid,
     input m_tready,
@@ -44,6 +45,9 @@ module bulk_telemetry #(
   localparam CBITS = $clog2(PACKET_SIZE);
   localparam CZERO = {CBITS{1'b0}};
   localparam CSB = CBITS - 1;
+
+  localparam FBITS = $clog2(FIFO_DEPTH) + SMALL_FIFO;
+  localparam FSB = FBITS - 1;
 
 
   // -- Current USB Configuration State -- //
@@ -99,7 +103,8 @@ module bulk_telemetry #(
       8'h10:   blk_state_x = 3'd4;
       8'h20:   blk_state_x = 3'd5;
       8'h40:   blk_state_x = 3'd6;
-      default: blk_state_x = 3'd7;
+      8'h80:   blk_state_x = 3'd7;
+      default: blk_state_x = 3'd2;
     endcase
 
     case (usb_state_i)
@@ -259,7 +264,7 @@ module bulk_telemetry #(
     end else begin : g_axis_fifo
 
       axis_fifo #(
-          .DEPTH(512),
+          .DEPTH(FIFO_DEPTH),
           .DATA_WIDTH(32),
           .KEEP_ENABLE(0),
           .KEEP_WIDTH(4),

@@ -13,6 +13,9 @@ module transactor #(
     output usb_timeout_error_o,
     output usb_device_idle_o,
     output [2:0] err_code_o,
+    output [3:0] usb_state_o,
+    output [3:0] ctl_state_o,
+    output [7:0] blk_state_o,
 
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
@@ -167,15 +170,14 @@ module transactor #(
   reg [7:0] xbulk;
 
   reg [3:0] tuser_q;
-  reg trn_zero_q;  // zero-size data transfer ??
-
-  reg hsend_q;
-  reg [1:0] htype_q;
-
-  reg terr_q;
+  reg tzero_q, hsend_q, terr_q;
 
 
   // -- Input and Output Signal Assignments -- //
+
+  assign usb_state_o = state;
+  assign ctl_state_o = xctrl;
+  assign blk_state_o = xbulk;
 
   assign usb_timeout_error_o = terr_q;
 
@@ -216,15 +218,9 @@ module transactor #(
   // -- Monitoring & Telemetry -- //
 
   wire usb_idle_w;
-  wire [3:0] xfer_state_w, ctrl_state_w;
-  wire [7:0] bulk_state_w;
 
   assign usb_idle_w = state == ST_IDLE || xctrl == CTL_DONE || xbulk == BLK_DONE;
   assign usb_device_idle_o = usb_idle_w;
-
-  assign xfer_state_w = state;
-  assign ctrl_state_w = xctrl;
-  assign bulk_state_w = xbulk;
 
 
   // -- Datapath from the USB Packet Decoder -- //
@@ -362,26 +358,26 @@ module transactor #(
 
   always @(posedge clock) begin
     if (reset || usb_busy_i) begin
-      trn_zero_q <= 1'b0;
+      tzero_q <= 1'b0;
     end else if (state == ST_CTRL) begin
       if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
         // Tx STATUS OUT (ZDP)
-        trn_zero_q <= 1'b1;
-      end else if (trn_zero_q && mux_tready_w) begin
-        trn_zero_q <= 1'b0;
+        tzero_q <= 1'b1;
+      end else if (tzero_q && mux_tready_w) begin
+        tzero_q <= 1'b0;
       end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
-        trn_zero_q <= 1'b0;
+        tzero_q <= 1'b0;
       end else begin
-        trn_zero_q <= trn_zero_q;
+        tzero_q <= tzero_q;
       end
     end else if (state == ST_BULK) begin
       if (xbulk == BLK_IDLE && usb_tuser_i[3:2] == TOK_IN) begin
-        trn_zero_q <= ~blk_in_ready_i;
+        tzero_q <= ~blk_in_ready_i;
       end else begin
-        trn_zero_q <= trn_zero_q;
+        tzero_q <= tzero_q;
       end
     end else begin
-      trn_zero_q <= trn_zero_q;
+      tzero_q <= tzero_q;
     end
   end
 
@@ -394,13 +390,15 @@ module transactor #(
   wire blk_sel_w = xbulk == BLK_DATI_TX;
   wire ctl_sel_w = xctrl == CTL_DATI_TX;
 
-  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : trn_zero_q;
-  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : trn_zero_q;
+  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : tzero_q;
+  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : tzero_q;
   assign mux_tkeep_w  = blk_sel_w ? blk_tkeep_i : ctl_sel_w ? ctl_tkeep_i : 1'b0;
   assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_sel_w ? ctl_tdata_i : 8'bx;
 
   generate
     if (USE_ULPI_TX_FIFO) begin : g_ulpi_tx_fifo
+
+      // Using a FIFO allows Tx-data to be prefetched
       sync_fifo #(
           .WIDTH (10),
           .ABITS (4),
@@ -468,7 +466,6 @@ module transactor #(
             if (tok_ping_i || usb_tuser_i[3:2] == TOK_IN || usb_tuser_i[3:2] == TOK_OUT) begin
               state <= ST_BULK;
               err_code_q <= tok_endp_i != ENDPOINT1 && tok_endp_i != ENDPOINT2 ? ER_ENDP : ER_NONE;
-              //               usb_tuser_i[3:2] == TOK_IN ? ER_BLKI : ER_BLKO;
             end else if (usb_tuser_i[3:2] == TOK_SETUP) begin
               state <= ST_CTRL;
               err_code_q <= tok_endp_i != 4'h0 ? ER_ENDP : ER_NONE;
@@ -516,7 +513,8 @@ module transactor #(
       xbulk <= BLK_IDLE;
     end else begin
       case (xbulk)
-        default: begin  // BLK_IDLE
+        // default: begin  // BLK_IDLE
+        BLK_IDLE: begin
           // If the main FSM has found a relevant token, start a Bulk Transfer
           if (state == ST_BULK) begin
             if (usb_tuser_i[3:2] == TOK_IN) begin
@@ -526,18 +524,6 @@ module transactor #(
             end
           end
         end
-
-        /*
-        // Tx states for BULK IN data //
-        BLK_DATI_TX: begin
-          // Transfer a data-packet from the source attached to BULK IN
-          // if (usb_sent_i) begin
-          // if (blk_tvalid_i && blk_tready_o && blk_tlast_i) begin
-          if (usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
-            xbulk <= BLK_DATI_ACK;
-          end
-        end
-        */
 
         BLK_DATI_TX, BLK_DATI_ZDP: begin
           // Send a zero-data packet, because we do not have a full packet, and
@@ -556,7 +542,6 @@ module transactor #(
 
         // Rx states for BULK OUT data //
         BLK_DATO_RX: begin
-          // if (blk_tvalid_o && blk_tready_i && blk_tlast_o) begin
           if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xbulk <= BLK_DATO_ACK;
           end
@@ -626,9 +611,6 @@ module transactor #(
     end else begin
       ctl_start_q <= 1'b0;
       ctl_cycle_q <= ctl_done_w ? 1'b0 : ctl_cycle_q;
-      // if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
-      //   ctl_cycle_q <= 1'b0;
-      // end
     end
   end
 
@@ -693,7 +675,6 @@ module transactor #(
 
         CTL_SETUP_ACK: begin
           if (hsk_sent_i) begin
-            // xctrl <= ctl_length_o == 0 || ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
             xctrl <= ctl_length_o == 0 ? CTL_DATO_TOK : 
                      ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
           end
@@ -797,7 +778,7 @@ module transactor #(
         CTL_DONE: begin
           // Wait for the main FSM to return to IDLE, and then get ready for the
           // next Control Transfer.
-          if (state == ST_IDLE) begin
+          if (state != ST_CTRL) begin
             xctrl <= CTL_SETUP_RX;
           end
         end
@@ -861,6 +842,7 @@ module transactor #(
 `ifdef __icarus
 
   reg [39:0] dbg_state;
+  reg [119:0] dbg_xctrl, dbg_xbulk;
 
   always @* begin
     case (state)
@@ -871,8 +853,6 @@ module transactor #(
       default: dbg_state = "XXXX";
     endcase
   end
-
-  reg [119:0] dbg_xctrl;
 
   always @* begin
     case (xctrl)
@@ -895,8 +875,6 @@ module transactor #(
       default: dbg_xctrl = "UNKNOWN";
     endcase
   end
-
-  reg [119:0] dbg_xbulk;
 
   always @* begin
     case (xbulk)

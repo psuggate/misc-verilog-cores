@@ -41,7 +41,7 @@ module usb_demo_top (
   localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
 
   // USB BULK IN/OUT SRAM parameters
-  parameter USE_SYNC_FIFO = 0;
+  parameter USE_SYNC_FIFO = 1;
   localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
   localparam integer FSB = FIFO_LEVEL_BITS - 1;
   localparam integer BULK_FIFO_SIZE = 2048;
@@ -203,10 +203,8 @@ module usb_demo_top (
   generate
     if (USE_SYNC_FIFO) begin : g_sync_fifo
 
-      assign m_tkeep = m_tvalid;
-
       sync_fifo #(
-          .WIDTH (9),
+          .WIDTH (10),
           .ABITS (FIFO_LEVEL_BITS),
           .OUTREG(3)
       ) U_BULK_FIFO0 (
@@ -215,13 +213,13 @@ module usb_demo_top (
 
           .level_o(level_w),
 
-          .valid_i(bsvalid_w && s_tkeep),
+          .valid_i(bsvalid_w),
           .ready_o(s_tready),
-          .data_i ({s_tlast, s_tdata}),
+          .data_i ({s_tkeep, s_tlast, s_tdata}),
 
           .valid_o(m_tvalid),
           .ready_i(bmready_w),
-          .data_o ({m_tlast, m_tdata})
+          .data_o ({m_tkeep, m_tlast, m_tdata})
       );
 
     end else begin : g_axis_fifo
@@ -309,9 +307,12 @@ module usb_demo_top (
 
   assign phy_state_w = U_ULPI_USB0.phy_state_w;
   assign err_code_w = U_ULPI_USB0.err_code_w;
-  assign usb_state_w = U_ULPI_USB0.U_TRANSACT1.state;
-  assign ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
-  assign blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
+  assign usb_state_w = U_ULPI_USB0.usb_state_w;
+  assign ctl_state_w = U_ULPI_USB0.ctl_state_w;
+  assign blk_state_w = U_ULPI_USB0.blk_state_w;
+  // assign usb_state_w = U_ULPI_USB0.U_TRANSACT1.state;
+  // assign ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
+  // assign blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
   assign usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
   assign tok_endpt_w = U_ULPI_USB0.tok_endp_w;
   assign LineState = U_ULPI_USB0.LineState;
@@ -330,26 +331,29 @@ module usb_demo_top (
   ) U_TELEMETRY1 (
       .clock(clock),
       .reset(reset),
-
-      .LineState(LineState),
       .usb_enum_i(1'b1),
-      .usb_reset_i(usb_reset),
+      .high_speed_i(hs_enabled_w),
+
+      .LineState(LineState), // Byte 3
       .ctl_cycle_i(ctl_cycle_w),
-      .ctl_error_i(ctl_error_w),
-      .usb_sof_i(usb_sof_w),
-      .usb_tuser_i(usb_tuser_w),
+      .usb_reset_i(usb_reset),
       .usb_endpt_i(tok_endpt_w),
+
+      .usb_tuser_i(usb_tuser_w), // Byte 2
+      .ctl_error_i(ctl_error_w),
+      .usb_state_i(usb_state_w),
+      .crc_error_i(crc_error_w),
+
+      .usb_error_i(err_code_w), // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
-      .high_speed_i(hs_enabled_w),
-      .crc_error_i(crc_error_w),
       .timeout_i(timeout_w),
-      .phy_state_i(phy_state_w),
-      .usb_error_i(err_code_w),
-      .usb_state_i(usb_state_w),
-      .ctl_state_i(ctl_state_w),
+      .usb_sof_i(usb_sof_w),
       .blk_state_i(blk_state_w),
+
+      .ctl_state_i(ctl_state_w), // Byte 0
+      .phy_state_i(phy_state_w),
 
       .start_i (tstart || 1'b1),
       .select_i(1'b1),
