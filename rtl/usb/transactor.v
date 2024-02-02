@@ -44,6 +44,8 @@ module transactor #(
     input blk_in_ready_i,
     input blk_out_ready_i,
     output blk_start_o,
+    output blk_fetch_o,
+    output blk_store_o,
     output blk_cycle_o,
     output [3:0] blk_endpt_o,
     input blk_error_i,
@@ -168,6 +170,7 @@ module transactor #(
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] state, xctrl;
   reg [7:0] xbulk;
+  reg fetch_q, store_q;
 
   reg [3:0] tuser_q;
   reg tzero_q, hsend_q, terr_q;
@@ -188,6 +191,8 @@ module transactor #(
   assign blk_start_o = state == ST_BULK && xbulk == BLK_IDLE;
   assign blk_cycle_o = state == ST_BULK;
   assign blk_endpt_o = tok_endp_i;  // todo: ??
+  assign blk_fetch_o = fetch_q;
+  assign blk_store_o = store_q;
 
   assign ctl_cycle_o = ctl_cycle_q;
   assign ctl_start_o = ctl_start_q;
@@ -458,7 +463,8 @@ module transactor #(
       err_code_q <= ER_NONE;
     end else begin
       case (state)
-        default: begin  // ST_IDLE
+        // default: begin  // ST_IDLE
+        ST_IDLE: begin
           //
           // Decode tokens until we see our address, and a valid endpoint
           ///
@@ -510,7 +516,9 @@ module transactor #(
   // Bulk-Transfer Main FSM //
   always @(posedge clock) begin
     if (state == ST_IDLE) begin
-      xbulk <= BLK_IDLE;
+      xbulk   <= BLK_IDLE;
+      fetch_q <= 1'b0;
+      store_q <= 1'b0;
     end else begin
       case (xbulk)
         // default: begin  // BLK_IDLE
@@ -518,10 +526,17 @@ module transactor #(
           // If the main FSM has found a relevant token, start a Bulk Transfer
           if (state == ST_BULK) begin
             if (usb_tuser_i[3:2] == TOK_IN) begin
-              xbulk <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+              xbulk   <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+              fetch_q <= blk_in_ready_i;
+              store_q <= 1'b0;
             end else begin
-              xbulk <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_ERR;
+              xbulk   <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_ERR;
+              fetch_q <= 1'b0;
+              store_q <= blk_out_ready_i;
             end
+          end else begin
+            fetch_q <= 1'b0;
+            store_q <= 1'b0;
           end
         end
 
@@ -542,7 +557,7 @@ module transactor #(
 
         // Rx states for BULK OUT data //
         BLK_DATO_RX: begin
-          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+          if (usb_recv_i) begin
             xbulk <= BLK_DATO_ACK;
           end
         end
@@ -561,6 +576,8 @@ module transactor #(
         end
 
         BLK_DONE: begin
+          store_q <= 1'b0;
+          fetch_q <= 1'b0;
           if (state == ST_IDLE) begin
             xbulk <= BLK_IDLE;
           end

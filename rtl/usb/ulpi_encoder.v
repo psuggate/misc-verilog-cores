@@ -7,6 +7,7 @@ module ulpi_encoder #(
 
     input  high_speed_i,
     output encode_idle_o,
+    output [9:0] enc_state_o,
 
     input [1:0] LineState,
     input [1:0] VbusState,
@@ -83,6 +84,7 @@ module ulpi_encoder #(
 
   // todo: check that this encodes correctly (as 'xsend[0]') !?
   assign encode_idle_o = xsend == TX_IDLE;
+  assign enc_state_o = xsend_q;
 
   assign usb_busy_o = xsend != TX_IDLE;
   assign usb_done_o = usb_done_q;

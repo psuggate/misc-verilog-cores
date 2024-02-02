@@ -56,6 +56,8 @@ module ulpi_axis_bridge #(
     input blk_out_ready_i,
     output blk_start_o,
     output blk_cycle_o,
+    output blk_fetch_o,
+    output blk_store_o,
     output [3:0] blk_endpt_o,
     input blk_error_i,
 
@@ -80,6 +82,8 @@ module ulpi_axis_bridge #(
   // -- Constants -- //
 
   localparam HIGH_SPEED = 1;
+
+  localparam AXIS_CHOP_AND_CLEAN = 1;
 
   localparam integer CONFIG_DESC_LEN = 9;
   localparam integer INTERFACE_DESC_LEN = 9;
@@ -175,12 +179,14 @@ module ulpi_axis_bridge #(
   assign usb_sof_o = sof_rx_recv_w;
   assign timeout_o = timeout_w;
 
+  assign has_telemetry_o = tele_level_w[9:2] != 0;
+
   assign usb_idle_o = usb_idle_q;
   assign usb_vbus_valid_o = VbusState == 2'b11;
   assign usb_hs_enabled_o = high_speed_w;
   assign usb_suspend_o = 1'b1;  // todo: ...
 
-  assign s_axis_tready_o = ~tele_sel_q & mux_tready_w;
+  assign s_axis_tready_o = blk_fetch_o & mux_tready_w;
 
 
   // Compute the reset signals
@@ -274,7 +280,15 @@ module ulpi_axis_bridge #(
       tele_sel_q <= blk_endpt_o == ENDPOINT2;
     end
 
-    blk_in_ready_q <= blk_in_ready_i || tele_level_w[9:4] != 0;
+    if (!high_speed_w) begin
+      blk_in_ready_q <= 1'b0;
+    end else if (blk_endpt_o == ENDPOINT1 && blk_in_ready_i) begin
+      blk_in_ready_q <= 1'b1;
+    end else if (blk_endpt_o == ENDPOINT2 && tele_level_w[9:4] != 0) begin
+      blk_in_ready_q <= 1'b1;
+    end else begin
+      blk_in_ready_q <= 1'b0;
+    end
   end
 
 
@@ -415,6 +429,9 @@ module ulpi_axis_bridge #(
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
+  wire blko_tvalid_w, blko_tready_w, blko_tlast_w, blko_tkeep_w;
+  wire [7:0] blko_tdata_w;
+
   transactor #(
       .PIPELINED(PIPELINED)
   ) U_TRANSACT1 (
@@ -426,9 +443,9 @@ module ulpi_axis_bridge #(
       .usb_timeout_error_o(timeout_w),
       .usb_device_idle_o(usb_idle_w),
 
-      .usb_state_o (usb_state_w),
-      .ctl_state_o (ctl_state_w),
-      .blk_state_o (blk_state_w),
+      .usb_state_o(usb_state_w),
+      .ctl_state_o(ctl_state_w),
+      .blk_state_o(blk_state_w),
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
@@ -465,6 +482,8 @@ module ulpi_axis_bridge #(
       .blk_out_ready_i(blk_out_ready_i),
       .blk_start_o(blk_start_o),
       .blk_cycle_o(blk_cycle_o),
+      .blk_fetch_o(blk_fetch_o),
+      .blk_store_o(blk_store_o),
       .blk_endpt_o(blk_endpt_o),
       .blk_error_i(blk_error_i),
 
@@ -474,11 +493,11 @@ module ulpi_axis_bridge #(
       .blk_tkeep_i (blkx_tkeep_w),
       .blk_tdata_i (blkx_tdata_w),
 
-      .blk_tvalid_o(m_axis_tvalid_o),
-      .blk_tready_i(m_axis_tready_i),
-      .blk_tlast_o (m_axis_tlast_o),
-      .blk_tkeep_o (m_axis_tkeep_o),
-      .blk_tdata_o (m_axis_tdata_o),
+      .blk_tvalid_o(blko_tvalid_w),
+      .blk_tready_i(blko_tready_w),
+      .blk_tlast_o (blko_tlast_w),
+      .blk_tkeep_o (blko_tkeep_w),
+      .blk_tdata_o (blko_tdata_w),
 
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),
@@ -506,14 +525,82 @@ module ulpi_axis_bridge #(
   );
 
 
+  //
+  //  Re-frame 'BULK OUT' USB data, if 'AXIS_CHOP_AND_CLEAN' is enabled.
+  ///
+  generate
+    if (AXIS_CHOP_AND_CLEAN) begin : g_chop_and_clean
+
+      wire chop_tvalid_w, chop_tready_w, chop_tlast_w;
+      wire [7:0] chop_tdata_w;
+
+      assign m_axis_tkeep_o = m_axis_tvalid_o;
+
+      axis_chop #(
+          .WIDTH (8),
+          .MAXLEN(512),
+          .BYPASS(0)
+      ) U_AXIS_CHOP1 (
+          .clock(clock),
+          .reset(reset),
+
+          .active_i(blk_store_o),
+          .length_i(10'd512),
+          .final_o (),
+
+          .s_tvalid(chop_tvalid_w),
+          .s_tready(chop_tready_w),
+          .s_tlast (chop_tlast_w),
+          .s_tdata (chop_tdata_w),
+
+          .m_tvalid(m_axis_tvalid_o),
+          .m_tready(m_axis_tready_i),
+          .m_tlast (m_axis_tlast_o),
+          .m_tdata (m_axis_tdata_o)
+      );
+
+      axis_clean #(
+          .WIDTH(8),
+          .DEPTH(16)
+      ) U_AXIS_CLEAN1 (
+          .clock(clock),
+          .reset(reset),
+
+          .s_tvalid(blko_tvalid_w && blk_store_o),
+          .s_tready(blko_tready_w),
+          .s_tlast (blko_tlast_w),
+          .s_tkeep (blko_tkeep_w),
+          .s_tdata (blko_tdata_w),
+
+          .m_tvalid(chop_tvalid_w),
+          .m_tready(chop_tready_w),
+          .m_tlast (chop_tlast_w),
+          .m_tkeep (),
+          .m_tdata (chop_tdata_w)
+      );
+
+    end else begin : g_raw_data_stream
+
+      assign blko_tready_w   = m_axis_tready_i;
+
+      assign m_axis_tvalid_o = blko_tvalid_w;
+      assign m_axis_tlast_o  = blko_tlast_w;
+      assign m_axis_tkeep_o  = blko_tkeep_w;
+      assign m_axis_tdata_o  = blko_tdata_w;
+
+    end
+  endgenerate
+
+
   // -- 2:1 MUX for Bulk IN vs Control Transfers -- //
 
   wire mux_tvalid_w, mux_tlast_w, mux_tkeep_w, mux_tready_w;
   wire [7:0] mux_tdata_w;
 
-  assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : s_axis_tvalid_i;
+  assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : blk_fetch_o ? s_axis_tvalid_i : 1'b0;
   assign mux_tlast_w  = tele_sel_q ? tel_tlast_w : s_axis_tlast_i;
   assign mux_tkeep_w  = tele_sel_q ? tel_tkeep_w : s_axis_tkeep_i;
+//                         AXIS_CHOP_AND_CLEAN ? s_axis_tvalid_i : s_axis_tkeep_i;
   assign mux_tdata_w  = tele_sel_q ? tel_tdata_w : s_axis_tdata_i;
 
   assign tel_tready_w = tele_sel_q & mux_tready_w;
@@ -587,13 +674,6 @@ module ulpi_axis_bridge #(
 
   // -- USB Telemetry Control Endpoint -- //
 
-  assign has_telemetry_o = tele_level_w[9:2] != 0;
-/*
-  assign usb_state_w = U_TRANSACT1.state;
-  assign ctl_state_w = U_TRANSACT1.xctrl;
-  assign blk_state_w = U_TRANSACT1.xbulk;
-*/
-
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
       .ENDPOINT(ENDPOINT2),
@@ -604,17 +684,17 @@ module ulpi_axis_bridge #(
       .usb_enum_i(1'b1),
       .high_speed_i(high_speed_w),
 
-      .LineState(LineState), // Byte 3
+      .LineState(LineState),  // Byte 3
       .ctl_cycle_i(ctl0_cycle_w),
       .usb_reset_i(usb_reset_w),
       .usb_endpt_i(tok_endp_w),
 
-      .usb_tuser_i(ulpi_rx_tuser_w), // Byte 2
+      .usb_tuser_i(ulpi_rx_tuser_w),  // Byte 2
       .ctl_error_i(ctl0_error_w),
       .usb_state_i(usb_state_w),
       .crc_error_i(crc_err_o),
 
-      .usb_error_i(err_code_w), // Byte 1
+      .usb_error_i(err_code_w),  // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
@@ -622,7 +702,7 @@ module ulpi_axis_bridge #(
       .usb_sof_i(sof_rx_recv_w),
       .blk_state_i(blk_state_w),
 
-      .ctl_state_i(ctl_state_w), // Byte 0
+      .ctl_state_i(ctl_state_w),  // Byte 0
       .phy_state_i(phy_state_w),
 
       .start_i (blk_start_o),

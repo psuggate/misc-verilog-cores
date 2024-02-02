@@ -264,7 +264,7 @@ module ctl_pipe0 #(
       .WIDTH (8),
       .MAXLEN(MAXLEN),
       .BYPASS(0)
-  ) axis_skid_inst (
+  ) U_AXIS_CHOP0 (
       .clock(clock),
       .reset(reset),
 

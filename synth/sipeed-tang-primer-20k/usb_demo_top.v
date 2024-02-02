@@ -41,7 +41,7 @@ module usb_demo_top (
   localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
 
   // USB BULK IN/OUT SRAM parameters
-  parameter USE_SYNC_FIFO = 1;
+  parameter USE_SYNC_FIFO = 0;
   localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
   localparam integer FSB = FIFO_LEVEL_BITS - 1;
   localparam integer BULK_FIFO_SIZE = 2048;
@@ -63,6 +63,8 @@ module usb_demo_top (
   // Local Signals //
   wire device_usb_idle_w, crc_error_w, hs_enabled_w;
   wire usb_sof_w, configured, blk_cycle_w, has_telemetry_w, timeout_w;
+  wire blk_fetch_w, blk_store_w;
+  wire [3:0] blk_endpt_w;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
@@ -121,10 +123,10 @@ module usb_demo_top (
 
   wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
 
-  assign bsvalid_w = s_tvalid && blk_cycle_w;
-  assign bsready_w = s_tready && blk_cycle_w;
-  assign bmvalid_w = m_tvalid && blk_cycle_w;
-  assign bmready_w = m_tready && blk_cycle_w;
+  assign bsvalid_w = s_tvalid && blk_store_w;
+  assign bsready_w = s_tready && blk_store_w;
+  assign bmvalid_w = m_tvalid && blk_fetch_w;
+  assign bmready_w = m_tready && blk_fetch_w;
 
   // Bulk Endpoint Status //
   always @(posedge usb_clock) begin
@@ -132,7 +134,7 @@ module usb_demo_top (
       bulk_in_ready_q  <= 1'b0;
       bulk_out_ready_q <= 1'b0;
     end else begin
-      bulk_in_ready_q  <= configured && level_w > 4;
+      bulk_in_ready_q  <= configured && m_tvalid; // level_w > 4;
       bulk_out_ready_q <= configured && level_w < 1024;
     end
   end
@@ -180,7 +182,9 @@ module usb_demo_top (
       .blk_out_ready_i(bulk_out_ready_q),
       .blk_start_o(),
       .blk_cycle_o(blk_cycle_w),
-      .blk_endpt_o(),
+      .blk_fetch_o(blk_fetch_w),
+      .blk_store_o(blk_store_w),
+      .blk_endpt_o(blk_endpt_w),
       .blk_error_i(1'b0),
 
       .s_axis_tvalid_i(bmvalid_w),

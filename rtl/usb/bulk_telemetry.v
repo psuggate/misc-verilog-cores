@@ -286,8 +286,7 @@ module bulk_telemetry #(
           .clk(clock),
           .rst(reset),
 
-          // AXI input
-          .s_axis_tdata(curr_w),
+          .s_axis_tdata(curr_w),  // AXI input
           .s_axis_tkeep(4'hf),
           .s_axis_tvalid(diff_w),
           .s_axis_tready(ready_w),
@@ -298,8 +297,7 @@ module bulk_telemetry #(
 
           .pause_req(1'b0),
 
-          // AXI output
-          .m_axis_tdata(x_tdata),
+          .m_axis_tdata(x_tdata),  // AXI output
           .m_axis_tkeep(),
           .m_axis_tvalid(x_tvalid),
           .m_axis_tready(x_tready),
@@ -307,8 +305,8 @@ module bulk_telemetry #(
           .m_axis_tid(),
           .m_axis_tdest(),
           .m_axis_tuser(),
-          // Status
-          .status_depth(level_o),
+
+          .status_depth(level_o),  // Status
           .status_overflow(),
           .status_bad_frame(),
           .status_good_frame()
@@ -334,8 +332,7 @@ module bulk_telemetry #(
       .clk(clock),
       .rst(reset),
 
-      // AXI input
-      .s_axis_tdata(x_tdata),
+      .s_axis_tdata(x_tdata),  // AXI input
       .s_axis_tkeep(4'hf),
       .s_axis_tvalid(x_tvalid),
       .s_axis_tready(x_tready),
@@ -344,8 +341,7 @@ module bulk_telemetry #(
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
 
-      // AXI output
-      .m_axis_tdata(a_tdata_w),
+      .m_axis_tdata(a_tdata_w),  // AXI output
       .m_axis_tkeep(),
       .m_axis_tvalid(a_tvalid_w),
       .m_axis_tready(a_tready_w),
