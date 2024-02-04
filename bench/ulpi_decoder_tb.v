@@ -392,17 +392,30 @@ module ulpi_decoder_tb;
 
   // -- EXPERIMENTAL -- //
 
+  localparam USE_IOB_REGS = 1;
+
+  wire sof_recv_w;
+
   wire uvalid_w, ulast_w, ukeep_w;
   wire [3:0] uuser_w;
   wire [7:0] udata_w;
+
+  wire xdir_w, xnxt_w;
+  wire [7:0] xdat_w;
+
+  assign xdir_w = USE_IOB_REGS ? dir_q : ibuf_dir_w;
+  assign xnxt_w = USE_IOB_REGS ? nxt_q : ibuf_nxt_w;
+  assign xdat_w = USE_IOB_REGS ? dat_q : ibuf_dat_w;
 
   drop_the_last_two U_DROP_TWO1
     ( .clock(clock),
       .reset(reset),
 
-      .ulpi_dir(ibuf_dir_w),
-      .ulpi_nxt(ibuf_nxt_w),
-      .ulpi_data(ibuf_dat_w),
+      .ulpi_dir(xdir_w),
+      .ulpi_nxt(xnxt_w),
+      .ulpi_data(xdat_w),
+
+      .sof_recv_o(sof_recv_w),
 
       .m_tvalid(uvalid_w),
       .m_tlast(ulast_w),

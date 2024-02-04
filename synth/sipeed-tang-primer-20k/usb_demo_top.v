@@ -326,6 +326,7 @@ module usb_demo_top (
   assign usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   assign usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
   assign tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
+  assign tok_parity_w  = U_ULPI_USB0.par_q;
 
 
   // Capture telemetry, so that it can be read back from EP1
@@ -352,6 +353,7 @@ module usb_demo_top (
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
+      .tok_ping_i(tok_parity_w),
       .timeout_i(timeout_w),
       .usb_sof_i(usb_sof_w),
       .blk_state_i(blk_state_w),

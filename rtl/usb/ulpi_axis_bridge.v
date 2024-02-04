@@ -361,13 +361,19 @@ module ulpi_axis_bridge #(
       .clock(clock),
       .reset(reset),
 
+      .ulpi_dir (iob_dir_w),
+      .ulpi_nxt (iob_nxt_w),
+      .ulpi_data(iob_dat_w),
+
+/*
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
       .ulpi_data(ulpi_data_iw),
+*/
 
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),
-      .usb_sof_o(sof_rx_recv_w),
+      .sof_recv_o(sof_rx_recv_w),
       .dec_idle_o(decode_idle_w),
 
       .tok_recv_o(tok_rx_recv_w),
@@ -498,6 +504,18 @@ module ulpi_axis_bridge #(
       .ulpi_stp (ulpi_stp_o),
       .ulpi_data(ulpi_data_ow)
   );
+
+  reg par_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      par_q <= 1'b0;
+    end else begin
+      if (ulpi_tx_tvalid_w && ulpi_tx_tready_w && ulpi_tx_tkeep_w && !usb_tx_busy_w) begin
+        par_q <= ulpi_tx_tuser_w[3];
+      end
+    end
+  end
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
@@ -771,6 +789,8 @@ module ulpi_axis_bridge #(
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
+      .tok_ping_i(par_q),
+      // .tok_ping_i(tok_rx_ping_w),
       .timeout_i(timeout_w),
       .usb_sof_i(sof_rx_recv_w),
       .blk_state_i(blk_state_w),

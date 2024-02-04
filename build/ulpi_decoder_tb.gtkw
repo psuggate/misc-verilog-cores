@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Feb  4 02:41:40 2024
+[*] Sun Feb  4 07:42:34 2024
 [*]
 [dumpfile] "./ulpi_decoder_tb.vcd"
-[dumpfile_mtime] "Sun Feb  4 02:30:22 2024"
-[dumpfile_size] 23365
+[dumpfile_mtime] "Sun Feb  4 04:06:45 2024"
+[dumpfile_size] 23780
 [savefile] "./ulpi_decoder_tb.gtkw"
-[timestart] 186900
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-15.474764 465000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.474764 465000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ulpi_decoder_tb.
 [treeopen] ulpi_decoder_tb.U_DECODER1.
 [sst_width] 233
@@ -34,9 +34,7 @@ ulpi_decoder_tb.dbg_state[31:0]
 ulpi_decoder_tb.ttype_q[1:0]
 ulpi_decoder_tb.ksend_q
 ulpi_decoder_tb.dsend_q
-@29
 ulpi_decoder_tb.hsend_q
-@28
 ulpi_decoder_tb.tdone_w
 ulpi_decoder_tb.tdone_q
 @22
@@ -82,6 +80,7 @@ ulpi_decoder_tb.uvalid_w
 ulpi_decoder_tb.ulast_w
 ulpi_decoder_tb.ukeep_w
 @22
+ulpi_decoder_tb.uuser_w[3:0]
 ulpi_decoder_tb.udata_w[7:0]
 @200
 -** Flags
@@ -90,7 +89,6 @@ ulpi_decoder_tb.udata_w[7:0]
 ulpi_decoder_tb.U_DROP_TWO1.crc_valid_flag
 [color] 1
 ulpi_decoder_tb.U_DROP_TWO1.crc_error_flag
-ulpi_decoder_tb.U_DROP_TWO1.usb_sof_o
 ulpi_decoder_tb.U_DROP_TWO1.usb_recv_o
 ulpi_decoder_tb.U_DROP_TWO1.hsk_recv_o
 ulpi_decoder_tb.U_DROP_TWO1.tok_recv_o

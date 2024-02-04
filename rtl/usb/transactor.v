@@ -550,7 +550,7 @@ module transactor #(
 
         BLK_DATI_ACK: begin
           // Wait for the host to 'ACK' the packet
-          if (hsk_recv_i) begin
+          if (hsk_recv_i || terr_q) begin
             xbulk <= BLK_DONE;
           end
         end

@@ -14,6 +14,7 @@ module bulk_telemetry #(
     input usb_recv_i,
     input usb_sent_i,
     input tok_recv_i,
+    input tok_ping_i,
     input high_speed_i,
 
     input crc_error_i,
@@ -53,6 +54,7 @@ module bulk_telemetry #(
   // -- Current USB Configuration State -- //
 
   reg sel_q, crc_error_q, ctl_cycle_q, ctl_error_q, usb_sof_q, usb_reset_q;
+  reg tok_ping_q;
   reg [3:0] phy_state_q, ctl_state_q, usb_endpt_q, usb_tuser_q;
   reg [2:0] blk_state_q, err_code_q;
   reg [1:0] linestate_q, usb_state_q;
@@ -145,7 +147,8 @@ module bulk_telemetry #(
     usb_endpt_q,
     usb_tuser_q,
     ctl_error_q,
-    1'b0,
+    tok_ping_q,
+    // 1'b0,
     usb_state_q,
     crc_error_q,
     err_code_q,
@@ -161,7 +164,8 @@ module bulk_telemetry #(
     usb_endpt_i,
     usb_tuser_i,
     ctl_error_i,
-    1'b0,
+    tok_ping_i,
+    // 1'b0,
     usb_state_x,
     crc_error_i,
     err_code_x,
@@ -177,6 +181,7 @@ module bulk_telemetry #(
       linestate_q <= 2'b01;  // 'J'
       ctl_cycle_q <= 1'b0;
       ctl_error_q <= 1'b0;
+      tok_ping_q  <= 1'b0;
       usb_reset_q <= 1'b0;
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
@@ -190,6 +195,7 @@ module bulk_telemetry #(
       linestate_q <= LineState;
       ctl_cycle_q <= ctl_cycle_i;
       ctl_error_q <= ctl_error_i;
+      tok_ping_q  <= tok_ping_i;
       usb_reset_q <= usb_reset_i;
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Feb  3 06:34:58 2024
+[*] Sun Feb  4 07:42:30 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Feb  3 06:34:09 2024"
-[dumpfile_size] 778129
+[dumpfile_mtime] "Sun Feb  4 04:06:45 2024"
+[dumpfile_size] 831165
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 8044200
+[timestart] 9110300
 [size] 2560 1376
 [pos] -1 -1
-*-17.451649 8980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.457176 9580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.g_chop_and_clean.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
@@ -20,7 +20,7 @@
 [sst_width] 233
 [signals_width] 190
 [sst_expanded] 1
-[sst_vpaned_height] 1035
+[sst_vpaned_height] 856
 @28
 usb_core_tb.clock
 usb_core_tb.reset
@@ -255,7 +255,7 @@ U_USB_BRIDGE1.U_LINESTATE1.ls_pulse_1_0ms
 @1401200
 -Extra
 -LineState
-@c00200
+@800200
 -Tx
 @28
 U_USB_BRIDGE1.ulpi_tx_tvalid_w
@@ -273,6 +273,9 @@ U_USB_BRIDGE1.U_ENCODER1.dbg_xsend[39:0]
 @28
 U_USB_BRIDGE1.hsk_tx_send_w
 U_USB_BRIDGE1.hsk_tx_done_w
+@29
+U_USB_BRIDGE1.usb_tx_busy_w
+@28
 U_USB_BRIDGE1.usb_tx_done_w
 U_USB_BRIDGE1.U_ENCODER1.dir_q
 @22
@@ -310,13 +313,11 @@ U_USB_BRIDGE1.U_ENCODER1.mdata_w[7:0]
 @1000200
 -Output
 -Enc
-@1401200
 -Tx
-@800200
+@c00200
 -Rx
-@29
-U_USB_BRIDGE1.ulpi_rx_tvalid_w
 @28
+U_USB_BRIDGE1.ulpi_rx_tvalid_w
 U_USB_BRIDGE1.ulpi_rx_tready_w
 U_USB_BRIDGE1.ulpi_rx_tlast_w
 U_USB_BRIDGE1.ulpi_rx_tkeep_w
@@ -342,6 +343,7 @@ U_USB_BRIDGE1.U_DECODER1.crc16_w[15:0]
 U_USB_BRIDGE1.U_DECODER1.rx_crc5_w[4:0]
 @1000200
 -Dec
+@1401200
 -Rx
 @c00200
 -CtlPipe0

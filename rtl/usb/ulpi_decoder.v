@@ -316,7 +316,7 @@ module drop_the_last_two
 
    output crc_error_o,
    output crc_valid_o,
-    output usb_sof_o,
+    output sof_recv_o,
     output dec_idle_o,
 
     output tok_recv_o,
@@ -358,7 +358,7 @@ module drop_the_last_two
   // -- Signals & State -- //
 
   // USB packet-receive signals
-  reg tok_recv_q, hsk_recv_q, usb_recv_q, sof_recv_q;
+  reg tok_recv_q, tok_ping_q, hsk_recv_q, usb_recv_q, sof_recv_q;
   reg tvalid, tlast, tkeep;
   reg [3:0] tuser;
   reg [7:0] tdata;
@@ -372,11 +372,11 @@ module drop_the_last_two
 
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
-  assign usb_sof_o   = sof_recv_q;
+  assign sof_recv_o  = sof_recv_q;
   assign dec_idle_o  = ~cyc_q;
 
   assign tok_recv_o = tok_recv_q;
-  assign tok_ping_o = 1'b0;  // todo: ...
+  assign tok_ping_o = tok_ping_q;
   assign tok_addr_o = addr_q;
   assign tok_endp_o = endp_q;
   assign hsk_recv_o = hsk_recv_q;
@@ -391,21 +391,19 @@ module drop_the_last_two
 
   // -- Pipeline Control -- //
 
-  reg dir_q, cyc_q, end_q, tok_q, hsk_q;
+  reg dir_q, cyc_q, tok_q, hsk_q;
   wire rx_end_w, pid_vld_w, istoken_w;
-  wire [3:0] rx_pid_pw, rx_pid_nw;
+  wire [3:0] rx_pid_w;
 
-  assign rx_end_w  = !ulpi_dir || ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != 2'b01;
-  assign rx_pid_pw = ulpi_data[3:0];
-  assign rx_pid_nw = ~ulpi_data[7:4];
+  assign rx_end_w = !ulpi_dir || ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != 2'b01;
+  assign rx_pid_w = ulpi_data[3:0];
 
-  assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_pw == rx_pid_nw;
-  assign istoken_w = rx_pid_pw[1:0] == PID_TOKEN || rx_pid_pw == {SPC_PING, PID_SPECIAL};
+  assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_w == ~ulpi_data[7:4];
+  assign istoken_w = rx_pid_w[1:0] == PID_TOKEN || rx_pid_w == {SPC_PING, PID_SPECIAL};
 
-  // Frames a USB packet-receive transfer cycle.
+  // Frames a USB packet-receive transfer cycle //
   always @(posedge clock) begin
     dir_q <= ulpi_dir;
-    end_q <= rx_end_w;
 
     if (reset || rx_end_w) begin
       cyc_q <= 1'b0;
@@ -413,31 +411,109 @@ module drop_the_last_two
       hsk_q <= 1'b0;
     end else if (ulpi_dir && ulpi_nxt && dir_q && pid_vld_w) begin
       cyc_q <= 1'b1;
-      if (rx_pid_pw[1:0] == PID_HANDSHAKE) begin
+      if (rx_pid_w[1:0] == PID_HANDSHAKE) begin
         hsk_q <= 1'b1;
       end
-      if (istoken_w && !cyc_q && !end_q) begin
+      if (istoken_w && !cyc_q) begin
         tok_q <= 1'b1;
       end
     end
+  end
 
+  // USB PID is output as a 4-bit AXI4-Stream 'tuser' value //
+  // Note: only updates whenever a new USB packet is received.
+  always @(posedge clock) begin
     if (reset) begin
       tuser <= 4'ha;
     end else if (!cyc_q && ulpi_dir && ulpi_nxt && dir_q && pid_vld_w) begin
-      tuser <= rx_pid_pw;
+      tuser <= rx_pid_w;
     end
   end
 
+
+  // -- USB Token Handling -- //
+
+  reg sof_q, low_q;
+  reg [3:0] endp_q;
+  reg [6:0] addr_q;
+  wire [10:0] token_w;
+
+  assign token_w = {dat_q, out_q};
+
+  // Strobes for when we receive a TOKEN or SOF //
   always @(posedge clock) begin
     if (cyc_q && rx_end_w && rx_crc5_w == dat_q[7:3]) begin
       tok_recv_q <= tok_q && !sof_q;
+      tok_ping_q <= tuser == {SPC_PING, PID_SPECIAL};
       sof_recv_q <= sof_q;
     end else begin
       tok_recv_q <= 1'b0;
+      tok_ping_q <= 1'b0;
       sof_recv_q <= 1'b0;
     end      
     hsk_recv_q <= hsk_q && rx_end_w;
     usb_recv_q <= cyc_q && !tok_q && rx_end_w && crc16_q == 16'h800d;  // todo: ...
+  end
+
+  // Note: these data are also used for the USB device address & endpoint
+  always @(posedge clock) begin
+    if (reset) begin
+      sof_q <= 1'b0;
+      low_q <= 1'b1;
+      endp_q <= 0;
+      addr_q <= 0;
+    end else begin
+      // Decode USB Start-of-Frame (SOF) Packets
+      if (!tok_q && pid_vld_w && rx_pid_w[3:2] == TOK_SOF) begin
+        sof_q <= 1'b1;
+      end else if (rx_end_w) begin
+        sof_q <= 1'b0;
+      end
+
+      if (!tok_q && pid_vld_w && istoken_w) begin
+        low_q <= 1'b1;
+      end else if (tok_q && ulpi_nxt) begin
+        if (low_q && !sof_q) begin
+          {endp_q[0], addr_q} <= ulpi_data;
+        end else if (!sof_q) begin
+          endp_q[3:1] <= ulpi_data[2:0];
+        end
+        low_q <= ~low_q;
+      end
+    end
+  end
+
+
+  // -- Early CRC16 calculation -- //
+
+  assign rx_crc5_w = crc5(token_w);
+  assign crc16_w   = crc16(ulpi_data, crc16_q);
+
+  always @(posedge clock) begin
+    if (!cyc_q) begin
+      crc16_q <= 16'hffff;
+    end else if (cyc_q && ulpi_nxt) begin
+      crc16_q <= crc16_w;
+    end else begin
+      crc16_q <= crc16_q;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      crc_error_flag <= 1'b0;
+      crc_valid_flag <= 1'b0;
+    end else if (rx_end_w && cyc_q) begin
+      if (!hsk_q && !tok_q) begin
+        crc_error_flag <= crc16_q != 16'h800d;
+        crc_valid_flag <= crc16_q == 16'h800d;
+      end else if (tok_q) begin
+        crc_error_flag <= rx_crc5_w != dat_q[7:3];
+        crc_valid_flag <= rx_crc5_w == dat_q[7:3];
+      end
+    end else begin
+      crc_valid_flag <= 1'b0;
+    end
   end
 
 
@@ -499,77 +575,6 @@ module drop_the_last_two
         tkeep <= 1'b0;
         tdata <= 'bx;
       end
-    end
-  end
-
-
-  // -- USB Token Handling -- //
-
-  reg sof_q, low_q;
-  reg [3:0] endp_q;
-  reg [6:0] addr_q;
-  wire [10:0] token_w;
-
-  assign token_w = {dat_q, out_q}; // endp_q[0], addr_q};
-
-  // Note: these data are also used for the USB device address & endpoint
-  always @(posedge clock) begin
-    if (reset) begin
-      sof_q <= 1'b0;
-      low_q <= 1'b1;
-      endp_q <= 0;
-      addr_q <= 0;
-    end else begin
-      // Decode USB Start-of-Frame (SOF) Packets
-      if (!tok_q && pid_vld_w && rx_pid_pw[3:2] == TOK_SOF) begin
-        sof_q <= 1'b1;
-      end else if (end_q) begin
-        sof_q <= 1'b0;
-      end
-
-      if (!tok_q && pid_vld_w && istoken_w) begin
-        low_q <= 1'b1;
-      end else if (tok_q && ulpi_nxt) begin
-        if (low_q && !sof_q) begin
-          {endp_q[0], addr_q} <= ulpi_data;
-        end else if (!sof_q) begin
-          endp_q[3:1] <= ulpi_data[2:0];
-        end
-        low_q <= ~low_q;
-      end
-    end
-  end
-
-
-  // -- Early CRC16 calculation -- //
-
-  assign rx_crc5_w = crc5(token_w);
-  assign crc16_w   = crc16(ulpi_data, crc16_q);
-
-  always @(posedge clock) begin
-    if (!cyc_q) begin
-      crc16_q <= 16'hffff;
-    end else if (cyc_q && ulpi_nxt) begin
-      crc16_q <= crc16_w;
-    end else begin
-      crc16_q <= crc16_q;
-    end
-  end
-
-  always @(posedge clock) begin
-    if (reset) begin
-      crc_error_flag <= 1'b0;
-      crc_valid_flag <= 1'b0;
-    end else if (rx_end_w && cyc_q) begin
-      if (!hsk_q && !tok_q) begin
-        crc_error_flag <= crc16_q != 16'h800d;
-        crc_valid_flag <= crc16_q == 16'h800d;
-      end else if (tok_q) begin
-        crc_error_flag <= rx_crc5_w != dat_q[7:3];
-        crc_valid_flag <= rx_crc5_w == dat_q[7:3];
-      end
-    end else begin
-      crc_valid_flag <= 1'b0;
     end
   end
 
