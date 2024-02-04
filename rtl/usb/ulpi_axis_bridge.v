@@ -354,25 +354,21 @@ module ulpi_axis_bridge #(
 
   // -- ULPI Decoder & Encoder -- //
 
-  ulpi_decoder U_DECODER1 (
+`define __being_a_weirdo
+`ifdef __being_a_weirdo
+
+  drop_the_last_two U_DECODER2 (
       .clock(clock),
       .reset(reset),
 
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ibuf_dir(ulpi_dir_i),
-      .ibuf_nxt(ulpi_nxt_i),
-
-      .ulpi_dir (iob_dir_w),
-      .ulpi_nxt (iob_nxt_w),
-      .ulpi_data(iob_dat_w),
+      .ulpi_dir (ulpi_dir_i),
+      .ulpi_nxt (ulpi_nxt_i),
+      .ulpi_data(ulpi_data_iw),
 
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),
-      .decode_idle_o(decode_idle_w),
       .usb_sof_o(sof_rx_recv_w),
+      .dec_idle_o(decode_idle_w),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -388,6 +384,83 @@ module ulpi_axis_bridge #(
       .m_tuser (ulpi_rx_tuser_w),
       .m_tdata (ulpi_rx_tdata_w)
   );
+
+  ulpi_decoder U_DECODER1 (
+      .clock(clock),
+      .reset(reset),
+
+      .LineState(LineState),
+      .VbusState(VbusState),
+      .RxEvent  (RxEvent),
+
+      .ibuf_dir (ulpi_dir_i),
+      .ibuf_nxt (ulpi_nxt_i),
+      .ibuf_data(ulpi_data_iw),
+
+      .ulpi_dir (iob_dir_w),
+      .ulpi_nxt (iob_nxt_w),
+      .ulpi_data(iob_dat_w),
+
+/*
+      .crc_error_o(crc_err_o),
+      .crc_valid_o(crc_vld_o),
+      .usb_sof_o(sof_rx_recv_w),
+      .decode_idle_o(decode_idle_w),
+
+      .tok_recv_o(tok_rx_recv_w),
+      .tok_ping_o(tok_rx_ping_w),
+      .tok_addr_o(tok_addr_w),
+      .tok_endp_o(tok_endp_w),
+      .hsk_recv_o(hsk_rx_recv_w),
+      .usb_recv_o(usb_rx_recv_w),
+
+      .m_tvalid(ulpi_rx_tvalid_w),
+      .m_tkeep (ulpi_rx_tkeep_w),
+      .m_tlast (ulpi_rx_tlast_w),
+      .m_tuser (ulpi_rx_tuser_w),
+      .m_tdata (ulpi_rx_tdata_w),
+*/
+      .m_tready(ulpi_rx_tready_w)
+  );
+
+`else
+
+  ulpi_decoder U_DECODER1 (
+      .clock(clock),
+      .reset(reset),
+
+      .LineState(LineState),
+      .VbusState(VbusState),
+      .RxEvent  (RxEvent),
+
+      .ibuf_dir (ulpi_dir_i),
+      .ibuf_nxt (ulpi_nxt_i),
+      .ibuf_data(ulpi_data_iw),
+
+      .ulpi_dir (iob_dir_w),
+      .ulpi_nxt (iob_nxt_w),
+      .ulpi_data(iob_dat_w),
+
+      .crc_error_o(crc_err_o),
+      .crc_valid_o(crc_vld_o),
+      .usb_sof_o(sof_rx_recv_w),
+      .decode_idle_o(decode_idle_w),
+      .tok_ping_o(tok_rx_ping_w),
+      .tok_recv_o(tok_rx_recv_w),
+      .tok_addr_o(tok_addr_w),
+      .tok_endp_o(tok_endp_w),
+      .hsk_recv_o(hsk_rx_recv_w),
+      .usb_recv_o(usb_rx_recv_w),
+
+      .m_tvalid(ulpi_rx_tvalid_w),
+      .m_tkeep (ulpi_rx_tkeep_w),
+      .m_tlast (ulpi_rx_tlast_w),
+      .m_tuser (ulpi_rx_tuser_w),
+      .m_tdata (ulpi_rx_tdata_w),
+      .m_tready(ulpi_rx_tready_w)
+  );
+
+`endif
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
