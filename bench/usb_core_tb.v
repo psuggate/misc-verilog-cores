@@ -275,7 +275,7 @@ module usb_core_tb;
       .s_axis_tvalid_i(bmvalid_w),  // USB 'BULK IN' EP data-path
       .s_axis_tready_o(sready),
       .s_axis_tlast_i (slast),
-      .s_axis_tkeep_i (skeep),
+      .s_axis_tkeep_i (bmvalid_w),
       .s_axis_tdata_i (sdata),
 
       .m_axis_tvalid_o(mvalid),  // USB 'BULK OUT' EP data-path
@@ -288,12 +288,35 @@ module usb_core_tb;
 
   // -- Loop-back FIFO for Testing -- //
 
+  wire xvalid, xready, xlast;
+  wire [7:0] xdata;
+
+  axis_clean #(
+      .WIDTH(8),
+      .DEPTH(16)
+  ) U_AXIS_CLEAN2 (
+      .clock(dev_clock),
+      .reset(dev_reset),
+
+      .s_tvalid(bsvalid_w),
+      .s_tready(mready),
+      .s_tlast (mlast),
+      .s_tkeep (mkeep),
+      .s_tdata (mdata),
+
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tlast (xlast),
+      .m_tkeep (),
+      .m_tdata (xdata)
+  );
+
   // Loop-back FIFO for Testing //
   generate
     if (USE_SYNC_FIFO) begin : g_sync_fifo
 
       sync_fifo #(
-          .WIDTH (10),
+          .WIDTH (9),
           .ABITS (11),
           .OUTREG(3)
       ) rddata_fifo_inst (
@@ -302,13 +325,13 @@ module usb_core_tb;
 
           .level_o(level_w),
 
-          .valid_i(bsvalid_w),
-          .ready_o(mready),
-          .data_i ({mkeep, mlast, mdata}),
+          .valid_i(xvalid),
+          .ready_o(xready),
+          .data_i ({xlast, xdata}),
 
           .valid_o(svalid),
           .ready_i(bmready_w),
-          .data_o ({skeep, slast, sdata})
+          .data_o ({slast, sdata})
       );
 
     end else begin : g_axis_fifo
@@ -316,7 +339,7 @@ module usb_core_tb;
       axis_fifo #(
           .DEPTH(BULK_FIFO_SIZE),
           .DATA_WIDTH(8),
-          .KEEP_ENABLE(1),
+          .KEEP_ENABLE(0),
           .KEEP_WIDTH(1),
           .LAST_ENABLE(1),
           .ID_ENABLE(0),
@@ -336,11 +359,11 @@ module usb_core_tb;
           .clk(dev_clock),
           .rst(dev_reset),
 
-          .s_axis_tdata (mdata),  // AXI4-Stream input
-          .s_axis_tkeep (mkeep),
-          .s_axis_tvalid(bsvalid_w),
-          .s_axis_tready(mready),
-          .s_axis_tlast (mlast),
+          .s_axis_tdata (xdata),  // AXI4-Stream input
+          .s_axis_tkeep (xvalid),
+          .s_axis_tvalid(xvalid),
+          .s_axis_tready(xready),
+          .s_axis_tlast (xlast),
           .s_axis_tid   (1'b0),
           .s_axis_tdest (1'b0),
           .s_axis_tuser (1'b0),

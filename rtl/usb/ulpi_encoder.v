@@ -5,7 +5,7 @@ module ulpi_encoder #(
     input clock,
     input reset,
 
-    input  high_speed_i,
+    input high_speed_i,
     output encode_idle_o,
     output [9:0] enc_state_o,
 

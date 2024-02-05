@@ -65,9 +65,9 @@ module ctl_pipe0 #(
     input  select_i,
     input  start_i,
     output error_o,
+    output event_o,
 
     output configured_o,
-    output conf_event_o,
     output usb_enum_o,
     output [6:0] usb_addr_o,
     output [2:0] usb_conf_o,
@@ -217,12 +217,12 @@ module ctl_pipe0 #(
   // -- Signal Output Assignments -- //
 
   assign error_o = err_q;
+  assign event_o = ctl_done_q;
 
   assign usb_enum_o = enm_q;
   assign usb_addr_o = adr_q;
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
-  assign conf_event_o = ctl_done_q;
 
 
   //
@@ -255,7 +255,7 @@ module ctl_pipe0 #(
 
     if (!select_i) begin
       len_q <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
-    // len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
+      // len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
     end
   end
 

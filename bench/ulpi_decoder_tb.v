@@ -69,10 +69,10 @@ module ulpi_decoder_tb;
   reg [7:0] dat_q;
   wire ibuf_dir_w, ibuf_nxt_w;
 
-  reg  [3:0] state;
+  reg  [ 3:0] state;
   reg  [15:0] crc16_q;
   wire [15:0] crc16_nw;
-  wire [1:0] pidty_w;
+  wire [ 1:0] pidty_w;
   wire [7:0] ibuf_dat_w, rxpid_w, rxcmd_w;
   wire ddone_w;
 
@@ -135,7 +135,7 @@ module ulpi_decoder_tb;
   endgenerate
 
   always @(posedge clock) begin
-    if (state == ST_DATA && stb) begin // ulpi_nxt) begin
+    if (state == ST_DATA && stb) begin  // ulpi_nxt) begin
       crc16_q <= crc16(tdata_w, crc16_q);
     end else if (reset || state == ST_IDLE) begin
       crc16_q <= 16'hffff;
@@ -265,7 +265,7 @@ module ulpi_decoder_tb;
         ST_DATA: begin
           if (stb) begin
             state <= ddone_w ? ST_CRC0 : state;
-            ulpi_nxt  <= 1'b1;
+            ulpi_nxt <= 1'b1;
             ulpi_data <= tdata_w;
           end else begin
             ulpi_nxt  <= 1'b0;
@@ -286,17 +286,17 @@ module ulpi_decoder_tb;
           ulpi_data <= crc16_nw[15:8];
         end
         ST_EOP0: begin
-          RxEvent   <= 2'd0;
-          ulpi_dir  <= 1'b1;
-          ulpi_nxt  <= 1'b0;
+          RxEvent <= 2'd0;
+          ulpi_dir <= 1'b1;
+          ulpi_nxt <= 1'b0;
           ulpi_data <= rxcmd_w;
           state <= ST_EOP1;
         end
         ST_EOP1: begin
-          RxEvent   <= 2'd0;
-          ulpi_dir  <= 1'b1;
-          ulpi_nxt  <= 1'b0;
-          ulpi_data <= rxcmd_w; // {2'b00, 2'b00, VbusState, LineState};
+          RxEvent <= 2'd0;
+          ulpi_dir <= 1'b1;
+          ulpi_nxt <= 1'b0;
+          ulpi_data <= rxcmd_w;  // {2'b00, 2'b00, VbusState, LineState};
           state <= ST_DONE;
         end
 
@@ -346,14 +346,14 @@ module ulpi_decoder_tb;
       .clock(clock),
       .reset(reset),
 
-      .ulpi_dir(xdir_w),
-      .ulpi_nxt(xnxt_w),
+      .ulpi_dir (xdir_w),
+      .ulpi_nxt (xnxt_w),
       .ulpi_data(xdat_w),
 
       .crc_error_o(crc_error_w),
       .crc_valid_o(crc_valid_w),
-      .dec_idle_o(dec_idle_w),
-      .sof_recv_o(sof_recv_w),
+      .dec_idle_o (dec_idle_w),
+      .sof_recv_o (sof_recv_w),
 
       .tok_recv_o(tok_recv_w),
       .tok_ping_o(tok_ping_w),
@@ -368,7 +368,7 @@ module ulpi_decoder_tb;
       .m_tuser (ulpi_rx_tuser_w),
       .m_tdata (ulpi_rx_tdata_w),
       .m_tready(ulpi_rx_tready_w)
-      );
+  );
 
 
   // -- Simulation Only -- //

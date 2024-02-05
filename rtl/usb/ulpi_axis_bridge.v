@@ -83,7 +83,7 @@ module ulpi_axis_bridge #(
 
   localparam HIGH_SPEED = 1;
 
-  localparam AXIS_CHOP_AND_CLEAN = 1;
+  localparam AXIS_CHOP_AND_CLEAN = 0;
 
   localparam integer CONFIG_DESC_LEN = 9;
   localparam integer INTERFACE_DESC_LEN = 9;
@@ -361,7 +361,7 @@ module ulpi_axis_bridge #(
       .ulpi_dir (iob_dir_w),
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
-/*
+      /*
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
       .ulpi_data(ulpi_data_iw),
@@ -369,8 +369,8 @@ module ulpi_axis_bridge #(
 
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),
-      .sof_recv_o(sof_rx_recv_w),
-      .dec_idle_o(decode_idle_w),
+      .sof_recv_o (sof_rx_recv_w),
+      .dec_idle_o (decode_idle_w),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -426,18 +426,7 @@ module ulpi_axis_bridge #(
 
 
   // DATA0/1 Parity //
-  reg par_q;
   wire parity1_w;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      par_q <= 1'b0;
-    end else begin
-      if (ulpi_tx_tvalid_w && ulpi_tx_tready_w && ulpi_tx_tkeep_w && !usb_tx_busy_w) begin
-        par_q <= ulpi_tx_tuser_w[3];
-      end
-    end
-  end
 
 
   // -- FSM for USB packets, handshakes, etc. -- //
@@ -458,7 +447,7 @@ module ulpi_axis_bridge #(
       .usb_timeout_error_o(timeout_w),
       .usb_device_idle_o(usb_idle_w),
 
-                 .parity1_o(parity1_w),
+      .parity1_o(parity1_w),
 
       .usb_state_o(usb_state_w),
       .ctl_state_o(ctl_state_w),
@@ -617,7 +606,7 @@ module ulpi_axis_bridge #(
   assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : blk_fetch_o ? s_axis_tvalid_i : 1'b0;
   assign mux_tlast_w  = tele_sel_q ? tel_tlast_w : s_axis_tlast_i;
   assign mux_tkeep_w  = tele_sel_q ? tel_tkeep_w : s_axis_tkeep_i;
-//                         AXIS_CHOP_AND_CLEAN ? s_axis_tvalid_i : s_axis_tkeep_i;
+  //                         AXIS_CHOP_AND_CLEAN ? s_axis_tvalid_i : s_axis_tkeep_i;
   assign mux_tdata_w  = tele_sel_q ? tel_tdata_w : s_axis_tdata_i;
 
   assign tel_tready_w = tele_sel_q & mux_tready_w;
@@ -667,8 +656,8 @@ module ulpi_axis_bridge #(
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
       .error_o (ctl0_error_w),
+      .event_o (ctl0_event_w),
 
-      .conf_event_o(ctl0_event_w),
       .configured_o(configured_o),
       .usb_conf_o  (usb_conf_o),
       .usb_enum_o  (usb_enum_w),

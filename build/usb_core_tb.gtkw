@@ -1,24 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Feb  5 01:13:29 2024
+[*] Mon Feb  5 05:03:45 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Feb  5 01:03:07 2024"
-[dumpfile_size] 750782
+[dumpfile_mtime] "Mon Feb  5 05:02:40 2024"
+[dumpfile_size] 744546
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-20.435192 11010000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-20.457176 10710000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
-[treeopen] U_USB_BRIDGE1.g_chop_and_clean.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
 [treeopen] U_USB_BRIDGE1.U_ENCODER1.U_SKID3.
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 158
+[signals_width] 190
 [sst_expanded] 1
 [sst_vpaned_height] 856
 @28
@@ -57,7 +56,6 @@ usb_core_tb.enumerate
 usb_core_tb.svalid
 usb_core_tb.sready
 usb_core_tb.slast
-usb_core_tb.skeep
 @22
 usb_core_tb.sdata[7:0]
 @28
@@ -71,12 +69,25 @@ usb_core_tb.mdata[7:0]
 -TB
 @1000200
 -Moar
-@c00200
+@800200
 -Host
+@c00200
 -Other
 @28
 usb_core_tb.enum_done
 usb_core_tb.configured
+usb_core_tb.mvalid
+usb_core_tb.mready
+usb_core_tb.mlast
+usb_core_tb.mkeep
+@22
+usb_core_tb.mdata[7:0]
+@28
+usb_core_tb.svalid
+usb_core_tb.sready
+usb_core_tb.slast
+@22
+usb_core_tb.sdata[7:0]
 @1401200
 -Other
 @c00200
@@ -155,6 +166,7 @@ usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_o[7:0]
 -Internal
 @1401200
 -PHY
+@1000200
 -Host
 @800200
 -ULPI
@@ -212,8 +224,6 @@ U_USB_BRIDGE1.U_TRANSACT1.dbg_xctrl[119:0]
 @22
 U_USB_BRIDGE1.tok_endp_w[3:0]
 @28
-[color] 3
-U_USB_BRIDGE1.U_TRANSACT1.odd_w
 [color] 2
 U_USB_BRIDGE1.U_TRANSACT1.parityx_w
 @800200
@@ -535,12 +545,6 @@ U_USB_BRIDGE1.blko_tlast_w
 U_USB_BRIDGE1.blko_tkeep_w
 @22
 U_USB_BRIDGE1.blko_tdata_w[7:0]
-@28
-U_USB_BRIDGE1.g_chop_and_clean.chop_tvalid_w
-U_USB_BRIDGE1.g_chop_and_clean.chop_tready_w
-U_USB_BRIDGE1.g_chop_and_clean.chop_tlast_w
-@22
-U_USB_BRIDGE1.g_chop_and_clean.chop_tdata_w[7:0]
 @800200
 -OUT
 @28

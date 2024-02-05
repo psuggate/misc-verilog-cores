@@ -134,7 +134,7 @@ module usb_demo_top (
       bulk_in_ready_q  <= 1'b0;
       bulk_out_ready_q <= 1'b0;
     end else begin
-      bulk_in_ready_q  <= configured && m_tvalid; // level_w > 4;
+      bulk_in_ready_q  <= configured && m_tvalid;  // level_w > 4;
       bulk_out_ready_q <= configured && level_w < 1024;
     end
   end
@@ -326,7 +326,7 @@ module usb_demo_top (
   assign usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   assign usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
   assign tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
-  assign tok_parity_w  = U_ULPI_USB0.parity1_w;
+  assign tok_parity_w = U_ULPI_USB0.parity1_w;
   // assign tok_parity_w  = U_ULPI_USB0.par_q;
 
 
@@ -340,17 +340,17 @@ module usb_demo_top (
       .usb_enum_i(1'b1),
       .high_speed_i(hs_enabled_w),
 
-      .LineState(LineState), // Byte 3
+      .LineState  (LineState),    // Byte 3
       .ctl_cycle_i(ctl_cycle_w),
       .usb_reset_i(usb_reset),
       .usb_endpt_i(tok_endpt_w),
 
-      .usb_tuser_i(usb_tuser_w), // Byte 2
+      .usb_tuser_i(usb_tuser_w),  // Byte 2
       .ctl_error_i(ctl_error_w),
       .usb_state_i(usb_state_w),
       .crc_error_i(crc_error_w),
 
-      .usb_error_i(err_code_w), // Byte 1
+      .usb_error_i(err_code_w),  // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
@@ -359,7 +359,7 @@ module usb_demo_top (
       .usb_sof_i(usb_sof_w),
       .blk_state_i(blk_state_w),
 
-      .ctl_state_i(ctl_state_w), // Byte 0
+      .ctl_state_i(ctl_state_w),  // Byte 0
       .phy_state_i(phy_state_w),
 
       .start_i (tstart || 1'b1),

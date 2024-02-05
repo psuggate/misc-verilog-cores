@@ -17,9 +17,9 @@ module transactor #(
     output [3:0] ctl_state_o,
     output [7:0] blk_state_o,
 
-   output parity0_o,
-   output parity1_o,
-   output parity2_o,
+    output parity0_o,
+    output parity1_o,
+    output parity2_o,
 
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
@@ -100,7 +100,7 @@ module transactor #(
 
   // -- Module Constants -- //
 
-  localparam USE_ULPI_TX_FIFO = 0;
+  localparam USE_ULPI_TX_FIFO = 1;
 
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
@@ -113,7 +113,7 @@ module transactor #(
   localparam [1:0] DATA0 = 2'b00;
   localparam [1:0] DATA1 = 2'b10;
 
-  // FSM states
+  // FSM states for control transfers
   localparam CTL_DONE = 4'h0;
   localparam CTL_SETUP_RX = 4'h1;
   localparam CTL_SETUP_ACK = 4'h2;
@@ -130,7 +130,7 @@ module transactor #(
   localparam CTL_STATUS_TX = 4'ha;
   localparam CTL_STATUS_ACK = 4'hb;
 
-
+  // FSM states for BULK transfers
   localparam [7:0] BLK_IDLE = 8'h01;
   localparam [7:0] BLK_DATI_TX = 8'h02;
   localparam [7:0] BLK_DATI_ZDP = 8'h04;
@@ -142,11 +142,13 @@ module transactor #(
   localparam [7:0] BLK_DONE = 8'h40;
   localparam [7:0] BLK_DATO_ERR = 8'h80;
 
+  // Top-level FSM states
   localparam ST_IDLE = 4'h1;
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
   localparam ST_BULK = 4'h4;  // USB Bulk Transfer
   localparam ST_DUMP = 4'h8;  // ignoring xfer, or bad things happened
 
+  // Error-codes
   localparam ER_NONE = 3'h0;
   localparam ER_BLKI = 3'h1;
   localparam ER_BLKO = 3'h2;
@@ -252,7 +254,7 @@ module transactor #(
   end
 
 
-  // -- DATA0/1/2 DATAM Logic -- //
+  // -- DATA0/1/2/M Logic -- //
 
   reg parity0_q, parity1_q, parity2_q;
   reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
@@ -359,76 +361,25 @@ module transactor #(
 
   // Parity-state J/K flip-flops //
   always @(posedge clock) begin
+    // Configuration endpoint DATAx parity-bit
     if (reset || clr_parity0) begin
       parity0_q <= 1'b0;
     end else if (set_parity0) begin
       parity0_q <= 1'b1;
     end
 
+    // BULK 'ENDPOINT1' DATAx parity-bit
     if (reset || clr_parity1) begin
       parity1_q <= 1'b0;
     end else if (set_parity1) begin
       parity1_q <= 1'b1;
     end
 
+    // BULK 'ENDPOINT2' DATAx parity-bit
     if (reset || clr_parity2) begin
       parity2_q <= 1'b0;
     end else if (set_parity2) begin
       parity2_q <= 1'b1;
-    end
-  end
-
-
-  // DATA0/1 management //
-  reg [2:0] odds_q;
-  wire odd_w = odds_q[tok_endp_i];
-  wire nod_w = ~odd_w;
-
-  wire odd0_w = odds_q[0];
-  wire odd1_w = odds_q[1];
-  wire odd2_w = odds_q[2];
-
-  // todo: needs to be per-endpoint ...
-  always @(posedge clock) begin
-    if (reset) begin
-      odds_q <= 3'b000;
-    end else begin
-
-      if (usb_recv_i) begin
-        if (xbulk == BLK_DATO_RX || xctrl == CTL_DATO_RX) begin
-          if (tok_endp_i == 0) begin
-            odds_q[0] <= ~odd0_w;
-          end else if (tok_endp_i == ENDPOINT1) begin
-            odds_q[1] <= ~odd1_w;
-          end else if (tok_endp_i == ENDPOINT2) begin
-            odds_q[2] <= ~odd2_w;
-          end
-        end else if (xctrl == CTL_STATUS_RX) begin
-          odds_q[0] <= 1'b0;  // Status is always '1'
-        end else if (xctrl == CTL_SETUP_RX) begin
-          odds_q[0] <= 1'b1;  // Setup is always '0'
-        end
-
-      end else if (hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK) begin
-        // ACK received in response to IN data xfer (to host)
-        if (xbulk == BLK_DATI_ACK || xctrl == CTL_DATI_ACK) begin
-          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
-        end else if (xctrl == CTL_STATUS_ACK) begin
-          odds_q[tok_endp_i] <= 1'b0;
-        end
-
-      end else if (tok_recv_i) begin
-        // For Control Transfers, the parity bit has pre-defined values for its
-        // setup- and status- stages.
-        if (usb_tuser_i[3:2] == TOK_SETUP) begin
-          odds_q[tok_endp_i] <= 1'b0;
-        end else if (usb_tuser_i[3:2] == TOK_OUT && xctrl == CTL_DATI_TOK) begin
-          odds_q[tok_endp_i] <= 1'b1;
-        end else if (usb_tuser_i[3:2] == TOK_IN && xctrl == CTL_DATO_TOK) begin
-          odds_q[tok_endp_i] <= 1'b1;
-        end
-
-      end
     end
   end
 
@@ -443,10 +394,8 @@ module transactor #(
     end else if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
       tuser_q <= {DATA1, 2'b11};
     end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
-      // tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
       tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end else if (xbulk == BLK_IDLE && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
-      // tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
       tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end
   end
@@ -585,16 +534,16 @@ module transactor #(
   endgenerate
 
 
-  // -- Transaction FSM -- //
-
   //
-  // Hierarchical, pipelined FSM that just enables the relevant lower-level FSM,
-  // waits for it to finish, or handles any errors.
+  //  Transaction FSM
   //
-  // Todo: should this FSM handle no-data responses ??
+  //  Hierarchical, pipelined FSM that controls the relevant lower-level FSM,
+  //  waits for it to finish, or handles any errors.
   //
-
-  // todo: control the input MUX, and the output CE's
+  //  Todo:
+  //   - should this FSM handle no-data responses ??
+  //   - control the input MUX, and the output CE's
+  ///
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
@@ -651,7 +600,9 @@ module transactor #(
   end
 
 
-  // Bulk-Transfer Main FSM //
+  //
+  //  Bulk-Transfer Main FSM
+  ///
   always @(posedge clock) begin
     if (state == ST_IDLE) begin
       xbulk   <= BLK_IDLE;
@@ -725,11 +676,15 @@ module transactor #(
   end
 
 
-  // -- Parser for Control Transfer Parameters -- //
-
+  //
+  //  Control Transfers FSM
+  ///
   wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_event_i;
   wire ctl_get_done_w = ctl_rtype_q[7] & ctl_tvalid_i & ctl_tready_o & ctl_tlast_i;
   wire ctl_done_w = ctl_cycle_q & (ctl_set_done_w | ctl_get_done_w);
+
+
+  // -- Parser for Control Transfer Parameters -- //
 
   // Todo:
   //  - conditional expr. does not exclude enough scenarios !?
@@ -776,9 +731,6 @@ module transactor #(
       ctl_error_q <= 1'b1;
     end
   end
-
-
-  // -- Control Transfers FSM -- //
 
   //
   // These transfers have a predefined structure (see pp.225, USB 2.0 Spec), and
