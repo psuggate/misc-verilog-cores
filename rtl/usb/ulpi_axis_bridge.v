@@ -1,6 +1,7 @@
 `timescale 1ns / 100ps
 module ulpi_axis_bridge #(
     parameter PIPELINED = 1,
+    parameter AXIS_CHOP_AND_CLEAN = 0,
 
     parameter EP1_BULK_IN  = 1,
     parameter EP1_BULK_OUT = 1,
@@ -82,8 +83,6 @@ module ulpi_axis_bridge #(
   // -- Constants -- //
 
   localparam HIGH_SPEED = 1;
-
-  localparam AXIS_CHOP_AND_CLEAN = 0;
 
   localparam integer CONFIG_DESC_LEN = 9;
   localparam integer INTERFACE_DESC_LEN = 9;
@@ -606,7 +605,6 @@ module ulpi_axis_bridge #(
   assign mux_tvalid_w = tele_sel_q ? tel_tvalid_w : blk_fetch_o ? s_axis_tvalid_i : 1'b0;
   assign mux_tlast_w  = tele_sel_q ? tel_tlast_w : s_axis_tlast_i;
   assign mux_tkeep_w  = tele_sel_q ? tel_tkeep_w : s_axis_tkeep_i;
-  //                         AXIS_CHOP_AND_CLEAN ? s_axis_tvalid_i : s_axis_tkeep_i;
   assign mux_tdata_w  = tele_sel_q ? tel_tdata_w : s_axis_tdata_i;
 
   assign tel_tready_w = tele_sel_q & mux_tready_w;

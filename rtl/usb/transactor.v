@@ -2,7 +2,8 @@
 module transactor #(
     parameter ENDPOINT1 = 1,
     parameter ENDPOINT2 = 0,  // todo: ...
-    parameter PIPELINED = 0
+    parameter PIPELINED = 0,
+    parameter USE_ULPI_TX_FIFO = 0
 ) (
     input clock,
     input reset,
@@ -99,8 +100,6 @@ module transactor #(
 
 
   // -- Module Constants -- //
-
-  localparam USE_ULPI_TX_FIFO = 1;
 
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
@@ -260,9 +259,15 @@ module transactor #(
   reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
   wire parityx_w;
 
-  wire bulk_ack_w = hsk_recv_i && xbulk == BLK_DATI_ACK && usb_tuser_i == {HSK_ACK, 2'b10};
-  wire ctrl_ack_w = hsk_recv_i && (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK) &&
-       usb_tuser_i == {HSK_ACK, 2'b10};
+  // todo: which is best !?
+  wire bulk_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK && xbulk == BLK_DATI_ACK;
+  wire ctrl_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK &&
+       (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
+/*
+  wire bulk_ack_w = hsk_recv_i && usb_tuser_i[3:2] == {HSK_ACK, 2'b10} && xbulk == BLK_DATI_ACK;
+  wire ctrl_ack_w = hsk_recv_i && usb_tuser_i[3:2] == {HSK_ACK, 2'b10} &&
+       (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
+*/
 
   assign parity0_o = parity0_q;
   assign parity1_o = parity1_q;
@@ -405,7 +410,10 @@ module transactor #(
   wire eop_rx_w = eop_rcnt == 3'd0;
   wire eop_tx_w = eop_tcnt == 3'd0;
 
-  // todo: support faster EoP's by using 'RX CMD' 'LineState' changes
+  // TODO:
+  //  - support faster EoP's by using 'RX CMD' 'LineState' changes
+  //  - the USB3317 PHY appends 'RX CMD's to the end of transfers, until EOP,
+  //    so use this method instead ??
   always @(posedge clock) begin
     if (reset) begin
       eop_rcnt <= 3'd0;
@@ -861,7 +869,6 @@ module transactor #(
         // Packets: {IN/OUT, DATA1, ACK}
         ///
         CTL_STATUS_RX: begin  // Rx Status from USB
-          // if (!odd_w) begin
           if (!parityx_w) begin
             $error("%10t: INCORRECT DATA0/1 BIT", $time);
           end
