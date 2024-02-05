@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Feb  5 05:03:45 2024
+[*] Mon Feb  5 07:39:04 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Feb  5 05:02:40 2024"
-[dumpfile_size] 744546
+[dumpfile_mtime] "Mon Feb  5 07:38:54 2024"
+[dumpfile_size] 741752
 [savefile] "./usb_core_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-20.457176 10710000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-20.457176 9360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
@@ -51,14 +51,36 @@ usb_core_tb.enumerate
 -Globals
 @c00200
 -TB
+@22
+usb_core_tb.bulk_endpt_w[3:0]
 @28
 [color] 2
+usb_core_tb.bulk_cycle_w
+@200
+-** Clean
+@28
+usb_core_tb.xvalid
+usb_core_tb.xready
+usb_core_tb.xlast
+@22
+usb_core_tb.xdata[7:0]
+@200
+-** Fetch
+@28
+[color] 3
+usb_core_tb.bulk_fetch_w
+usb_core_tb.bmvalid_w
 usb_core_tb.svalid
 usb_core_tb.sready
 usb_core_tb.slast
 @22
 usb_core_tb.sdata[7:0]
+@200
+-** Store
 @28
+[color] 3
+usb_core_tb.bulk_store_w
+usb_core_tb.bsvalid_w
 usb_core_tb.mvalid
 usb_core_tb.mready
 usb_core_tb.mlast
@@ -271,7 +293,7 @@ U_USB_BRIDGE1.U_LINESTATE1.ls_pulse_1_0ms
 @1401200
 -Extra
 -LineState
-@c00200
+@800200
 -Tx
 @28
 U_USB_BRIDGE1.ulpi_tx_tvalid_w
@@ -288,8 +310,10 @@ U_USB_BRIDGE1.ulpi_tx_tdata_w[7:0]
 U_USB_BRIDGE1.U_ENCODER1.dbg_xsend[39:0]
 @28
 U_USB_BRIDGE1.hsk_tx_send_w
+[color] 3
 U_USB_BRIDGE1.hsk_tx_done_w
 U_USB_BRIDGE1.usb_tx_busy_w
+[color] 3
 U_USB_BRIDGE1.usb_tx_done_w
 U_USB_BRIDGE1.U_ENCODER1.dir_q
 @22
@@ -327,7 +351,6 @@ U_USB_BRIDGE1.U_ENCODER1.mdata_w[7:0]
 @1000200
 -Output
 -Enc
-@1401200
 -Tx
 @c00200
 -Rx

@@ -36,9 +36,11 @@ module usb_demo_top (
   parameter [SSB:0] SERIAL_STRING = "TART0001";
 
   // USB-core configuration
-  localparam PIPELINED = 1;
-  localparam HIGH_SPEED = 1'b1;  // Note: USB FS (Full-Speed) not supported
-  localparam ULPI_DDR_MODE = 0;  // todo: '1' is way too fussy
+  localparam integer PIPELINED = 1;
+  localparam integer HIGH_SPEED = 1;  // Note: USB FS (Full-Speed) not supported
+  localparam integer ULPI_DDR_MODE = 0;  // todo: '1' is fiddly to implement ...
+  localparam integer ENDPOINT1 = 1;
+  localparam integer ENDPOINT2 = 2;
 
   // USB BULK IN/OUT SRAM parameters
   parameter USE_SYNC_FIFO = 0;
@@ -123,18 +125,14 @@ module usb_demo_top (
 
   wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
 
-  assign bsvalid_w = s_tvalid && blk_store_w;
-  assign bsready_w = s_tready && blk_store_w;
-  assign bmvalid_w = m_tvalid && blk_fetch_w;
-  assign bmready_w = m_tready && blk_fetch_w;
-
   // Bulk Endpoint Status //
   always @(posedge usb_clock) begin
     if (usb_reset) begin
       bulk_in_ready_q  <= 1'b0;
       bulk_out_ready_q <= 1'b0;
     end else begin
-      bulk_in_ready_q  <= configured && m_tvalid;  // level_w > 4;
+      // bulk_in_ready_q  <= configured && m_tvalid;
+      bulk_in_ready_q  <= configured && level_w > 4;
       bulk_out_ready_q <= configured && level_w < 1024;
     end
   end
@@ -143,6 +141,11 @@ module usb_demo_top (
   //
   // Core Under New Tests
   ///
+  assign bsready_w = s_tready && blk_store_w && blk_endpt_w == ENDPOINT1;
+  assign bmvalid_w = m_tvalid && blk_fetch_w && blk_endpt_w == ENDPOINT1;
+
+  assign m_tkeep = m_tvalid;
+
   ulpi_axis_bridge #(
       .PIPELINED(PIPELINED),
       .VENDOR_ID(VENDOR_ID),
@@ -154,9 +157,9 @@ module usb_demo_top (
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
       .EP1_CONTROL(0),
-      .ENDPOINT1(1),
+      .ENDPOINT1(ENDPOINT1),
       .EP2_CONTROL(0),
-      .ENDPOINT2(2)
+      .ENDPOINT2(ENDPOINT2)
   ) U_ULPI_USB0 (
       .areset_n(~reset),
 
@@ -203,12 +206,39 @@ module usb_demo_top (
 
   // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
 
+  assign bsvalid_w = s_tvalid && blk_store_w && blk_endpt_w == ENDPOINT1;
+  assign bmready_w = m_tready && blk_fetch_w && blk_endpt_w == ENDPOINT1;
+
+  // Sanitise the data-stream from the USB packet-decoder.
+  wire cvalid, cready, clast;
+  wire [7:0] cdata;
+
+  axis_clean #(
+      .WIDTH(8),
+      .DEPTH(16)
+  ) U_AXIS_CLEAN2 (
+      .clock(usb_clock),
+      .reset(usb_reset),
+
+      .s_tvalid(bsvalid_w),
+      .s_tready(s_tready),
+      .s_tlast (s_tlast),
+      .s_tkeep (s_tkeep),
+      .s_tdata (~s_tdata),
+
+      .m_tvalid(cvalid),
+      .m_tready(cready),
+      .m_tlast (clast),
+      .m_tkeep (),
+      .m_tdata (cdata)
+  );
+
   // Loop-back FIFO for Testing //
   generate
     if (USE_SYNC_FIFO) begin : g_sync_fifo
 
       sync_fifo #(
-          .WIDTH (10),
+          .WIDTH (9),
           .ABITS (FIFO_LEVEL_BITS),
           .OUTREG(3)
       ) U_BULK_FIFO0 (
@@ -217,13 +247,13 @@ module usb_demo_top (
 
           .level_o(level_w),
 
-          .valid_i(bsvalid_w),
-          .ready_o(s_tready),
-          .data_i ({s_tkeep, s_tlast, s_tdata}),
+          .valid_i(cvalid),
+          .ready_o(cready),
+          .data_i ({clast, cdata}),
 
           .valid_o(m_tvalid),
           .ready_i(bmready_w),
-          .data_o ({m_tkeep, m_tlast, m_tdata})
+          .data_o ({m_tlast, m_tdata})
       );
 
     end else begin : g_axis_fifo
@@ -231,7 +261,7 @@ module usb_demo_top (
       axis_fifo #(
           .DEPTH(BULK_FIFO_SIZE),
           .DATA_WIDTH(8),
-          .KEEP_ENABLE(1),
+          .KEEP_ENABLE(0),
           .KEEP_WIDTH(1),
           .LAST_ENABLE(1),
           .ID_ENABLE(0),
@@ -251,11 +281,11 @@ module usb_demo_top (
           .clk(usb_clock),
           .rst(usb_reset),
 
-          .s_axis_tdata (s_tdata),  // AXI4-Stream input
-          .s_axis_tkeep (s_tkeep),
-          .s_axis_tvalid(bsvalid_w),
-          .s_axis_tready(s_tready),
-          .s_axis_tlast (s_tlast),
+          .s_axis_tdata (cdata),  // AXI4-Stream input
+          .s_axis_tkeep (1'b1),
+          .s_axis_tvalid(cvalid),
+          .s_axis_tready(cready),
+          .s_axis_tlast (clast),
           .s_axis_tid   (1'b0),
           .s_axis_tdest (1'b0),
           .s_axis_tuser (1'b0),
@@ -263,7 +293,7 @@ module usb_demo_top (
           .pause_req(1'b0),
 
           .m_axis_tdata(m_tdata),  // AXI4-Stream output
-          .m_axis_tkeep(m_tkeep),
+          .m_axis_tkeep(),
           .m_axis_tvalid(m_tvalid),
           .m_axis_tready(bmready_w),
           .m_axis_tlast(m_tlast),
@@ -314,9 +344,6 @@ module usb_demo_top (
   assign usb_state_w = U_ULPI_USB0.usb_state_w;
   assign ctl_state_w = U_ULPI_USB0.ctl_state_w;
   assign blk_state_w = U_ULPI_USB0.blk_state_w;
-  // assign usb_state_w = U_ULPI_USB0.U_TRANSACT1.state;
-  // assign ctl_state_w = U_ULPI_USB0.U_TRANSACT1.xctrl;
-  // assign blk_state_w = U_ULPI_USB0.U_TRANSACT1.xbulk;
   assign usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
   assign tok_endpt_w = U_ULPI_USB0.tok_endp_w;
   assign LineState = U_ULPI_USB0.LineState;
@@ -325,14 +352,14 @@ module usb_demo_top (
   assign ctl_error_w = U_ULPI_USB0.ctl0_error_w;
   assign usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   assign usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
+  assign hsk_tx_done_w = U_ULPI_USB0.hsk_tx_done_w;
   assign tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
   assign tok_parity_w = U_ULPI_USB0.parity1_w;
-  // assign tok_parity_w  = U_ULPI_USB0.par_q;
 
 
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
-      .ENDPOINT(4'd2),
+      .ENDPOINT(ENDPOINT2),
       .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
   ) U_TELEMETRY1 (
       .clock(clock),
@@ -353,8 +380,9 @@ module usb_demo_top (
       .usb_error_i(err_code_w),  // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
+      .hsk_sent_i(hsk_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
-      .tok_ping_i(tok_parity_w),
+      .tok_ping_i(tok_parity_w),  // todo ...
       .timeout_i(timeout_w),
       .usb_sof_i(usb_sof_w),
       .blk_state_i(blk_state_w),

@@ -703,6 +703,7 @@ module ulpi_axis_bridge #(
       .usb_error_i(err_code_w),  // Byte 1
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
+      .hsk_sent_i(hsk_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
       .tok_ping_i(parity1_w),
       // .tok_ping_i(tok_rx_ping_w),

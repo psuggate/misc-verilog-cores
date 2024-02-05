@@ -13,6 +13,7 @@ module bulk_telemetry #(
     input usb_sof_i,
     input usb_recv_i,
     input usb_sent_i,
+    input hsk_sent_i,
     input tok_recv_i,
     input tok_ping_i,
     input high_speed_i,
@@ -93,6 +94,8 @@ module bulk_telemetry #(
       err_code_x = 3'd4;
     end else if (tok_recv_i) begin
       err_code_x = 3'd3;
+    end else if (hsk_sent_i) begin
+      err_code_x = 3'd2;
     end else begin
       err_code_x = usb_error_i;
     end

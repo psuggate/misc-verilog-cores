@@ -4,10 +4,12 @@ module usb_core_tb;
   parameter [31:0] PHASE = "1000";
   localparam NEGATE_CLOCK = PHASE[31:24] == "1";
 
-  localparam PIPELINED = 1;
+  localparam integer PIPELINED = 1;
+  localparam integer ENDPOINT1 = 1;
+  localparam integer ENDPOINT2 = 2;
 
   // USB BULK IN/OUT SRAM parameters
-  parameter USE_SYNC_FIFO = 0;
+  parameter USE_SYNC_FIFO = 1;
   localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
   localparam integer FSB = FIFO_LEVEL_BITS - 1;
   localparam integer BULK_FIFO_SIZE = 2048;
@@ -219,11 +221,6 @@ module usb_core_tb;
   wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
   wire [FSB:0] level_w;
 
-  assign bsvalid_w = mvalid && bulk_store_w;
-  assign bsready_w = mready && bulk_store_w;
-  assign bmvalid_w = svalid && bulk_fetch_w;
-  assign bmready_w = sready && bulk_fetch_w;
-
   // Bulk Endpoint Status //
   always @(posedge usb_clock) begin
     if (reset || dev_reset) begin
@@ -239,12 +236,17 @@ module usb_core_tb;
   //
   // Cores Under New Tests
   ///
+  assign bsready_w = mready && bulk_store_w && bulk_endpt_w == ENDPOINT1;
+  assign bmvalid_w = svalid && bulk_fetch_w && bulk_endpt_w == ENDPOINT1;
+
+  assign skeep = svalid;
+
   ulpi_axis_bridge #(
       .PIPELINED  (PIPELINED),
       .EP1_CONTROL(0),
-      .ENDPOINT1  (1),
+      .ENDPOINT1  (ENDPOINT1),
       .EP2_CONTROL(0),
-      .ENDPOINT2  (2)
+      .ENDPOINT2  (ENDPOINT2)
   ) U_USB_BRIDGE1 (
       .areset_n(areset_n[3]),
       .reset_no(usb_rst_n),
@@ -275,7 +277,7 @@ module usb_core_tb;
       .s_axis_tvalid_i(bmvalid_w),  // USB 'BULK IN' EP data-path
       .s_axis_tready_o(sready),
       .s_axis_tlast_i (slast),
-      .s_axis_tkeep_i (bmvalid_w),
+      .s_axis_tkeep_i (skeep),
       .s_axis_tdata_i (sdata),
 
       .m_axis_tvalid_o(mvalid),  // USB 'BULK OUT' EP data-path
@@ -287,6 +289,9 @@ module usb_core_tb;
 
 
   // -- Loop-back FIFO for Testing -- //
+
+  assign bsvalid_w = mvalid && bulk_store_w && bulk_endpt_w == ENDPOINT1;
+  assign bmready_w = sready && bulk_fetch_w && bulk_endpt_w == ENDPOINT1;
 
   wire xvalid, xready, xlast;
   wire [7:0] xdata;
@@ -302,7 +307,7 @@ module usb_core_tb;
       .s_tready(mready),
       .s_tlast (mlast),
       .s_tkeep (mkeep),
-      .s_tdata (mdata),
+      .s_tdata (~mdata),
 
       .m_tvalid(xvalid),
       .m_tready(xready),
@@ -371,7 +376,7 @@ module usb_core_tb;
           .pause_req(1'b0),
 
           .m_axis_tdata(sdata),  // AXI4-Stream output
-          .m_axis_tkeep(skeep),
+          .m_axis_tkeep(),
           .m_axis_tvalid(svalid),
           .m_axis_tready(bmready_w),
           .m_axis_tlast(slast),

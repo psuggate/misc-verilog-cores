@@ -346,11 +346,8 @@ module transactor #(
         set_parity0 = ~parity0_q;
         clr_parity0 = parity0_q;
       end else if (ctl_event_i) begin
-        // todo: not a BULK endpoint, so does not get reset !?
-        // set_parity0 = 1'b0;
-        // clr_parity0 = 1'b1;
-
-        // Set to 'DATA0' on "configuration events" (pp.242-3)
+        // Set the parity-bit for BULK endpoints to 'DATA0' on "configuration
+        // events" (pp.242-3)
         set_parity1 = 1'b0;
         clr_parity1 = 1'b1;
         set_parity2 = 1'b0;
@@ -818,7 +815,9 @@ module transactor #(
           if (tok_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == TOK_OUT ? CTL_DATO_RX : CTL_STATUS_TX;
           end else if (hsk_recv_i || usb_recv_i || terr_q) begin
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
+`endif
             // xctrl <= CTL_DONE;
           end
         end
@@ -834,7 +833,9 @@ module transactor #(
           if (hsk_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == HSK_ACK ? CTL_DATI_TOK : CTL_DONE;
           end else if (tok_recv_i || usb_recv_i || terr_q) begin  // Non-ACK
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
+`endif
             xctrl <= CTL_DONE;
           end
         end
@@ -847,8 +848,10 @@ module transactor #(
           if (tok_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == TOK_IN ? CTL_DATI_TX : CTL_STATUS_RX;
           end else if (hsk_recv_i || usb_recv_i || terr_q) begin
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
             #100 $fatal;
+`endif
             // xctrl <= CTL_DONE;
           end
         end
