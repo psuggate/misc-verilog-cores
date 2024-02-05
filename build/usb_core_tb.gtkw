@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Jan 28 02:57:48 2024
+[*] Mon Feb  5 07:39:04 2024
 [*]
 [dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Sun Jan 28 02:32:38 2024"
-[dumpfile_size] 743915
+[dumpfile_mtime] "Mon Feb  5 07:38:54 2024"
+[dumpfile_size] 741752
 [savefile] "./usb_core_tb.gtkw"
-[timestart] 9040300
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.446142 9510000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-20.457176 9360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
@@ -17,9 +17,9 @@
 [treeopen] usb_core_tb.
 [treeopen] usb_core_tb.U_FAKE_USB0.
 [sst_width] 233
-[signals_width] 158
+[signals_width] 190
 [sst_expanded] 1
-[sst_vpaned_height] 903
+[sst_vpaned_height] 856
 @28
 usb_core_tb.clock
 usb_core_tb.reset
@@ -51,15 +51,36 @@ usb_core_tb.enumerate
 -Globals
 @c00200
 -TB
+@22
+usb_core_tb.bulk_endpt_w[3:0]
 @28
 [color] 2
+usb_core_tb.bulk_cycle_w
+@200
+-** Clean
+@28
+usb_core_tb.xvalid
+usb_core_tb.xready
+usb_core_tb.xlast
+@22
+usb_core_tb.xdata[7:0]
+@200
+-** Fetch
+@28
+[color] 3
+usb_core_tb.bulk_fetch_w
+usb_core_tb.bmvalid_w
 usb_core_tb.svalid
 usb_core_tb.sready
 usb_core_tb.slast
-usb_core_tb.skeep
 @22
 usb_core_tb.sdata[7:0]
+@200
+-** Store
 @28
+[color] 3
+usb_core_tb.bulk_store_w
+usb_core_tb.bsvalid_w
 usb_core_tb.mvalid
 usb_core_tb.mready
 usb_core_tb.mlast
@@ -70,17 +91,25 @@ usb_core_tb.mdata[7:0]
 -TB
 @1000200
 -Moar
-@c00200
+@800200
 -Host
+@c00200
 -Other
 @28
 usb_core_tb.enum_done
 usb_core_tb.configured
-usb_core_tb.usb_rx_tvalid_w
-usb_core_tb.usb_rx_tready_w
-usb_core_tb.usb_rx_tlast_w
+usb_core_tb.mvalid
+usb_core_tb.mready
+usb_core_tb.mlast
+usb_core_tb.mkeep
 @22
-usb_core_tb.usb_rx_tdata_w[7:0]
+usb_core_tb.mdata[7:0]
+@28
+usb_core_tb.svalid
+usb_core_tb.sready
+usb_core_tb.slast
+@22
+usb_core_tb.sdata[7:0]
 @1401200
 -Other
 @c00200
@@ -159,6 +188,7 @@ usb_core_tb.U_FAKE_USB0.U_ULPI_PHY0.usb_tdata_o[7:0]
 -Internal
 @1401200
 -PHY
+@1000200
 -Host
 @800200
 -ULPI
@@ -184,48 +214,52 @@ usb_core_tb.ulpi_data[7:0]
 -ULPI
 @800200
 -Device
-@800201
 -Transact
-@29
+@28
 [color] 3
 U_USB_BRIDGE1.U_TRANSACT1.eop_rx_q
 [color] 3
 U_USB_BRIDGE1.U_TRANSACT1.eop_tx_q
 [color] 2
 U_USB_BRIDGE1.U_TRANSACT1.we_are_waiting
-@25
+@24
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.tcount[7:0]
-@29
+@28
 U_USB_BRIDGE1.tok_rx_recv_w
 U_USB_BRIDGE1.sof_rx_recv_w
 U_USB_BRIDGE1.hsk_rx_recv_w
 U_USB_BRIDGE1.usb_rx_recv_w
-@23
+[color] 3
+U_USB_BRIDGE1.usb_tx_done_w
+@22
 U_USB_BRIDGE1.U_TRANSACT1.usb_tuser_i[3:0]
-@821
+@820
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_state[39:0]
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_xbulk[119:0]
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_xctrl[119:0]
-@29
+@200
+-** Parity
+@22
+U_USB_BRIDGE1.tok_endp_w[3:0]
+@28
 [color] 2
-U_USB_BRIDGE1.U_TRANSACT1.odd0_w
-@800201
+U_USB_BRIDGE1.U_TRANSACT1.parityx_w
+@800200
 -MUX
-@29
+@28
 U_USB_BRIDGE1.U_TRANSACT1.ctl_sel_w
 U_USB_BRIDGE1.U_TRANSACT1.blk_sel_w
-U_USB_BRIDGE1.U_TRANSACT1.trn_zero_q
 U_USB_BRIDGE1.U_TRANSACT1.mux_tvalid_w
 U_USB_BRIDGE1.U_TRANSACT1.mux_tready_w
 U_USB_BRIDGE1.U_TRANSACT1.mux_tlast_w
 U_USB_BRIDGE1.U_TRANSACT1.mux_tkeep_w
-@23
+@22
 U_USB_BRIDGE1.U_TRANSACT1.mux_tdata_w[7:0]
-@1000201
+@1000200
 -MUX
 -Transact
 @c00200
@@ -259,7 +293,7 @@ U_USB_BRIDGE1.U_LINESTATE1.ls_pulse_1_0ms
 @1401200
 -Extra
 -LineState
-@c00200
+@800200
 -Tx
 @28
 U_USB_BRIDGE1.ulpi_tx_tvalid_w
@@ -276,7 +310,10 @@ U_USB_BRIDGE1.ulpi_tx_tdata_w[7:0]
 U_USB_BRIDGE1.U_ENCODER1.dbg_xsend[39:0]
 @28
 U_USB_BRIDGE1.hsk_tx_send_w
+[color] 3
 U_USB_BRIDGE1.hsk_tx_done_w
+U_USB_BRIDGE1.usb_tx_busy_w
+[color] 3
 U_USB_BRIDGE1.usb_tx_done_w
 U_USB_BRIDGE1.U_ENCODER1.dir_q
 @22
@@ -314,7 +351,6 @@ U_USB_BRIDGE1.U_ENCODER1.mdata_w[7:0]
 @1000200
 -Output
 -Enc
-@1401200
 -Tx
 @c00200
 -Rx
@@ -333,9 +369,7 @@ U_USB_BRIDGE1.U_DECODER1.cyc_q
 U_USB_BRIDGE1.U_DECODER1.hsk_q
 U_USB_BRIDGE1.U_DECODER1.tok_q
 U_USB_BRIDGE1.U_DECODER1.sof_q
-U_USB_BRIDGE1.U_DECODER1.pid_q
 [color] 3
-U_USB_BRIDGE1.U_DECODER1.end_q
 U_USB_BRIDGE1.U_DECODER1.rx_end_w
 @22
 [color] 2
@@ -353,8 +387,9 @@ U_USB_BRIDGE1.U_DECODER1.rx_crc5_w[4:0]
 U_USB_BRIDGE1.ctl0_error_w
 [color] 3
 U_USB_BRIDGE1.ctl0_start_w
+[color] 2
+U_USB_BRIDGE1.ctl0_event_w
 U_USB_BRIDGE1.ctl0_cycle_w
-U_USB_BRIDGE1.ctl0_done_w
 @22
 [color] 7
 U_USB_BRIDGE1.U_CFG_PIPE0.req_type_i[7:0]
@@ -503,13 +538,66 @@ U_USB_BRIDGE1.tel_tlast_w
 U_USB_BRIDGE1.tel_tdata_w[7:0]
 @1401200
 -Telemetry
-@800200
--Old
-@28
-usb_core_tb.bulk_in_ready_q
-usb_core_tb.bulk_out_ready_q
 @1000200
--Old
 -Device
+@c00200
+-Bulk
+@28
+U_USB_BRIDGE1.U_TRANSACT1.blk_in_ready_i
+U_USB_BRIDGE1.U_TRANSACT1.blk_out_ready_i
+@800200
+-Cycle
+@28
+[color] 3
+U_USB_BRIDGE1.blk_start_o
+[color] 2
+U_USB_BRIDGE1.blk_cycle_o
+U_USB_BRIDGE1.blk_fetch_o
+U_USB_BRIDGE1.blk_store_o
+@22
+U_USB_BRIDGE1.blk_endpt_o[3:0]
+@28
+[color] 1
+U_USB_BRIDGE1.blk_error_i
+@1000200
+-Cycle
+@28
+U_USB_BRIDGE1.blko_tvalid_w
+U_USB_BRIDGE1.blko_tready_w
+U_USB_BRIDGE1.blko_tlast_w
+U_USB_BRIDGE1.blko_tkeep_w
+@22
+U_USB_BRIDGE1.blko_tdata_w[7:0]
+@800200
+-OUT
+@28
+U_USB_BRIDGE1.m_axis_tvalid_o
+U_USB_BRIDGE1.m_axis_tready_i
+U_USB_BRIDGE1.m_axis_tlast_o
+U_USB_BRIDGE1.m_axis_tkeep_o
+@22
+U_USB_BRIDGE1.m_axis_tdata_o[7:0]
+@1000200
+-OUT
+@28
+U_USB_BRIDGE1.mux_tvalid_w
+U_USB_BRIDGE1.mux_tready_w
+U_USB_BRIDGE1.mux_tlast_w
+U_USB_BRIDGE1.mux_tkeep_w
+@22
+U_USB_BRIDGE1.mux_tdata_w[7:0]
+@800200
+-IN
+@28
+U_USB_BRIDGE1.s_axis_tvalid_i
+U_USB_BRIDGE1.s_axis_tready_o
+U_USB_BRIDGE1.s_axis_tlast_i
+U_USB_BRIDGE1.s_axis_tkeep_i
+@22
+U_USB_BRIDGE1.s_axis_tdata_i[7:0]
+@1000200
+-IN
+@1401200
+-Bulk
 [pattern_trace] 1
 [pattern_trace] 0

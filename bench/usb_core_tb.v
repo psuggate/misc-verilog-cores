@@ -4,7 +4,15 @@ module usb_core_tb;
   parameter [31:0] PHASE = "1000";
   localparam NEGATE_CLOCK = PHASE[31:24] == "1";
 
-  localparam PIPELINED = 1;
+  localparam integer PIPELINED = 1;
+  localparam integer ENDPOINT1 = 1;
+  localparam integer ENDPOINT2 = 2;
+
+  // USB BULK IN/OUT SRAM parameters
+  parameter USE_SYNC_FIFO = 1;
+  localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
+  localparam integer FSB = FIFO_LEVEL_BITS - 1;
+  localparam integer BULK_FIFO_SIZE = 2048;
 
   initial begin
     $display("ULPI Reset module:");
@@ -163,21 +171,6 @@ module usb_core_tb;
       .axis_tdata(ask_tdata_w)
   );
 
-  // Check the output from the USB packet decoder //
-  wire usb_rx_tvalid_w = U_USB_BRIDGE1.ulpi_rx_tvalid_w;
-  wire usb_rx_tready_w = U_USB_BRIDGE1.ulpi_rx_tready_w;
-  wire usb_rx_tlast_w = U_USB_BRIDGE1.ulpi_rx_tlast_w;
-  wire [7:0] usb_rx_tdata_w = U_USB_BRIDGE1.ulpi_rx_tdata_w;
-
-  axis_flow_check U_AXIS_FLOW2 (
-      .clock(usb_clock),
-      .reset(reset),
-      .axis_tvalid(usb_rx_tvalid_w),
-      .axis_tready(usb_rx_tready_w),
-      .axis_tlast(usb_rx_tlast_w),
-      .axis_tdata(usb_rx_tdata_w)
-  );
-
   // Check the output to ULPI-interface module //
   wire ulpi_tx_tvalid_w = U_USB_BRIDGE1.ulpi_tx_tvalid_w;
   wire ulpi_tx_tready_w = U_USB_BRIDGE1.ulpi_tx_tready_w;
@@ -223,15 +216,10 @@ module usb_core_tb;
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
   reg bulk_in_ready_q, bulk_out_ready_q;
-  wire bulk_start_w, bulk_cycle_w;
+  wire bulk_start_w, bulk_cycle_w, bulk_fetch_w, bulk_store_w;
   wire [3:0] bulk_endpt_w;
   wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
-  wire [10:0] level_w;
-
-  assign bsvalid_w = mvalid && bulk_cycle_w;
-  assign bsready_w = mready && bulk_cycle_w;
-  assign bmvalid_w = svalid && bulk_cycle_w;
-  assign bmready_w = sready && bulk_cycle_w;
+  wire [FSB:0] level_w;
 
   // Bulk Endpoint Status //
   always @(posedge usb_clock) begin
@@ -248,12 +236,17 @@ module usb_core_tb;
   //
   // Cores Under New Tests
   ///
+  assign bsready_w = mready && bulk_store_w && bulk_endpt_w == ENDPOINT1;
+  assign bmvalid_w = svalid && bulk_fetch_w && bulk_endpt_w == ENDPOINT1;
+
+  assign skeep = svalid;
+
   ulpi_axis_bridge #(
       .PIPELINED  (PIPELINED),
       .EP1_CONTROL(0),
-      .ENDPOINT1  (1),
+      .ENDPOINT1  (ENDPOINT1),
       .EP2_CONTROL(0),
-      .ENDPOINT2  (2)
+      .ENDPOINT2  (ENDPOINT2)
   ) U_USB_BRIDGE1 (
       .areset_n(areset_n[3]),
       .reset_no(usb_rst_n),
@@ -276,6 +269,8 @@ module usb_core_tb;
       .blk_out_ready_i(bulk_out_ready_q),
       .blk_start_o(bulk_start_w),
       .blk_cycle_o(bulk_cycle_w),
+      .blk_fetch_o(bulk_fetch_w),
+      .blk_store_o(bulk_store_w),
       .blk_endpt_o(bulk_endpt_w),
       .blk_error_i(1'b0),
 
@@ -295,24 +290,108 @@ module usb_core_tb;
 
   // -- Loop-back FIFO for Testing -- //
 
-  sync_fifo #(
-      .WIDTH (10),
-      .ABITS (11),
-      .OUTREG(3)
-  ) rddata_fifo_inst (
+  assign bsvalid_w = mvalid && bulk_store_w && bulk_endpt_w == ENDPOINT1;
+  assign bmready_w = sready && bulk_fetch_w && bulk_endpt_w == ENDPOINT1;
+
+  wire xvalid, xready, xlast;
+  wire [7:0] xdata;
+
+  axis_clean #(
+      .WIDTH(8),
+      .DEPTH(16)
+  ) U_AXIS_CLEAN2 (
       .clock(dev_clock),
       .reset(dev_reset),
 
-      .level_o(level_w),
+      .s_tvalid(bsvalid_w),
+      .s_tready(mready),
+      .s_tlast (mlast),
+      .s_tkeep (mkeep),
+      .s_tdata (~mdata),
 
-      .valid_i(bsvalid_w),
-      .ready_o(mready),
-      .data_i ({mkeep, mlast, mdata}),
-
-      .valid_o(svalid),
-      .ready_i(bmready_w),
-      .data_o ({skeep, slast, sdata})
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tlast (xlast),
+      .m_tkeep (),
+      .m_tdata (xdata)
   );
+
+  // Loop-back FIFO for Testing //
+  generate
+    if (USE_SYNC_FIFO) begin : g_sync_fifo
+
+      sync_fifo #(
+          .WIDTH (9),
+          .ABITS (11),
+          .OUTREG(3)
+      ) rddata_fifo_inst (
+          .clock(dev_clock),
+          .reset(dev_reset),
+
+          .level_o(level_w),
+
+          .valid_i(xvalid),
+          .ready_o(xready),
+          .data_i ({xlast, xdata}),
+
+          .valid_o(svalid),
+          .ready_i(bmready_w),
+          .data_o ({slast, sdata})
+      );
+
+    end else begin : g_axis_fifo
+
+      axis_fifo #(
+          .DEPTH(BULK_FIFO_SIZE),
+          .DATA_WIDTH(8),
+          .KEEP_ENABLE(0),
+          .KEEP_WIDTH(1),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(0),
+          .ID_WIDTH(1),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(0),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_BULK_FIFO0 (
+          .clk(dev_clock),
+          .rst(dev_reset),
+
+          .s_axis_tdata (xdata),  // AXI4-Stream input
+          .s_axis_tkeep (xvalid),
+          .s_axis_tvalid(xvalid),
+          .s_axis_tready(xready),
+          .s_axis_tlast (xlast),
+          .s_axis_tid   (1'b0),
+          .s_axis_tdest (1'b0),
+          .s_axis_tuser (1'b0),
+
+          .pause_req(1'b0),
+
+          .m_axis_tdata(sdata),  // AXI4-Stream output
+          .m_axis_tkeep(),
+          .m_axis_tvalid(svalid),
+          .m_axis_tready(bmready_w),
+          .m_axis_tlast(slast),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+
+          .status_depth(level_w),  // Status
+          .status_overflow(),
+          .status_bad_frame(),
+          .status_good_frame()
+      );
+
+    end
+  endgenerate
 
 
 endmodule  // usb_core_tb

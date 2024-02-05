@@ -199,6 +199,11 @@ module fake_usb_host_ulpi (
     send_token(DEV_ADDR, 4'h1, TOK_IN);
     recv_data1();
     send_ack();
+
+    #80 $display("%10t: BULK data IN", $time);
+    send_token(DEV_ADDR, 4'h1, TOK_IN);
+    recv_data0();
+    send_ack();
     blki_done_q <= 1'b1;
 
     $display("%10t: BULK data IN finished ...", $time);
@@ -579,7 +584,7 @@ module fake_usb_host_ulpi (
   task send_data1;
     input [63:0] data;
     begin
-      send_data(64'h0, 3'd7, 1);
+      send_data(data, 3'd7, 1);
     end
   endtask  // send_data1
 

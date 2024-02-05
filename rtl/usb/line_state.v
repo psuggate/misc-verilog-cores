@@ -117,6 +117,7 @@ module line_state #(
 
   // -- IOB Registers -- //
 
+  // Note: these do not map into IOB registers
   always @(posedge clock) begin
     dir_q <= ulpi_dir;
     nxt_q <= ulpi_nxt;

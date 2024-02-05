@@ -13,11 +13,18 @@ module transactor #(
     output usb_timeout_error_o,
     output usb_device_idle_o,
     output [2:0] err_code_o,
+    output [3:0] usb_state_o,
+    output [3:0] ctl_state_o,
+    output [7:0] blk_state_o,
+
+    output parity0_o,
+    output parity1_o,
+    output parity2_o,
 
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
     output ctl_cycle_o,
-    input ctl_done_i,
+    input ctl_event_i,
     input ctl_error_i,
     output [3:0] ctl_endpt_o,
     output [7:0] ctl_rtype_o,
@@ -41,6 +48,8 @@ module transactor #(
     input blk_in_ready_i,
     input blk_out_ready_i,
     output blk_start_o,
+    output blk_fetch_o,
+    output blk_store_o,
     output blk_cycle_o,
     output [3:0] blk_endpt_o,
     input blk_error_i,
@@ -91,7 +100,7 @@ module transactor #(
 
   // -- Module Constants -- //
 
-  localparam USE_ULPI_TX_FIFO = 0;
+  localparam USE_ULPI_TX_FIFO = 1;
 
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
@@ -104,7 +113,7 @@ module transactor #(
   localparam [1:0] DATA0 = 2'b00;
   localparam [1:0] DATA1 = 2'b10;
 
-  // FSM states
+  // FSM states for control transfers
   localparam CTL_DONE = 4'h0;
   localparam CTL_SETUP_RX = 4'h1;
   localparam CTL_SETUP_ACK = 4'h2;
@@ -121,7 +130,7 @@ module transactor #(
   localparam CTL_STATUS_TX = 4'ha;
   localparam CTL_STATUS_ACK = 4'hb;
 
-
+  // FSM states for BULK transfers
   localparam [7:0] BLK_IDLE = 8'h01;
   localparam [7:0] BLK_DATI_TX = 8'h02;
   localparam [7:0] BLK_DATI_ZDP = 8'h04;
@@ -133,11 +142,13 @@ module transactor #(
   localparam [7:0] BLK_DONE = 8'h40;
   localparam [7:0] BLK_DATO_ERR = 8'h80;
 
+  // Top-level FSM states
   localparam ST_IDLE = 4'h1;
   localparam ST_CTRL = 4'h2;  // USB Control Transfer
   localparam ST_BULK = 4'h4;  // USB Bulk Transfer
   localparam ST_DUMP = 4'h8;  // ignoring xfer, or bad things happened
 
+  // Error-codes
   localparam ER_NONE = 3'h0;
   localparam ER_BLKI = 3'h1;
   localparam ER_BLKO = 3'h2;
@@ -160,22 +171,21 @@ module transactor #(
   wire mux_tready_w;
 
   // State variables
-  reg [2:0] odds_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] state, xctrl;
   reg [7:0] xbulk;
+  reg fetch_q, store_q;
 
   reg [3:0] tuser_q;
-  reg trn_zero_q;  // zero-size data transfer ??
-
-  reg hsend_q;
-  reg [1:0] htype_q;
-
-  reg terr_q;
+  reg tzero_q, hsend_q, terr_q;
 
 
   // -- Input and Output Signal Assignments -- //
+
+  assign usb_state_o = state;
+  assign ctl_state_o = xctrl;
+  assign blk_state_o = xbulk;
 
   assign usb_timeout_error_o = terr_q;
 
@@ -186,6 +196,8 @@ module transactor #(
   assign blk_start_o = state == ST_BULK && xbulk == BLK_IDLE;
   assign blk_cycle_o = state == ST_BULK;
   assign blk_endpt_o = tok_endp_i;  // todo: ??
+  assign blk_fetch_o = fetch_q;
+  assign blk_store_o = store_q;
 
   assign ctl_cycle_o = ctl_cycle_q;
   assign ctl_start_o = ctl_start_q;
@@ -216,15 +228,9 @@ module transactor #(
   // -- Monitoring & Telemetry -- //
 
   wire usb_idle_w;
-  wire [3:0] xfer_state_w, ctrl_state_w;
-  wire [7:0] bulk_state_w;
 
   assign usb_idle_w = state == ST_IDLE || xctrl == CTL_DONE || xbulk == BLK_DONE;
   assign usb_device_idle_o = usb_idle_w;
-
-  assign xfer_state_w = state;
-  assign ctrl_state_w = xctrl;
-  assign bulk_state_w = xbulk;
 
 
   // -- Datapath from the USB Packet Decoder -- //
@@ -248,55 +254,134 @@ module transactor #(
   end
 
 
-  // -- DATA0/1/2 DATAM Logic -- //
+  // -- DATA0/1/2/M Logic -- //
 
-  wire odd_w = odds_q[tok_endp_i];
-  wire nod_w = ~odd_w;
+  reg parity0_q, parity1_q, parity2_q;
+  reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
+  wire parityx_w;
 
-  wire odd0_w = odds_q[0];
-  wire odd1_w = odds_q[1];
-  wire odd2_w = odds_q[2];
+  wire bulk_ack_w = hsk_recv_i && xbulk == BLK_DATI_ACK && usb_tuser_i == {HSK_ACK, 2'b10};
+  wire ctrl_ack_w = hsk_recv_i && (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK) &&
+       usb_tuser_i == {HSK_ACK, 2'b10};
 
-  // DATA0/1 management //
-  // todo: needs to be per-endpoint ...
-  always @(posedge clock) begin
-    if (reset) begin
-      odds_q <= 3'b000;
-    end else begin
-      if (hsk_sent_i) begin
-        // ACK sent in response to OUT data xfer (from host)
-        // todo: if we ever sent 'NAK', 'NYET', or 'STALL', will need more
-        //   logics
-        if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK) begin
-          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
-        end else if (xctrl == CTL_STATUS_ACK) begin
-          odds_q[tok_endp_i] <= 1'b0;  // Status is always '1'
-        end else if (xctrl == CTL_SETUP_ACK) begin
-          odds_q[tok_endp_i] <= 1'b1;  // Setup is always '0'
+  assign parity0_o = parity0_q;
+  assign parity1_o = parity1_q;
+  assign parity2_o = parity2_q;
+
+  assign parityx_w = tok_endp_i == 0 ? parity0_q :
+                     tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
+                     tok_endp_i == ENDPOINT2[3:0] ? parity2_q :
+                     parity0_q;
+
+  always @* begin
+    //
+    //  BULK endpoint #1 ('ENDPOINT1') DATA0/1 parity logic
+    ///
+    set_parity1 = 1'b0;
+    clr_parity1 = 1'b0;
+
+    if (ENDPOINT1 != 0 && tok_endp_i == ENDPOINT1[3:0]) begin
+      if (usb_recv_i && xbulk == BLK_DATO_RX && parity1_q == usb_tuser_i[3]) begin
+        set_parity1 = ~parity1_q;
+        clr_parity1 = parity1_q;
+      end else if (bulk_ack_w) begin
+        set_parity1 = ~parity1_q;
+        clr_parity1 = parity1_q;
+      end
+    end
+
+    //
+    //  BULK endpoint #2 ('ENDPOINT2') DATA0/1 parity logic
+    ///
+    set_parity2 = 1'b0;
+    clr_parity2 = 1'b0;
+
+    if (ENDPOINT2 != 0 && tok_endp_i == ENDPOINT2[3:0]) begin
+      if (usb_recv_i && xbulk == BLK_DATO_RX && parity2_q == usb_tuser_i[3]) begin
+        set_parity2 = ~parity2_q;
+        clr_parity2 = parity2_q;
+      end else if (bulk_ack_w) begin
+        set_parity2 = ~parity2_q;
+        clr_parity2 = parity2_q;
+      end
+    end
+
+    //
+    //  Configuration endpoint DATA0/1 parity logic
+    ///
+    set_parity0 = 1'b0;
+    clr_parity0 = 1'b0;
+
+    if (tok_endp_i == 0) begin
+      if (tok_recv_i) begin
+        if (usb_tuser_i == {TOK_SETUP, 2'b01}) begin
+          set_parity0 = 1'b0;
+          clr_parity0 = 1'b1;
+        end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
+                     usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
+                     ) begin
+          set_parity0 = 1'b1;
+          clr_parity0 = 1'b0;
         end
-
-      end else if (hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK) begin
-        // ACK received in response to IN data xfer (to host)
-        if (xbulk == BLK_DATI_ACK || xctrl == CTL_DATI_ACK) begin
-          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
-        end else if (xctrl == CTL_STATUS_ACK) begin
-          odds_q[tok_endp_i] <= 1'b0;
-        end
-
-      end else if (tok_recv_i) begin
-        // For Control Transfers, the parity bit has pre-defined values for its
-        // setup- and status- stages.
-        if (usb_tuser_i[3:2] == TOK_SETUP) begin
-          odds_q[tok_endp_i] <= 1'b0;
-        end else if (usb_tuser_i[3:2] == TOK_OUT && xctrl == CTL_DATI_TOK) begin
-          odds_q[tok_endp_i] <= 1'b1;
-        end else if (usb_tuser_i[3:2] == TOK_IN && xctrl == CTL_DATO_TOK) begin
-          odds_q[tok_endp_i] <= 1'b1;
-        end
-
+      end else if (usb_recv_i) begin
+        case (xctrl)
+          CTL_DATO_RX: begin
+            set_parity0 = ~parity0_q;
+            clr_parity0 = parity0_q;
+          end
+          CTL_SETUP_RX: begin
+            set_parity0 = 1'b1;
+            clr_parity0 = 1'b0;
+          end
+          CTL_STATUS_RX: begin
+            set_parity0 = 1'b0;
+            clr_parity0 = 1'b1;
+          end
+          default: begin
+            set_parity0 = 1'b0;
+            clr_parity0 = 1'b0;
+          end
+        endcase
+      end else if (ctrl_ack_w) begin
+        set_parity0 = ~parity0_q;
+        clr_parity0 = parity0_q;
+      end else if (ctl_event_i) begin
+        // Set the parity-bit for BULK endpoints to 'DATA0' on "configuration
+        // events" (pp.242-3)
+        set_parity1 = 1'b0;
+        clr_parity1 = 1'b1;
+        set_parity2 = 1'b0;
+        clr_parity2 = 1'b1;
       end
     end
   end
+
+  // Parity-state J/K flip-flops //
+  always @(posedge clock) begin
+    // Configuration endpoint DATAx parity-bit
+    if (reset || clr_parity0) begin
+      parity0_q <= 1'b0;
+    end else if (set_parity0) begin
+      parity0_q <= 1'b1;
+    end
+
+    // BULK 'ENDPOINT1' DATAx parity-bit
+    if (reset || clr_parity1) begin
+      parity1_q <= 1'b0;
+    end else if (set_parity1) begin
+      parity1_q <= 1'b1;
+    end
+
+    // BULK 'ENDPOINT2' DATAx parity-bit
+    if (reset || clr_parity2) begin
+      parity2_q <= 1'b0;
+    end else if (set_parity2) begin
+      parity2_q <= 1'b1;
+    end
+  end
+
+
+  // -- Compute the USB Tx Packet PID -- //
 
   always @(posedge clock) begin
     if (reset) begin
@@ -306,9 +391,9 @@ module transactor #(
     end else if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
       tuser_q <= {DATA1, 2'b11};
     end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
-      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end else if (xbulk == BLK_IDLE && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
-      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end
   end
 
@@ -362,26 +447,26 @@ module transactor #(
 
   always @(posedge clock) begin
     if (reset || usb_busy_i) begin
-      trn_zero_q <= 1'b0;
+      tzero_q <= 1'b0;
     end else if (state == ST_CTRL) begin
       if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
         // Tx STATUS OUT (ZDP)
-        trn_zero_q <= 1'b1;
-      end else if (trn_zero_q && mux_tready_w) begin
-        trn_zero_q <= 1'b0;
+        tzero_q <= 1'b1;
+      end else if (tzero_q && mux_tready_w) begin
+        tzero_q <= 1'b0;
       end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
-        trn_zero_q <= 1'b0;
+        tzero_q <= 1'b0;
       end else begin
-        trn_zero_q <= trn_zero_q;
+        tzero_q <= tzero_q;
       end
     end else if (state == ST_BULK) begin
       if (xbulk == BLK_IDLE && usb_tuser_i[3:2] == TOK_IN) begin
-        trn_zero_q <= ~blk_in_ready_i;
+        tzero_q <= ~blk_in_ready_i;
       end else begin
-        trn_zero_q <= trn_zero_q;
+        tzero_q <= tzero_q;
       end
     end else begin
-      trn_zero_q <= trn_zero_q;
+      tzero_q <= tzero_q;
     end
   end
 
@@ -394,13 +479,15 @@ module transactor #(
   wire blk_sel_w = xbulk == BLK_DATI_TX;
   wire ctl_sel_w = xctrl == CTL_DATI_TX;
 
-  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : trn_zero_q;
-  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : trn_zero_q;
+  assign mux_tvalid_w = blk_sel_w ? blk_tvalid_i : ctl_sel_w ? ctl_tvalid_i : tzero_q;
+  assign mux_tlast_w  = blk_sel_w ? blk_tlast_i : ctl_sel_w ? ctl_tlast_i : tzero_q;
   assign mux_tkeep_w  = blk_sel_w ? blk_tkeep_i : ctl_sel_w ? ctl_tkeep_i : 1'b0;
   assign mux_tdata_w  = blk_sel_w ? blk_tdata_i : ctl_sel_w ? ctl_tdata_i : 8'bx;
 
   generate
     if (USE_ULPI_TX_FIFO) begin : g_ulpi_tx_fifo
+
+      // Using a FIFO allows Tx-data to be prefetched
       sync_fifo #(
           .WIDTH (10),
           .ABITS (4),
@@ -444,23 +531,24 @@ module transactor #(
   endgenerate
 
 
-  // -- Transaction FSM -- //
-
   //
-  // Hierarchical, pipelined FSM that just enables the relevant lower-level FSM,
-  // waits for it to finish, or handles any errors.
+  //  Transaction FSM
   //
-  // Todo: should this FSM handle no-data responses ??
+  //  Hierarchical, pipelined FSM that controls the relevant lower-level FSM,
+  //  waits for it to finish, or handles any errors.
   //
-
-  // todo: control the input MUX, and the output CE's
+  //  Todo:
+  //   - should this FSM handle no-data responses ??
+  //   - control the input MUX, and the output CE's
+  ///
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
       err_code_q <= ER_NONE;
     end else begin
       case (state)
-        default: begin  // ST_IDLE
+        // default: begin  // ST_IDLE
+        ST_IDLE: begin
           //
           // Decode tokens until we see our address, and a valid endpoint
           ///
@@ -468,7 +556,6 @@ module transactor #(
             if (tok_ping_i || usb_tuser_i[3:2] == TOK_IN || usb_tuser_i[3:2] == TOK_OUT) begin
               state <= ST_BULK;
               err_code_q <= tok_endp_i != ENDPOINT1 && tok_endp_i != ENDPOINT2 ? ER_ENDP : ER_NONE;
-              //               usb_tuser_i[3:2] == TOK_IN ? ER_BLKI : ER_BLKO;
             end else if (usb_tuser_i[3:2] == TOK_SETUP) begin
               state <= ST_CTRL;
               err_code_q <= tok_endp_i != 4'h0 ? ER_ENDP : ER_NONE;
@@ -510,34 +597,34 @@ module transactor #(
   end
 
 
-  // Bulk-Transfer Main FSM //
+  //
+  //  Bulk-Transfer Main FSM
+  ///
   always @(posedge clock) begin
     if (state == ST_IDLE) begin
-      xbulk <= BLK_IDLE;
+      xbulk   <= BLK_IDLE;
+      fetch_q <= 1'b0;
+      store_q <= 1'b0;
     end else begin
       case (xbulk)
-        default: begin  // BLK_IDLE
+        // default: begin  // BLK_IDLE
+        BLK_IDLE: begin
           // If the main FSM has found a relevant token, start a Bulk Transfer
           if (state == ST_BULK) begin
             if (usb_tuser_i[3:2] == TOK_IN) begin
-              xbulk <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+              xbulk   <= blk_in_ready_i ? BLK_DATI_TX : BLK_DATI_ZDP;
+              fetch_q <= blk_in_ready_i;
+              store_q <= 1'b0;
             end else begin
-              xbulk <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_ERR;
+              xbulk   <= blk_out_ready_i ? BLK_DATO_RX : BLK_DATO_ERR;
+              fetch_q <= 1'b0;
+              store_q <= blk_out_ready_i;
             end
+          end else begin
+            fetch_q <= 1'b0;
+            store_q <= 1'b0;
           end
         end
-
-        /*
-        // Tx states for BULK IN data //
-        BLK_DATI_TX: begin
-          // Transfer a data-packet from the source attached to BULK IN
-          // if (usb_sent_i) begin
-          // if (blk_tvalid_i && blk_tready_o && blk_tlast_i) begin
-          if (usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
-            xbulk <= BLK_DATI_ACK;
-          end
-        end
-        */
 
         BLK_DATI_TX, BLK_DATI_ZDP: begin
           // Send a zero-data packet, because we do not have a full packet, and
@@ -549,15 +636,14 @@ module transactor #(
 
         BLK_DATI_ACK: begin
           // Wait for the host to 'ACK' the packet
-          if (hsk_recv_i) begin
+          if (hsk_recv_i || terr_q) begin
             xbulk <= BLK_DONE;
           end
         end
 
         // Rx states for BULK OUT data //
         BLK_DATO_RX: begin
-          // if (blk_tvalid_o && blk_tready_i && blk_tlast_o) begin
-          if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+          if (usb_recv_i) begin
             xbulk <= BLK_DATO_ACK;
           end
         end
@@ -576,6 +662,8 @@ module transactor #(
         end
 
         BLK_DONE: begin
+          store_q <= 1'b0;
+          fetch_q <= 1'b0;
           if (state == ST_IDLE) begin
             xbulk <= BLK_IDLE;
           end
@@ -585,11 +673,15 @@ module transactor #(
   end
 
 
-  // -- Parser for Control Transfer Parameters -- //
-
-  wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_done_i;
+  //
+  //  Control Transfers FSM
+  ///
+  wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_event_i;
   wire ctl_get_done_w = ctl_rtype_q[7] & ctl_tvalid_i & ctl_tready_o & ctl_tlast_i;
   wire ctl_done_w = ctl_cycle_q & (ctl_set_done_w | ctl_get_done_w);
+
+
+  // -- Parser for Control Transfer Parameters -- //
 
   // Todo:
   //  - conditional expr. does not exclude enough scenarios !?
@@ -626,9 +718,6 @@ module transactor #(
     end else begin
       ctl_start_q <= 1'b0;
       ctl_cycle_q <= ctl_done_w ? 1'b0 : ctl_cycle_q;
-      // if (ctl_tvalid_i && ctl_tready_o && ctl_tlast_i) begin
-      //   ctl_cycle_q <= 1'b0;
-      // end
     end
   end
 
@@ -639,9 +728,6 @@ module transactor #(
       ctl_error_q <= 1'b1;
     end
   end
-
-
-  // -- Control Transfers FSM -- //
 
   //
   // These transfers have a predefined structure (see pp.225, USB 2.0 Spec), and
@@ -693,7 +779,6 @@ module transactor #(
 
         CTL_SETUP_ACK: begin
           if (hsk_sent_i) begin
-            // xctrl <= ctl_length_o == 0 || ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
             xctrl <= ctl_length_o == 0 ? CTL_DATO_TOK : 
                      ctl_rtype_q[7] ? CTL_DATI_TOK : CTL_DATO_TOK;
           end
@@ -730,7 +815,9 @@ module transactor #(
           if (tok_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == TOK_OUT ? CTL_DATO_RX : CTL_STATUS_TX;
           end else if (hsk_recv_i || usb_recv_i || terr_q) begin
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
+`endif
             // xctrl <= CTL_DONE;
           end
         end
@@ -746,7 +833,9 @@ module transactor #(
           if (hsk_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == HSK_ACK ? CTL_DATI_TOK : CTL_DONE;
           end else if (tok_recv_i || usb_recv_i || terr_q) begin  // Non-ACK
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
+`endif
             xctrl <= CTL_DONE;
           end
         end
@@ -759,8 +848,10 @@ module transactor #(
           if (tok_recv_i) begin
             xctrl <= usb_tuser_i[3:2] == TOK_IN ? CTL_DATI_TX : CTL_STATUS_RX;
           end else if (hsk_recv_i || usb_recv_i || terr_q) begin
+`ifdef __icarus
             $error("%10t: Unexpected (T=%1d D=%1d E=%1d)", $time, tok_recv_i, usb_recv_i, terr_q);
             #100 $fatal;
+`endif
             // xctrl <= CTL_DONE;
           end
         end
@@ -770,7 +861,8 @@ module transactor #(
         // Packets: {IN/OUT, DATA1, ACK}
         ///
         CTL_STATUS_RX: begin  // Rx Status from USB
-          if (!odd_w) begin
+          // if (!odd_w) begin
+          if (!parityx_w) begin
             $error("%10t: INCORRECT DATA0/1 BIT", $time);
           end
 
@@ -797,7 +889,7 @@ module transactor #(
         CTL_DONE: begin
           // Wait for the main FSM to return to IDLE, and then get ready for the
           // next Control Transfer.
-          if (state == ST_IDLE) begin
+          if (state != ST_CTRL) begin
             xctrl <= CTL_SETUP_RX;
           end
         end
@@ -861,6 +953,7 @@ module transactor #(
 `ifdef __icarus
 
   reg [39:0] dbg_state;
+  reg [119:0] dbg_xctrl, dbg_xbulk;
 
   always @* begin
     case (state)
@@ -871,8 +964,6 @@ module transactor #(
       default: dbg_state = "XXXX";
     endcase
   end
-
-  reg [119:0] dbg_xctrl;
 
   always @* begin
     case (xctrl)
@@ -895,8 +986,6 @@ module transactor #(
       default: dbg_xctrl = "UNKNOWN";
     endcase
   end
-
-  reg [119:0] dbg_xbulk;
 
   always @* begin
     case (xbulk)

@@ -1,0 +1,157 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Feb  4 07:42:34 2024
+[*]
+[dumpfile] "./ulpi_decoder_tb.vcd"
+[dumpfile_mtime] "Sun Feb  4 04:06:45 2024"
+[dumpfile_size] 23780
+[savefile] "./ulpi_decoder_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-16.474764 465000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ulpi_decoder_tb.
+[treeopen] ulpi_decoder_tb.U_DECODER1.
+[sst_width] 233
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+ulpi_decoder_tb.clock
+ulpi_decoder_tb.reset
+[color] 7
+ulpi_decoder_tb.LineState[1:0]
+[color] 2
+ulpi_decoder_tb.RxEvent[1:0]
+@22
+ulpi_decoder_tb.rxcmd_w[7:0]
+@820
+[color] 7
+ulpi_decoder_tb.dbg_state[31:0]
+@800200
+-TB
+@28
+ulpi_decoder_tb.ttype_q[1:0]
+ulpi_decoder_tb.ksend_q
+ulpi_decoder_tb.dsend_q
+ulpi_decoder_tb.hsend_q
+ulpi_decoder_tb.tdone_w
+ulpi_decoder_tb.tdone_q
+@22
+ulpi_decoder_tb.crc16_q[15:0]
+ulpi_decoder_tb.crc16_nw[15:0]
+@1000200
+-TB
+@800200
+-ULPI
+@28
+ulpi_decoder_tb.ulpi_dir
+ulpi_decoder_tb.ulpi_nxt
+@22
+ulpi_decoder_tb.ulpi_data[7:0]
+@1000200
+-ULPI
+@800200
+-Exp
+@28
+[color] 7
+ulpi_decoder_tb.U_DROP_TWO1.cyc_q
+ulpi_decoder_tb.U_DROP_TWO1.tok_q
+ulpi_decoder_tb.U_DROP_TWO1.hsk_q
+ulpi_decoder_tb.U_DROP_TWO1.pid_vld_w
+ulpi_decoder_tb.U_DROP_TWO1.rx_end_w
+@200
+-** Stage I
+@28
+[color] 2
+ulpi_decoder_tb.U_DROP_TWO1.stb_q
+@22
+ulpi_decoder_tb.U_DROP_TWO1.dat_q[7:0]
+@200
+-** Stage II
+@28
+ulpi_decoder_tb.U_DROP_TWO1.vld_q
+@22
+ulpi_decoder_tb.U_DROP_TWO1.out_q[7:0]
+@200
+-** Output
+@28
+ulpi_decoder_tb.uvalid_w
+ulpi_decoder_tb.ulast_w
+ulpi_decoder_tb.ukeep_w
+@22
+ulpi_decoder_tb.uuser_w[3:0]
+ulpi_decoder_tb.udata_w[7:0]
+@200
+-** Flags
+@28
+[color] 3
+ulpi_decoder_tb.U_DROP_TWO1.crc_valid_flag
+[color] 1
+ulpi_decoder_tb.U_DROP_TWO1.crc_error_flag
+ulpi_decoder_tb.U_DROP_TWO1.usb_recv_o
+ulpi_decoder_tb.U_DROP_TWO1.hsk_recv_o
+ulpi_decoder_tb.U_DROP_TWO1.tok_recv_o
+@22
+ulpi_decoder_tb.U_DROP_TWO1.tok_addr_o[6:0]
+ulpi_decoder_tb.U_DROP_TWO1.tok_endp_o[3:0]
+@1000200
+-Exp
+@28
+[color] 1
+ulpi_decoder_tb.crc_error_w
+[color] 3
+ulpi_decoder_tb.crc_valid_w
+[color] 2
+ulpi_decoder_tb.tok_recv_w
+@22
+ulpi_decoder_tb.tok_addr_w[6:0]
+ulpi_decoder_tb.tok_endp_w[3:0]
+@28
+ulpi_decoder_tb.usb_recv_w
+@c00200
+-OUT
+@28
+ulpi_decoder_tb.ulpi_rx_tvalid_w
+ulpi_decoder_tb.ulpi_rx_tready_w
+ulpi_decoder_tb.ulpi_rx_tlast_w
+ulpi_decoder_tb.ulpi_rx_tkeep_w
+@22
+ulpi_decoder_tb.ulpi_rx_tuser_w[3:0]
+ulpi_decoder_tb.ulpi_rx_tdata_w[7:0]
+@1401200
+-OUT
+@c00200
+-Decoder
+@28
+ulpi_decoder_tb.U_DECODER1.ibuf_dir
+ulpi_decoder_tb.U_DECODER1.ibuf_nxt
+@22
+ulpi_decoder_tb.U_DECODER1.ibuf_data[7:0]
+@28
+ulpi_decoder_tb.U_DECODER1.ulpi_dir
+ulpi_decoder_tb.U_DECODER1.ulpi_nxt
+@22
+ulpi_decoder_tb.U_DECODER1.ulpi_data[7:0]
+@28
+ulpi_decoder_tb.U_DECODER1.dir_q
+[color] 3
+ulpi_decoder_tb.U_DECODER1.cyc_q
+ulpi_decoder_tb.U_DECODER1.end_q
+@22
+ulpi_decoder_tb.U_DECODER1.dat_q[7:0]
+@28
+ulpi_decoder_tb.U_DECODER1.pid_q
+ulpi_decoder_tb.U_DECODER1.rx_end_w
+ulpi_decoder_tb.U_DECODER1.rx_end_x
+@22
+[color] 2
+ulpi_decoder_tb.U_DECODER1.crc16_q[15:0]
+@1401200
+-Decoder
+@22
+ulpi_decoder_tb.tdata_q[63:0]
+ulpi_decoder_tb.tdata_w[7:0]
+ulpi_decoder_tb.U_DROP_TWO1.crc16_q[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

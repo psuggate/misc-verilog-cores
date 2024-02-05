@@ -112,7 +112,7 @@ data UsbToken
 data Transact
   = TrnErrNone
   | TrnErrBlkI
-  | TrnErrBlkO
+  | TrnHskSent
   | TrnTokRecv
   | TrnUsbRecv
   | TrnUsbSent
@@ -127,6 +127,7 @@ data Entry = Entry { _usbReset :: !Bool -- Reset to (downstream) USB cores
                    , _usbEndpt :: !Word8
                    , _usbToken :: !UsbToken
                    , _usbState :: !UsbState
+                   , _tokPing  :: !Bool
                    , _crcError :: !Bool
                    , _transact :: !Transact
                    , _usbSof   :: !Bool
@@ -160,12 +161,13 @@ toNibble c
 -- * Parser
 ------------------------------------------------------------------------------
 decodeTelemetry :: Vector Char -> Entry
-decodeTelemetry ts = Entry rst ept tok usb crc trn sof blk ctl phy cyc cer uls
+decodeTelemetry ts = Entry rst ept tok usb png crc trn sof blk ctl phy cyc cer uls
   where
     rst = toNib8 (ts!4) .&. 1 /= 0
     ept = toNib8 (ts!5)
     tok = toEnum $ toNibble (ts!6)
     usb = toEnum $ toNibble (ts!7) .&. 3
+    png = toNib8 (ts!7) .&. 4 /= 0
     crc = toNib8 (ts!0) >= 8
     trn = toEnum $ toNibble (ts!0) .&. 7
     sof = toNib8 (ts!1) >= 8
@@ -191,7 +193,7 @@ entry :: Int -> Entry -> String
 entry i q = printf "%04d => %s" i str'
   where
     rst' = reset (q & usbReset .~ True) q
-    usb' = xusb  (q & usbState .~ UsbDump) q
+    usb' = xusb  (q & usbState %~ \x -> if x == UsbDump then UsbIdle else UsbDump) q
     trn' = usbrx (q & transact .~ TrnErrBlkI & usbToken .~ Reserved) q
     blk' = bulk  (q & blkState %~ \x -> if x == BulkDone then BulkIdle else BulkDone) q
     ctl' = xctl  (q & ctlState .~ CtrlDone) q
@@ -235,10 +237,13 @@ xusb x y = B.fromLazyText yus <> B.singleton ' '
     yus = if x^.usbState == y^.usbState then "    " else yuc
 
 xctl :: Entry -> Entry -> B.Builder
-xctl x y = B.fromText pre' <> B.fromLazyText ctl' <> B.fromText cyc'
+xctl x y = B.fromText pre' <> B.fromLazyText ctl' <> B.singleton par' <> B.fromText cyc'
   where
     ctl' = T.take 11 $ T.drop 4 (show (y^.ctlState)) <> "          "
     pre' = if x^.ctlState /= y^.ctlState then " CTL:" else "     "
+    par' | y^.usbEndpt /= 1 = ' '
+         | y^.tokPing       = '1'
+         | otherwise        = '0'
     cyc' = case (y^.ctlError, y^.ctlCycle) of
       (True , True ) -> "EC "
       (True , False) -> "E  "

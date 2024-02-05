@@ -2,7 +2,8 @@
 module bulk_telemetry #(
     parameter [3:0] ENDPOINT = 4'd2,
     parameter PACKET_SIZE = 8,
-    parameter SMALL_FIFO = 1
+    parameter SMALL_FIFO = 1,
+    parameter FIFO_DEPTH = 2048
 ) (
     input clock,
     input reset,
@@ -12,7 +13,9 @@ module bulk_telemetry #(
     input usb_sof_i,
     input usb_recv_i,
     input usb_sent_i,
+    input hsk_sent_i,
     input tok_recv_i,
+    input tok_ping_i,
     input high_speed_i,
 
     input crc_error_i,
@@ -32,7 +35,7 @@ module bulk_telemetry #(
     input start_i,
     input [3:0] endpt_i,
     output error_o,
-    output [9:0] level_o,
+    output [$clog2(FIFO_DEPTH) + SMALL_FIFO - 1:0] level_o,
 
     output m_tvalid,
     input m_tready,
@@ -45,10 +48,14 @@ module bulk_telemetry #(
   localparam CZERO = {CBITS{1'b0}};
   localparam CSB = CBITS - 1;
 
+  localparam FBITS = $clog2(FIFO_DEPTH) + SMALL_FIFO;
+  localparam FSB = FBITS - 1;
+
 
   // -- Current USB Configuration State -- //
 
   reg sel_q, crc_error_q, ctl_cycle_q, ctl_error_q, usb_sof_q, usb_reset_q;
+  reg tok_ping_q;
   reg [3:0] phy_state_q, ctl_state_q, usb_endpt_q, usb_tuser_q;
   reg [2:0] blk_state_q, err_code_q;
   reg [1:0] linestate_q, usb_state_q;
@@ -87,6 +94,8 @@ module bulk_telemetry #(
       err_code_x = 3'd4;
     end else if (tok_recv_i) begin
       err_code_x = 3'd3;
+    end else if (hsk_sent_i) begin
+      err_code_x = 3'd2;
     end else begin
       err_code_x = usb_error_i;
     end
@@ -99,7 +108,8 @@ module bulk_telemetry #(
       8'h10:   blk_state_x = 3'd4;
       8'h20:   blk_state_x = 3'd5;
       8'h40:   blk_state_x = 3'd6;
-      default: blk_state_x = 3'd7;
+      8'h80:   blk_state_x = 3'd7;
+      default: blk_state_x = 3'd2;
     endcase
 
     case (usb_state_i)
@@ -140,7 +150,8 @@ module bulk_telemetry #(
     usb_endpt_q,
     usb_tuser_q,
     ctl_error_q,
-    1'b0,
+    tok_ping_q,
+    // 1'b0,
     usb_state_q,
     crc_error_q,
     err_code_q,
@@ -156,7 +167,8 @@ module bulk_telemetry #(
     usb_endpt_i,
     usb_tuser_i,
     ctl_error_i,
-    1'b0,
+    tok_ping_i,
+    // 1'b0,
     usb_state_x,
     crc_error_i,
     err_code_x,
@@ -172,6 +184,7 @@ module bulk_telemetry #(
       linestate_q <= 2'b01;  // 'J'
       ctl_cycle_q <= 1'b0;
       ctl_error_q <= 1'b0;
+      tok_ping_q  <= 1'b0;
       usb_reset_q <= 1'b0;
       crc_error_q <= 1'b0;
       err_code_q  <= 3'd0;
@@ -185,6 +198,7 @@ module bulk_telemetry #(
       linestate_q <= LineState;
       ctl_cycle_q <= ctl_cycle_i;
       ctl_error_q <= ctl_error_i;
+      tok_ping_q  <= tok_ping_i;
       usb_reset_q <= usb_reset_i;
       crc_error_q <= crc_error_i;
       err_code_q  <= err_code_x;
@@ -259,7 +273,7 @@ module bulk_telemetry #(
     end else begin : g_axis_fifo
 
       axis_fifo #(
-          .DEPTH(512),
+          .DEPTH(FIFO_DEPTH),
           .DATA_WIDTH(32),
           .KEEP_ENABLE(0),
           .KEEP_WIDTH(4),
@@ -281,8 +295,7 @@ module bulk_telemetry #(
           .clk(clock),
           .rst(reset),
 
-          // AXI input
-          .s_axis_tdata(curr_w),
+          .s_axis_tdata(curr_w),  // AXI input
           .s_axis_tkeep(4'hf),
           .s_axis_tvalid(diff_w),
           .s_axis_tready(ready_w),
@@ -293,8 +306,7 @@ module bulk_telemetry #(
 
           .pause_req(1'b0),
 
-          // AXI output
-          .m_axis_tdata(x_tdata),
+          .m_axis_tdata(x_tdata),  // AXI output
           .m_axis_tkeep(),
           .m_axis_tvalid(x_tvalid),
           .m_axis_tready(x_tready),
@@ -302,8 +314,8 @@ module bulk_telemetry #(
           .m_axis_tid(),
           .m_axis_tdest(),
           .m_axis_tuser(),
-          // Status
-          .status_depth(level_o),
+
+          .status_depth(level_o),  // Status
           .status_overflow(),
           .status_bad_frame(),
           .status_good_frame()
@@ -329,8 +341,7 @@ module bulk_telemetry #(
       .clk(clock),
       .rst(reset),
 
-      // AXI input
-      .s_axis_tdata(x_tdata),
+      .s_axis_tdata(x_tdata),  // AXI input
       .s_axis_tkeep(4'hf),
       .s_axis_tvalid(x_tvalid),
       .s_axis_tready(x_tready),
@@ -339,8 +350,7 @@ module bulk_telemetry #(
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
 
-      // AXI output
-      .m_axis_tdata(a_tdata_w),
+      .m_axis_tdata(a_tdata_w),  // AXI output
       .m_axis_tkeep(),
       .m_axis_tvalid(a_tvalid_w),
       .m_axis_tready(a_tready_w),
