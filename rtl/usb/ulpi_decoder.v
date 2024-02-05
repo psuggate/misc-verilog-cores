@@ -3,6 +3,8 @@ module ulpi_decoder (
     input clock,
     input reset,
 
+    input [1:0] LineState,
+
     input ulpi_dir,
     input ulpi_nxt,
     input [7:0] ulpi_data,
@@ -10,6 +12,7 @@ module ulpi_decoder (
     output crc_error_o,
     output crc_valid_o,
     output sof_recv_o,
+    output eop_recv_o,
     output dec_idle_o,
 
     output tok_recv_o,
@@ -56,6 +59,9 @@ module ulpi_decoder (
   reg [3:0] tuser;
   reg [7:0] tdata;
 
+  // End-of-Packet state registers
+  reg eop_q, rcv_q;
+
   // CRC16 calculation & framing signals
   reg crc_error_flag, crc_valid_flag;
   reg  [15:0] crc16_q;
@@ -66,6 +72,7 @@ module ulpi_decoder (
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
   assign sof_recv_o = sof_recv_q;
+  assign eop_recv_o = eop_q;
   assign dec_idle_o = ~cyc_q;
 
   assign tok_recv_o = tok_recv_q;
@@ -88,7 +95,7 @@ module ulpi_decoder (
   wire rx_end_w, pid_vld_w, istoken_w;
   wire [3:0] rx_pid_w;
 
-  assign rx_end_w  = !ulpi_dir || ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != 2'b01;
+  assign rx_end_w  = !ulpi_dir || ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive;
   assign rx_pid_w  = ulpi_data[3:0];
 
   assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_w == ~ulpi_data[7:4];
@@ -120,6 +127,29 @@ module ulpi_decoder (
       tuser <= 4'ha;
     end else if (!cyc_q && ulpi_dir && ulpi_nxt && dir_q && pid_vld_w) begin
       tuser <= rx_pid_w;
+    end
+  end
+
+
+  // -- End-of-Packet -- //
+
+  wire eop_w = (cyc_q || dir_q && ulpi_dir) && !ulpi_nxt && (ulpi_data[5:4] != RxActive || ulpi_data[3:2] == 2'b00);
+
+  always @(posedge clock) begin
+    if (reset) begin
+      eop_q <= 1'b0;
+      rcv_q <= 1'b0;
+    end else begin
+      if (rcv_q && (LineState == 2'd0 || eop_w)) begin
+        eop_q <= 1'b1;
+        rcv_q <= 1'b0;
+      end else if (cyc_q && !hsk_q && !tok_q) begin
+        eop_q <= 1'b0;
+        rcv_q <= 1'b1;
+      end else begin
+        eop_q <= 1'b0;
+        rcv_q <= rcv_q;
+      end
     end
   end
 

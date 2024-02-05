@@ -78,6 +78,7 @@ module transactor #(
     input  hsk_sent_i,
 
     // DATA0/1 info from the decoder, and to the encoder
+    input eop_recv_i,
     input usb_recv_i,
     input usb_busy_i,
     input usb_sent_i,
@@ -179,12 +180,13 @@ module transactor #(
   reg [3:0] tuser_q;
   reg tzero_q, hsend_q, terr_q;
 
+  // JK flip-flop for the DATA0/1 parity bits
+  reg parity0_q, parity1_q, parity2_q;
+  reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
+  wire parityx_w;
+
 
   // -- Input and Output Signal Assignments -- //
-
-  assign usb_state_o = state;
-  assign ctl_state_o = xctrl;
-  assign blk_state_o = xbulk;
 
   assign usb_timeout_error_o = terr_q;
 
@@ -208,6 +210,7 @@ module transactor #(
   assign ctl_index_o = {ctl_idxhi_q, ctl_idxlo_q};
   assign ctl_length_o = {ctl_lenhi_q, ctl_lenlo_q};
 
+  // Note: not currently used
   assign ctl_tvalid_o = 1'b0;  // usb_tready_i;
   assign ctl_tlast_o = 1'b0;
   assign ctl_tdata_o = 8'h00;
@@ -222,6 +225,14 @@ module transactor #(
   assign blk_tlast_o = usb_tlast_i;
   assign blk_tkeep_o = usb_tkeep_i;
   assign blk_tdata_o = usb_tdata_i;
+
+  assign usb_state_o = state;
+  assign ctl_state_o = xctrl;
+  assign blk_state_o = xbulk;
+
+  assign parity0_o = parity0_q;
+  assign parity1_o = parity1_q;
+  assign parity2_o = parity2_q;
 
 
   // -- Monitoring & Telemetry -- //
@@ -255,23 +266,12 @@ module transactor #(
 
   // -- DATA0/1/2/M Logic -- //
 
-  reg parity0_q, parity1_q, parity2_q;
-  reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
-  wire parityx_w;
-
   // todo: which is best !?
+  // wire bulk_ack_w = hsk_recv_i && usb_tuser_i == {HSK_ACK, 2'b10} && xbulk == BLK_DATI_ACK;
+  // wire ctrl_ack_w = hsk_recv_i && usb_tuser_i == {HSK_ACK, 2'b10} &&
   wire bulk_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK && xbulk == BLK_DATI_ACK;
   wire ctrl_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK &&
        (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
-/*
-  wire bulk_ack_w = hsk_recv_i && usb_tuser_i[3:2] == {HSK_ACK, 2'b10} && xbulk == BLK_DATI_ACK;
-  wire ctrl_ack_w = hsk_recv_i && usb_tuser_i[3:2] == {HSK_ACK, 2'b10} &&
-       (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
-*/
-
-  assign parity0_o = parity0_q;
-  assign parity1_o = parity1_q;
-  assign parity2_o = parity2_q;
 
   assign parityx_w = tok_endp_i == 0 ? parity0_q :
                      tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
@@ -322,8 +322,10 @@ module transactor #(
         if (usb_tuser_i == {TOK_SETUP, 2'b01}) begin
           set_parity0 = 1'b0;
           clr_parity0 = 1'b1;
-        end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
-                     usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
+        end else if (usb_tuser_i[3:2] == TOK_OUT && xctrl == CTL_DATI_TOK ||
+                     usb_tuser_i[3:2] == TOK_IN  && xctrl == CTL_DATO_TOK
+        // end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
+        //              usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
                      ) begin
           set_parity0 = 1'b1;
           clr_parity0 = 1'b0;
@@ -391,7 +393,7 @@ module transactor #(
   always @(posedge clock) begin
     if (reset) begin
       tuser_q <= 4'd0;
-    end else if (!hsend_q && eop_rx_q) begin
+    end else if (!hsend_q && eop_recv_i) begin
       tuser_q <= {HSK_ACK, 2'b10};
     end else if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
       tuser_q <= {DATA1, 2'b11};
@@ -406,7 +408,7 @@ module transactor #(
   // -- End-of-Packet Timer -- //
 
   reg [2:0] eop_rcnt, eop_tcnt;
-  reg eop_rx_q, eop_tx_q;
+  reg eop_tx_q;
   wire eop_rx_w = eop_rcnt == 3'd0;
   wire eop_tx_w = eop_tcnt == 3'd0;
 
@@ -416,25 +418,14 @@ module transactor #(
   //    so use this method instead ??
   always @(posedge clock) begin
     if (reset) begin
-      eop_rcnt <= 3'd0;
       eop_tcnt <= 3'd0;
-
-      eop_rx_q <= 1'b0;
       eop_tx_q <= 1'b0;
     end else begin
-      if (usb_recv_i) begin
-        eop_rcnt <= 3'd5;
-      end else if (!eop_rx_w) begin
-        eop_rcnt <= eop_rcnt - 3'd1;
-      end
-
       if (usb_sent_i) begin
         eop_tcnt <= 3'd5;
       end else if (!eop_tx_w) begin
         eop_tcnt <= eop_tcnt - 3'd1;
       end
-
-      eop_rx_q <= eop_rcnt == 3'd1;
       eop_tx_q <= eop_tcnt == 3'd1;
     end
   end
@@ -445,7 +436,7 @@ module transactor #(
   always @(posedge clock) begin
     if (reset || hsk_sent_i) begin
       hsend_q <= 1'b0;
-    end else if (!hsend_q && eop_rx_q) begin
+    end else if (!hsend_q && eop_recv_i) begin
       hsend_q <= 1'b1;
     end
   end
@@ -778,7 +769,7 @@ module transactor #(
         // Setup Stage
         ///
         default: begin  // CTL_SETUP_RX
-          if (eop_rx_q) begin
+          if (eop_recv_i) begin
             xctrl <= CTL_SETUP_ACK;
           end else begin
             xctrl <= CTL_SETUP_RX;
@@ -797,13 +788,12 @@ module transactor #(
         // Packets:
         //  {OUT/IN, DATA1, ACK}, {OUT/IN, DATA0, ACK}, ...
         ///
-
         // Data OUT //
         CTL_DATO_RX: begin  // Rx OUT from USB Host
           // todo:
           //  - to be compliant, we have to check bytes-sent !?
           //  - catch Rx errors (indicated by the PHY) !?
-          if (eop_rx_q) begin
+          if (eop_recv_i) begin
             xctrl <= CTL_DATO_ACK;
           end
         end

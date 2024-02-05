@@ -307,7 +307,7 @@ module usb_core_tb;
       .s_tready(mready),
       .s_tlast (mlast),
       .s_tkeep (mkeep),
-      .s_tdata (~mdata),
+      .s_tdata (mdata),
 
       .m_tvalid(xvalid),
       .m_tready(xready),

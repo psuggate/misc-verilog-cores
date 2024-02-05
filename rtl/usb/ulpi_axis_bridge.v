@@ -235,6 +235,7 @@ module ulpi_axis_bridge #(
 
   wire hsk_rx_recv_w, hsk_tx_send_w, hsk_tx_done_w;
   wire usb_rx_recv_w, usb_tx_busy_w, usb_tx_done_w, usb_tx_send_w;
+  wire eop_rx_recv_w;
   wire tok_rx_recv_w, tok_rx_ping_w;
   wire [1:0] tok_rx_type_w;
   wire [6:0] tok_rx_addr_w;
@@ -357,6 +358,8 @@ module ulpi_axis_bridge #(
       .clock(clock),
       .reset(reset),
 
+      .LineState(LineState),
+
       .ulpi_dir (iob_dir_w),
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
@@ -369,6 +372,7 @@ module ulpi_axis_bridge #(
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),
       .sof_recv_o (sof_rx_recv_w),
+      .eop_recv_o (eop_rx_recv_w),
       .dec_idle_o (decode_idle_w),
 
       .tok_recv_o(tok_rx_recv_w),
@@ -464,6 +468,7 @@ module ulpi_axis_bridge #(
 
       // DATA0/1 info from the decoder, and to the encoder
       .usb_recv_i(usb_rx_recv_w),
+      .eop_recv_i(eop_rx_recv_w),
       .usb_busy_i(usb_tx_busy_w),
       .usb_sent_i(usb_tx_done_w),
 
@@ -681,6 +686,7 @@ module ulpi_axis_bridge #(
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
       .ENDPOINT(ENDPOINT2),
+      .FIFO_DEPTH(1024),
       .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
   ) U_TELEMETRY2 (
       .clock(clock),

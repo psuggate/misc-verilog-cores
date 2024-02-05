@@ -3,6 +3,8 @@ module ulpi_decoder_tb;
 
   `include "usb_crc.vh"
 
+  localparam integer USE_IOB_REGS = 1;
+
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;
   localparam [1:0] TOK_IN = 2'b10;
@@ -326,11 +328,7 @@ module ulpi_decoder_tb;
   //
   //  Core Under New Test
   ///
-
-  localparam USE_IOB_REGS = 1;
-
-  wire sof_recv_w;
-
+  wire sof_recv_w, eop_recv_w;
   wire uvalid_w, ulast_w, ukeep_w;
   wire [3:0] uuser_w;
   wire [7:0] udata_w;
@@ -346,14 +344,17 @@ module ulpi_decoder_tb;
       .clock(clock),
       .reset(reset),
 
+      .LineState(LineState),
+
       .ulpi_dir (xdir_w),
       .ulpi_nxt (xnxt_w),
       .ulpi_data(xdat_w),
 
       .crc_error_o(crc_error_w),
       .crc_valid_o(crc_valid_w),
-      .dec_idle_o (dec_idle_w),
       .sof_recv_o (sof_recv_w),
+      .eop_recv_o (eop_recv_w),
+      .dec_idle_o (dec_idle_w),
 
       .tok_recv_o(tok_recv_w),
       .tok_ping_o(tok_ping_w),

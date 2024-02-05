@@ -223,7 +223,7 @@ module usb_demo_top (
       .s_tready(s_tready),
       .s_tlast (s_tlast),
       .s_tkeep (s_tkeep),
-      .s_tdata (~s_tdata),
+      .s_tdata (s_tdata),
 
       .m_tvalid(cvalid),
       .m_tready(cready),
@@ -359,6 +359,7 @@ module usb_demo_top (
   // Capture telemetry, so that it can be read back from EP1
   bulk_telemetry #(
       .ENDPOINT(ENDPOINT2),
+      .FIFO_DEPTH(1024),
       .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
   ) U_TELEMETRY1 (
       .clock(clock),
