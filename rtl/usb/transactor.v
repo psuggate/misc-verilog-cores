@@ -17,10 +17,14 @@ module transactor #(
     output [3:0] ctl_state_o,
     output [7:0] blk_state_o,
 
+   output parity0_o,
+   output parity1_o,
+   output parity2_o,
+
     // USB Control Transfer parameters and data-streams
     output ctl_start_o,
     output ctl_cycle_o,
-    input ctl_done_i,
+    input ctl_event_i,
     input ctl_error_i,
     output [3:0] ctl_endpt_o,
     output [7:0] ctl_rtype_o,
@@ -165,7 +169,6 @@ module transactor #(
   wire mux_tready_w;
 
   // State variables
-  reg [2:0] odds_q;
   reg [2:0] xcptr;
   wire [2:0] xcnxt = xcptr + 1;
   reg [3:0] state, xctrl;
@@ -251,6 +254,133 @@ module transactor #(
 
   // -- DATA0/1/2 DATAM Logic -- //
 
+  reg parity0_q, parity1_q, parity2_q;
+  reg set_parity0, clr_parity0, set_parity1, clr_parity1, set_parity2, clr_parity2;
+  wire parityx_w;
+
+  wire bulk_ack_w = hsk_recv_i && xbulk == BLK_DATI_ACK && usb_tuser_i == {HSK_ACK, 2'b10};
+  wire ctrl_ack_w = hsk_recv_i && (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK) &&
+       usb_tuser_i == {HSK_ACK, 2'b10};
+
+  assign parity0_o = parity0_q;
+  assign parity1_o = parity1_q;
+  assign parity2_o = parity2_q;
+
+  assign parityx_w = tok_endp_i == 0 ? parity0_q :
+                     tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
+                     tok_endp_i == ENDPOINT2[3:0] ? parity2_q :
+                     parity0_q;
+
+  always @* begin
+    //
+    //  BULK endpoint #1 ('ENDPOINT1') DATA0/1 parity logic
+    ///
+    set_parity1 = 1'b0;
+    clr_parity1 = 1'b0;
+
+    if (ENDPOINT1 != 0 && tok_endp_i == ENDPOINT1[3:0]) begin
+      if (usb_recv_i && xbulk == BLK_DATO_RX && parity1_q == usb_tuser_i[3]) begin
+        set_parity1 = ~parity1_q;
+        clr_parity1 = parity1_q;
+      end else if (bulk_ack_w) begin
+        set_parity1 = ~parity1_q;
+        clr_parity1 = parity1_q;
+      end
+    end
+
+    //
+    //  BULK endpoint #2 ('ENDPOINT2') DATA0/1 parity logic
+    ///
+    set_parity2 = 1'b0;
+    clr_parity2 = 1'b0;
+
+    if (ENDPOINT2 != 0 && tok_endp_i == ENDPOINT2[3:0]) begin
+      if (usb_recv_i && xbulk == BLK_DATO_RX && parity2_q == usb_tuser_i[3]) begin
+        set_parity2 = ~parity2_q;
+        clr_parity2 = parity2_q;
+      end else if (bulk_ack_w) begin
+        set_parity2 = ~parity2_q;
+        clr_parity2 = parity2_q;
+      end
+    end
+
+    //
+    //  Configuration endpoint DATA0/1 parity logic
+    ///
+    set_parity0 = 1'b0;
+    clr_parity0 = 1'b0;
+
+    if (tok_endp_i == 0) begin
+      if (tok_recv_i) begin
+        if (usb_tuser_i == {TOK_SETUP, 2'b01}) begin
+          set_parity0 = 1'b0;
+          clr_parity0 = 1'b1;
+        end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
+                     usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
+                     ) begin
+          set_parity0 = 1'b1;
+          clr_parity0 = 1'b0;
+        end
+      end else if (usb_recv_i) begin
+        case (xctrl)
+          CTL_DATO_RX: begin
+            set_parity0 = ~parity0_q;
+            clr_parity0 = parity0_q;
+          end
+          CTL_SETUP_RX: begin
+            set_parity0 = 1'b1;
+            clr_parity0 = 1'b0;
+          end
+          CTL_STATUS_RX: begin
+            set_parity0 = 1'b0;
+            clr_parity0 = 1'b1;
+          end
+          default: begin
+            set_parity0 = 1'b0;
+            clr_parity0 = 1'b0;
+          end
+        endcase
+      end else if (ctrl_ack_w) begin
+        set_parity0 = ~parity0_q;
+        clr_parity0 = parity0_q;
+      end else if (ctl_event_i) begin
+        // todo: not a BULK endpoint, so does not get reset !?
+        // set_parity0 = 1'b0;
+        // clr_parity0 = 1'b1;
+
+        // Set to 'DATA0' on "configuration events" (pp.242-3)
+        set_parity1 = 1'b0;
+        clr_parity1 = 1'b1;
+        set_parity2 = 1'b0;
+        clr_parity2 = 1'b1;
+      end
+    end
+  end
+
+  // Parity-state J/K flip-flops //
+  always @(posedge clock) begin
+    if (reset || clr_parity0) begin
+      parity0_q <= 1'b0;
+    end else if (set_parity0) begin
+      parity0_q <= 1'b1;
+    end
+
+    if (reset || clr_parity1) begin
+      parity1_q <= 1'b0;
+    end else if (set_parity1) begin
+      parity1_q <= 1'b1;
+    end
+
+    if (reset || clr_parity2) begin
+      parity2_q <= 1'b0;
+    end else if (set_parity2) begin
+      parity2_q <= 1'b1;
+    end
+  end
+
+
+  // DATA0/1 management //
+  reg [2:0] odds_q;
   wire odd_w = odds_q[tok_endp_i];
   wire nod_w = ~odd_w;
 
@@ -258,22 +388,25 @@ module transactor #(
   wire odd1_w = odds_q[1];
   wire odd2_w = odds_q[2];
 
-  // DATA0/1 management //
   // todo: needs to be per-endpoint ...
   always @(posedge clock) begin
     if (reset) begin
       odds_q <= 3'b000;
     end else begin
-      if (hsk_sent_i) begin
-        // ACK sent in response to OUT data xfer (from host)
-        // todo: if we ever sent 'NAK', 'NYET', or 'STALL', will need more
-        //   logics
-        if (xbulk == BLK_DATO_ACK || xctrl == CTL_DATO_ACK) begin
-          odds_q[tok_endp_i] <= ~odds_q[tok_endp_i];
-        end else if (xctrl == CTL_STATUS_ACK) begin
-          odds_q[tok_endp_i] <= 1'b0;  // Status is always '1'
-        end else if (xctrl == CTL_SETUP_ACK) begin
-          odds_q[tok_endp_i] <= 1'b1;  // Setup is always '0'
+
+      if (usb_recv_i) begin
+        if (xbulk == BLK_DATO_RX || xctrl == CTL_DATO_RX) begin
+          if (tok_endp_i == 0) begin
+            odds_q[0] <= ~odd0_w;
+          end else if (tok_endp_i == ENDPOINT1) begin
+            odds_q[1] <= ~odd1_w;
+          end else if (tok_endp_i == ENDPOINT2) begin
+            odds_q[2] <= ~odd2_w;
+          end
+        end else if (xctrl == CTL_STATUS_RX) begin
+          odds_q[0] <= 1'b0;  // Status is always '1'
+        end else if (xctrl == CTL_SETUP_RX) begin
+          odds_q[0] <= 1'b1;  // Setup is always '0'
         end
 
       end else if (hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK) begin
@@ -299,6 +432,9 @@ module transactor #(
     end
   end
 
+
+  // -- Compute the USB Tx Packet PID -- //
+
   always @(posedge clock) begin
     if (reset) begin
       tuser_q <= 4'd0;
@@ -307,9 +443,11 @@ module transactor #(
     end else if (xctrl == CTL_DATO_TOK && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
       tuser_q <= {DATA1, 2'b11};
     end else if (xctrl == CTL_DATI_TX && ctl_tvalid_i) begin
-      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      // tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end else if (xbulk == BLK_IDLE && tok_recv_i && usb_tuser_i[3:2] == TOK_IN) begin
-      tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      // tuser_q <= {odd_w ? DATA1 : DATA0, 2'b11};
+      tuser_q <= {parityx_w ? DATA1 : DATA0, 2'b11};
     end
   end
 
@@ -589,7 +727,7 @@ module transactor #(
 
   // -- Parser for Control Transfer Parameters -- //
 
-  wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_done_i;
+  wire ctl_set_done_w = ~ctl_rtype_q[7] & ctl_event_i;
   wire ctl_get_done_w = ctl_rtype_q[7] & ctl_tvalid_i & ctl_tready_o & ctl_tlast_i;
   wire ctl_done_w = ctl_cycle_q & (ctl_set_done_w | ctl_get_done_w);
 
@@ -768,7 +906,8 @@ module transactor #(
         // Packets: {IN/OUT, DATA1, ACK}
         ///
         CTL_STATUS_RX: begin  // Rx Status from USB
-          if (!odd_w) begin
+          // if (!odd_w) begin
+          if (!parityx_w) begin
             $error("%10t: INCORRECT DATA0/1 BIT", $time);
           end
 

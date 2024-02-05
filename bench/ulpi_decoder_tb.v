@@ -326,26 +326,34 @@ module ulpi_decoder_tb;
   //
   //  Core Under New Test
   ///
+
+  localparam USE_IOB_REGS = 1;
+
+  wire sof_recv_w;
+
+  wire uvalid_w, ulast_w, ukeep_w;
+  wire [3:0] uuser_w;
+  wire [7:0] udata_w;
+
+  wire xdir_w, xnxt_w;
+  wire [7:0] xdat_w;
+
+  assign xdir_w = USE_IOB_REGS ? dir_q : ibuf_dir_w;
+  assign xnxt_w = USE_IOB_REGS ? nxt_q : ibuf_nxt_w;
+  assign xdat_w = USE_IOB_REGS ? dat_q : ibuf_dat_w;
+
   ulpi_decoder U_DECODER1 (
       .clock(clock),
       .reset(reset),
 
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ibuf_dir(ibuf_dir_w),
-      .ibuf_nxt(ibuf_nxt_w),
-      .ibuf_data(ibuf_dat_w),
-
-      .ulpi_dir (dir_q),
-      .ulpi_nxt (nxt_q),
-      .ulpi_data(dat_q),
+      .ulpi_dir(xdir_w),
+      .ulpi_nxt(xnxt_w),
+      .ulpi_data(xdat_w),
 
       .crc_error_o(crc_error_w),
       .crc_valid_o(crc_valid_w),
-      .decode_idle_o(dec_idle_w),
-      .usb_sof_o(usb_sof_w),
+      .dec_idle_o(dec_idle_w),
+      .sof_recv_o(sof_recv_w),
 
       .tok_recv_o(tok_recv_w),
       .tok_ping_o(tok_ping_w),
@@ -355,12 +363,12 @@ module ulpi_decoder_tb;
       .usb_recv_o(usb_recv_w),
 
       .m_tvalid(ulpi_rx_tvalid_w),
-      .m_tready(ulpi_rx_tready_w),
       .m_tkeep (ulpi_rx_tkeep_w),
       .m_tlast (ulpi_rx_tlast_w),
       .m_tuser (ulpi_rx_tuser_w),
-      .m_tdata (ulpi_rx_tdata_w)
-  );
+      .m_tdata (ulpi_rx_tdata_w),
+      .m_tready(ulpi_rx_tready_w)
+      );
 
 
   // -- Simulation Only -- //
@@ -388,41 +396,6 @@ module ulpi_decoder_tb;
   end
 
 `endif
-
-
-  // -- EXPERIMENTAL -- //
-
-  localparam USE_IOB_REGS = 1;
-
-  wire sof_recv_w;
-
-  wire uvalid_w, ulast_w, ukeep_w;
-  wire [3:0] uuser_w;
-  wire [7:0] udata_w;
-
-  wire xdir_w, xnxt_w;
-  wire [7:0] xdat_w;
-
-  assign xdir_w = USE_IOB_REGS ? dir_q : ibuf_dir_w;
-  assign xnxt_w = USE_IOB_REGS ? nxt_q : ibuf_nxt_w;
-  assign xdat_w = USE_IOB_REGS ? dat_q : ibuf_dat_w;
-
-  drop_the_last_two U_DROP_TWO1
-    ( .clock(clock),
-      .reset(reset),
-
-      .ulpi_dir(xdir_w),
-      .ulpi_nxt(xnxt_w),
-      .ulpi_data(xdat_w),
-
-      .sof_recv_o(sof_recv_w),
-
-      .m_tvalid(uvalid_w),
-      .m_tlast(ulast_w),
-      .m_tkeep(ukeep_w),
-      .m_tuser(uuser_w),
-      .m_tdata(udata_w)
-      );
 
 
 endmodule  // ulpi_decoder_tb

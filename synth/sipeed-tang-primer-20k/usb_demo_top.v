@@ -326,7 +326,8 @@ module usb_demo_top (
   assign usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
   assign usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
   assign tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
-  assign tok_parity_w  = U_ULPI_USB0.par_q;
+  assign tok_parity_w  = U_ULPI_USB0.parity1_w;
+  // assign tok_parity_w  = U_ULPI_USB0.par_q;
 
 
   // Capture telemetry, so that it can be read back from EP1

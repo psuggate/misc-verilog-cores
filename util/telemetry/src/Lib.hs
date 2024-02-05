@@ -241,8 +241,8 @@ xctl x y = B.fromText pre' <> B.fromLazyText ctl' <> B.singleton par' <> B.fromT
   where
     ctl' = T.take 11 $ T.drop 4 (show (y^.ctlState)) <> "          "
     pre' = if x^.ctlState /= y^.ctlState then " CTL:" else "     "
-    par' | x^.tokPing == y^.tokPing = ' '
-         | y^.tokPing               = '1'
+    -- par' | x^.tokPing == y^.tokPing = ' '
+    par' | y^.tokPing               = '1'
          | otherwise                = '0'
     cyc' = case (y^.ctlError, y^.ctlCycle) of
       (True , True ) -> "EC "

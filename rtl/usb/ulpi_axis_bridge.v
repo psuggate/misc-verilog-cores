@@ -226,7 +226,7 @@ module ulpi_axis_bridge #(
   wire usb_enum_w;
   wire [6:0] usb_addr_w;
 
-  wire ctl0_start_w, ctl0_cycle_w, ctl0_done_w, ctl0_error_w;
+  wire ctl0_start_w, ctl0_cycle_w, ctl0_event_w, ctl0_error_w;
   wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
   wire [7:0] ctl0_tdata_w;
 
@@ -354,17 +354,13 @@ module ulpi_axis_bridge #(
 
   // -- ULPI Decoder & Encoder -- //
 
-`define __being_a_weirdo
-`ifdef __being_a_weirdo
-
-  drop_the_last_two U_DECODER2 (
+  ulpi_decoder U_DECODER1 (
       .clock(clock),
       .reset(reset),
 
       .ulpi_dir (iob_dir_w),
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
-
 /*
       .ulpi_dir (ulpi_dir_i),
       .ulpi_nxt (ulpi_nxt_i),
@@ -390,83 +386,6 @@ module ulpi_axis_bridge #(
       .m_tuser (ulpi_rx_tuser_w),
       .m_tdata (ulpi_rx_tdata_w)
   );
-
-  ulpi_decoder U_DECODER1 (
-      .clock(clock),
-      .reset(reset),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ibuf_dir (ulpi_dir_i),
-      .ibuf_nxt (ulpi_nxt_i),
-      .ibuf_data(ulpi_data_iw),
-
-      .ulpi_dir (iob_dir_w),
-      .ulpi_nxt (iob_nxt_w),
-      .ulpi_data(iob_dat_w),
-
-/*
-      .crc_error_o(crc_err_o),
-      .crc_valid_o(crc_vld_o),
-      .usb_sof_o(sof_rx_recv_w),
-      .decode_idle_o(decode_idle_w),
-
-      .tok_recv_o(tok_rx_recv_w),
-      .tok_ping_o(tok_rx_ping_w),
-      .tok_addr_o(tok_addr_w),
-      .tok_endp_o(tok_endp_w),
-      .hsk_recv_o(hsk_rx_recv_w),
-      .usb_recv_o(usb_rx_recv_w),
-
-      .m_tvalid(ulpi_rx_tvalid_w),
-      .m_tkeep (ulpi_rx_tkeep_w),
-      .m_tlast (ulpi_rx_tlast_w),
-      .m_tuser (ulpi_rx_tuser_w),
-      .m_tdata (ulpi_rx_tdata_w),
-*/
-      .m_tready(ulpi_rx_tready_w)
-  );
-
-`else
-
-  ulpi_decoder U_DECODER1 (
-      .clock(clock),
-      .reset(reset),
-
-      .LineState(LineState),
-      .VbusState(VbusState),
-      .RxEvent  (RxEvent),
-
-      .ibuf_dir (ulpi_dir_i),
-      .ibuf_nxt (ulpi_nxt_i),
-      .ibuf_data(ulpi_data_iw),
-
-      .ulpi_dir (iob_dir_w),
-      .ulpi_nxt (iob_nxt_w),
-      .ulpi_data(iob_dat_w),
-
-      .crc_error_o(crc_err_o),
-      .crc_valid_o(crc_vld_o),
-      .usb_sof_o(sof_rx_recv_w),
-      .decode_idle_o(decode_idle_w),
-      .tok_ping_o(tok_rx_ping_w),
-      .tok_recv_o(tok_rx_recv_w),
-      .tok_addr_o(tok_addr_w),
-      .tok_endp_o(tok_endp_w),
-      .hsk_recv_o(hsk_rx_recv_w),
-      .usb_recv_o(usb_rx_recv_w),
-
-      .m_tvalid(ulpi_rx_tvalid_w),
-      .m_tkeep (ulpi_rx_tkeep_w),
-      .m_tlast (ulpi_rx_tlast_w),
-      .m_tuser (ulpi_rx_tuser_w),
-      .m_tdata (ulpi_rx_tdata_w),
-      .m_tready(ulpi_rx_tready_w)
-  );
-
-`endif
 
   ulpi_encoder U_ENCODER1 (
       .clock(clock),
@@ -505,7 +424,10 @@ module ulpi_axis_bridge #(
       .ulpi_data(ulpi_data_ow)
   );
 
+
+  // DATA0/1 Parity //
   reg par_q;
+  wire parity1_w;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -524,7 +446,9 @@ module ulpi_axis_bridge #(
   wire [7:0] blko_tdata_w;
 
   transactor #(
-      .PIPELINED(PIPELINED)
+      .PIPELINED(PIPELINED),
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2)
   ) U_TRANSACT1 (
       .clock(clock),
       .reset(reset),
@@ -533,6 +457,8 @@ module ulpi_axis_bridge #(
       .err_code_o(err_code_w),
       .usb_timeout_error_o(timeout_w),
       .usb_device_idle_o(usb_idle_w),
+
+                 .parity1_o(parity1_w),
 
       .usb_state_o(usb_state_w),
       .ctl_state_o(ctl_state_w),
@@ -593,7 +519,7 @@ module ulpi_axis_bridge #(
       // To/from USB control transfer endpoints
       .ctl_start_o(ctl0_start_w),
       .ctl_cycle_o(ctl0_cycle_w),
-      .ctl_done_i (ctl0_done_w),
+      .ctl_event_i(ctl0_event_w),
       .ctl_error_i(ctl0_error_w),
 
       .ctl_endpt_o (ctl_endpt_w),
@@ -740,9 +666,9 @@ module ulpi_axis_bridge #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
-      .done_o  (ctl0_done_w),
       .error_o (ctl0_error_w),
 
+      .conf_event_o(ctl0_event_w),
       .configured_o(configured_o),
       .usb_conf_o  (usb_conf_o),
       .usb_enum_o  (usb_enum_w),
@@ -789,7 +715,7 @@ module ulpi_axis_bridge #(
       .usb_recv_i(usb_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .tok_recv_i(tok_rx_recv_w),
-      .tok_ping_i(par_q),
+      .tok_ping_i(parity1_w),
       // .tok_ping_i(tok_rx_ping_w),
       .timeout_i(timeout_w),
       .usb_sof_i(sof_rx_recv_w),

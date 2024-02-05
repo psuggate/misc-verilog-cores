@@ -65,9 +65,9 @@ module ctl_pipe0 #(
     input  select_i,
     input  start_i,
     output error_o,
-    output done_o,
 
     output configured_o,
+    output conf_event_o,
     output usb_enum_o,
     output [6:0] usb_addr_o,
     output [2:0] usb_conf_o,
@@ -217,13 +217,12 @@ module ctl_pipe0 #(
   // -- Signal Output Assignments -- //
 
   assign error_o = err_q;
-  // assign error_o = chop_valid_w && chop_ready_w && chop_last_w;
-  assign done_o  = ctl_done_q;
 
   assign usb_enum_o = enm_q;
   assign usb_addr_o = adr_q;
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
+  assign conf_event_o = ctl_done_q;
 
 
   //
