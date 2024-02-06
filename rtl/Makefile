@@ -17,6 +17,9 @@ BENCH	:= $(filter %_tb.v, $(SRC))
 OUT	:= $(BENCH:%.v=../build/%.out)
 
 build:	$(OUT)
+	make -C axis build
+	make -C fifo build
+	make -C misc build
 
 ../build/%.out: %.v $(RTL) $(LIB)
 	$(IVC) $(OPT) -o $@ -s $(*F) $^
