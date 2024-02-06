@@ -81,7 +81,7 @@ module spi_slave_tb;
   integer         num = 0;
   reg     [ASB:0] ptr = 0;
   initial begin : SIM_BLOCK
-    $dumpfile("spi_tb.vcd");
+    $dumpfile("spi_slave_tb.vcd");
     $dumpvars;
 
     //----------------------------------------------------------------------

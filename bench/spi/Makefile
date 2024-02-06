@@ -1,23 +1,34 @@
-.PHONY:	all dir run clean
+.PHONY:	all dir build run clean
 
-IVC	= iverilog
-OPT	= -D__icarus
+IVC	?= iverilog
+OPT	:= -g2005-sv -D__icarus -Wall
 
-OUT	= ../../build
+BUILD	:= ../../build
+RTLDIR	:= ../../rtl
+SPI	:= $(RTLDIR)/spi
 
-RTL	= ../../rtl
-SPI	= $(RTL)/spi
-LIB	= wb_sram.v afifo16.v $(RTL)/fifo/fifo_dc_gray.v $(RTL)/fifo/afifo_gray.v
-DEP	= $(LIB) $(SPI)/spi_layer.v $(SPI)/spi_slave.v $(SPI)/spi_target.v $(SPI)/spi_master.v
+LIB	:= wb_sram.v afifo16.v $(RTLDIR)/fifo/fifo_dc_gray.v $(RTLDIR)/fifo/afifo_gray.v
+DEP	:= $(LIB) $(SPI)/spi_layer.v $(SPI)/spi_slave.v $(SPI)/spi_target.v $(SPI)/spi_master.v
 
-all: ${DEP} spi_slave_tb.v
-	$(IVC) $(OPT) -o $(OUT)/spi_tb.out $(DEP) spi_slave_tb.v
+TB	?= $(wildcard *_tb.v)
+OUT	?= $(TB:%.v=$(BUILD)/%.out)
 
-run: all
-	@$(OUT)/spi_tb.out
+all:	dir $(OUT) run
+
+# all:	$(DEP) spi_slave_tb.v
+# 	@echo "TB: $(TB)"
+# 	$(IVC) $(OPT) -o $(BUILD)/spi_tb.out $(DEP) spi_slave_tb.v
+
+build:	$(OUT)
+
+run:	all
+	@$(BUILD)/spi_slave_tb.out
 
 dir:
-	@mkdir $(OUT)
+	@mkdir -p $(BUILD)
 
 clean:
-	rm -f $(OUT)/spi_tb.out
+	rm -f $(OUT) *.vcd
+
+../../build/%.out: %.v $(LIB) $(DEP)
+	$(IVC) $(OPT) -o $@ -s $(*F) $^

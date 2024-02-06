@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jan  3 06:48:12 2024
+[*] Tue Feb  6 03:39:19 2024
 [*]
-[dumpfile] "./spi_tb.vcd"
-[dumpfile_mtime] "Wed Jan  3 06:47:17 2024"
-[dumpfile_size] 103648
-[savefile] "./spi_tb.gtkw"
-[timestart] 394500
+[dumpfile] "./spi_slave_tb.vcd"
+[dumpfile_mtime] "Tue Feb  6 03:34:12 2024"
+[dumpfile_size] 99935
+[savefile] "./spi_slave_tb.gtkw"
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.747328 580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.769569 580000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] spi_slave_tb.
 [treeopen] spi_slave_tb.SPI_SLAVE0.
 [treeopen] spi_slave_tb.SPI_SLAVE0.ST_LAYER0.
@@ -115,14 +115,14 @@ spi_slave_tb.MISO
 spi_slave_tb.MOSI
 @200
 -
-@800201
+@800200
 -Target
 @821
 [color] 7
 spi_slave_tb.U_SPITARG0.dbg_state[31:0]
 @29
 spi_slave_tb.U_SPITARG0.ready
-@1000201
+@1000200
 -Target
 [pattern_trace] 1
 [pattern_trace] 0
