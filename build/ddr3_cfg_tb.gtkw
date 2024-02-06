@@ -1,0 +1,124 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Nov  4 22:38:32 2023
+[*]
+[dumpfile] "./ddr3_cfg_tb.vcd"
+[dumpfile_mtime] "Sat Nov  4 22:38:11 2023"
+[dumpfile_size] 702487
+[savefile] "./ddr3_cfg_tb.gtkw"
+[timestart] 66203500
+[size] 2560 1376
+[pos] -1 -1
+*-16.844786 66825000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ddr3_cfg_tb.
+[sst_width] 233
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+ddr3_cfg_tb.clock
+ddr3_cfg_tb.reset
+ddr3_cfg_tb.locked
+@800200
+-DDR
+@28
+ddr3_cfg_tb.ddr_ck_p
+ddr3_cfg_tb.ddr_ck_n
+ddr3_cfg_tb.ddr_rst_n
+ddr3_cfg_tb.ddr_cke
+ddr3_cfg_tb.ddr_cs_n
+ddr3_cfg_tb.ddr_ras_n
+ddr3_cfg_tb.ddr_cas_n
+ddr3_cfg_tb.ddr_we_n
+ddr3_cfg_tb.ddr_odt
+ddr3_cfg_tb.ddr_ba[2:0]
+@c00022
+ddr3_cfg_tb.ddr_a[12:0]
+@28
+(0)ddr3_cfg_tb.ddr_a[12:0]
+(1)ddr3_cfg_tb.ddr_a[12:0]
+(2)ddr3_cfg_tb.ddr_a[12:0]
+(3)ddr3_cfg_tb.ddr_a[12:0]
+(4)ddr3_cfg_tb.ddr_a[12:0]
+(5)ddr3_cfg_tb.ddr_a[12:0]
+(6)ddr3_cfg_tb.ddr_a[12:0]
+(7)ddr3_cfg_tb.ddr_a[12:0]
+(8)ddr3_cfg_tb.ddr_a[12:0]
+(9)ddr3_cfg_tb.ddr_a[12:0]
+(10)ddr3_cfg_tb.ddr_a[12:0]
+(11)ddr3_cfg_tb.ddr_a[12:0]
+(12)ddr3_cfg_tb.ddr_a[12:0]
+@1401200
+-group_end
+@28
+ddr3_cfg_tb.ddr_dqs_p[1:0]
+ddr3_cfg_tb.ddr_dqs_n[1:0]
+ddr3_cfg_tb.ddr_dm[1:0]
+@22
+ddr3_cfg_tb.ddr_dq[15:0]
+@1000200
+-DDR
+@800200
+-CFG
+@820
+[color] 6
+ddr3_cfg_tb.ddr3_cfg_inst.dbg_state[79:0]
+@1000200
+-CFG
+@c00200
+-DDL
+@22
+ddr3_cfg_tb.ddr3_ddl_inst.delay[18:0]
+@28
+ddr3_cfg_tb.ddr3_ddl_inst.busy
+ddr3_cfg_tb.ddr3_ddl_inst.ready
+@22
+ddr3_cfg_tb.ddr3_ddl_inst.count[8:0]
+@820
+[color] 2
+ddr3_cfg_tb.ddr3_ddl_inst.dbg_cmd[39:0]
+[color] 7
+ddr3_cfg_tb.ddr3_ddl_inst.dbg_state[79:0]
+@1401200
+-DDL
+@800200
+-FSM
+-WR Addr
+@28
+ddr3_cfg_tb.ddr3_fsm_inst.mem_wrreq_i
+ddr3_cfg_tb.ddr3_fsm_inst.mem_wrack_o
+ddr3_cfg_tb.ddr3_fsm_inst.mem_wrlst_i
+@22
+ddr3_cfg_tb.ddr3_fsm_inst.mem_wrtid_i[3:0]
+ddr3_cfg_tb.ddr3_fsm_inst.mem_wradr_i[24:0]
+@1000200
+-WR Addr
+@28
+ddr3_cfg_tb.ddr3_fsm_inst.req_q
+ddr3_cfg_tb.ddr3_fsm_inst.req_x
+[color] 3
+ddr3_cfg_tb.ddr3_fsm_inst.req_s
+@22
+[color] 2
+ddr3_cfg_tb.ddr3_fsm_inst.adr_q[12:0]
+[color] 2
+ddr3_cfg_tb.ddr3_fsm_inst.adr_x[12:0]
+[color] 2
+ddr3_cfg_tb.ddr3_fsm_inst.adr_w[12:0]
+@28
+ddr3_cfg_tb.ddr3_fsm_inst.ddl_ref_i
+[color] 3
+ddr3_cfg_tb.ddr3_fsm_inst.ddl_req_o
+[color] 3
+ddr3_cfg_tb.ddr3_fsm_inst.ddl_rdy_i
+@820
+[color] 5
+ddr3_cfg_tb.ddr3_fsm_inst.dbg_cmd[39:0]
+[color] 7
+ddr3_cfg_tb.ddr3_fsm_inst.dbg_state[39:0]
+[color] 7
+ddr3_cfg_tb.ddr3_fsm_inst.dbg_snext[39:0]
+@1000200
+-FSM
+[pattern_trace] 1
+[pattern_trace] 0

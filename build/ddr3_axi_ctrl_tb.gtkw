@@ -1,0 +1,113 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Nov  4 02:16:25 2023
+[*]
+[dumpfile] "./ddr3_axi_ctrl_tb.vcd"
+[dumpfile_mtime] "Sat Nov  4 01:28:26 2023"
+[dumpfile_size] 31991
+[savefile] "./ddr3_axi_ctrl_tb.gtkw"
+[timestart] 0
+[size] 1920 1043
+[pos] -1 -1
+*-15.855728 280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ddr3_axi_ctrl_tb.
+[treeopen] ddr3_axi_ctrl_tb.ddr3_axi_ctrl_inst.
+[treeopen] ddr3_axi_ctrl_tb.ddr3_axi_ctrl_inst.axi_wr_path_inst.
+[sst_width] 233
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 298
+@28
+ddr3_axi_ctrl_tb.clock
+ddr3_axi_ctrl_tb.reset
+@c00201
+-Read
+@800200
+-Addr
+@28
+ddr3_axi_ctrl_tb.arvalid
+ddr3_axi_ctrl_tb.arready
+@22
+ddr3_axi_ctrl_tb.arid[3:0]
+@28
+ddr3_axi_ctrl_tb.arburst[1:0]
+@22
+ddr3_axi_ctrl_tb.arlen[7:0]
+ddr3_axi_ctrl_tb.araddr[31:0]
+@1000200
+-Addr
+@28
+ddr3_axi_ctrl_tb.rvalid
+ddr3_axi_ctrl_tb.rready
+ddr3_axi_ctrl_tb.rlast
+@22
+ddr3_axi_ctrl_tb.rid[3:0]
+@28
+ddr3_axi_ctrl_tb.rresp[1:0]
+@22
+ddr3_axi_ctrl_tb.rdata[31:0]
+@1401201
+-Read
+@c00200
+-RAM
+@28
+ddr3_axi_ctrl_tb.fetch
+ddr3_axi_ctrl_tb.store
+ddr3_axi_ctrl_tb.accept
+ddr3_axi_ctrl_tb.error
+@22
+ddr3_axi_ctrl_tb.wstrb[3:0]
+@28
+ddr3_axi_ctrl_tb.rd_valid
+ddr3_axi_ctrl_tb.rd_ready
+ddr3_axi_ctrl_tb.rd_last
+@22
+ddr3_axi_ctrl_tb.rd_addr[9:0]
+ddr3_axi_ctrl_tb.rd_data[31:0]
+@28
+ddr3_axi_ctrl_tb.wr_valid
+ddr3_axi_ctrl_tb.wr_ready
+ddr3_axi_ctrl_tb.wr_last
+@22
+ddr3_axi_ctrl_tb.wr_mask[3:0]
+ddr3_axi_ctrl_tb.wr_data[31:0]
+@1401200
+-RAM
+@800200
+-Write
+-Addr
+@28
+ddr3_axi_ctrl_tb.awvalid
+ddr3_axi_ctrl_tb.awready
+ddr3_axi_ctrl_tb.awburst[1:0]
+@22
+ddr3_axi_ctrl_tb.awlen[7:0]
+ddr3_axi_ctrl_tb.awid[3:0]
+ddr3_axi_ctrl_tb.awaddr[31:0]
+@1000200
+-Addr
+@800200
+-Data
+@28
+ddr3_axi_ctrl_tb.wvalid
+ddr3_axi_ctrl_tb.wready
+ddr3_axi_ctrl_tb.wlast
+@22
+ddr3_axi_ctrl_tb.wstrb[3:0]
+ddr3_axi_ctrl_tb.wdata[31:0]
+@1000200
+-Data
+@800200
+-Resp
+@28
+ddr3_axi_ctrl_tb.bvalid
+ddr3_axi_ctrl_tb.bready
+@22
+ddr3_axi_ctrl_tb.bid[3:0]
+@28
+ddr3_axi_ctrl_tb.bresp[1:0]
+@1000200
+-Resp
+-Write
+[pattern_trace] 1
+[pattern_trace] 0

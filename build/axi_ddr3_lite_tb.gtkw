@@ -1,0 +1,251 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Nov 11 21:24:26 2023
+[*]
+[dumpfile] "./axi_ddr3_lite_tb.vcd"
+[dumpfile_mtime] "Sat Nov 11 21:18:36 2023"
+[dumpfile_size] 15035562
+[savefile] "./axi_ddr3_lite_tb.gtkw"
+[timestart] 66200900
+[size] 2560 1376
+[pos] -1 -1
+*-16.354321 66645000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axi_ddr3_lite_tb.
+[treeopen] axi_ddr3_lite_tb.ddr_core_inst.
+[sst_width] 233
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 575
+@28
+axi_ddr3_lite_tb.clock
+axi_ddr3_lite_tb.reset
+@c00200
+-AXI WR
+@28
+axi_ddr3_lite_tb.awvalid
+axi_ddr3_lite_tb.awready
+axi_ddr3_lite_tb.wvalid
+axi_ddr3_lite_tb.wready
+axi_ddr3_lite_tb.wlast
+@22
+axi_ddr3_lite_tb.wdata[31:0]
+axi_ddr3_lite_tb.data[127:0]
+@28
+axi_ddr3_lite_tb.bready
+axi_ddr3_lite_tb.bvalid
+axi_ddr3_lite_tb.bresp[1:0]
+@1401200
+-AXI WR
+@c00200
+-Read
+@28
+axi_ddr3_lite_tb.arvalid
+axi_ddr3_lite_tb.arready
+@22
+axi_ddr3_lite_tb.arlen[7:0]
+@28
+axi_ddr3_lite_tb.arburst[1:0]
+@22
+axi_ddr3_lite_tb.arid[3:0]
+axi_ddr3_lite_tb.araddr[26:0]
+@28
+axi_ddr3_lite_tb.rvalid
+axi_ddr3_lite_tb.rready
+axi_ddr3_lite_tb.rlast
+axi_ddr3_lite_tb.rresp[1:0]
+@22
+axi_ddr3_lite_tb.rid[3:0]
+axi_ddr3_lite_tb.rdata[31:0]
+@1401200
+-Read
+@800200
+-DDR
+@28
+axi_ddr3_lite_tb.ddr_ck_p
+axi_ddr3_lite_tb.ddr_ras_n
+axi_ddr3_lite_tb.ddr_cas_n
+axi_ddr3_lite_tb.ddr_we_n
+axi_ddr3_lite_tb.ddr_ba[2:0]
+@22
+axi_ddr3_lite_tb.ddr_a[12:0]
+@28
+axi_ddr3_lite_tb.ddr_dm[1:0]
+axi_ddr3_lite_tb.ddr_dqs_p[1:0]
+axi_ddr3_lite_tb.ddr_dqs_n[1:0]
+@22
+axi_ddr3_lite_tb.ddr_dq[15:0]
+@1000200
+-DDR
+@800201
+-FSM
+@29
+[color] 3
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.ddl_req_o
+[color] 3
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.ddl_rdy_i
+@821
+[color] 2
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.dbg_cmd[39:0]
+@23
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.row_w[12:0]
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.adr_q[12:0]
+@821
+[color] 7
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.dbg_state[39:0]
+[color] 6
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.dbg_snext[39:0]
+@29
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.req_x
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.cmd_x[2:0]
+@23
+[color] 2
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.adr_x[12:0]
+@29
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.req_s
+@23
+[color] 2
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.adr_w[12:0]
+@29
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_fsm_inst.bank_w[2:0]
+@1000201
+-FSM
+@c00200
+-RD Path
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_rdreq_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_rdack_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_rdlst_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_valid_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_ready_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.cmd_ready
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.rcf_valid
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.xvalid
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.xready
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.xseq
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.xid[3:0]
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_rd_path_inst.xaddr[25:0]
+@1401200
+-RD Path
+@c00200
+-Bypass
+@28
+axi_ddr3_lite_tb.abvalid
+axi_ddr3_lite_tb.abready
+@22
+axi_ddr3_lite_tb.bylen[7:0]
+@28
+axi_ddr3_lite_tb.byburst[1:0]
+@22
+axi_ddr3_lite_tb.byid[3:0]
+axi_ddr3_lite_tb.byaddr[26:0]
+@28
+axi_ddr3_lite_tb.dbvalid
+axi_ddr3_lite_tb.dbready
+axi_ddr3_lite_tb.dbresp[1:0]
+@22
+axi_ddr3_lite_tb.dbid[3:0]
+axi_ddr3_lite_tb.bdata[31:0]
+@28
+[color] 3
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.req_q
+[color] 3
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.byp_rdy_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.axi_rvalid_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.axi_rready_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.axi_rlast_o
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.state[3:0]
+@820
+[color] 7
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.dbg_state[39:0]
+@1401200
+-Bypass
+@c00200
+-Internal
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_valid_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_ready_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_rlast_i
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_rdata_i[31:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.by_valid
+axi_ddr3_lite_tb.ddr_core_inst.by_ready
+axi_ddr3_lite_tb.ddr_core_inst.by_last
+@22
+axi_ddr3_lite_tb.ddr_core_inst.by_data[31:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.arack
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.active_q
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.actv_ba[2:0]
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.actv_row[12:0]
+@c00200
+-DDL
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ctl_req
+axi_ddr3_lite_tb.ddr_core_inst.ctl_rdy
+axi_ddr3_lite_tb.ddr_core_inst.ctl_cmd[2:0]
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.req_q
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_bypass_inst.cmd_q[2:0]
+@1401200
+-DDL
+-Internal
+@800200
+-DFI
+@c00200
+-WR Dat
+@28
+axi_ddr3_lite_tb.ddr_core_inst.dfi_wstb_o
+axi_ddr3_lite_tb.ddr_core_inst.dfi_wren_o
+@22
+axi_ddr3_lite_tb.ddr_core_inst.dfi_mask_o[3:0]
+axi_ddr3_lite_tb.ddr_core_inst.dfi_data_o[31:0]
+@1401200
+-WR Dat
+@c00200
+-RD Dat
+@28
+axi_ddr3_lite_tb.ddr_core_inst.dfi_rden_o
+axi_ddr3_lite_tb.ddr_core_inst.dfi_rvld_i
+@22
+axi_ddr3_lite_tb.ddr_core_inst.dfi_data_i[31:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.dfi_last_i
+@1401200
+-RD Dat
+@1000200
+-DFI
+@c00200
+-WR Path
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_awvalid_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_awready_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_wrreq_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_wrack_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_wrlst_o
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.mem_wdata_o[31:0]
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.state[3:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.axi_wvalid_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.axi_wready_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.axi_wlast_i
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.axi_wdata_i[31:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.mem_valid_o
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.mem_ready_i
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.mem_last_o
+@22
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.mem_data_o[31:0]
+@28
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.cmd_ready
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.wcf_valid
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.wdf_ready
+axi_ddr3_lite_tb.ddr_core_inst.ddr3_axi_ctrl_inst.axi_wr_path_inst.wdf_valid
+@1401200
+-WR Path
+[pattern_trace] 1
+[pattern_trace] 0
