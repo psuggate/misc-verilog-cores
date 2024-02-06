@@ -14,107 +14,67 @@
  * Copyright 2023, Patrick Suggate.
  * 
  */
-module gw2a_ddr3_phy (
-    clock,
-    reset,
+module gw2a_ddr3_phy #(
+    parameter DDR3_WIDTH = 16,
+    parameter DDR3_MASKS = DDR3_WIDTH / 8,
 
-    clk_ddr,
+    localparam MSB = DDR3_WIDTH - 1,
+    localparam QSB = DDR3_MASKS - 1,
 
-    dfi_cke_i,
-    dfi_rst_ni,
-    dfi_cs_ni,
-    dfi_ras_ni,
-    dfi_cas_ni,
-    dfi_we_ni,
-    dfi_odt_i,
-    dfi_bank_i,
-    dfi_addr_i,
+    localparam DSB = DDR3_WIDTH + MSB,
+    localparam SSB = DDR3_MASKS + QSB,
 
-    dfi_wstb_i,
-    dfi_wren_i,
-    dfi_mask_i,
-    dfi_data_i,
+    parameter ADDR_BITS = 14,
+    localparam ASB = ADDR_BITS - 1,
 
-    dfi_rden_i,
-    dfi_rvld_o,
-    dfi_last_o,
-    dfi_data_o,
+    parameter WR_PREFETCH = 1'b0,
+    parameter CLOCK_SHIFT = 3'b100
+) (
+    input clock,
+    input reset,
 
-    ddr_ck_po,
-    ddr_ck_no,
-    ddr_cke_o,
-    ddr_rst_no,
-    ddr_cs_no,
-    ddr_ras_no,
-    ddr_cas_no,
-    ddr_we_no,
-    ddr_odt_o,
-    ddr_ba_o,
-    ddr_a_o,
-    ddr_dm_o,
-    ddr_dqs_pio,
-    ddr_dqs_nio,
-    ddr_dq_io
+    input clk_ddr,  // Same phase, but twice freq of 'clock'
+
+    input dfi_cke_i,
+    input dfi_rst_ni,
+    input dfi_cs_ni,
+    input dfi_ras_ni,
+    input dfi_cas_ni,
+    input dfi_we_ni,
+    input dfi_odt_i,
+
+    input [  2:0] dfi_bank_i,
+    input [ASB:0] dfi_addr_i,
+
+    input dfi_wstb_i,
+    input dfi_wren_i,
+    input [SSB:0] dfi_mask_i,
+    input [DSB:0] dfi_data_i,
+
+    input dfi_rden_i,
+    output dfi_rvld_o,
+    output dfi_last_o,
+    output [DSB:0] dfi_data_o,
+
+    output ddr_ck_po,
+    output ddr_ck_no,
+    output ddr_cke_o,
+    output ddr_rst_no,
+    output ddr_cs_no,
+    output ddr_ras_no,
+    output ddr_cas_no,
+    output ddr_we_no,
+    output ddr_odt_o,
+    output [2:0] ddr_ba_o,
+    output [ASB:0] ddr_a_o,
+    output [QSB:0] ddr_dm_o,
+    inout [QSB:0] ddr_dqs_pio,
+    inout [QSB:0] ddr_dqs_nio,
+    inout [MSB:0] ddr_dq_io
 );
 
-  parameter DDR3_WIDTH = 16;
-  parameter DDR3_MASKS = DDR3_WIDTH / 8;
 
-  localparam MSB = DDR3_WIDTH - 1;
-  localparam QSB = DDR3_MASKS - 1;
-
-  localparam DSB = DDR3_WIDTH + MSB;
-  localparam SSB = DDR3_MASKS + QSB;
-
-  parameter ADDR_BITS = 14;
-  localparam ASB = ADDR_BITS - 1;
-
-  parameter WR_PREFETCH = 1'b0;
-  parameter CLOCK_SHIFT = 3'b100;
-
-
-  input clock;
-  input reset;
-
-  input clk_ddr;  // Same phase, but twice freq of 'clock'
-
-  input dfi_cke_i;
-  input dfi_rst_ni;
-  input dfi_cs_ni;
-  input dfi_ras_ni;
-  input dfi_cas_ni;
-  input dfi_we_ni;
-  input dfi_odt_i;
-
-  input [2:0] dfi_bank_i;
-  input [ASB:0] dfi_addr_i;
-
-  input dfi_wstb_i;
-  input dfi_wren_i;
-  input [SSB:0] dfi_mask_i;
-  input [DSB:0] dfi_data_i;
-
-  input dfi_rden_i;
-  output dfi_rvld_o;
-  output dfi_last_o;
-  output [DSB:0] dfi_data_o;
-
-  output ddr_ck_po;
-  output ddr_ck_no;
-  output ddr_cke_o;
-  output ddr_rst_no;
-  output ddr_cs_no;
-  output ddr_ras_no;
-  output ddr_cas_no;
-  output ddr_we_no;
-  output ddr_odt_o;
-  output [2:0] ddr_ba_o;
-  output [ASB:0] ddr_a_o;
-  output [QSB:0] ddr_dm_o;
-  inout [QSB:0] ddr_dqs_pio;
-  inout [QSB:0] ddr_dqs_nio;
-  inout [MSB:0] ddr_dq_io;
-
+  // -- DDR3 PHY State & Signals -- //
 
   reg cke_q, rst_nq, cs_nq;
   reg ras_nq, cas_nq, we_nq, odt_q;

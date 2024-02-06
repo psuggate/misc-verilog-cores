@@ -8,104 +8,61 @@
  *  - only instantiate IOB registers, and the minimum of other logic;
  *  - better method for registering the DQ inputs;
  */
-module generic_ddr3_phy (
-    clock,
-    reset,
+module generic_ddr3_phy #(
+    parameter DDR3_WIDTH = 16,
+    parameter DDR3_MASKS = DDR3_WIDTH / 8,
 
-    clk_ddr,
+    localparam MSB = DDR3_WIDTH - 1,
+    localparam QSB = DDR3_MASKS - 1,
 
-    dfi_cke_i,
-    dfi_rst_ni,
-    dfi_cs_ni,
-    dfi_ras_ni,
-    dfi_cas_ni,
-    dfi_we_ni,
-    dfi_odt_i,
-    dfi_bank_i,
-    dfi_addr_i,
+    localparam DSB = DDR3_WIDTH + MSB,
+    localparam SSB = DDR3_MASKS + QSB,
 
-    dfi_wstb_i,
-    dfi_wren_i,
-    dfi_mask_i,
-    dfi_data_i,
+    parameter ADDR_BITS = 14,
+    localparam ASB = ADDR_BITS - 1
+) (
+    input clock,
+    input reset,
 
-    dfi_rden_i,
-    dfi_rvld_o,
-    dfi_last_o,
-    dfi_data_o,
+    input clk_ddr,  // Same phase, but twice freq of 'clock'
 
-    ddr3_ck_po,
-    ddr3_ck_no,
-    ddr3_cke_o,
-    ddr3_rst_no,
-    ddr3_cs_no,
-    ddr3_ras_no,
-    ddr3_cas_no,
-    ddr3_we_no,
-    ddr3_odt_o,
-    ddr3_ba_o,
-    ddr3_a_o,
-    ddr3_dm_o,
-    ddr3_dqs_pio,
-    ddr3_dqs_nio,
-    ddr3_dq_io
+    input dfi_cke_i,
+    input dfi_rst_ni,
+    input dfi_cs_ni,
+    input dfi_ras_ni,
+    input dfi_cas_ni,
+    input dfi_we_ni,
+    input dfi_odt_i,
+
+    input [  2:0] dfi_bank_i,
+    input [ASB:0] dfi_addr_i,
+
+    input dfi_wstb_i,
+    input dfi_wren_i,
+    input [SSB:0] dfi_mask_i,
+    input [DSB:0] dfi_data_i,
+
+    input dfi_rden_i,
+    output dfi_rvld_o,
+    output dfi_last_o,
+    output [DSB:0] dfi_data_o,
+
+    output ddr3_ck_po,
+    output ddr3_ck_no,
+    output ddr3_cke_o,
+    output ddr3_rst_no,
+    output ddr3_cs_no,
+    output ddr3_ras_no,
+    output ddr3_cas_no,
+    output ddr3_we_no,
+    output ddr3_odt_o,
+    output [2:0] ddr3_ba_o,
+    output [ASB:0] ddr3_a_o,
+    output [QSB:0] ddr3_dm_o,
+    inout [QSB:0] ddr3_dqs_pio,
+    inout [QSB:0] ddr3_dqs_nio,
+    inout [MSB:0] ddr3_dq_io
 );
-
-  parameter DDR3_WIDTH = 16;
-  parameter DDR3_MASKS = DDR3_WIDTH / 8;
-
-  localparam MSB = DDR3_WIDTH - 1;
-  localparam QSB = DDR3_MASKS - 1;
-
-  localparam DSB = DDR3_WIDTH + MSB;
-  localparam SSB = DDR3_MASKS + QSB;
-
-  parameter ADDR_BITS = 14;
-  localparam ASB = ADDR_BITS - 1;
-
-
-  input clock;
-  input reset;
-
-  input clk_ddr;  // Same phase, but twice freq of 'clock'
-
-  input dfi_cke_i;
-  input dfi_rst_ni;
-  input dfi_cs_ni;
-  input dfi_ras_ni;
-  input dfi_cas_ni;
-  input dfi_we_ni;
-  input dfi_odt_i;
-
-  input [2:0] dfi_bank_i;
-  input [ASB:0] dfi_addr_i;
-
-  input dfi_wstb_i;
-  input dfi_wren_i;
-  input [SSB:0] dfi_mask_i;
-  input [DSB:0] dfi_data_i;
-
-  input dfi_rden_i;
-  output dfi_rvld_o;
-  output dfi_last_o;
-  output [DSB:0] dfi_data_o;
-
-  output ddr3_ck_po;
-  output ddr3_ck_no;
-  output ddr3_cke_o;
-  output ddr3_rst_no;
-  output ddr3_cs_no;
-  output ddr3_ras_no;
-  output ddr3_cas_no;
-  output ddr3_we_no;
-  output ddr3_odt_o;
-  output [2:0] ddr3_ba_o;
-  output [ASB:0] ddr3_a_o;
-  output [QSB:0] ddr3_dm_o;
-  inout [QSB:0] ddr3_dqs_pio;
-  inout [QSB:0] ddr3_dqs_nio;
-  inout [MSB:0] ddr3_dq_io;
-
 
   reg dqs_t, dq_t;
   wire [QSB:0] dqs_p, dqs_n;

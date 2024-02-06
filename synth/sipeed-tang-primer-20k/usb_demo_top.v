@@ -160,7 +160,7 @@ module usb_demo_top (
   assign bsready_w = s_tready && blk_store_w && blk_endpt_w == ENDPOINT1;
   assign bmvalid_w = m_tvalid && blk_fetch_w && blk_endpt_w == ENDPOINT1;
 
-  assign m_tkeep = m_tvalid;
+  assign m_tkeep   = m_tvalid;
 
   ulpi_axis_bridge #(
       .PIPELINED(PIPELINED),
@@ -439,7 +439,7 @@ module usb_demo_top (
   localparam ISB = REQID - 1;
 
 
-// `define __use_ddr3_core
+  // `define __use_ddr3_core
 `ifndef __use_ddr3_core
 
   // Just set these signals in order to configure the IOBs of the FPGA.
@@ -581,7 +581,7 @@ module usb_demo_top (
 `endif
 
 
-/*
+  /*
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
