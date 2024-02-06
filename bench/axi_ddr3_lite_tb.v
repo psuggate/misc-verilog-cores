@@ -352,20 +352,30 @@ module axi_ddr3_lite_tb;
   ///
 
   axi_ddr3_lite #(
-      .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
-      .DDR_ROW_BITS (DDR_ROW_BITS),
-      .DDR_COL_BITS (DDR_COL_BITS),
-      .DDR_DQ_WIDTH (WIDTH / 2),
-      .PHY_WR_DELAY (PHY_WR_DELAY),
-      .PHY_RD_DELAY (PHY_RD_DELAY),
-      .WR_PREFETCH  (WR_PREFETCH),
-      .LOW_LATENCY  (LOW_LATENCY),
-      .AXI_ID_WIDTH (REQID),
-      .MEM_ID_WIDTH (REQID),
-      .BYPASS_ENABLE(BYPASS_ENABLE)
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
+      .DDR_ROW_BITS(DDR_ROW_BITS),
+      .DDR_COL_BITS(DDR_COL_BITS),
+      .DDR_DQ_WIDTH(WIDTH / 2),
+      .PHY_WR_DELAY(PHY_WR_DELAY),
+      .PHY_RD_DELAY(PHY_RD_DELAY),
+      .WR_PREFETCH(WR_PREFETCH),
+      .LOW_LATENCY(LOW_LATENCY),
+      .AXI_ID_WIDTH(REQID),
+      .MEM_ID_WIDTH(REQID),
+      .BYPASS_ENABLE(BYPASS_ENABLE),
+      .TELEMETRY(0)
   ) ddr_core_inst (
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset
+
+      .tele_select_i(1'b0),
+      .tele_start_i (1'b0),
+      .tele_level_o (),
+      .tele_tvalid_o(),
+      .tele_tready_i(1'b0),
+      .tele_tlast_o (),
+      .tele_tkeep_o (),
+      .tele_tdata_o (),
 
       .axi_awvalid_i(awvalid),
       .axi_awready_o(awready),

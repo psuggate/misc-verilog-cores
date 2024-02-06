@@ -149,11 +149,11 @@ module ddr3_fsm (
 
   // DDR3 controller states
   // todo: effectively there are only three states, so refactor ...
-  localparam [3:0] ST_IDLE = 4'b0000;
-  localparam [3:0] ST_READ = 4'b1000;
-  localparam [3:0] ST_WRIT = 4'b0100;
-  localparam [3:0] ST_ACTV = 4'b0010;
-  localparam [3:0] ST_REFR = 4'b0001;
+  localparam [4:0] ST_IDLE = 5'b10000;
+  localparam [4:0] ST_READ = 5'b01000;
+  localparam [4:0] ST_WRIT = 5'b00100;
+  localparam [4:0] ST_ACTV = 5'b00010;
+  localparam [4:0] ST_REFR = 5'b00001;
 
   reg req_q, req_x, req_s;
   reg [2:0] cmd_q, cmd_x, ba_q;
@@ -165,7 +165,7 @@ module ddr3_fsm (
   wire [RSB:0] wrcol, rdcol, adr_w;
 
   reg wrack, rdack;
-  reg [3:0] state, snext;
+  reg [4:0] state, snext;
   wire store_w, fetch_w;
 
 

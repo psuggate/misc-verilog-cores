@@ -1,7 +1,8 @@
 `timescale 1ns / 100ps
 /**
- * DDR3 configuration is here to emphasize that it has been moved out of the
- * "critical path" of the memory controller.
+ * DDR3 post -initialisation/-reset configuration is performed here, and is not
+ * part of 'FSM' to emphasize that it has been moved out of the "critical path"
+ * of the memory controller.
  *
  * Notes:
  *  - handles device- and mode- specific timings;
