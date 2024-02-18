@@ -94,9 +94,7 @@ module packet_fifo_tb;
       end
 
       while (r_vld && !r_lst) begin
-        // if (r_vld && r_rdy) begin
-          count <= count + 1;
-        // end
+        count <= count + 1;
         @(posedge clock);
       end
 
