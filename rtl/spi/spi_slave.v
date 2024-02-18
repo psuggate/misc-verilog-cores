@@ -55,8 +55,8 @@
 
 module spi_slave #(
     parameter WIDTH       = 8,          // TODO: currently must be `8`!
-    parameter MSB         = WIDTH - 1,
-    parameter ASB         = WIDTH - 2,
+    localparam MSB         = WIDTH - 1,
+    localparam ASB         = WIDTH - 2,
     parameter HEADER_BYTE = 8'hA7,      // Pattern to send as the first byte
     parameter DELAY       = 3
 ) (  // Wishbone-like (bus master) interface:

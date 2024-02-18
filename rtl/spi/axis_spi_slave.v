@@ -57,22 +57,31 @@ module axis_spi_slave #(
 );
 
 
-  spi_slave U_SPI_SLAVE1 ();
+  spi_slave #(
+      .WIDTH(WIDTH)
+  ) U_SPI_SLAVE1 (
+      .clock(clock),
+      .reset(reset),
+      .SCK  (SCK),
+      .SSEL (SSEL),
+      .MOSI (MOSI),
+      .MISO (MISO)
+  );
 
 
   //
   //  SPI Packet FIFOs
   ///
   packet_fifo #(
-      .OUTREGS(2),
-      .WIDTH  (8),
-      .ABITS  (RBITS)
+      .OUTREG(2),
+      .WIDTH (8),
+      .ABITS (RBITS)
   ) U_RX_FIFO1 ();
 
   packet_fifo #(
-      .OUTREGS(2),
-      .WIDTH  (8),
-      .ABITS  (TBITS)
+      .OUTREG(2),
+      .WIDTH (8),
+      .ABITS (TBITS)
   ) U_TX_FIFO1 ();
 
 
