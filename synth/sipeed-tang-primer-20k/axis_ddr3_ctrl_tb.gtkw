@@ -1,0 +1,52 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sun Feb 18 01:12:03 2024
+[*]
+[dumpfile] "./axis_ddr3_ctrl_tb.vcd"
+[dumpfile_mtime] "Sun Feb 18 01:07:54 2024"
+[dumpfile_size] 14754111
+[savefile] "./axis_ddr3_ctrl_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-16.595819 200000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis_ddr3_ctrl_tb.
+[treeopen] axis_ddr3_ctrl_tb.axdr_ctrl_inst.
+[sst_width] 233
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+axis_ddr3_ctrl_tb.clock
+axis_ddr3_ctrl_tb.clk_ddr
+[color] 2
+axis_ddr3_ctrl_tb.rst
+[color] 7
+axis_ddr3_ctrl_tb.ddr3_conf
+axis_ddr3_ctrl_tb.ddr_ck_n
+axis_ddr3_ctrl_tb.ddr_rst_n
+axis_ddr3_ctrl_tb.ddr_cke
+axis_ddr3_ctrl_tb.ddr_cs_n
+axis_ddr3_ctrl_tb.ddr_ras_n
+axis_ddr3_ctrl_tb.ddr_cas_n
+axis_ddr3_ctrl_tb.ddr_we_n
+axis_ddr3_ctrl_tb.ddr_ba[2:0]
+@22
+axis_ddr3_ctrl_tb.ddr_a[12:0]
+@28
+axis_ddr3_ctrl_tb.ddr_dm[1:0]
+axis_ddr3_ctrl_tb.ddr_dqs_p[1:0]
+axis_ddr3_ctrl_tb.ddr_dqs_n[1:0]
+@22
+axis_ddr3_ctrl_tb.ddr_dq[15:0]
+@800200
+-Control
+@29
+axis_ddr3_ctrl_tb.axdr_ctrl_inst.reset
+@820
+[color] 7
+axis_ddr3_ctrl_tb.axdr_ctrl_inst.dbg_state[39:0]
+@1000200
+-Control
+[pattern_trace] 1
+[pattern_trace] 0

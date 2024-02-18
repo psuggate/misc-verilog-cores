@@ -439,7 +439,7 @@ module usb_demo_top (
   localparam ISB = REQID - 1;
 
 
-  // `define __use_ddr3_core
+`define __use_ddr3_core
 `ifndef __use_ddr3_core
 
   // Just set these signals in order to configure the IOBs of the FPGA.

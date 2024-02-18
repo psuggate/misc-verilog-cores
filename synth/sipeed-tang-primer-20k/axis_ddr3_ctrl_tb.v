@@ -204,6 +204,7 @@ module axis_ddr3_ctrl_tb;
   //
   //  DDR Core Under New Test
   ///
+  wire ddr3_conf;
 
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
@@ -216,10 +217,22 @@ module axis_ddr3_ctrl_tb;
       .LOW_LATENCY  (LOW_LATENCY),
       .AXI_ID_WIDTH (REQID),
       .MEM_ID_WIDTH (REQID),
-      .BYPASS_ENABLE(0)
+      .BYPASS_ENABLE(0),
+      .TELEMETRY    (0)
   ) ddr_core_inst (
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset
+
+      .configured_o(ddr3_conf),
+
+      .tele_select_i(1'b0),
+      .tele_start_i (1'b0),
+      .tele_level_o (),
+      .tele_tvalid_o(),
+      .tele_tready_i(1'b0),
+      .tele_tlast_o (),
+      .tele_tkeep_o (),
+      .tele_tdata_o (),
 
       .axi_awvalid_i(awvalid),
       .axi_awready_o(awready),
