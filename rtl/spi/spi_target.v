@@ -1,9 +1,15 @@
 `timescale 1ns / 100ps
-module spi_target (
+module spi_target #(
+    parameter integer WIDTH = 8,
+    localparam integer MSB = WIDTH - 1,
+    parameter [MSB:0] HEADER = 8'ha7,
+    parameter integer BYTES = 16,  // FIFO size
+    localparam integer FSIZE = $clog2(BYTES)
+) (
     input clock,
     input reset,
 
-    input [6:0] status_i,
+    input [MSB-1:0] status_i,
 
     // Error flags from the SPI link- & phy- layer
     output overflow_o,
@@ -13,13 +19,13 @@ module spi_target (
     input s_tvalid,
     output s_tready,
     input s_tlast,
-    input [7:0] s_tdata,
+    input [MSB:0] s_tdata,
 
     // AXI4-Stream datapath for Master -> Target transfers
     output m_tvalid,
     input m_tready,
     output m_tlast,
-    output [7:0] m_tdata,
+    output [MSB:0] m_tdata,
 
     input  SCK_pin,
     input  SSEL,
@@ -28,12 +34,6 @@ module spi_target (
 );
 
   // -- Constants -- //
-
-  parameter [7:0] HEADER = 8'ha7;
-
-  parameter integer BYTES = 16;  // FIFO size
-  localparam integer FSIZE = $clog2(BYTES);
-
 
   // FSM states:
   localparam [3:0] ST_IDLE = 4'h1;
@@ -45,7 +45,7 @@ module spi_target (
 
   reg [3:0] state;
   wire cycle, fetch, valid, empty, ready;
-  wire [7:0] tdata, rdata;
+  wire [MSB:0] tdata, rdata;
 
 
   // -- I/O Assignments -- //
@@ -101,7 +101,7 @@ module spi_target (
   //  SPI-layer, and the domain-crossing subcircuits, of the interface.
   //-------------------------------------------------------------------------
   spi_layer #(
-      .WIDTH(8),
+      .WIDTH(WIDTH),
       .FSIZE(FSIZE),
       .HEADER_BYTE(HEADER)
   ) ST_LAYER0 (

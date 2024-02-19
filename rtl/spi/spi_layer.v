@@ -323,7 +323,7 @@ module spi_layer
      ( .rd_clk_i (SCK_tx),
        .rd_en_i  (tx_pull),
        .rd_data_o(tx_data),
-       
+
        .wr_clk_i (clk_i),
        .wr_en_i  (rdy_i),
        .wr_data_i(dat_i),
@@ -339,7 +339,7 @@ module spi_layer
      ( .rd_clk_i (clk_i),
        .rd_en_i  (ack_i),
        .rd_data_o(dat_o),
-       
+
        .wr_clk_i (SCK),
        .wr_en_i  (rx_push),
        .wr_data_i(rx_data),
