@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sun Feb 25 05:14:10 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/axis_spi_tb.vcd"
+[dumpfile] "./axis_spi_tb.vcd"
 [dumpfile_mtime] "Sun Feb 25 05:13:13 2024"
 [dumpfile_size] 29725
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/axis_spi_tb.gtkw"
+[savefile] "./axis_spi_tb.gtkw"
 [timestart] 84300
 [size] 2560 1376
 [pos] -1 -1
