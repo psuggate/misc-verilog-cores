@@ -756,7 +756,7 @@ module usb_demo_top (
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
-      .DDR3_WIDTH(16),  // (default)
+      .DDR3_WIDTH(16),
       .ADDR_BITS(DDR_ROW_BITS)
   ) u_phy (
       .clock  (clock),
