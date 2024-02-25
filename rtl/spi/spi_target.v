@@ -24,7 +24,6 @@ module spi_target #(
     // AXI4-Stream datapath for Master -> Target transfers
     output m_tvalid,
     input m_tready,
-    output m_tlast,
     output [MSB:0] m_tdata,
 
     input  SCK_pin,
@@ -56,7 +55,6 @@ module spi_target #(
 
   assign m_tvalid = ~empty;
   assign ready = m_tready & ~empty;
-  assign m_tlast = 1'b0;  // todo: possible ??
   assign m_tdata = rdata;
 
 

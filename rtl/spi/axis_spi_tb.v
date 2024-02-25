@@ -38,7 +38,7 @@ module axis_spi_tb;
   wire SCK_en;
   wire SCK_w, SCK_p, SSEL, MOSI, MISO;
 
-  assign SCK_p = SCK_en ? SCK_w : SPI_CPOL;
+  assign SCK_p = SCK_en ? SCK : SPI_CPOL;
 
   always #5 clock <= ~clock;
   always #10 SCK <= ~SCK;
@@ -48,27 +48,105 @@ module axis_spi_tb;
     #20 reset <= 1'b0;
   end
 
+
+  // -- Simulation Signals & State -- //
+
+  reg svalid, slast, skeep, mready;
+  reg rready, tvalid, tlast, tkeep;
+  reg [7:0] sdata, tdata;
+  wire tready, rvalid, rlast, rkeep;
+  wire sready, mvalid, mlast, mkeep;
+  wire [7:0] mdata, rdata;
+
   wire overflow, underrun;
 
-  // AXIS Write Signals //
-  reg tvalid_q, tlast_q, tkeep_q;
-  wire tready_w;
-  reg [7:0] tdata_q;
 
-  // AXIS Read Signals //
-  reg rready_q;
-  wire rvalid_w, rlast_w, rkeep_w;
-  wire [7:0] rdata_w;
+  // -- Simulation Stimulus -- //
 
+  initial begin : I_STIMULATE
+    #60 axis_send(1);
+  end
+
+  initial sdata <= $urandom;
 
   always @(posedge clock) begin
     if (reset) begin
-      tvalid_q <= 1'b0;
-      tlast_q  <= 1'b0;
-      tkeep_q  <= 1'b0;
-      rready_q <= 1'b0;
+      svalid <= 1'b0;
+      slast  <= 1'b0;
+      skeep  <= 1'b0;
+      mready <= 1'b0;
+
+      tvalid <= 1'b0;
+      tlast  <= 1'b0;
+      tkeep  <= 1'b0;
+      rready <= 1'b0;
+    end else begin
+      if (svalid && !tvalid) begin
+        tvalid <= 1'b1;
+        tlast  <= slast;
+        tkeep  <= 1'b1;
+        tdata  <= $urandom;
+      end else if (tvalid && tready && !tlast) begin
+        tlast <= slast;
+        tdata <= $urandom;
+      end else if (tvalid && tready && tlast) begin
+        tvalid <= 1'b0;
+        tlast  <= 1'b0;
+        tkeep  <= 1'b0;
+      end
     end
   end
+
+
+  // -- Perform write transfer (128-bit) -- //
+
+  task axis_send;
+    input [7:0] len;
+    begin
+      integer scount, rcount;
+      reg done;
+
+      scount <= len;
+      rcount <= len;
+      done   <= 1'b0;
+
+      svalid <= 1'b1;
+      slast  <= len == 8'd0;
+      skeep  <= 1'b1;
+      sdata  <= $urandom;
+      mready <= 1'b1;
+      rready <= 1'b1;
+      @(posedge clock);
+
+      while (!done) begin
+        @(posedge clock);
+
+        if (svalid && sready) begin
+          scount <= scount != 8'd0 ? scount - 1 : scount;
+          svalid <= scount != 8'd0;
+          slast  <= scount == 8'd1;
+          sdata  <= scount != 8'd0 ? $urandom : sdata;
+        end
+
+        if (rvalid && rready) begin
+          rcount <= rcount - 1;
+          rready <= rcount != 8'd0;
+        end
+
+        done <= rvalid & rready & rlast;
+      end
+      @(posedge clock);
+
+      svalid <= 1'b0;
+      skeep  <= 1'b0;
+      slast  <= 1'b0;
+      mready <= 1'b0;
+      rready <= 1'b0;
+      @(posedge clock);
+
+      $display("%10t: TX done", $time);
+    end
+  endtask  // axis_send
 
 
   //
@@ -80,28 +158,26 @@ module axis_spi_tb;
   ) U_AXIS_SPI_MASTER1 (
       .clock(clock),
       .reset(reset),
-      .ARSTn(reset),
+      .ARSTn(~reset),
 
-      .s_tvalid(1'b0),
-      .s_tready(),
-      .s_tkeep (1'b0),
-      .s_tlast (1'b0),
-      .s_tdata (8'hx),
+      .s_tvalid(svalid),
+      .s_tready(sready),
+      .s_tlast (slast),
+      .s_tdata (sdata),
 
-      .m_tvalid(),
-      .m_tready(1'b0),
-      .m_tkeep (),
-      .m_tlast (),
-      .m_tdata (),
+      .m_tvalid(mvalid),
+      .m_tready(mready),
+      .m_tlast (mlast),
+      .m_tdata (mdata),
 
       .SCK_en(SCK_en),
-      .SCK(SCK_w),
+      .SCK(SCK),
       .SSEL(SSEL),
       .MOSI(MOSI),
       .MISO(MISO)
   );
 
-  axis_spi_slave #(
+  axis_spi_target #(
       .WIDTH(WIDTH),
       .HEADER(HEADER),
       .SPI_CPOL(SPI_CPOL),
@@ -114,17 +190,14 @@ module axis_spi_tb;
       .overflow_o(overflow),
       .underrun_o(underrun),
 
-      .m_tvalid_o(rvalid_w),
-      .m_tready_i(rready_q),
-      .m_tlast_o (rlast_w),
-      .m_tkeep_o (rkeep_w),
-      .m_tdata_o (rdata_w),
+      .m_tvalid_o(rvalid),
+      .m_tready_i(rready),
+      .m_tdata_o (rdata),
 
-      .s_tvalid_i(tvalid_q),
-      .s_tready_o(tready_w),
-      .s_tlast_i (tlast_q),
-      .s_tkeep_i (tkeep_q),
-      .s_tdata_i (tdata_q),
+      .s_tvalid_i(tvalid),
+      .s_tready_o(tready),
+      .s_tlast_i (tlast),
+      .s_tdata_i (tdata),
 
       .SCK (SCK_p),
       .SSEL(SSEL),

@@ -75,8 +75,7 @@ module spi_layer
      localparam MSB   = WIDTH-1,
      localparam ASB   = WIDTH-2,
      parameter FSIZE = 2,           // FIFO size (log2)
-     parameter HEADER_BYTE = 8'hA7, // Pattern to send as the first byte
-     parameter DELAY = 3)
+     parameter HEADER_BYTE = 8'hA7) // Pattern to send as the first byte
    ( input        clk_i,
      input        rst_i,
 
@@ -178,19 +177,19 @@ module spi_layer
 
    //  SPI transaction beginning.
    always @(posedge clk_i or negedge SSEL)
-     if (!SSEL) ssel_neg <= #DELAY 1'b1;
-     else       ssel_neg <= #DELAY 1'b0;
+     if (!SSEL) ssel_neg <= 1'b1;
+     else       ssel_neg <= 1'b0;
 
    //  End of SPI transaction.
    always @(posedge clk_i or posedge SSEL)
-     if (SSEL)  ssel_pos <= #DELAY 1'b1;
-     else       ssel_pos <= #DELAY 1'b0;
+     if (SSEL)  ssel_pos <= 1'b1;
+     else       ssel_pos <= 1'b0;
 
    always @(posedge clk_i)
-     if (rst_i)         spi_select <= #DELAY 1'b0;
-     else if (ssel_neg) spi_select <= #DELAY 1'b1;
-     else if (ssel_pos) spi_select <= #DELAY 1'b0;
-     else               spi_select <= #DELAY spi_select;
+     if (rst_i)         spi_select <= 1'b0;
+     else if (ssel_neg) spi_select <= 1'b1;
+     else if (ssel_pos) spi_select <= 1'b0;
+     else               spi_select <= spi_select;
 
 
    //-------------------------------------------------------------------------
@@ -198,25 +197,25 @@ module spi_layer
    //-------------------------------------------------------------------------
    //  After a bit has been sent/received, issue a prefetch for the next byte.
    always @(posedge SCK or posedge SSEL)
-     if (SSEL)    spi_req <= #DELAY 1'b0;
-     else         spi_req <= #DELAY rx_count == 3'h0;
+     if (SSEL)    spi_req <= 1'b0;
+     else         spi_req <= rx_count == 3'h0;
 
    always @(posedge clk_i or posedge spi_req)
-     if (spi_req)           dat_req_sync <= #DELAY 1'b1;
-     else if (dat_req_sync) dat_req_sync <= #DELAY !dat_req_done;
-     else                   dat_req_sync <= #DELAY dat_req_sync;
+     if (spi_req)           dat_req_sync <= 1'b1;
+     else if (dat_req_sync) dat_req_sync <= !dat_req_done;
+     else                   dat_req_sync <= dat_req_sync;
 
    //-------------------------------------------------------------------------
    //  Request more data when a new SPI byte transfer begins, but prevent
    //  multiple requests for slow SPI clocks, using a one-shot.
    always @(posedge clk_i)
      if (rst_i) begin
-       dat_req_done <= #DELAY 1'b0;
-       dat_req      <= #DELAY 1'b0;
+       dat_req_done <= 1'b0;
+       dat_req      <= 1'b0;
      end
      else begin
-        dat_req_done <= #DELAY dat_req_done ? dat_req_sync : dat_req && rdy_i;
-        dat_req      <= #DELAY dat_req_sync && !dat_req_done && !rdy_i;
+        dat_req_done <= dat_req_done ? dat_req_sync : dat_req && rdy_i;
+        dat_req      <= dat_req_sync && !dat_req_done && !rdy_i;
      end
 
 
@@ -227,20 +226,20 @@ module spi_layer
    // TODO: Clean this up, as it is more complicated than it needs to be.
    always @(posedge clk_i)
      if (rst_i) begin
-        tx_rst <= #DELAY 1'b1;
-        tx_flg <= #DELAY 1'b0;
+        tx_rst <= 1'b1;
+        tx_flg <= 1'b0;
      end
      else if (!spi_select && !tx_flg) begin // Issue a single reset
-        tx_rst <= #DELAY 1'b1;
-        tx_flg <= #DELAY 1'b1;
+        tx_rst <= 1'b1;
+        tx_flg <= 1'b1;
      end
      else if (spi_select) begin
-        tx_rst <= #DELAY 1'b0;
-        tx_flg <= #DELAY 1'b0;
+        tx_rst <= 1'b0;
+        tx_flg <= 1'b0;
      end
      else begin
-        tx_rst <= #DELAY 1'b0;
-        tx_flg <= #DELAY tx_flg;
+        tx_rst <= 1'b0;
+        tx_flg <= tx_flg;
      end
 
 
@@ -260,18 +259,18 @@ module spi_layer
    //-------------------------------------------------------------------------
    // Deserialise the incoming SPI data, receiving MSB -> LSB.
    always @(posedge SCK)
-     rx_reg <= #DELAY {rx_reg[5:0], MOSI};
+     rx_reg <= {rx_reg[5:0], MOSI};
 
    always @(posedge SCK or posedge SSEL)
-     if (SSEL) rx_count <= #DELAY 3'h0;
-     else      rx_count <= #DELAY rx_inc[2:0];
+     if (SSEL) rx_count <= 3'h0;
+     else      rx_count <= rx_inc[2:0];
 
    // RX FIFO overflow detection.
    always @(posedge SCK or posedge rst_i)
      if (rst_i)
-       overflow_o  <= #DELAY 1'b0;
+       overflow_o  <= 1'b0;
      else if (rx_push && rx_full)
-       overflow_o  <= #DELAY 1'b1;
+       overflow_o  <= 1'b1;
 
    //-------------------------------------------------------------------------
    //  Transmission logic.
@@ -286,32 +285,32 @@ module spi_layer
    // Output the header/status byte on SPI start, else transmit FIFO data.
    // Serialise the SPI data, sending MSB -> LSB.
    always @(`TX_EDGE SCK or posedge SSEL)
-     if (SSEL)         tx_reg <= #DELAY HEADER_BYTE[6:0];
-     else if (tx_next) tx_reg <= #DELAY tx_data[6:0];
-     else              tx_reg <= #DELAY {tx_reg[5:0], 1'bx};
+     if (SSEL)         tx_reg <= HEADER_BYTE[6:0];
+     else if (tx_next) tx_reg <= tx_data[6:0];
+     else              tx_reg <= {tx_reg[5:0], 1'bx};
 
    // Use a local clock for faster source-synchronous transmission.
    always @(`TX_EDGE SCK_miso or posedge SSEL)
-     if (SSEL)         MISO <= #DELAY HEADER_BYTE[7];
-     else if (tx_next) MISO <= #DELAY tx_data[7];
-     else              MISO <= #DELAY tx_reg[6];
+     if (SSEL)         MISO <= HEADER_BYTE[7];
+     else if (tx_next) MISO <= tx_data[7];
+     else              MISO <= tx_reg[6];
 
    always @(`TX_EDGE SCK or posedge SSEL)
-     if (SSEL) tx_count <= #DELAY 3'h0;
-     else      tx_count <= #DELAY tx_inc[2:0];
+     if (SSEL) tx_count <= 3'h0;
+     else      tx_count <= tx_inc[2:0];
 
    // Add a cycle of delay, avoiding an additional read just before a SPI
    // transaction completes.
    always @(`TX_EDGE SCK or posedge SSEL)
-     if (SSEL) tx_pull <= #DELAY 1'b0;
-     else      tx_pull <= #DELAY tx_next;
+     if (SSEL) tx_pull <= 1'b0;
+     else      tx_pull <= tx_next;
 
    // TX FIFO underrun detection.
    always @(`TX_EDGE SCK or posedge rst_i)
      if (rst_i)
-       underrun_o <= #DELAY 1'b0;
+       underrun_o <= 1'b0;
      else if (tx_pull && tx_empty)
-       underrun_o <= #DELAY 1'b1;
+       underrun_o <= 1'b1;
 
 
    //-------------------------------------------------------------------------

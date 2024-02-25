@@ -2,7 +2,7 @@
 /**
  * Transmits and receives packets via SPI.
  */
-module axis_spi_slave #(
+module axis_spi_target #(
     parameter RX_FIFO_SIZE = 2048,
     parameter TX_FIFO_SIZE = 2048,
     localparam RBITS = $clog2(RX_FIFO_SIZE),
@@ -29,14 +29,11 @@ module axis_spi_slave #(
 
     output m_tvalid_o,
     input m_tready_i,
-    output m_tlast_o,
-    output m_tkeep_o,
     output [MSB:0] m_tdata_o,
 
     input s_tvalid_i,
     output s_tready_o,
     input s_tlast_i,
-    input s_tkeep_i,
     input [MSB:0] s_tdata_i
 );
 
@@ -45,9 +42,6 @@ module axis_spi_slave #(
 
   wire tvalid_w, tready_w, tlast_w, rvalid_w, rready_w, rlast_w;
   wire [MSB:0] rdata_w, tdata_w;
-
-  // todo: compute the 'tkeep' signals
-  assign m_tkeep_o = rvalid_w;
 
 
   spi_target #(
@@ -63,7 +57,6 @@ module axis_spi_slave #(
 
       .m_tvalid(rvalid_w),
       .m_tready(rready_w),
-      .m_tlast (rlast_w),
       .m_tdata (rdata_w),
 
       .s_tvalid(tvalid_w),
@@ -82,8 +75,8 @@ module axis_spi_slave #(
   //  SPI Packet FIFOs
   ///
   // Buffers packets received via SPI //
-  packet_fifo #(
-      .OUTREG(2),
+  sync_fifo #(
+      .OUTREG(3),
       .WIDTH (WIDTH),
       .ABITS (RBITS)
   ) U_RX_FIFO1 (
@@ -92,13 +85,10 @@ module axis_spi_slave #(
 
       .valid_i(rvalid_w),
       .ready_o(rready_w),
-      .last_i(rlast_w),
-      .drop_i(1'b0),  // todo ...
-      .data_i(rdata_w),
+      .data_i (rdata_w),
 
       .valid_o(m_tvalid_o),
       .ready_i(m_tready_i),
-      .last_o (m_tlast_o),
       .data_o (m_tdata_o)
   );
 
@@ -124,4 +114,4 @@ module axis_spi_slave #(
   );
 
 
-endmodule  // axis_spi_slave
+endmodule  // axis_spi_target

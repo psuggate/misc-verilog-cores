@@ -1,23 +1,124 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Feb 25 01:07:19 2024
+[*] Sun Feb 25 05:14:10 2024
 [*]
-[dumpfile] "./axis_spi_tb.vcd"
-[dumpfile_mtime] "Sun Feb 25 01:06:52 2024"
-[dumpfile_size] 20406
-[savefile] "./axis_spi_tb.gtkw"
-[timestart] 0
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/axis_spi_tb.vcd"
+[dumpfile_mtime] "Sun Feb 25 05:13:13 2024"
+[dumpfile_size] 29725
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/axis_spi_tb.gtkw"
+[timestart] 84300
 [size] 2560 1376
 [pos] -1 -1
-*-17.059727 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.091610 460000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] axis_spi_tb.
+[treeopen] axis_spi_tb.U_AXIS_SPI_MASTER1.
+[treeopen] axis_spi_tb.U_AXIS_SPI_TARGET1.
 [sst_width] 233
-[signals_width] 78
+[signals_width] 126
 [sst_expanded] 1
 [sst_vpaned_height] 414
 @28
 axis_spi_tb.clock
 axis_spi_tb.reset
-@29
+@800200
+-Send
+@28
+axis_spi_tb.svalid
+axis_spi_tb.sready
+axis_spi_tb.slast
+@22
+axis_spi_tb.sdata[7:0]
+@1000200
+-Send
+@800200
+-Recv
+@28
+axis_spi_tb.rvalid
+axis_spi_tb.rready
+axis_spi_tb.rlast
+@22
+axis_spi_tb.rdata[7:0]
+@1000200
+-Recv
+@420
+axis_spi_tb.axis_send.scount
+axis_spi_tb.axis_send.rcount
+@800200
+-TB
+-ToSlave
+@28
+axis_spi_tb.mvalid
+axis_spi_tb.mready
+axis_spi_tb.mlast
+@22
+axis_spi_tb.mdata[7:0]
+@1000200
+-ToSlave
+@800200
+-ToMaster
+@28
+axis_spi_tb.tvalid
+axis_spi_tb.tready
+axis_spi_tb.tlast
+@22
+axis_spi_tb.tdata[7:0]
+@1000200
+-ToMaster
+-TB
+@800200
+-SPI
+@28
 axis_spi_tb.SCK
+axis_spi_tb.SCK_p
+[color] 3
+axis_spi_tb.SSEL
+axis_spi_tb.MOSI
+axis_spi_tb.MISO
+@1000200
+-SPI
+@c00200
+-Master
+@28
+[color] 3
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.clken
+[color] 2
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.dbg_cnext
+@820
+[color] 7
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.dbg_state[39:0]
+[color] 6
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.dbg_snext[39:0]
+@22
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.tdata[7:0]
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.rdata[7:0]
+@24
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.count[2:0]
+@28
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.valid
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.ready
+axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.last
+@1401200
+-Master
+@800200
+-Target
+-Send
+@28
+axis_spi_tb.U_AXIS_SPI_TARGET1.tvalid_w
+axis_spi_tb.U_AXIS_SPI_TARGET1.tready_w
+axis_spi_tb.U_AXIS_SPI_TARGET1.tlast_w
+@22
+axis_spi_tb.U_AXIS_SPI_TARGET1.tdata_w[7:0]
+@1000200
+-Send
+@800200
+-Recv
+@28
+axis_spi_tb.U_AXIS_SPI_TARGET1.rvalid_w
+axis_spi_tb.U_AXIS_SPI_TARGET1.rready_w
+@22
+axis_spi_tb.U_AXIS_SPI_TARGET1.rdata_w[7:0]
+@1000200
+-Recv
+-Target
 [pattern_trace] 1
 [pattern_trace] 0

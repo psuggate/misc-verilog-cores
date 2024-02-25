@@ -19,26 +19,23 @@ module axis_spi_master #(
     output m_tvalid,
     input m_tready,
     output m_tlast,
-    output m_tkeep,
     output [7:0] m_tdata,
 
     input s_tvalid,
     output s_tready,
     input s_tlast,
-    input s_tkeep,
     input [7:0] s_tdata
 );
 
 
   // -- Signals & State -- //
 
-  wire xvalid, xready, xlast, xkeep;
-  wire rvalid, rready, rlast, rkeep;
+  wire xvalid, xready, xlast;
+  wire rvalid, rready, rlast;
   wire [7:0] xdata, rdata;
 
-
   axis_afifo #(
-      .WIDTH(9),
+      .WIDTH(8),
       .ABITS(4)
   ) U_TX_FIFO1 (
       .s_aresetn(ARSTn),
@@ -47,16 +44,14 @@ module axis_spi_master #(
       .s_tvalid_i(s_tvalid),
       .s_tready_o(s_tready),
       .s_tlast_i(s_tlast),
-      .s_tdata_i({s_tkeep, s_tdata}),
+      .s_tdata_i(s_tdata),
 
       .m_aclk    (SCK),
       .m_tvalid_o(xvalid),
       .m_tready_i(xready),
       .m_tlast_o (xlast),
-      .m_tdata_o ({xkeep, xdata})
+      .m_tdata_o (xdata)
   );
-
-  assign m_tkeep = m_tvalid;
 
   axis_afifo #(
       .WIDTH(8),
@@ -86,12 +81,11 @@ module axis_spi_master #(
       .SPI_CPHA(SPI_CPHA)
   ) U_MASTER1 (
       .clock(SCK),
-      .reset(ARSTn),
+      .reset(~ARSTn),
 
       .s_tvalid(xvalid),
       .s_tready(xready),
       .s_tlast (xlast),
-      .s_tkeep (xkeep),
       .s_tdata (xdata),
 
       .m_tvalid(rvalid),
