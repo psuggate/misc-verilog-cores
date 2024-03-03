@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Feb 25 05:14:10 2024
+[*] Sun Mar  3 01:59:59 2024
 [*]
 [dumpfile] "./axis_spi_tb.vcd"
-[dumpfile_mtime] "Sun Feb 25 05:13:13 2024"
-[dumpfile_size] 29725
+[dumpfile_mtime] "Sun Mar  3 01:59:54 2024"
+[dumpfile_size] 30253
 [savefile] "./axis_spi_tb.gtkw"
-[timestart] 84300
+[timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.091610 460000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.091610 280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axis_spi_tb.
 [treeopen] axis_spi_tb.U_AXIS_SPI_MASTER1.
 [treeopen] axis_spi_tb.U_AXIS_SPI_TARGET1.
 [sst_width] 233
-[signals_width] 126
+[signals_width] 374
 [sst_expanded] 1
 [sst_vpaned_height] 414
 @28
@@ -35,7 +35,6 @@ axis_spi_tb.sdata[7:0]
 @28
 axis_spi_tb.rvalid
 axis_spi_tb.rready
-axis_spi_tb.rlast
 @22
 axis_spi_tb.rdata[7:0]
 @1000200

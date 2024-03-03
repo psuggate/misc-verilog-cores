@@ -4,7 +4,9 @@ module spi_target #(
     localparam integer MSB = WIDTH - 1,
     parameter [MSB:0] HEADER = 8'ha7,
     parameter integer BYTES = 16,  // FIFO size
-    localparam integer FSIZE = $clog2(BYTES)
+    localparam integer FSIZE = $clog2(BYTES),
+    parameter integer SPI_CPOL = 0,
+    parameter integer SPI_CPHA = 0
 ) (
     input clock,
     input reset,
@@ -75,7 +77,6 @@ module spi_target #(
         ST_FILL: begin
           // "Prime" the Tx FIFO with the status-byte
           state <= fetch ? ST_IDLE : state;
-          // valid <= 1'b1;
         end
 
         ST_IDLE: begin
@@ -101,7 +102,9 @@ module spi_target #(
   spi_layer #(
       .WIDTH(WIDTH),
       .FSIZE(FSIZE),
-      .HEADER_BYTE(HEADER)
+      .HEADER_BYTE(HEADER),
+      .CPOL(SPI_CPOL),
+      .CPHA(SPI_CPHA)
   ) ST_LAYER0 (
       .clk_i(clock),
       .rst_i(reset),

@@ -54,7 +54,7 @@ module axis_spi_tb;
   reg svalid, slast, skeep, mready;
   reg rready, tvalid, tlast, tkeep;
   reg [7:0] sdata, tdata;
-  wire tready, rvalid, rlast, rkeep;
+  wire tready, rvalid, rkeep;
   wire sready, mvalid, mlast, mkeep;
   wire [7:0] mdata, rdata;
 
@@ -133,7 +133,7 @@ module axis_spi_tb;
           rready <= rcount != 8'd0;
         end
 
-        done <= rvalid & rready & rlast;
+        done <= rvalid & rready;
       end
       @(posedge clock);
 

@@ -19,6 +19,7 @@ module spi_master #(
     input clock,
     input reset,
 
+    output SCK,
     output SCK_en,
     output SSEL,
     output MOSI,
@@ -56,6 +57,7 @@ module spi_master #(
   assign m_tlast = last;
   assign m_tdata = rdata;
 
+  assign SCK = SPI_CPOL ? ~clock : clock;
   assign SCK_en = clken;
   assign SSEL = state == ST_IDLE;
   assign MOSI = tdata[7];
@@ -115,29 +117,66 @@ module spi_master #(
     end
   end
 
-  always @(posedge clock) begin
-    if (reset) begin
-      state <= ST_IDLE;
-      count <= 3'd0;
+  generate
+    if (SPI_CPHA == 0) begin : g_cpha0
 
-      ready <= 1'b0;
-      valid <= 1'b0;
-      last  <= 1'b0;
+      // Note: If 'CPOL==1' then this is still correct, as we're using 'clock', not
+      //   'SCK'.
+      always @(posedge clock) begin
+        if (reset) begin
+          state <= ST_IDLE;
+          count <= 3'd0;
 
-      tdata <= 8'bx;
-      rdata <= 8'bx;
-    end else begin
-      state <= snext;
-      count <= snext != ST_IDLE ? cnext[2:0] : 3'd0;
+          ready <= 1'b0;
+          valid <= 1'b0;
+          last  <= 1'b0;
 
-      ready <= state == ST_IDLE || clken && cnext[3];
-      valid <= clken && cnext[3];
-      last  <= clken && cnext[3] && snext == ST_IDLE;
+          tdata <= 8'bx;
+          rdata <= 8'bx;
+        end else begin
+          state <= snext;
+          count <= snext != ST_IDLE ? cnext[2:0] : 3'd0;
 
-      tdata <= tnext;
-      rdata <= rnext;
+          ready <= state == ST_IDLE || clken && cnext[3];
+          valid <= clken && cnext[3];
+          last  <= clken && cnext[3] && snext == ST_IDLE;
+
+          tdata <= tnext;
+          rdata <= rnext;
+        end
+      end
+
+    end else begin : g_cpha1
+
+      // Note: If 'CPOL==1' then this is still correct, as we're using 'clock', not
+      //   'SCK'.
+      // Todo: use an extra set of output registers !?
+      always @(negedge clock) begin
+        if (reset) begin
+          state <= ST_IDLE;
+          count <= 3'd0;
+
+          ready <= 1'b0;
+          valid <= 1'b0;
+          last  <= 1'b0;
+
+          tdata <= 8'bx;
+          rdata <= 8'bx;
+        end else begin
+          state <= snext;
+          count <= snext != ST_IDLE ? cnext[2:0] : 3'd0;
+
+          ready <= state == ST_IDLE || clken && cnext[3];
+          valid <= clken && cnext[3];
+          last  <= clken && cnext[3] && snext == ST_IDLE;
+
+          tdata <= tnext;
+          rdata <= rnext;
+        end
+      end
+
     end
-  end
+  endgenerate
 
 
   // -- Simulation Only -- //

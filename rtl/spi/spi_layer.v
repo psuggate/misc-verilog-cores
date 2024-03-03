@@ -41,10 +41,10 @@
  *  + replace the RX FIFO to a smaller design; e.g., a shift-register, and a
  *    synchroniser?
  * 
+// Todo:
+//  - use 'parameter's instead of macros ??
+//
  */
-
-// TODO: Not very modular, as the rest of this module is not TART-specific.
-// `include "tartcfg.v"
 
 //----------------------------------------------------------------------------
 //
@@ -75,7 +75,10 @@ module spi_layer
      localparam MSB   = WIDTH-1,
      localparam ASB   = WIDTH-2,
      parameter FSIZE = 2,           // FIFO size (log2)
-     parameter HEADER_BYTE = 8'hA7) // Pattern to send as the first byte
+     parameter HEADER_BYTE = 8'hA7, // Pattern to send as the first byte
+     parameter XILINX = 0,
+  parameter CPOL = 0, // TODO
+  parameter CPHA = 0)  // TODO
    ( input        clk_i,
      input        rst_i,
 
@@ -109,22 +112,21 @@ module spi_layer
    //  begins on the preceding positive edges.
    //-------------------------------------------------------------------------
    // TODO: Better configuration options.
-`ifdef __LEGACY_MODE
-   wire           SCK      = SCK_pin;
-   wire           SCK_miso = SCK_pin;
-   wire           SCK_tx   = ~SCK_pin;
-`elsif __icarus
    wire           SCK, SCK_miso, SCK_tx;
+
+generate if (XILINX == 0) begin : g_not_xilinx
 
    assign SCK      = SCK_pin;
    assign SCK_miso = SCK_pin;
    assign SCK_tx   = ~SCK_pin;
-`else
+
+end else begin : g_use_xilinx
+
    // The clock path:
    //    SCK -> IBUFG -> fabric -> BUFGMUX -> fabric -> OBUF -> MISO
    // is too long for high speed implementations, so a local I/O clock is
    // used to drive MISO.
-   wire           SCK_buf, SCK_bufg, SCK_miso, SCK_tx, SCK;
+   wire           SCK_buf, SCK_bufg;
 
    assign SCK    = SCK_bufg;    // Main SPI-domain clock
    assign SCK_tx = SCK_bufg;    // TX FIFO clock
@@ -146,18 +148,13 @@ module spi_layer
          .SERDESSTROBE(), // unused
          .I(SCK_buf)
          );
-`endif
+end
+endgenerate
 
-   //  FIFO status signals:
-   wire               tx_empty;
-   wire               rx_empty, rx_full;
+   //  FIFO status signals //
+   wire               tx_empty, rx_empty, rx_full;
 
-
-   //-------------------------------------------------------------------------
-   //
-   //  Cross-domain synchronisation.
-   //
-   //-------------------------------------------------------------------------
+   // Cross-domain synchronisation //
    reg            tx_rst = 1'b1, tx_flg = 1'b0;
    reg            spi_req = 1'b0, dat_req = 1'b0;
    reg            dat_req_sync = 1'b1, dat_req_done = 1'b0;
@@ -282,31 +279,36 @@ module spi_layer
    wire       tx_next  = tx_count == 7;
    wire [3:0] tx_inc = tx_count + 1;
 
+  // todo: ...
+  wire TX_SCK = CPOL == 1 ? SCK : ~SCK;
+  wire TX_SCK_miso = CPOL == 1 ? SCK_miso : ~SCK_miso;
+
    // Output the header/status byte on SPI start, else transmit FIFO data.
    // Serialise the SPI data, sending MSB -> LSB.
-   always @(`TX_EDGE SCK or posedge SSEL)
+   // always @(`TX_EDGE SCK or posedge SSEL)
+   always @(posedge TX_SCK or posedge SSEL)
      if (SSEL)         tx_reg <= HEADER_BYTE[6:0];
      else if (tx_next) tx_reg <= tx_data[6:0];
      else              tx_reg <= {tx_reg[5:0], 1'bx};
 
    // Use a local clock for faster source-synchronous transmission.
-   always @(`TX_EDGE SCK_miso or posedge SSEL)
+   always @(posedge TX_SCK_miso or posedge SSEL)
      if (SSEL)         MISO <= HEADER_BYTE[7];
      else if (tx_next) MISO <= tx_data[7];
      else              MISO <= tx_reg[6];
 
-   always @(`TX_EDGE SCK or posedge SSEL)
+   always @(posedge TX_SCK or posedge SSEL)
      if (SSEL) tx_count <= 3'h0;
      else      tx_count <= tx_inc[2:0];
 
    // Add a cycle of delay, avoiding an additional read just before a SPI
    // transaction completes.
-   always @(`TX_EDGE SCK or posedge SSEL)
+   always @(posedge TX_SCK or posedge SSEL)
      if (SSEL) tx_pull <= 1'b0;
      else      tx_pull <= tx_next;
 
    // TX FIFO underrun detection.
-   always @(`TX_EDGE SCK or posedge rst_i)
+   always @(posedge TX_SCK or posedge rst_i)
      if (rst_i)
        underrun_o <= 1'b0;
      else if (tx_pull && tx_empty)
