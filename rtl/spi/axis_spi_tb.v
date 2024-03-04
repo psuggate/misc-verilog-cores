@@ -64,7 +64,7 @@ module axis_spi_tb;
   // -- Simulation Stimulus -- //
 
   initial begin : I_STIMULATE
-    #60 axis_send(1);
+    #60 axis_send(4);
   end
 
   initial sdata <= $urandom;
@@ -203,6 +203,35 @@ module axis_spi_tb;
       .SSEL(SSEL),
       .MOSI(MOSI),
       .MISO(MISO)
+  );
+
+
+  //
+  //  SPI-to-SPI loopback core tests
+  ///
+  wire qvalid, qready, qlast;
+  wire [7:0] qdata;
+
+  spi_to_spi #(
+      .SPI_CPOL(SPI_CPOL),
+      .SPI_CPHA(SPI_CPHA)
+  ) U_SPI_TO_SPI1 (
+      .clock(clock),
+      .reset(reset),
+      .SCK  (SCK),
+
+      .overflow_o(),
+      .underrun_o(),
+
+      .m_tvalid(qvalid),
+      .m_tready(1'b1),
+      .m_tlast (qlast),
+      .m_tdata (qdata),
+
+      .s_tvalid(svalid),
+      .s_tready(qready),
+      .s_tlast (slast),
+      .s_tdata (sdata)
   );
 
 

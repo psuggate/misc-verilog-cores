@@ -1,20 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Mar  3 01:59:59 2024
+[*] Mon Mar  4 05:26:28 2024
 [*]
 [dumpfile] "./axis_spi_tb.vcd"
-[dumpfile_mtime] "Sun Mar  3 01:59:54 2024"
-[dumpfile_size] 30253
+[dumpfile_mtime] "Mon Mar  4 05:25:55 2024"
+[dumpfile_size] 70999
 [savefile] "./axis_spi_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-16.091610 280000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.091610 1103000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axis_spi_tb.
 [treeopen] axis_spi_tb.U_AXIS_SPI_MASTER1.
 [treeopen] axis_spi_tb.U_AXIS_SPI_TARGET1.
+[treeopen] axis_spi_tb.U_SPI_TO_SPI1.
 [sst_width] 233
-[signals_width] 374
+[signals_width] 110
 [sst_expanded] 1
 [sst_vpaned_height] 414
 @28
@@ -30,20 +31,21 @@ axis_spi_tb.slast
 axis_spi_tb.sdata[7:0]
 @1000200
 -Send
-@800200
+@c00200
 -Recv
 @28
 axis_spi_tb.rvalid
 axis_spi_tb.rready
 @22
 axis_spi_tb.rdata[7:0]
-@1000200
+@1401200
 -Recv
 @420
 axis_spi_tb.axis_send.scount
 axis_spi_tb.axis_send.rcount
-@800200
+@c00200
 -TB
+@800200
 -ToSlave
 @28
 axis_spi_tb.mvalid
@@ -63,6 +65,7 @@ axis_spi_tb.tlast
 axis_spi_tb.tdata[7:0]
 @1000200
 -ToMaster
+@1401200
 -TB
 @800200
 -SPI
@@ -98,8 +101,9 @@ axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.ready
 axis_spi_tb.U_AXIS_SPI_MASTER1.U_MASTER1.last
 @1401200
 -Master
-@800200
+@c00200
 -Target
+@800200
 -Send
 @28
 axis_spi_tb.U_AXIS_SPI_TARGET1.tvalid_w
@@ -118,6 +122,35 @@ axis_spi_tb.U_AXIS_SPI_TARGET1.rready_w
 axis_spi_tb.U_AXIS_SPI_TARGET1.rdata_w[7:0]
 @1000200
 -Recv
+@1401200
 -Target
+@800200
+-Spi2Spi
+@28
+axis_spi_tb.qvalid
+axis_spi_tb.qready
+axis_spi_tb.qlast
+@22
+axis_spi_tb.qdata[7:0]
+@28
+axis_spi_tb.U_SPI_TO_SPI1.SCK_x
+axis_spi_tb.U_SPI_TO_SPI1.SCK_en
+axis_spi_tb.U_SPI_TO_SPI1.SCK_q
+[color] 3
+axis_spi_tb.U_SPI_TO_SPI1.SSEL_w
+axis_spi_tb.U_SPI_TO_SPI1.MOSI_w
+axis_spi_tb.U_SPI_TO_SPI1.MISO_w
+axis_spi_tb.U_SPI_TO_SPI1.clock
+axis_spi_tb.U_SPI_TO_SPI1.rvalid
+axis_spi_tb.U_SPI_TO_SPI1.rkeep
+axis_spi_tb.U_SPI_TO_SPI1.rlast
+@22
+axis_spi_tb.U_SPI_TO_SPI1.rdata[7:0]
+@28
+axis_spi_tb.U_SPI_TO_SPI1.pvalid
+@23
+axis_spi_tb.U_SPI_TO_SPI1.pdata[7:0]
+@1000200
+-Spi2Spi
 [pattern_trace] 1
 [pattern_trace] 0
