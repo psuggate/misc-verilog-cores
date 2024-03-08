@@ -41,8 +41,7 @@ module spi_to_spi #(
   assign SCK_x  = SCK_en ? SCK_w : SPI_CPOL;
 
   assign rvalid = rkeep | rlast;
-  // assign rlast  = SCK_q & ~SCK_en;
-  assign rlast = rcycle & ~rsck2;
+  assign rlast  = rcycle & ~rsck2;
 
   // Preload contents for the SPI target core, if FIFO is empty //
   assign svalid = rvalid | pvalid;
