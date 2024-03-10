@@ -212,6 +212,9 @@ module axis_spi_tb;
   wire qvalid, qready, qlast;
   wire [7:0] qdata;
 
+  wire lvalid, lready, llast;
+  wire [7:0] ldata;
+
   spi_to_spi #(
       .SPI_CPOL(SPI_CPOL),
       .SPI_CPHA(SPI_CPHA)
@@ -223,15 +226,25 @@ module axis_spi_tb;
       .overflow_o(),
       .underrun_o(),
 
-      .m_tvalid(qvalid),
-      .m_tready(1'b1),
-      .m_tlast (qlast),
-      .m_tdata (qdata),
+      .master_rx_tvalid(qvalid),
+      .master_rx_tready(1'b1),
+      .master_rx_tlast (qlast),
+      .master_rx_tdata (qdata),
 
-      .s_tvalid(svalid),
-      .s_tready(qready),
-      .s_tlast (slast),
-      .s_tdata (sdata)
+      .master_tx_tvalid(svalid),
+      .master_tx_tready(qready),
+      .master_tx_tlast (slast),
+      .master_tx_tdata (sdata),
+
+      .target_rx_tvalid(lvalid),
+      .target_rx_tready(lready),
+      .target_rx_tlast (llast),
+      .target_rx_tdata (ldata),
+
+      .target_tx_tvalid(lvalid),
+      .target_tx_tready(lready),
+      .target_tx_tlast (llast),
+      .target_tx_tdata (ldata)
   );
 
 

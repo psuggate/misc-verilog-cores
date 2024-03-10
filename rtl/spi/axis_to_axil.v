@@ -1,30 +1,39 @@
 `timescale 1ns / 100ps
+/**
+ * AXI4-Stream parser for issuing AXI4-Lite transactions.
+ *
+ * Format:
+ *  - read/write
+ *  - address
+ *  - burst-size
+ *
+ */
 module axis_to_axil #(
-                      // AXI-Lite settings
-    parameter AXIL_DATA_BITS = 0,
-                      localparam MSB = AXIL_DATA_BITS - 1,
-                      localparam SSB = AXIL_DATA_BITS / 8 - 1,
-    parameter AXIL_ID_BITS = 0,
-                      localparam ISB = AXIL_ID_BITS - 1,
-    parameter AXIL_ADDR_BITS = 0,
-                      localparam ASB = AXIL_ADDR_BITS - 1
+    // AXI-Lite settings
+    parameter integer AXIL_DATA_BITS = 0,
+    localparam integer MSB = AXIL_DATA_BITS - 1,
+    localparam integer SSB = AXIL_DATA_BITS / 8 - 1,
+    parameter integer AXIL_ID_BITS = 0,
+    localparam integer ISB = AXIL_ID_BITS - 1,
+    parameter integer AXIL_ADDR_BITS = 0,
+    localparam integer ASB = AXIL_ADDR_BITS - 1
 ) (
     input clock,
     input reset,
 
-   // Data to send (via SPI)
+    // Data to send (via SPI)
     input s_tvalid,
     output s_tready,
     input s_tlast,
     input [7:0] s_tdata,
 
-   // Data arriving (via SPI)
+    // Data arriving (via SPI)
     output m_tvalid,
     input m_tready,
     output m_tlast,
     output [7:0] m_tdata,
 
-   // Interface to the AXI-L interconnect
+    // Interface to the AXI-L interconnect
     input axi_awvalid_i,
     output axi_awready_o,
     input [ASB:0] axi_awaddr_i,
@@ -71,7 +80,17 @@ module axis_to_axil #(
 
   localparam [3:0] ST_IDLE = 4'h0, ST_TYPE = 4'h1, ST_ADDR = 4'h2, ST_WAIT = 4'h3, ST_SEND = 4'h4, ST_RECV = 4'h5, ST_RESP = 4'h6;
 
-  reg [3:0] state;
+  reg [3:0] state, snext;
+
+  always @* begin
+    snext = state;
+
+    case (state)
+      ST_IDLE: begin
+        
+      end
+    endcase
+  end
 
   always @(posedge clock) begin
     if (reset) begin
@@ -79,6 +98,9 @@ module axis_to_axil #(
     end else begin
       case (state)
         ST_IDLE: begin
+          if (s_tvalid && s_tready) begin
+            state <= snext;
+          end
         end
         default: begin
         end

@@ -1,7 +1,8 @@
 `timescale 1ns / 100ps
 module spi_to_spi #(
     parameter SPI_CPOL = 0,
-    parameter SPI_CPHA = 0
+    parameter SPI_CPHA = 0,
+    parameter [6:0] HEADER = 7'h27
 ) (
     input clock,
     input reset,
@@ -10,15 +11,27 @@ module spi_to_spi #(
     output overflow_o,
     output underrun_o,
 
-    input s_tvalid,
-    output s_tready,
-    input s_tlast,
-    input [7:0] s_tdata,
+   // SPI master TX & RX ports
+    input master_tx_tvalid,
+    output master_tx_tready,
+    input master_tx_tlast,
+    input [7:0] master_tx_tdata,
 
-    output m_tvalid,
-    input m_tready,
-    output m_tlast,
-    output [7:0] m_tdata
+    output master_rx_tvalid,
+    input master_rx_tready,
+    output master_rx_tlast,
+    output [7:0] master_rx_tdata,
+
+   // SPI target TX & RX ports
+    input target_tx_tvalid,
+    output target_tx_tready,
+    input target_tx_tlast,
+    input [7:0] target_tx_tdata,
+
+    output target_rx_tvalid,
+    input target_rx_tready,
+    output target_rx_tlast,
+    output [7:0] target_rx_tdata
 );
 
   // -- Signals & State -- //
@@ -77,11 +90,18 @@ module spi_to_spi #(
       pdata  <= 'bx;
     end else begin
       pvalid <= 1'b1;
-      pdata  <= $urandom;
+`ifdef __icarus
+      pdata <= $urandom;
+`else
+      pdata <= {1'b0, HEADER};
+`endif
     end
   end
 
 
+  //
+  //  SPI Master
+  ///
   axis_afifo #(
       .WIDTH(8),
       .ABITS(4)
@@ -89,10 +109,10 @@ module spi_to_spi #(
       .s_aresetn(~reset),
 
       .s_aclk(clock),
-      .s_tvalid_i(s_tvalid),
-      .s_tready_o(s_tready),
-      .s_tlast_i(s_tlast),
-      .s_tdata_i(s_tdata),
+      .s_tvalid_i(master_tx_tvalid),
+      .s_tready_o(master_tx_tready),
+      .s_tlast_i(master_tx_tlast),
+      .s_tdata_i(master_tx_tdata),
 
       .m_aclk    (SCK),
       .m_tvalid_o(tvalid),
@@ -114,10 +134,10 @@ module spi_to_spi #(
       .s_tdata_i(ydata),
 
       .m_aclk    (clock),
-      .m_tvalid_o(m_tvalid),
-      .m_tready_i(m_tready),
-      .m_tlast_o (m_tlast),
-      .m_tdata_o (m_tdata)
+      .m_tvalid_o(master_rx_tvalid),
+      .m_tready_i(master_rx_tready),
+      .m_tlast_o (master_rx_tlast),
+      .m_tdata_o (master_rx_tdata)
   );
 
   spi_master #(
@@ -144,6 +164,10 @@ module spi_to_spi #(
       .m_tdata (ydata)
   );
 
+
+  //
+  //  SPI Target
+  ///
   spi_target #(
       .HEADER(7'h23),
       .WIDTH (8)
@@ -155,14 +179,15 @@ module spi_to_spi #(
       .overflow_o(overflow_o),
       .underrun_o(underrun_o),
 
-      .s_tvalid(xvalid),
-      .s_tready(xready),
-      .s_tlast (xlast),
-      .s_tdata (xdata),
+                   // todo: handle 1st-byte ...
+      .s_tvalid(target_tx_tvalid),
+      .s_tready(target_tx_tready),
+      .s_tlast (target_tx_tlast),
+      .s_tdata (target_tx_tdata),
 
-      .m_tvalid(rkeep),
-      .m_tready(rready),
-      .m_tdata (rdata),
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tdata (xdata),
 
       .SCK_pin(SCK_x),
       .SSEL(SSEL_w),
@@ -177,17 +202,17 @@ module spi_to_spi #(
       .clock(clock),
       .reset(reset),
 
-      .s_tvalid(svalid),
-      .s_tready(rready),
-      .s_tlast (slast),
-      .s_tkeep (skeep),
-      .s_tdata (sdata),
-
-      .m_tvalid(xvalid),
-      .m_tready(xready),
-      .m_tlast (xlast),
+      .m_tvalid(target_rx_tvalid),
+      .m_tready(target_rx_tready),
+      .m_tlast (target_rx_tlast),
       .m_tkeep (),
-      .m_tdata (xdata)
+      .m_tdata (target_rx_tdata),
+
+      .s_tvalid(xvalid),
+      .s_tready(xready),
+      .s_tlast (1'b0),
+      .s_tkeep (xvalid),
+      .s_tdata (xdata)
   );
 
 

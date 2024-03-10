@@ -343,6 +343,9 @@ module usb_demo_top (
       .m_tready(tready)
   );
 
+  wire gvalid, gready, glast, xlast;
+  wire [7:0] gdata;
+
   // Convert 32b telemetry captures to ASCII hexadecimal //
   hex_dump #(
       .UNICODE(0),
@@ -363,10 +366,51 @@ module usb_demo_top (
 
       .m_tvalid(xvalid),
       .m_tready(xready),
-      .m_tlast (),
+      .m_tlast (xlast),
       .m_tkeep (),
       .m_tdata (xdata)
   );
+
+  localparam SPI_CPOL = 0;
+  localparam SPI_CPHA = 0;
+
+  localparam USE_SPI_TO_SPI = 0;
+
+  generate
+    if (USE_SPI_TO_SPI) begin : g_use_spi2spi
+
+      spi_to_spi #(
+          .SPI_CPOL(SPI_CPOL),
+          .SPI_CPHA(SPI_CPHA)
+      ) U_SPI2SPI1 (
+          .clock(clock),
+          .reset(reset),
+          // .SCK(~clk_26),
+          // .SCK(clk_26),
+          // .SCK(~clock),
+          .SCK  (clock),
+
+          .s_tvalid(xvalid && !tx_busy_w),
+          .s_tready(xready),
+          .s_tlast (xlast),
+          .s_tdata (xdata),
+
+          .m_tvalid(gvalid),
+          .m_tready(gready),
+          .m_tlast (glast),
+          .m_tdata (gdata)
+      );
+
+    end else begin : g_non_spi2spi
+
+      assign gvalid = xvalid && !tx_busy_w;
+      assign xready = gready;
+      assign glast  = xlast;
+      assign gdata  = xdata;
+
+    end
+  endgenerate
+
 
   // Use the FTDI USB UART for dumping the telemetry (as ASCII hex) //
   uart #(
@@ -375,9 +419,9 @@ module usb_demo_top (
       .clk(clock),
       .rst(reset),
 
-      .s_axis_tvalid(xvalid && !tx_busy_w),
-      .s_axis_tready(xready),
-      .s_axis_tdata (xdata),
+      .s_axis_tvalid(gvalid),
+      .s_axis_tready(gready),
+      .s_axis_tdata (gdata),
 
       .m_axis_tvalid(uvalid),
       .m_axis_tready(uready),
@@ -439,7 +483,7 @@ module usb_demo_top (
   localparam ISB = REQID - 1;
 
 
-`define __use_ddr3_core
+  // `define __use_ddr3_core
 `ifndef __use_ddr3_core
 
   // Just set these signals in order to configure the IOBs of the FPGA.
@@ -756,8 +800,8 @@ module usb_demo_top (
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
-      .DDR3_WIDTH(16),
-      .ADDR_BITS(DDR_ROW_BITS)
+      .DDR3_WIDTH (16),
+      .ADDR_BITS  (DDR_ROW_BITS)
   ) u_phy (
       .clock  (clock),
       .reset  (reset),
