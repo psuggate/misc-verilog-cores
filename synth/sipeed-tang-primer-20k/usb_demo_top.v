@@ -78,9 +78,7 @@ module usb_demo_top (
   wire [3:0] cbits;
 
   // Local Signals //
-  wire usb_sof_w, configured, blk_cycle_w;
-  wire blk_fetch_w, blk_store_w;
-  wire [3:0] blk_endpt_w;
+  wire configured;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
@@ -96,7 +94,6 @@ module usb_demo_top (
 
   // Note: only 4 (of 6) LED's available in default config
   assign leds = {~cbits[3:0], 2'b11};
-  assign cbits = phy_state_w;
 
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
@@ -173,7 +170,7 @@ module usb_demo_top (
       .s2_tready(),
       .s2_tlast (1'b0),
       .s2_tkeep (1'b0),
-      .s2_tdata ('bx)
+      .s2_tdata (8'bx)
   );
 
 
@@ -256,13 +253,13 @@ module usb_demo_top (
 
           .level_o(level_w),
 
-          .valid_i(s_tvalid),
-          .ready_o(s_tready),
-          .data_i ({s_tlast, s_tdata}),
+          .valid_i(m_tvalid),
+          .ready_o(m_tready),
+          .data_i ({m_tlast, m_tdata}),
 
-          .valid_o(m_tvalid),
-          .ready_i(m_tready),
-          .data_o ({m_tlast, m_tdata})
+          .valid_o(s_tvalid),
+          .ready_i(s_tready),
+          .data_o ({s_tlast, s_tdata})
       );
 
     end else begin : g_axis_fifo
@@ -290,25 +287,25 @@ module usb_demo_top (
           .clk(clock),
           .rst(reset),
 
-          .s_axis_tvalid(s_tvalid),  // AXI4-Stream input
-          .s_axis_tready(s_tready),
-          .s_axis_tlast (s_tlast),
+          .s_axis_tvalid(m_tvalid),  // AXI4-Stream input
+          .s_axis_tready(m_tready),
+          .s_axis_tlast (m_tlast),
           .s_axis_tid   (1'b0),
           .s_axis_tdest (1'b0),
           .s_axis_tuser (1'b0),
           .s_axis_tkeep (1'b1),
-          .s_axis_tdata (s_tdata),
+          .s_axis_tdata (m_tdata),
 
           .pause_req(1'b0),
 
-          .m_axis_tvalid(m_tvalid),  // AXI4-Stream output
-          .m_axis_tready(m_tready),
-          .m_axis_tlast(m_tlast),
+          .m_axis_tvalid(s_tvalid),  // AXI4-Stream output
+          .m_axis_tready(s_tready),
+          .m_axis_tlast(s_tlast),
           .m_axis_tid(),
           .m_axis_tdest(),
           .m_axis_tuser(),
           .m_axis_tkeep(),
-          .m_axis_tdata(m_tdata),
+          .m_axis_tdata(s_tdata),
 
           .status_depth(level_w),  // Status
           .status_overflow(),

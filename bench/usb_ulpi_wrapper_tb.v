@@ -211,6 +211,8 @@ module usb_ulpi_wrapper_tb;
   reg bulk_in_ready_q, bulk_out_ready_q;
   wire [FSB:0] level_w;
 
+  assign s_tkeep = s_tvalid;
+
   // Bulk Endpoint Status //
   always @(posedge dev_clock) begin
     if (dev_reset) begin
