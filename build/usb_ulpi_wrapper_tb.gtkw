@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Mon Mar 11 06:01:56 2024
+[*]
+[dumpfile] "./usb_ulpi_wrapper_tb.vcd"
+[dumpfile_mtime] "Mon Mar 11 05:57:33 2024"
+[dumpfile_size] 648157
+[savefile] "./usb_ulpi_wrapper_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -38 -38
+*-20.435192 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 158
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+usb_ulpi_wrapper_tb.clock
+usb_ulpi_wrapper_tb.arst_n
+usb_ulpi_wrapper_tb.reset
+usb_ulpi_wrapper_tb.usb_clock
+usb_ulpi_wrapper_tb.usb_rst_n
+@800200
+-Target
+@28
+usb_ulpi_wrapper_tb.dev_clock
+usb_ulpi_wrapper_tb.dev_reset
+usb_ulpi_wrapper_tb.enabled
+usb_ulpi_wrapper_tb.enumerate
+@29
+usb_ulpi_wrapper_tb.enum_done
+@28
+usb_ulpi_wrapper_tb.configured
+usb_ulpi_wrapper_tb.bulk_in_ready_q
+usb_ulpi_wrapper_tb.bulk_out_ready_q
+@1000200
+-Target
+[pattern_trace] 1
+[pattern_trace] 0

@@ -143,7 +143,6 @@ module ulpi_axis_bridge #(
   localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN + EP2_IN_DESC_LEN;
   localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
   localparam integer CSB = CONF_DESC_BITS - 1;
-  // localparam [CSB:0] CONF_DESC_VALS = {
   localparam CONF_DESC_VALS = {EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
 
 

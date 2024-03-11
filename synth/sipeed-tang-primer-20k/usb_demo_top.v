@@ -74,80 +74,40 @@ module usb_demo_top (
   // -- Signals -- //
 
   // Global signals //
-  wire clock, reset, usb_clock, usb_reset;
-  wire ddr_clock, locked;
+  wire clock, reset;
   wire [3:0] cbits;
 
   // Local Signals //
-  wire device_usb_idle_w, crc_error_w, hs_enabled_w;
-  wire usb_sof_w, configured, blk_cycle_w, has_telemetry_w, timeout_w;
+  wire usb_sof_w, configured, blk_cycle_w;
   wire blk_fetch_w, blk_store_w;
   wire [3:0] blk_endpt_w;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
-  wire [7:0] s_tdata;
-
   wire m_tvalid, m_tready, m_tlast, m_tkeep;
-  wire [  7:0] m_tdata;
+  wire [7:0] s_tdata, m_tdata;
 
   // FIFO state //
   wire [FSB:0] level_w;
   reg bulk_in_ready_q, bulk_out_ready_q;
 
-  // Telemetry signals //
-  wire ctl_cycle_w, ctl_error_w, usb_rx_recv_w, usb_tx_done_w, tok_rx_recv_w;
-  wire [3:0] phy_state_w, usb_state_w, ctl_state_w, usb_tuser_w, tok_endpt_w;
-  wire [2:0] err_code_w;
-  wire [7:0] blk_state_w;
-  wire [1:0] LineState;
-
-
-  // -- System Clocks & Resets -- //
-
-  ulpi_reset #(
-      .PHASE("0000"),  // Note: timing-constraints used instead
-      .PLLEN(ULPI_DDR_MODE)
-  ) U_RESET0 (
-      .areset_n (rst_n),
-      .ulpi_clk (ulpi_clk),
-      .sys_clock(clk_26),
-
-      .ulpi_rst_n(ulpi_rst),  // Active LO
-      .pll_locked(locked),
-
-      .usb_clock(clock),  // 60 MHz, PLL output, phase-shifted
-      .usb_reset(reset),  // Active HI
-      .ddr_clock(ddr_clock)  // 120 MHz, PLL output, phase-shifted
-  );
-
 
   // -- LEDs Stuffs -- //
 
   // Note: only 4 (of 6) LED's available in default config
+  assign leds = {~cbits[3:0], 2'b11};
   assign cbits = phy_state_w;
-  assign leds  = {~cbits[3:0], 2'b11};
-
-
-  // For a Basic LED Flasher //
-  reg [31:0] pcount;
-
-  always @(posedge clock) begin
-    pcount <= pcount + 1;
-  end
 
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
-  wire bsvalid_w, bsready_w, bmvalid_w, bmready_w;
+  assign s_tkeep = s_tvalid;
 
-  // Bulk Endpoint Status //
-  always @(posedge usb_clock) begin
-    if (usb_reset) begin
+  always @(posedge clock) begin
+    if (reset) begin
       bulk_in_ready_q  <= 1'b0;
       bulk_out_ready_q <= 1'b0;
     end else begin
-      // bulk_in_ready_q  <= configured && m_tvalid;
       bulk_in_ready_q  <= configured && level_w > 4;
       bulk_out_ready_q <= configured && level_w < 1024;
     end
@@ -157,285 +117,63 @@ module usb_demo_top (
   //
   // Core Under New Tests
   ///
-  assign bsready_w = s_tready && blk_store_w && blk_endpt_w == ENDPOINT1;
-  assign bmvalid_w = m_tvalid && blk_fetch_w && blk_endpt_w == ENDPOINT1;
+  usb_ulpi_wrapper #(
+      .DEBUG(1)
+  ) U_USB1 (
+      .clk_26(clk_26),
+      .rst_n (rst_n),
 
-  assign m_tkeep   = m_tvalid;
+      // USB ULPI pins on the dev-board
+      .ulpi_clk (ulpi_clk),
+      .ulpi_rst (ulpi_rst),
+      .ulpi_dir (ulpi_dir),
+      .ulpi_nxt (ulpi_nxt),
+      .ulpi_stp (ulpi_stp),
+      .ulpi_data(ulpi_data),
 
-  ulpi_axis_bridge #(
-      .PIPELINED(PIPELINED),
-      .VENDOR_ID(VENDOR_ID),
-      .VENDOR_LENGTH(VENDOR_LENGTH),
-      .VENDOR_STRING(VENDOR_STRING),
-      .PRODUCT_ID(PRODUCT_ID),
-      .PRODUCT_LENGTH(PRODUCT_LENGTH),
-      .PRODUCT_STRING(PRODUCT_STRING),
-      .SERIAL_LENGTH(SERIAL_LENGTH),
-      .SERIAL_STRING(SERIAL_STRING),
-      .EP1_CONTROL(0),
-      .ENDPOINT1(ENDPOINT1),
-      .EP2_CONTROL(0),
-      .ENDPOINT2(ENDPOINT2)
-  ) U_ULPI_USB0 (
-      .areset_n(~reset),
-
-      .ulpi_clock_i(clock),
-      .ulpi_dir_i  (ulpi_dir),
-      .ulpi_nxt_i  (ulpi_nxt),
-      .ulpi_stp_o  (ulpi_stp),
-      .ulpi_data_io(ulpi_data),
-
-      .usb_clock_o(usb_clock),
-      .usb_reset_o(usb_reset),
+      // Debug UART signals
+      .send_ni  (send_n),
+      .uart_rx_i(uart_rx),
+      .uart_tx_o(uart_tx),
 
       .configured_o(configured),
-      .has_telemetry_o(has_telemetry_w),
-      .usb_hs_enabled_o(hs_enabled_w),
-      .usb_idle_o(device_usb_idle_w),
-      .usb_sof_o(usb_sof_w),
-      .crc_err_o(crc_error_w),
-      .timeout_o(timeout_w),
+      .status_o(cbits),
 
-      // USB bulk endpoint data-paths
-      .blk_in_ready_i(bulk_in_ready_q),
-      .blk_out_ready_i(bulk_out_ready_q),
-      .blk_start_o(),
-      .blk_cycle_o(blk_cycle_w),
-      .blk_fetch_o(blk_fetch_w),
-      .blk_store_o(blk_store_w),
-      .blk_endpt_o(blk_endpt_w),
-      .blk_error_i(1'b0),
+      // Same clock-domain as the AXI4-Stream ports
+      .usb_clk_o(clock),
+      .usb_rst_o(reset),
 
-      .s_axis_tvalid_i(bmvalid_w),
-      .s_axis_tready_o(m_tready),
-      .s_axis_tlast_i (m_tlast),
-      .s_axis_tkeep_i (m_tkeep),
-      .s_axis_tdata_i (m_tdata),
+      // USB BULK endpoint #1 //
+      .ep1_in_ready_i (bulk_in_ready_q),
+      .ep1_out_ready_i(bulk_out_ready_q),
 
-      .m_axis_tvalid_o(s_tvalid),
-      .m_axis_tready_i(bsready_w),
-      .m_axis_tlast_o (s_tlast),
-      .m_axis_tkeep_o (s_tkeep),
-      .m_axis_tdata_o (s_tdata)
-  );
+      .m1_tvalid(m_tvalid),
+      .m1_tready(m_tready),
+      .m1_tlast (m_tlast),
+      .m1_tkeep (m_tkeep),
+      .m1_tdata (m_tdata),
 
+      .s1_tvalid(s_tvalid),
+      .s1_tready(s_tready),
+      .s1_tlast (s_tlast),
+      .s1_tkeep (s_tkeep),
+      .s1_tdata (s_tdata),
 
-  // -- USB ULPI Bulk transfer endpoint (IN & OUT) -- //
+      // USB BULK endpoint #2 //
+      .ep2_in_ready_i (1'b0),
+      .ep2_out_ready_i(1'b0),
 
-  assign bsvalid_w = s_tvalid && blk_store_w && blk_endpt_w == ENDPOINT1;
-  assign bmready_w = m_tready && blk_fetch_w && blk_endpt_w == ENDPOINT1;
+      .m2_tvalid(),
+      .m2_tready(1'b0),
+      .m2_tlast (),
+      .m2_tkeep (),
+      .m2_tdata (),
 
-  // Sanitise the data-stream from the USB packet-decoder.
-  wire cvalid, cready, clast;
-  wire [7:0] cdata;
-
-  axis_clean #(
-      .WIDTH(8),
-      .DEPTH(16)
-  ) U_AXIS_CLEAN2 (
-      .clock(usb_clock),
-      .reset(usb_reset),
-
-      .s_tvalid(bsvalid_w),
-      .s_tready(s_tready),
-      .s_tlast (s_tlast),
-      .s_tkeep (s_tkeep),
-      .s_tdata (s_tdata),
-
-      .m_tvalid(cvalid),
-      .m_tready(cready),
-      .m_tlast (clast),
-      .m_tkeep (),
-      .m_tdata (cdata)
-  );
-
-
-  //
-  //  Status via UART
-  ///
-  reg tstart, tready, send_q;
-  wire rx_busy_w, tx_busy_w, rx_orun_w, rx_ferr_w;
-  wire xvalid, xready, uvalid, uready;
-  wire terror, tcycle, tvalid, tlast, tkeep;
-  wire [7:0] xdata, tdata, udata;
-  wire [9:0] tlevel;
-
-
-  // -- Telemetry Read-Back Logic -- //
-
-  assign uready = 1'b1;
-
-  always @(posedge clock) begin
-    send_q <= ~send_n & ~tcycle & ~tx_busy_w;
-
-    if (!tcycle && (send_q || uvalid && udata == "a")) begin
-      tstart <= 1'b1;
-    end else begin
-      tstart <= 1'b0;
-    end
-  end
-
-
-  // -- Telemetry Logger -- //
-
-  assign phy_state_w = U_ULPI_USB0.phy_state_w;
-  assign err_code_w = U_ULPI_USB0.err_code_w;
-  assign usb_state_w = U_ULPI_USB0.usb_state_w;
-  assign ctl_state_w = U_ULPI_USB0.ctl_state_w;
-  assign blk_state_w = U_ULPI_USB0.blk_state_w;
-  assign usb_tuser_w = U_ULPI_USB0.ulpi_rx_tuser_w;
-  assign tok_endpt_w = U_ULPI_USB0.tok_endp_w;
-  assign LineState = U_ULPI_USB0.LineState;
-
-  assign ctl_cycle_w = U_ULPI_USB0.ctl0_cycle_w;
-  assign ctl_error_w = U_ULPI_USB0.ctl0_error_w;
-  assign usb_rx_recv_w = U_ULPI_USB0.usb_rx_recv_w;
-  assign usb_tx_done_w = U_ULPI_USB0.usb_tx_done_w;
-  assign hsk_tx_done_w = U_ULPI_USB0.hsk_tx_done_w;
-  assign tok_rx_recv_w = U_ULPI_USB0.tok_rx_recv_w;
-  assign tok_parity_w = U_ULPI_USB0.parity1_w;
-
-
-  // Capture telemetry, so that it can be read back from EP1
-  bulk_telemetry #(
-      .ENDPOINT(ENDPOINT2),
-      .FIFO_DEPTH(1024),
-      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
-  ) U_TELEMETRY1 (
-      .clock(clock),
-      .reset(reset),
-      .usb_enum_i(1'b1),
-      .high_speed_i(hs_enabled_w),
-
-      .LineState  (LineState),    // Byte 3
-      .ctl_cycle_i(ctl_cycle_w),
-      .usb_reset_i(usb_reset),
-      .usb_endpt_i(tok_endpt_w),
-
-      .usb_tuser_i(usb_tuser_w),  // Byte 2
-      .ctl_error_i(ctl_error_w),
-      .usb_state_i(usb_state_w),
-      .crc_error_i(crc_error_w),
-
-      .usb_error_i(err_code_w),  // Byte 1
-      .usb_recv_i(usb_rx_recv_w),
-      .usb_sent_i(usb_tx_done_w),
-      .hsk_sent_i(hsk_tx_done_w),
-      .tok_recv_i(tok_rx_recv_w),
-      .tok_ping_i(tok_parity_w),  // todo ...
-      .timeout_i(timeout_w),
-      .usb_sof_i(usb_sof_w),
-      .blk_state_i(blk_state_w),
-
-      .ctl_state_i(ctl_state_w),  // Byte 0
-      .phy_state_i(phy_state_w),
-
-      .start_i (tstart || 1'b1),
-      .select_i(1'b1),
-      .endpt_i (4'd2),
-      .error_o (terror),
-      .level_o (tlevel),
-
-      .m_tvalid(tvalid),  // AXI4-Stream for telemetry data
-      .m_tlast (tlast),
-      .m_tkeep (tkeep),
-      .m_tdata (tdata),
-      .m_tready(tready)
-  );
-
-  wire gvalid, gready, glast, xlast;
-  wire [7:0] gdata;
-
-  // Convert 32b telemetry captures to ASCII hexadecimal //
-  hex_dump #(
-      .UNICODE(0),
-      .BLOCK_SRAM(1)
-  ) U_HEXDUMP1 (
-      .clock(clock),
-      .reset(reset),
-
-      .start_dump_i(tstart),
-      .is_dumping_o(tcycle),
-      .fifo_level_o(),
-
-      .s_tvalid(tvalid),
-      .s_tready(tready),
-      .s_tlast (tlast),
-      .s_tkeep (tkeep),
-      .s_tdata (tdata),
-
-      .m_tvalid(xvalid),
-      .m_tready(xready),
-      .m_tlast (xlast),
-      .m_tkeep (),
-      .m_tdata (xdata)
-  );
-
-  localparam SPI_CPOL = 0;
-  localparam SPI_CPHA = 0;
-
-  localparam USE_SPI_TO_SPI = 0;
-
-  generate
-    if (USE_SPI_TO_SPI) begin : g_use_spi2spi
-
-      spi_to_spi #(
-          .SPI_CPOL(SPI_CPOL),
-          .SPI_CPHA(SPI_CPHA)
-      ) U_SPI2SPI1 (
-          .clock(clock),
-          .reset(reset),
-          // .SCK(~clk_26),
-          // .SCK(clk_26),
-          // .SCK(~clock),
-          .SCK  (clock),
-
-          .s_tvalid(xvalid && !tx_busy_w),
-          .s_tready(xready),
-          .s_tlast (xlast),
-          .s_tdata (xdata),
-
-          .m_tvalid(gvalid),
-          .m_tready(gready),
-          .m_tlast (glast),
-          .m_tdata (gdata)
-      );
-
-    end else begin : g_non_spi2spi
-
-      assign gvalid = xvalid && !tx_busy_w;
-      assign xready = gready;
-      assign glast  = xlast;
-      assign gdata  = xdata;
-
-    end
-  endgenerate
-
-
-  // Use the FTDI USB UART for dumping the telemetry (as ASCII hex) //
-  uart #(
-      .DATA_WIDTH(8)
-  ) U_UART1 (
-      .clk(clock),
-      .rst(reset),
-
-      .s_axis_tvalid(gvalid),
-      .s_axis_tready(gready),
-      .s_axis_tdata (gdata),
-
-      .m_axis_tvalid(uvalid),
-      .m_axis_tready(uready),
-      .m_axis_tdata (udata),
-
-      .rxd(uart_rx),
-      .txd(uart_tx),
-
-      .rx_busy(rx_busy_w),
-      .tx_busy(tx_busy_w),
-      .rx_overrun_error(rx_orun_w),
-      .rx_frame_error(rx_ferr_w),
-
-      .prescale(UART_PRESCALE)
+      .s2_tvalid(1'b0),
+      .s2_tready(),
+      .s2_tlast (1'b0),
+      .s2_tkeep (1'b0),
+      .s2_tdata ('bx)
   );
 
 
@@ -513,17 +251,17 @@ module usb_demo_top (
           .ABITS (FIFO_LEVEL_BITS),
           .OUTREG(3)
       ) U_BULK_FIFO0 (
-          .clock(usb_clock),
-          .reset(usb_reset),
+          .clock(clock),
+          .reset(reset),
 
           .level_o(level_w),
 
-          .valid_i(cvalid),
-          .ready_o(cready),
-          .data_i ({clast, cdata}),
+          .valid_i(s_tvalid),
+          .ready_o(s_tready),
+          .data_i ({s_tlast, s_tdata}),
 
           .valid_o(m_tvalid),
-          .ready_i(bmready_w),
+          .ready_i(m_tready),
           .data_o ({m_tlast, m_tdata})
       );
 
@@ -548,29 +286,29 @@ module usb_demo_top (
           .USER_BAD_FRAME_MASK(0),
           .DROP_BAD_FRAME(0),
           .DROP_WHEN_FULL(0)
-      ) U_BULK_FIFO0 (
-          .clk(usb_clock),
-          .rst(usb_reset),
+      ) U_BULK_FIFO1 (
+          .clk(clock),
+          .rst(reset),
 
-          .s_axis_tdata (cdata),  // AXI4-Stream input
-          .s_axis_tkeep (1'b1),
-          .s_axis_tvalid(cvalid),
-          .s_axis_tready(cready),
-          .s_axis_tlast (clast),
+          .s_axis_tvalid(s_tvalid),  // AXI4-Stream input
+          .s_axis_tready(s_tready),
+          .s_axis_tlast (s_tlast),
           .s_axis_tid   (1'b0),
           .s_axis_tdest (1'b0),
           .s_axis_tuser (1'b0),
+          .s_axis_tkeep (1'b1),
+          .s_axis_tdata (s_tdata),
 
           .pause_req(1'b0),
 
-          .m_axis_tdata(m_tdata),  // AXI4-Stream output
-          .m_axis_tkeep(),
-          .m_axis_tvalid(m_tvalid),
-          .m_axis_tready(bmready_w),
+          .m_axis_tvalid(m_tvalid),  // AXI4-Stream output
+          .m_axis_tready(m_tready),
           .m_axis_tlast(m_tlast),
           .m_axis_tid(),
           .m_axis_tdest(),
           .m_axis_tuser(),
+          .m_axis_tkeep(),
+          .m_axis_tdata(m_tdata),
 
           .status_depth(level_w),  // Status
           .status_overflow(),
@@ -697,7 +435,6 @@ module usb_demo_top (
   //
   //  DDR Core Under New Test
   ///
-
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
       .DDR_ROW_BITS (DDR_ROW_BITS),

@@ -29,12 +29,10 @@ module ulpi_reset #(
 
 
   assign ulpi_rst_n = reset_count[4];
-  assign pll_locked = PLLEN ? locked : ulpi_rst_n;
-
   assign usb_reset  = reset_delay[2];
 
+  assign pll_locked = PLLEN ? locked : ulpi_rst_n;
   assign usb_clock  = PLLEN ? clockd : NEGATE_CLOCK ? ~ulpi_clk : ulpi_clk;
-  // assign usb_clock  = PLLEN ? clockd : ulpi_clk;
   assign ddr_clock  = PLLEN ? clockp : 1'b0;
 
 
@@ -59,25 +57,31 @@ module ulpi_reset #(
   end
 
 
-  // PLL for the 60.0 MHz ULPI clock, to derive the 120 MHz DDR clock
-  // fixme: does not enter HIGH-SPEED mode, presumably because the start-up
-  //   sequence is wrong, due to the extra 'locked' time !?
-  // fixme: needs new start-up sequencing, and then to figure out the correct
-  //   phase-shift !?
-  gw2a_rpll #(
-      .FCLKIN("60"),
-      .CLKOUTD_SRC("CLKOUTP"),
-      .PSDA_SEL(PHASE),
-      .IDIV_SEL(3),  // div 4
-      .FBDIV_SEL(7),  // mul 8
-      .ODIV_SEL(8),  // div 8
-      .DYN_SDIV_SEL(2)  // div 2
-  ) U_RPLL0 (
-      .clockp(clockp),   // 120 MHz
-      .clockd(clockd),   // 60 MHz
-      .lock  (locked),
-      .clkin (ulpi_clk)
-  );
+  generate
+    if (PLLEN) begin : g_gowin_pll
+
+      // PLL for the 60.0 MHz ULPI clock, to derive the 120 MHz DDR clock
+      // fixme: does not enter HIGH-SPEED mode, presumably because the start-up
+      //   sequence is wrong, due to the extra 'locked' time !?
+      // fixme: needs new start-up sequencing, and then to figure out the correct
+      //   phase-shift !?
+      gw2a_rpll #(
+          .FCLKIN("60"),
+          .CLKOUTD_SRC("CLKOUTP"),
+          .PSDA_SEL(PHASE),
+          .IDIV_SEL(3),  // div 4
+          .FBDIV_SEL(7),  // mul 8
+          .ODIV_SEL(8),  // div 8
+          .DYN_SDIV_SEL(2)  // div 2
+      ) U_RPLL0 (
+          .clockp(clockp),   // 120 MHz
+          .clockd(clockd),   // 60 MHz
+          .lock  (locked),
+          .clkin (ulpi_clk)
+      );
+
+    end
+  endgenerate
 
 
 endmodule  // ulpi_reset
