@@ -39,7 +39,7 @@ fn to_state(seq: usize, lo: u8, hi: u8) -> String {
     format!("{:5}  ->  {{ {} : {} : {} }}", seq, state, xctrl, xbulk)
 }
 
-pub fn to_hexdump(bytes: &Vec<u8>) -> String {
+pub fn to_hexdump(bytes: &[u8]) -> String {
     let mut words = Vec::with_capacity(bytes.len() / 2);
     let mut odd = false;
     let mut low = bytes[0] as u16;
