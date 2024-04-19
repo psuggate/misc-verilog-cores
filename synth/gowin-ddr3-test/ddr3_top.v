@@ -1,6 +1,5 @@
 `timescale 1ns / 100ps
-module ddr3_top
- (
+module ddr3_top (
     input clk_26,
     input rst_n,   // 'S2' button for async-reset
 
@@ -26,13 +25,16 @@ module ddr3_top
     inout [1:0] ddr_dqs,
     inout [1:0] ddr_dqs_n,
     inout [15:0] ddr_dq
-  );
+);
+
+  // -- Constants -- //
+
+  // USB UART settings
+  localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
 
   //
   //  DDR3 Core Parameters
   ///
-
-  // -- Constants -- //
 
   // Settings for DLL=off mode
   parameter DDR_CL = 6;
@@ -123,8 +125,8 @@ module ddr3_top
       .ODIV_SEL(ODIV_SEL),
       .DYN_SDIV_SEL(SDIV_SEL)
   ) axis_rpll_inst (
-      .clkout(ddr_clk),  // 200 MHz
-      .clockd(clock),    // 100 MHz
+      .clkout(clk_200),  // 200 MHz
+      .clockd(cll_100),  // 100 MHz
       .lock  (locked),
       .clkin (clk_26)
   );
@@ -325,6 +327,133 @@ module ddr3_top
       .ddr_dqs_pio(ddr_dqs),
       .ddr_dqs_nio(ddr_dqs_n),
       .ddr_dq_io(ddr_dq)
+  );
+
+
+  //
+  //  Debug Telemetry & UART
+  ///
+
+  // -- Capture telemetry, so that it can be read back via UART -- //
+
+  bulk_telemetry #(
+      .ENDPOINT(ENDPOINT2),
+      .FIFO_DEPTH(1024),
+      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
+  ) U_TELEMETRY1 (
+      .clock(clock),
+      .reset(reset),
+
+      .usb_enum_i  (1'b1),
+      .high_speed_i(hs_enabled_w),
+
+      .LineState  (LineState),    // Byte 3
+      .ctl_cycle_i(ctl_cycle_w),
+      .usb_reset_i(usb_reset),
+      .usb_endpt_i(tok_endpt_w),
+
+      .usb_tuser_i(usb_tuser_w),  // Byte 2
+      .ctl_error_i(ctl_error_w),
+      .usb_state_i(usb_state_w),
+      .crc_error_i(crc_error_w),
+
+      .usb_error_i(err_code_w),  // Byte 1
+      .usb_recv_i(usb_rx_recv_w),
+      .usb_sent_i(usb_tx_done_w),
+      .hsk_sent_i(hsk_tx_done_w),
+      .tok_recv_i(tok_rx_recv_w),
+      .tok_ping_i(tok_parity_w),  // todo ...
+      .timeout_i(timeout_w),
+      .usb_sof_i(usb_sof_w),
+      .blk_state_i(blk_state_w),
+
+      .ctl_state_i(ctl_state_w),  // Byte 0
+      .phy_state_i(phy_state_w),
+
+      .start_i (tstart || 1'b1),
+      .select_i(1'b1),
+      .endpt_i (4'd2),
+      .error_o (terror),
+      .level_o (tlevel),
+
+      .m_tvalid(tvalid),  // AXI4-Stream for telemetry data
+      .m_tlast (tlast),
+      .m_tkeep (tkeep),
+      .m_tdata (tdata),
+      .m_tready(tready)
+  );
+
+
+  // -- Telemetry Read-Back Logic -- //
+
+  always @(posedge clock) begin
+    send_q <= ~send_ni & ~tcycle & ~tx_busy_w;
+
+    if (!tcycle && (send_q || uvalid && udata == "a")) begin
+      tstart <= 1'b1;
+    end else begin
+      tstart <= 1'b0;
+    end
+  end
+
+
+  // -- Convert 32b telemetry captures to ASCII hexadecimal -- //
+
+  hex_dump #(
+      .UNICODE(0),
+      .BLOCK_SRAM(1)
+  ) U_HEXDUMP1 (
+      .clock(clock),
+      .reset(reset),
+
+      .start_dump_i(tstart),
+      .is_dumping_o(tcycle),
+      .fifo_level_o(),
+
+      .s_tvalid(tvalid),
+      .s_tready(tready),
+      .s_tlast (tlast),
+      .s_tkeep (tkeep),
+      .s_tdata (tdata),
+
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tlast (xlast),
+      .m_tkeep (),
+      .m_tdata (xdata)
+  );
+
+  assign gvalid = xvalid && !tx_busy_w;
+  assign xready = gready;
+  assign glast  = xlast;
+  assign gdata  = xdata;
+
+
+  // -- Use the FTDI USB UART for dumping the telemetry (as ASCII hex) -- //
+
+  uart #(
+      .DATA_WIDTH(8)
+  ) U_UART1 (
+      .clk(clock),
+      .rst(reset),
+
+      .s_axis_tvalid(gvalid),
+      .s_axis_tready(gready),
+      .s_axis_tdata (gdata),
+
+      .m_axis_tvalid(uvalid),
+      .m_axis_tready(uready),
+      .m_axis_tdata (udata),
+
+      .rxd(uart_rx_i),
+      .txd(uart_tx_o),
+
+      .rx_busy(rx_busy_w),
+      .tx_busy(tx_busy_w),
+      .rx_overrun_error(),
+      .rx_frame_error(),
+
+      .prescale(UART_PRESCALE)
   );
 
 
