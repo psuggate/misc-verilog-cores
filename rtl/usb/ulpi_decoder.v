@@ -26,7 +26,7 @@ module ulpi_decoder (
     input m_tready,
     output m_tkeep,
     output m_tlast,
-    output [3:0] m_tuser,
+    output [3:0] m_tuser, // USB PID
     output [7:0] m_tdata
 );
 

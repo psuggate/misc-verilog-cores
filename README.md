@@ -22,7 +22,7 @@ Tasks to complete:
 
 4. PING protocol
 
-5. Needs the driver code from 'axis_usbd' merged in to this repository
+5. ~~Needs the driver code from 'axis_usbd' merged in to this repository~~
 
 6. Endpoint select signals (that are registered)
 

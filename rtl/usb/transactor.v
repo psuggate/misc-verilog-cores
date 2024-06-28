@@ -2,6 +2,10 @@
 module transactor #(
     parameter ENDPOINT1 = 1,
     parameter ENDPOINT2 = 0,  // todo: ...
+                    parameter [3:0] BULK_IN_EP1 = 1, // toods
+                    parameter [3:0] BULK_IN_EP2 = 3, // toods
+                    parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
+                    parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
     parameter PIPELINED = 0,
     parameter USE_ULPI_TX_FIFO = 0
 ) (
@@ -266,6 +270,13 @@ module transactor #(
 
   // -- DATA0/1/2/M Logic -- //
 
+/*
+  reg [7:0] parity;
+
+  wire epi1_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK && xbulk == BLK_DATI_ACK;
+  wire epo1_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK && xbulk == BLK_DATI_ACK;
+*/
+
   // todo: which is best !?
   // wire bulk_ack_w = hsk_recv_i && usb_tuser_i == {HSK_ACK, 2'b10} && xbulk == BLK_DATI_ACK;
   // wire ctrl_ack_w = hsk_recv_i && usb_tuser_i == {HSK_ACK, 2'b10} &&
@@ -274,13 +285,13 @@ module transactor #(
        (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
 
   assign parityx_w = tok_endp_i == 0 ? parity0_q :
-                     tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
-                     tok_endp_i == ENDPOINT2[3:0] ? parity2_q :
+                     tok_endp_i == BULK_IN_EP1[3:0] ? parity1_q :
+                     tok_endp_i == BULK_OUT_EP1[3:0] ? parity2_q :
                      parity0_q;
 
   always @* begin
     //
-    //  BULK endpoint #1 ('ENDPOINT1') DATA0/1 parity logic
+    //  BULK IN endpoint #1 ('BULK_EP_IN1') DATA0/1 parity logic
     ///
     set_parity1 = 1'b0;
     clr_parity1 = 1'b0;

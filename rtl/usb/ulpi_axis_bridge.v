@@ -4,15 +4,25 @@ module ulpi_axis_bridge #(
     parameter AXIS_CHOP_AND_CLEAN = 0,
 
     parameter EP1_BULK_IN  = 1,
-    parameter EP1_BULK_OUT = 1,
+    parameter EP1_BULK_OUT = 0,
     parameter EP1_CONTROL  = 0,
 
-    parameter EP2_BULK_IN  = 1,
-    parameter EP2_BULK_OUT = 0,
+    parameter EP2_BULK_IN  = 0,
+    parameter EP2_BULK_OUT = 1,
     parameter EP2_CONTROL  = 0,
+
+    parameter EP3_BULK_IN  = 1,
+    parameter EP3_BULK_OUT = 0,
+    parameter EP3_CONTROL  = 0,
+
+    parameter EP4_BULK_IN  = 0,
+    parameter EP4_BULK_OUT = 0,
+    parameter EP4_CONTROL  = 0,
 
     parameter [3:0] ENDPOINT1 = 1,  // todo: set to '0' to disable
     parameter [3:0] ENDPOINT2 = 2,  // todo: set to '0' to disable
+    parameter [3:0] ENDPOINT3 = 3,  // todo: set to '0' to disable
+    parameter [3:0] ENDPOINT4 = 4,  // todo: set to '0' to disable
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -86,9 +96,32 @@ module ulpi_axis_bridge #(
 
   localparam integer CONFIG_DESC_LEN = 9;
   localparam integer INTERFACE_DESC_LEN = 9;
-  localparam integer EP1_IN_DESC_LEN = 7;
-  localparam integer EP1_OUT_DESC_LEN = 7;
-  localparam integer EP2_IN_DESC_LEN = 7;
+
+  localparam EP1_ENABLED = EP1_BULK_IN | EP1_BULK_OUT;
+  localparam EP2_ENABLED = EP2_BULK_IN | EP2_BULK_OUT;
+  localparam EP3_ENABLED = EP3_BULK_IN | EP3_BULK_OUT;
+  localparam EP4_ENABLED = EP4_BULK_IN | EP4_BULK_OUT;
+  localparam [7:0] EP_NUM = EP1_ENABLED + EP2_ENABLED + EP1_ENABLED + EP4_ENABLED;
+
+  localparam integer EP1_IN_DESC_LEN = EP1_BULK_IN ? 7 : 0;
+  localparam integer EP1_OUT_DESC_LEN = EP1_BULK_OUT ? 7 : 0;
+  localparam integer EP2_IN_DESC_LEN = EP2_BULK_IN ? 7 : 0;
+  localparam integer EP2_OUT_DESC_LEN = EP2_BULK_OUT ? 7 : 0;
+  localparam integer EP3_IN_DESC_LEN = EP3_BULK_IN ? 7 : 0;
+  localparam integer EP3_OUT_DESC_LEN = EP3_BULK_OUT ? 7 : 0;
+  localparam integer EP4_IN_DESC_LEN = EP4_BULK_IN ? 7 : 0;
+  localparam integer EP4_OUT_DESC_LEN = EP4_BULK_OUT ? 7 : 0;
+
+  localparam integer EP1_DESC_LEN = EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN;
+  localparam integer EP1_DESC_BITS = EP1_DESC_LEN * 8;
+  localparam integer EP2_DESC_LEN = EP2_IN_DESC_LEN + EP2_OUT_DESC_LEN;
+  localparam integer EP2_DESC_BITS = EP2_DESC_LEN * 8;
+  localparam integer EP3_DESC_LEN = EP3_IN_DESC_LEN + EP3_OUT_DESC_LEN;
+  localparam integer EP3_DESC_BITS = EP3_DESC_LEN * 8;
+  localparam integer EP4_DESC_LEN = EP4_IN_DESC_LEN + EP4_OUT_DESC_LEN;
+  localparam integer EP4_DESC_BITS = EP4_DESC_LEN * 8;
+  localparam integer EP_DESC_LEN = EP1_DESC_LEN + EP2_DESC_LEN + EP3_DESC_LEN + EP4_DESC_LEN;
+  localparam integer EP_DESC_BITS = EP1_DESC_BITS + EP2_DESC_BITS + EP3_DESC_BITS + EP4_DESC_BITS;
 
   localparam [71:0] CONFIG_DESC = {
     8'h32,  // bMaxPower = 100 mA
@@ -106,11 +139,11 @@ module ulpi_axis_bridge #(
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
     8'h00,  // bInterfaceClass
-    8'h03,  // bNumEndpoints = 2
+    EP_NUM, // bNumEndpoints = 2
     8'h00,  // bAlternateSetting
     8'h00,  // bInterfaceNumber = 0
     8'h04,  // bDescriptorType = Interface Descriptor
-    8'h09  // bLength = 9
+    8'h09   // bLength = 9
   };
 
   localparam [55:0] EP1_IN_DESC = {
@@ -132,18 +165,137 @@ module ulpi_axis_bridge #(
   };
 
   localparam [55:0] EP2_IN_DESC = {
-    8'h00,  // bInterval
-    16'h0200,  // wMaxPacketSize = 512 bytes
-    8'h02,  // bmAttributes = Bulk
-    8'h82,  // bEndpointAddress = IN2
-    8'h05,  // bDescriptorType = Endpoint Descriptor
-    8'h07  // bLength = 7
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h82,    // bEndpointAddress = IN2
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
   };
 
-  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP1_IN_DESC_LEN + EP1_OUT_DESC_LEN + EP2_IN_DESC_LEN;
+  localparam [55:0] EP2_OUT_DESC = {
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h02,    // bEndpointAddress = OUT2
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
+  };
+
+  localparam [55:0] EP3_IN_DESC = {
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h83,    // bEndpointAddress = IN3
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
+  };
+
+  localparam [55:0] EP3_OUT_DESC = {
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h03,    // bEndpointAddress = OUT3
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
+  };
+
+  localparam [55:0] EP4_IN_DESC = {
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h84,    // bEndpointAddress = IN4
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
+  };
+
+  localparam [55:0] EP4_OUT_DESC = {
+    8'h00,    // bInterval
+    16'h0200, // wMaxPacketSize = 512 bytes
+    8'h02,    // bmAttributes = Bulk
+    8'h04,    // bEndpointAddress = OUT4
+    8'h05,    // bDescriptorType = Endpoint Descriptor
+    8'h07     // bLength = 7
+  };
+
+  localparam integer EP1_UPPER = EP1_BULK_IN ? 56 : 0;
+  localparam integer EP2_UPPER = EP2_BULK_IN ? 56 : 0;
+  localparam integer EP3_UPPER = EP3_BULK_IN ? 56 : 0;
+  localparam integer EP4_UPPER = EP4_BULK_IN ? 56 : 0;
+
+  function [EP1_DESC_BITS-1:0] ep1_desc;
+    begin
+      if (EP1_BULK_IN) begin
+        ep1_desc[55:0] = EP1_IN_DESC[55:0];
+      end else begin
+      end
+      if (EP1_BULK_OUT) begin
+        ep1_desc[EP1_UPPER+55:EP1_UPPER] = EP1_OUT_DESC[55:0];
+      end
+    end
+  endfunction
+
+  function [EP2_DESC_BITS-1:0] ep2_desc;
+    begin
+      if (EP2_BULK_IN) begin
+        ep2_desc[55:0] = EP2_IN_DESC[55:0];
+      end else begin
+      end
+      if (EP2_BULK_OUT) begin
+        ep2_desc[EP2_UPPER+55:EP2_UPPER] = EP2_OUT_DESC[55:0];
+      end
+    end
+  endfunction
+
+  function [EP3_DESC_BITS-1:0] ep3_desc;
+    begin
+      if (EP3_BULK_IN) begin
+        ep3_desc[55:0] = EP3_IN_DESC[55:0];
+      end else begin
+      end
+      if (EP3_BULK_OUT) begin
+        ep3_desc[EP3_UPPER+55:EP3_UPPER] = EP3_OUT_DESC[55:0];
+      end
+    end
+  endfunction
+
+  function [EP4_DESC_BITS-1:0] ep4_desc;
+    begin
+      if (EP4_BULK_IN) begin
+        ep4_desc[55:0] = EP4_IN_DESC[55:0];
+      end else begin
+      end
+      if (EP4_BULK_OUT) begin
+        ep4_desc[EP4_UPPER+55:EP4_UPPER] = EP4_OUT_DESC[55:0];
+      end
+    end
+  endfunction
+
+  localparam integer EP2_START = EP1_DESC_BITS;
+  localparam integer EP3_START = EP2_START + EP2_DESC_BITS;
+  localparam integer EP4_START = EP3_START + EP3_DESC_BITS;
+
+  function [EP_DESC_BITS-1:0] ep_descriptors;
+    begin
+      if (EP1_DESC_BITS != 0) begin
+        ep_descriptors[EP1_DESC_BITS-1:0] = ep1_desc();
+      end
+      if (EP2_DESC_BITS != 0) begin
+        ep_descriptors[EP2_START+EP2_DESC_BITS-1:EP2_START] = ep2_desc();
+      end
+      if (EP3_DESC_BITS != 0) begin
+        ep_descriptors[EP3_START+EP3_DESC_BITS-1:EP3_START] = ep3_desc();
+      end
+      if (EP4_DESC_BITS != 0) begin
+        ep_descriptors[EP4_START+EP4_DESC_BITS-1:EP4_START] = ep4_desc();
+      end
+    end
+  endfunction
+
+  localparam integer CONF_DESC_SIZE = CONFIG_DESC_LEN + INTERFACE_DESC_LEN + EP_DESC_LEN;
   localparam integer CONF_DESC_BITS = CONF_DESC_SIZE * 8;
   localparam integer CSB = CONF_DESC_BITS - 1;
-  localparam CONF_DESC_VALS = {EP2_IN_DESC, EP1_OUT_DESC, EP1_IN_DESC, INTERFACE_DESC, CONFIG_DESC};
+  localparam CONF_DESC_VALS = {ep_descriptors(), INTERFACE_DESC, CONFIG_DESC};
 
 
   // -- Global Signals and Assignments -- //
@@ -362,11 +514,6 @@ module ulpi_axis_bridge #(
       .ulpi_dir (iob_dir_w),
       .ulpi_nxt (iob_nxt_w),
       .ulpi_data(iob_dat_w),
-      /*
-      .ulpi_dir (ulpi_dir_i),
-      .ulpi_nxt (ulpi_nxt_i),
-      .ulpi_data(ulpi_data_iw),
-*/
 
       .crc_error_o(crc_err_o),
       .crc_valid_o(crc_vld_o),

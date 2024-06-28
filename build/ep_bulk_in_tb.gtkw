@@ -1,0 +1,69 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Jun 28 07:33:57 2024
+[*]
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/ep_bulk_in_tb.vcd"
+[dumpfile_mtime] "Fri Jun 28 07:33:04 2024"
+[dumpfile_size] 4792
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/ep_bulk_in_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-15.495940 120000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ep_bulk_in_tb.
+[sst_width] 233
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+ep_bulk_in_tb.clock
+ep_bulk_in_tb.reset
+@800200
+-Control
+@28
+ep_bulk_in_tb.set_conf_q
+ep_bulk_in_tb.clr_conf_q
+ep_bulk_in_tb.selected_q
+ep_bulk_in_tb.ack_recv_q
+ep_bulk_in_tb.err_recv_q
+@1000200
+-Control
+@800200
+-From Source
+@28
+ep_bulk_in_tb.svalid
+ep_bulk_in_tb.sready
+ep_bulk_in_tb.skeep
+ep_bulk_in_tb.slast
+@22
+ep_bulk_in_tb.sdata[7:0]
+@1000200
+-From Source
+@800200
+-To Decoder
+@28
+ep_bulk_in_tb.mvalid
+ep_bulk_in_tb.mready
+ep_bulk_in_tb.mkeep
+ep_bulk_in_tb.mlast
+@22
+ep_bulk_in_tb.muser[3:0]
+ep_bulk_in_tb.mdata[7:0]
+@1000200
+-To Decoder
+@800200
+-EP IN
+@820
+[color] 7
+ep_bulk_in_tb.EP_IN0.dbg_state[39:0]
+[color] 2
+ep_bulk_in_tb.EP_IN0.dbg_pid[47:0]
+@28
+ep_bulk_in_tb.EP_IN0.tvalid_w
+ep_bulk_in_tb.EP_IN0.tready_w
+ep_bulk_in_tb.EP_IN0.tkeep_w
+ep_bulk_in_tb.EP_IN0.tlast_w
+@1000200
+-EP IN
+[pattern_trace] 1
+[pattern_trace] 0
