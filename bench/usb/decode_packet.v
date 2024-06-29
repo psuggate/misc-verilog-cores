@@ -37,7 +37,7 @@ module decode_packet (
     output [1:0] hsk_type_o  // 00 - ACK, 10 - NAK, 11 - STALL, 01 - NYET
 );
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
   localparam [1:0] TOK_OUT = 2'b00;
   localparam [1:0] TOK_SOF = 2'b01;

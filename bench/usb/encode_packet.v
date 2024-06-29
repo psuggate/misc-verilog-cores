@@ -37,7 +37,7 @@ module encode_packet #(
 
   // -- Module-Wide Definitions -- //
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
   function src_ready(input svalid, input tvalid, input dvalid, input dready);
     src_ready = dready || !(tvalid || (dvalid && svalid));

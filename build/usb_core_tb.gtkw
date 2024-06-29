@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Feb  5 23:37:01 2024
+[*] Sat Jun 29 06:33:14 2024
 [*]
-[dumpfile] "./usb_core_tb.vcd"
-[dumpfile_mtime] "Mon Feb  5 23:30:49 2024"
-[dumpfile_size] 744007
-[savefile] "./usb_core_tb.gtkw"
-[timestart] 0
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
+[dumpfile_mtime] "Sat Jun 29 06:31:34 2024"
+[dumpfile_size] 745757
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
+[timestart] 1472200
 [size] 2560 1376
 [pos] -1 -1
-*-20.457176 1920000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.457176 2100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
@@ -215,10 +215,9 @@ usb_core_tb.ulpi_data[7:0]
 @800200
 -Device
 -Transact
-@29
+@28
 [color] 3
 U_USB_BRIDGE1.eop_rx_recv_w
-@28
 [color] 3
 U_USB_BRIDGE1.U_TRANSACT1.eop_tx_q
 [color] 2
@@ -235,6 +234,9 @@ U_USB_BRIDGE1.usb_rx_recv_w
 U_USB_BRIDGE1.usb_tx_done_w
 @22
 U_USB_BRIDGE1.U_TRANSACT1.usb_tuser_i[3:0]
+@821
+[color] 5
+U_USB_BRIDGE1.U_TRANSACT1.dbg_pid[47:0]
 @820
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_state[39:0]

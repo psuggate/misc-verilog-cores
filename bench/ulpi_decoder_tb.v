@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 module ulpi_decoder_tb;
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
   localparam integer USE_IOB_REGS = 1;
 

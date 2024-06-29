@@ -41,7 +41,7 @@ module fake_usb_host_ulpi (
 
   // -- Constants & Settings -- //
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
   localparam HIGH_SPEED = 1;
   localparam TOKEN = 1;

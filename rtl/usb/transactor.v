@@ -1,11 +1,19 @@
 `timescale 1ns / 100ps
+/**
+ * Coordinates USB transactions across all endpoints.
+ * Responsible for:
+ *  - selecting relevant endpoints;
+ *  - controlling the MUX that feeds the packet-encoder;
+ *  - generating the timeouts, as required by the USB 2.0 spec;
+ *  - halting/stalling endpoints, when necessary;
+ */
 module transactor #(
     parameter ENDPOINT1 = 1,
     parameter ENDPOINT2 = 0,  // todo: ...
-                    parameter [3:0] BULK_IN_EP1 = 1, // toods
-                    parameter [3:0] BULK_IN_EP2 = 3, // toods
-                    parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
-                    parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
+                    // parameter [3:0] BULK_IN_EP1 = 1, // toods
+                    // parameter [3:0] BULK_IN_EP2 = 3, // toods
+                    // parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
+                    // parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
     parameter PIPELINED = 0,
     parameter USE_ULPI_TX_FIFO = 0
 ) (
@@ -285,8 +293,10 @@ module transactor #(
        (xctrl == CTL_DATI_ACK || xctrl == CTL_STATUS_ACK);
 
   assign parityx_w = tok_endp_i == 0 ? parity0_q :
-                     tok_endp_i == BULK_IN_EP1[3:0] ? parity1_q :
-                     tok_endp_i == BULK_OUT_EP1[3:0] ? parity2_q :
+                     tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
+                     tok_endp_i == ENDPOINT2[3:0] ? parity2_q :
+                     // tok_endp_i == BULK_IN_EP1[3:0] ? parity1_q :
+                     // tok_endp_i == BULK_OUT_EP1[3:0] ? parity2_q :
                      parity0_q;
 
   always @* begin
@@ -962,6 +972,7 @@ module transactor #(
 
   reg [39:0] dbg_state;
   reg [119:0] dbg_xctrl, dbg_xbulk;
+  reg [47:0] dbg_pid;
 
   always @* begin
     case (state)
@@ -1012,7 +1023,29 @@ module transactor #(
     endcase
   end
 
-`endif
+  always @* begin
+    case (usb_tuser_i)
+      `USBPID_OUT:   dbg_pid = "OUT";
+      `USBPID_IN:    dbg_pid = "IN";
+      `USBPID_SOF:   dbg_pid = "SOF";
+      `USBPID_SETUP: dbg_pid = "SETUP";
+      `USBPID_DATA0: dbg_pid = "DATA0"; 
+      `USBPID_DATA1: dbg_pid = "DATA1"; 
+      `USBPID_DATA2: dbg_pid = "DATA2"; 
+      `USBPID_MDATA: dbg_pid = "MDATA"; 
+      `USBPID_ACK:   dbg_pid = "ACK";
+      `USBPID_NAK:   dbg_pid = "NAK";
+      `USBPID_STALL: dbg_pid = "STALL";
+      `USBPID_NYET:  dbg_pid = "NYET";
+      `USBPID_PRE:   dbg_pid = "PRE";
+      `USBPID_ERR:   dbg_pid = "ERR";
+      `USBPID_SPLIT: dbg_pid = "SPLIT";
+      `USBPID_PING:  dbg_pid = "PING";
+      default:       dbg_pid = " ??? ";
+    endcase
+  end
+
+`endif /* __icarus */
 
 
 endmodule  // transactor

@@ -30,7 +30,7 @@ module ulpi_decoder (
     output [7:0] m_tdata
 );
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
   // -- Constants -- //
 

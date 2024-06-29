@@ -41,7 +41,7 @@ module ulpi_encoder #(
 
   // -- Definitions -- //
 
-  `include "usb_crc.vh"
+  `include "usb_defs.vh"
 
 
   // -- Constants -- //
