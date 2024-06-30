@@ -4,6 +4,7 @@ module packet_fifo_tb;
   localparam integer OUTREG = 0; // Xilinx distributed (LUT) SRAMs
   localparam integer WIDTH  = 8; // byte-width data
   localparam integer ABITS  = 6; // 64 entries
+  localparam integer DEPTH  = 1 << ABITS;
 
   localparam integer MSB = WIDTH - 1;
   localparam integer ASB = ABITS - 1;
@@ -120,19 +121,24 @@ module packet_fifo_tb;
 
 packet_fifo
  #(
+   .USE_LENGTH(1),
+   .MAX_LENGTH(4),
    .OUTREG(OUTREG),
    .WIDTH(WIDTH),
-   .ABITS(ABITS)
+   .DEPTH(DEPTH)
  ) U_PFIFO1 (
     .clock(clock),
     .reset(reset),
 
     .level_o(level_w),
+    .drop_i(1'b0),
+    .save_i(1'b0),
+    .redo_i(1'b0),
+    .next_i(1'b0),
 
     .valid_i(w_vld),
     .ready_o(w_rdy),
     .last_i(w_lst),
-    .drop_i(1'b0),
     .data_i(w_dat),
 
     .valid_o(r_vld),

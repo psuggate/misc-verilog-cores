@@ -19,4 +19,12 @@ Fixes:
 
 Features:
 
++ PING
 + serial command protocol
+
+## Core Start-Up
+
+Power-on and resets are handled by the '`ulpi_reset`' module, and with a manual reset button ('`S1`', on the Sipeed Tang Primer 20k). The '`line_state`' module handles the High-Speed negotiation. The IOB outputs (which are registered) are fed to the '`ulpi_decoder`'.
+
+## Protocol Layer
+

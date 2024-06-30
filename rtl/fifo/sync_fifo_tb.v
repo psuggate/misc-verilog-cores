@@ -4,6 +4,7 @@ module sync_fifo_tb;
   localparam WIDTH = 2;
   localparam MSB = WIDTH - 1;
   localparam ABITS = 4;
+  localparam DEPTH = 1 << ABITS;
   localparam ASB = ABITS - 1;
   localparam LIMIT = 10;
 
@@ -146,16 +147,20 @@ module sync_fifo_tb;
 
   packet_fifo #(
       .WIDTH (WIDTH),
-      .ABITS (ABITS),
+      .DEPTH (DEPTH),
       .OUTREG(OUTREG)
   ) packet_fifo_inst (
       .clock(clock),
       .reset(reset),
 
+      .drop_i (pw_drop),
+      .save_i (1'b0),
+      .redo_i (1'b0),
+      .next_i (1'b0),
+
       .valid_i(pw_valid),
       .ready_o(pw_ready),
       .last_i (pw_last),
-      .drop_i (pw_drop),
       .data_i (wr_data),
 
       .valid_o(pr_valid),

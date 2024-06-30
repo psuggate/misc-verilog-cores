@@ -279,6 +279,46 @@ module transactor #(
   // -- DATA0/1/2/M Logic -- //
 
 /*
+  localparam [1:0] PID_TOK = 2'b00;
+  localparam [1:0] PID_DAT = 2'b01;
+  localparam [1:0] PID_HSK = 2'b10;
+
+  reg [1:0] next_pid;
+
+  always @* begin
+    case (usb_tuser_i)
+      `USB_PID_SOF:   next_pid = PID_TOK;
+      `USB_PID_SETUP,
+      `USB_PID_OUT:   next_pid = PID_DAT;
+      `USB_PID_IN:    next_pid = PID_HSK;
+      `USB_PID_ACK,
+        `USB_PID_NAK,
+        `USB_PID_ERR: next_pid = PID_TOK;
+    endcase
+  end
+
+  reg [15:0] ep_parity;
+  wire par_x = ep_parity[tok_endp_i];
+
+  reg set_par_x, clr_par_x;
+
+  always @* begin
+    set_par_x = 1'b0;
+    clr_par_x = 1'b0;
+
+    //
+    //  Cases:
+    //   - OUT   -> DATAx <- ACK :  par_x <= ~par_x
+    //   - IN    <- DATAx -> ACK :  par_x <= ~par_x
+    //   - SETUP                 :  par_x <= 0
+    //   - Status                :  par_x <= 1
+    //   - conf. event           :  par_x <= 0
+    //
+
+    if (usb_recv_i && xbulk == BLK_DATO_RX) begin
+    end
+  end
+
   reg [7:0] parity;
 
   wire epi1_ack_w = hsk_recv_i && usb_tuser_i[3:2] == HSK_ACK && xbulk == BLK_DATI_ACK;

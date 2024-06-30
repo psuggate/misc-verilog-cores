@@ -1,54 +1,49 @@
 `timescale 1ns / 100ps
-module packet_fifo (
-    clock,
-    reset,
+module packet_fifo
+  #( parameter WIDTH = 8,
+     localparam MSB = WIDTH - 1,
 
-    level_o,
+     parameter DEPTH = 16,
+     localparam ABITS = $clog2(DEPTH),
+     localparam ASB = ABITS - 1,
+     localparam ADDRS = ABITS + 1,
+     localparam AZERO = {ABITS{1'b0}},
 
-    valid_i,
-    ready_o,
-    last_i,
-    drop_i,
-    data_i,
+     // Generate save/next signals using 'tlast's?
+     parameter USE_LASTS = 1,
 
-    valid_o,
-    ready_i,
-    last_o,
-    data_o
+     // Break up large packets into chunks of up to this length? If we reach the
+     // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
+     parameter USE_LENGTH = 0,  // Todo
+     parameter MAX_LENGTH = 512,
+
+     // Skid-buffer for the output data, so that registered-output SRAM's can be
+     // used, e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
+     parameter OUTREG = 1  // 0, 1, or 2
+     )
+ (
+  input clock,
+  input reset,
+
+  output [ASB:0] level_o,
+
+  input drop_i,
+  input save_i,
+  input redo_i,
+  input next_i,
+
+  input valid_i,
+  output ready_o,
+  input last_i,
+  input [MSB:0] data_i,
+
+  output valid_o,
+  input ready_i,
+  output last_o,
+  output [MSB:0] data_o
 );
 
-  // Skid-buffer for the output data, so that registered-output SRAM's can be
-  // used; e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
-  parameter OUTREG = 1;  // 0, 1, or 2
-
-  parameter WIDTH = 8;
-  localparam MSB = WIDTH - 1;
-
-  parameter ABITS = 4;
-  localparam DEPTH = 1 << ABITS;
-  localparam ASB = ABITS - 1;
-  localparam ADDRS = ABITS + 1;
-  localparam AZERO = {ABITS{1'b0}};
-
-
-  input clock;
-  input reset;
-
-  output [ASB:0] level_o;
-
-  input valid_i;
-  output ready_o;
-  input last_i;
-  input drop_i;
-  input [MSB:0] data_i;
-
-  output valid_o;
-  input ready_i;
-  output last_o;
-  output [MSB:0] data_o;
-
-
-  reg [WIDTH:0] sram[0:DEPTH-1];
+  reg [WIDTH:0] sram [0:DEPTH-1];
 
   // Write-port signals
   reg wready;
@@ -57,7 +52,7 @@ module packet_fifo (
 
   // Read-port signals
   reg rvalid;
-  reg [ABITS:0] raddr;
+  reg [ABITS:0] raddr, rplay;
   wire [ABITS:0] raddr_next;
 
   // Packet address signals
@@ -65,7 +60,8 @@ module packet_fifo (
 
   // Transition signals
   reg [ASB:0] level_q;
-  wire fetch_w, store_w, match_w, wfull_w, empty_w, reject_a, accept_a;
+  wire fetch_w, store_w, match_w, chunk_w, frame_w, wfull_w, empty_w;
+  wire reject_a, accept_a, finish_a, replay_a;
   wire [ABITS:0] level_w, waddr_w, raddr_w;
 
   // Optional extra stage of registers, so that block SRAMs can be used.
@@ -86,9 +82,16 @@ module packet_fifo (
   wire rempty_next = raddr_next[ASB:0] == paddr[ASB:0] && fetch_w && !accept_a;
   wire rempty_curr = paddr == raddr && fetch_w == accept_a;
 
-  assign accept_a = valid_i && wready && last_i && !drop_i;
+
+  // Accept/reject a packet-store
+  assign accept_a = ((USE_LASTS && valid_i && wready && last_i) || save_i) && !drop_i;
   assign reject_a = drop_i;  // ??
 
+  // Advance/replace a packet-fetch
+  assign finish_a = ((USE_LASTS && valid_o && ready_i && last_o) || next_i) && !redo_i;
+  assign replay_a = redo_i;
+
+  // SRAM control & status signals
   assign store_w = valid_i && wready;
   assign match_w = waddr[ASB:0] == raddr[ASB:0];
   assign wfull_w = wrfull_curr || wrfull_next;
@@ -101,48 +104,71 @@ module packet_fifo (
 
   // -- Write Port -- //
 
-  assign waddr_next = waddr + 1;
+  assign waddr_next = store_w ? waddr + 1 : waddr;
 
   always @(posedge clock) begin
     if (reset) begin
       waddr  <= AZERO;
       wready <= 1'b0;
     end else begin
-      wready <= ~wfull_w;
+      wready <= ~wfull_w && ~chunk_w;
 
       if (reject_a) begin
         waddr <= paddr;
-      end else if (store_w) begin
-        sram[waddr[ASB:0]] <= {last_i, data_i};
+      end else begin
+        if (store_w) begin
+          sram[waddr[ASB:0]] <= {last_i, data_i};
+        end
         waddr <= waddr_next;
       end
     end
   end
 
 
-  // -- Frame Pointer -- //
+  // -- Frame Pointers -- //
+
+  wire [ABITS:0] wdiff, rdiff;
+  wire [ASB:0] wsize, rsize;
+
+  assign wdiff = waddr_next - paddr;
+  assign wsize = wdiff[ASB:0];
+
+  assign rdiff = raddr_next - rplay;
+  assign rsize = rdiff[ASB:0];
+
+  assign chunk_w = USE_LENGTH && wsize == MAX_LENGTH;
+  assign frame_w = USE_LENGTH && rsize == MAX_LENGTH;
 
   always @(posedge clock) begin
     if (reset) begin
       paddr <= AZERO;
-    end else if (accept_a) begin
-      paddr <= waddr_next;
+      rplay <= AZERO;
+    end else begin
+      if (accept_a) begin
+        paddr <= waddr_next;
+      end
+
+      if (finish_a) begin
+        rplay <= raddr_next;
+      end
     end
   end
 
 
   // -- Read Port -- //
 
-  assign raddr_next = raddr + 1;
+  assign raddr_next = fetch_w ? raddr + 1 : raddr;
 
   always @(posedge clock) begin
     if (reset) begin
       raddr  <= AZERO;
       rvalid <= 1'b0;
     end else begin
-      rvalid <= ~empty_w;
+      rvalid <= ~empty_w && ~frame_w;
 
-      if (fetch_w) begin
+      if (replay_a) begin
+        raddr <= rplay;
+      end else begin
         raddr <= raddr_next;
       end
     end

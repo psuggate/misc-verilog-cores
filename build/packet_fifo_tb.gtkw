@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Feb 18 01:47:07 2024
+[*] Sun Jun 30 04:56:06 2024
 [*]
-[dumpfile] "./packet_fifo_tb.vcd"
-[dumpfile_mtime] "Sun Feb 18 01:46:50 2024"
-[dumpfile_size] 18447
-[savefile] "./packet_fifo_tb.gtkw"
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/packet_fifo_tb.vcd"
+[dumpfile_mtime] "Sun Jun 30 04:55:21 2024"
+[dumpfile_size] 19186
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/packet_fifo_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-15.506647 170000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.506647 64400 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] packet_fifo_tb.
 [sst_width] 233
 [signals_width] 126
@@ -41,5 +41,12 @@ packet_fifo_tb.r_lst
 packet_fifo_tb.r_dat[7:0]
 @1000200
 -Fetch
+@22
+packet_fifo_tb.U_PFIFO1.rsize[5:0]
+packet_fifo_tb.U_PFIFO1.wsize[5:0]
+@28
+packet_fifo_tb.U_PFIFO1.chunk_w
+@29
+packet_fifo_tb.U_PFIFO1.frame_w
 [pattern_trace] 1
 [pattern_trace] 0

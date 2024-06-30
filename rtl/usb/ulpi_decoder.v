@@ -1,5 +1,19 @@
 `timescale 1ns / 100ps
-module ulpi_decoder (
+/**
+ * Decode USB packets from the ULPI input signals.
+ * 
+ * Todo:
+ *  - only assert 'tlast' when packet-length is not the maximum, so that packets
+ *    can be combined into larger transfers -- and ZDP's are required to mark
+ *    the end of a transfer when the total-length is a multiple of the maximum
+ *    packet length !?
+ */
+module ulpi_decoder
+ #(
+   parameter USE_LENGTH = 1,  // Todo
+   parameter MAX_LENGTH = 512
+   )                   
+ (
     input clock,
     input reset,
 
@@ -297,6 +311,28 @@ module ulpi_decoder (
       end else begin
         tkeep <= 1'b0;
         tdata <= 'bx;
+      end
+    end
+  end
+
+
+  //
+  // If supporting multipe-packet single-transfers.
+  // Todo ...
+  localparam CBITS = $clog2(MAX_LENGTH);
+  localparam CSB = CBITS - 1;
+
+  reg [CSB:0] len_q;
+  wire [CBITS:0] len_w;
+
+  assign len_w = len_q + 1;
+
+  always @(posedge clock) begin
+    if (reset || rx_end_w) begin
+      len_q <= 0;
+    end else begin
+      if (tvalid && tkeep) begin
+        len_q <= len_w[CSB:0];
       end
     end
   end

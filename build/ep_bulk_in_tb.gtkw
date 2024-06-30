@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Jun 28 07:33:57 2024
+[*] Sat Jun 29 09:24:26 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Fri Jun 28 07:33:04 2024"
-[dumpfile_size] 4792
+[dumpfile_mtime] "Sat Jun 29 06:30:56 2024"
+[dumpfile_size] 5553
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/ep_bulk_in_tb.gtkw"
 [timestart] 0
 [size] 2560 1376

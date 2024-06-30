@@ -1,4 +1,14 @@
 `timescale 1ns / 100ps
+/**
+ * Assembles USB packets in the format required by the ULPI PHY.
+ * Note(s):
+ *  - the 's_tuser' signal contains the USB PID, and is sampled when 's_tvalid'
+ *    asserts;
+ *  - handshakes are sent using 'hsk_send_i' and 's_tuser' for the PID, and hold
+ *    'hsk_send_i' high at least until 'usb_busy_o' asserts, but must be de-
+ *    asserted before the end of 'usb_done_o';
+ *  - a ZDP is sent using 's_tvalid = s_tlast = 1, s_tkeep = 0';
+ */
 module ulpi_encoder #(
     parameter OUTREG = 3
 ) (
@@ -30,7 +40,7 @@ module ulpi_encoder #(
     output s_tready,
     input s_tkeep,
     input s_tlast,
-    input [3:0] s_tuser,
+    input [3:0] s_tuser, // USB PID
     input [7:0] s_tdata,
 
     input ulpi_dir,
