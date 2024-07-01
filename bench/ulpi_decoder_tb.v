@@ -207,6 +207,24 @@ module ulpi_decoder_tb;
     end
   endtask  // handshake
 
+  // Send a USB packet with an invalid PID
+  // Todo:
+  //  - need to be able to test whether the decoder (incorrectly) responds to
+  //    invalid USB packets and/or "babble" (e.g., over-long packets);
+  //  - FSM below needs more states ??
+  task badshake;
+    input [7:0] typ;
+    begin
+      {hsend_q, ttype_q} <= {1'b1, typ};
+      @(posedge clock);
+
+      while (hsend_q || !hsk_recv_w) begin
+        @(posedge clock);
+        if (hsk_recv_w) hsend_q <= 1'b0;
+      end
+    end
+  endtask  // handshake
+
 
   // -- FSM -- //
 

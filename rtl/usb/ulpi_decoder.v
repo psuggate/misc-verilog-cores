@@ -2,7 +2,24 @@
 /**
  * Decode USB packets from the ULPI input signals.
  * 
+ * Control signals:
+ *  + crc_valid_o --  strobes HI after a successful CRC;
+ *  + crc_error_o --  asserts HI after a CRC failure, and deasserts when another
+ *                    packet is received;
+ *  + tok_recv_o  --  strobes HI after a token has been received, and CRC pass;
+ *  + tok_addr_o  --  address value of a successfully-decoded token packet;
+ *  + tok_endp_o  --  end-point number of a successfully-decoded token packet;
+ *  + tok_ping_o  --  indicates an end-point is being pinged, for space to store
+ *                    an OUT packet;
+ *  + usb_recv_o  --  strobes HI after successfully receiving an entire DATAx
+ *                    packet;
+ *  + hsk_recv_o  --  strobes HI after a handshake packet has been received;
+ *  + sof_recv_o  --  strobes HI after decoding a Start-Of-Frame packet;
+ *  + dec_idle_o  --  asserts HI when not processing a USB packet;
+ *  + eop_recv_o  --  strobes HI when USB line-state indicates End-Of-Packet;
+ *
  * Todo:
+ *  - on PID-error, need to drop all bytes until line-state returns to idle !?
  *  - only assert 'tlast' when packet-length is not the maximum, so that packets
  *    can be combined into larger transfers -- and ZDP's are required to mark
  *    the end of a transfer when the total-length is a multiple of the maximum
@@ -10,8 +27,9 @@
  */
 module ulpi_decoder
  #(
-   parameter USE_LENGTH = 1,  // Todo
-   parameter MAX_LENGTH = 512
+   parameter USE_MAX_LENGTHS = 1,  // Todo
+   parameter MAX_BULK_LENGTH = 512,
+   parameter MAX_CTRL_LENGTH = 64
    )                   
  (
     input clock,
@@ -106,11 +124,14 @@ module ulpi_decoder
   // -- Pipeline Control -- //
 
   reg dir_q, cyc_q, tok_q, hsk_q;
-  wire rx_end_w, pid_vld_w, istoken_w;
+  wire rx_end_w, pid_err_w, pid_vld_w, istoken_w;
   wire [3:0] rx_pid_w;
 
   assign rx_end_w  = !ulpi_dir || ulpi_dir && !ulpi_nxt && ulpi_data[5:4] != RxActive;
   assign rx_pid_w  = ulpi_data[3:0];
+
+  // Todo:
+  assign pid_err_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_w != ~ulpi_data[7:4];
 
   assign pid_vld_w = ulpi_dir && ulpi_nxt && dir_q && rx_pid_w == ~ulpi_data[7:4];
   assign istoken_w = rx_pid_w[1:0] == PID_TOKEN || rx_pid_w == {SPC_PING, PID_SPECIAL};
@@ -123,23 +144,26 @@ module ulpi_decoder
       cyc_q <= 1'b0;
       tok_q <= 1'b0;
       hsk_q <= 1'b0;
-    end else if (ulpi_dir && ulpi_nxt && dir_q && pid_vld_w) begin
+    end else if (pid_vld_w) begin
       cyc_q <= 1'b1;
+
       if (rx_pid_w[1:0] == PID_HANDSHAKE) begin
         hsk_q <= 1'b1;
       end
+
       if (istoken_w && !cyc_q) begin
         tok_q <= 1'b1;
       end
     end
+
   end
 
   // USB PID is output as a 4-bit AXI4-Stream 'tuser' value //
   // Note: only updates whenever a new USB packet is received.
   always @(posedge clock) begin
     if (reset) begin
-      tuser <= 4'ha;
-    end else if (!cyc_q && ulpi_dir && ulpi_nxt && dir_q && pid_vld_w) begin
+      tuser <= `USBPID_NAK;
+    end else if (!cyc_q && pid_vld_w) begin
       tuser <= rx_pid_w;
     end
   end
@@ -147,7 +171,8 @@ module ulpi_decoder
 
   // -- End-of-Packet -- //
 
-  wire eop_w = (cyc_q || dir_q && ulpi_dir) && !ulpi_nxt && (ulpi_data[5:4] != RxActive || ulpi_data[3:2] == 2'b00);
+  wire eop_w = (cyc_q || dir_q && ulpi_dir) && !ulpi_nxt &&
+       (ulpi_data[5:4] != RxActive || ulpi_data[3:2] == 2'b00);
 
   always @(posedge clock) begin
     if (reset) begin
@@ -318,8 +343,12 @@ module ulpi_decoder
 
   //
   // If supporting multipe-packet single-transfers.
-  // Todo ...
-  localparam CBITS = $clog2(MAX_LENGTH);
+  // Todo:
+  //  - if USB packet-length > MAX_LENGTH, then issue a 'stp' ?!
+  //  - flag for "max_length_packet" !?
+  //  - but then would need to handle control-pipe lengths, of 64 bytes ??
+  //
+  localparam CBITS = $clog2(MAX_BULK_LENGTH);
   localparam CSB = CBITS - 1;
 
   reg [CSB:0] len_q;
@@ -331,11 +360,44 @@ module ulpi_decoder
     if (reset || rx_end_w) begin
       len_q <= 0;
     end else begin
+
       if (tvalid && tkeep) begin
         len_q <= len_w[CSB:0];
       end
+
     end
   end
 
 
-endmodule  // ulpi_decoder
+  // -- Simulation Only -- //
+
+`ifdef __icarus
+
+  reg [47:0] dbg_pid;
+
+  always @* begin
+    case (tuser)
+      `USBPID_OUT:   dbg_pid = "OUT";
+      `USBPID_IN:    dbg_pid = "IN";
+      `USBPID_SOF:   dbg_pid = "SOF";
+      `USBPID_SETUP: dbg_pid = "SETUP";
+      `USBPID_DATA0: dbg_pid = "DATA0"; 
+      `USBPID_DATA1: dbg_pid = "DATA1"; 
+      `USBPID_DATA2: dbg_pid = "DATA2"; 
+      `USBPID_MDATA: dbg_pid = "MDATA"; 
+      `USBPID_ACK:   dbg_pid = "ACK";
+      `USBPID_NAK:   dbg_pid = "NAK";
+      `USBPID_STALL: dbg_pid = "STALL";
+      `USBPID_NYET:  dbg_pid = "NYET";
+      `USBPID_PRE:   dbg_pid = "PRE";
+      `USBPID_ERR:   dbg_pid = "ERR";
+      `USBPID_SPLIT: dbg_pid = "SPLIT";
+      `USBPID_PING:  dbg_pid = "PING";
+      default:       dbg_pid = " ??? ";
+    endcase
+  end
+
+`endif /* __icarus */
+
+
+endmodule  /* ulpi_decoder */

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jun 29 06:33:14 2024
+[*] Mon Jul  1 08:43:02 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
-[dumpfile_mtime] "Sat Jun 29 06:31:34 2024"
-[dumpfile_size] 745757
+[dumpfile_mtime] "Mon Jul  1 08:38:44 2024"
+[dumpfile_size] 748777
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
-[timestart] 1472200
+[timestart] 1630300
 [size] 2560 1376
 [pos] -1 -1
-*-17.457176 2100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.457176 2100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
@@ -214,6 +214,7 @@ usb_core_tb.ulpi_data[7:0]
 -ULPI
 @800200
 -Device
+@c00200
 -Transact
 @28
 [color] 3
@@ -234,10 +235,9 @@ U_USB_BRIDGE1.usb_rx_recv_w
 U_USB_BRIDGE1.usb_tx_done_w
 @22
 U_USB_BRIDGE1.U_TRANSACT1.usb_tuser_i[3:0]
-@821
+@820
 [color] 5
 U_USB_BRIDGE1.U_TRANSACT1.dbg_pid[47:0]
-@820
 [color] 7
 U_USB_BRIDGE1.U_TRANSACT1.dbg_state[39:0]
 [color] 7
@@ -264,6 +264,7 @@ U_USB_BRIDGE1.U_TRANSACT1.mux_tkeep_w
 U_USB_BRIDGE1.U_TRANSACT1.mux_tdata_w[7:0]
 @1000200
 -MUX
+@1401200
 -Transact
 @c00200
 -LineState
@@ -296,7 +297,7 @@ U_USB_BRIDGE1.U_LINESTATE1.ls_pulse_1_0ms
 @1401200
 -Extra
 -LineState
-@800200
+@c00200
 -Tx
 @28
 U_USB_BRIDGE1.ulpi_tx_tvalid_w
@@ -354,8 +355,9 @@ U_USB_BRIDGE1.U_ENCODER1.mdata_w[7:0]
 @1000200
 -Output
 -Enc
+@1401200
 -Tx
-@c00200
+@800200
 -Rx
 @28
 U_USB_BRIDGE1.ulpi_rx_tvalid_w
@@ -365,6 +367,11 @@ U_USB_BRIDGE1.ulpi_rx_tkeep_w
 @22
 U_USB_BRIDGE1.ulpi_rx_tuser_w[3:0]
 U_USB_BRIDGE1.ulpi_rx_tdata_w[7:0]
+@820
+[color] 5
+U_USB_BRIDGE1.U_DECODER1.dbg_pid[47:0]
+@24
+U_USB_BRIDGE1.U_DECODER1.len_q[8:0]
 @800200
 -Dec
 @28
@@ -372,6 +379,13 @@ U_USB_BRIDGE1.U_DECODER1.cyc_q
 U_USB_BRIDGE1.U_DECODER1.hsk_q
 U_USB_BRIDGE1.U_DECODER1.tok_q
 U_USB_BRIDGE1.U_DECODER1.sof_q
+U_USB_BRIDGE1.U_DECODER1.rcv_q
+U_USB_BRIDGE1.U_DECODER1.eop_q
+U_USB_BRIDGE1.U_DECODER1.tok_recv_q
+@29
+U_USB_BRIDGE1.U_DECODER1.usb_recv_q
+@28
+U_USB_BRIDGE1.U_DECODER1.hsk_recv_q
 [color] 3
 U_USB_BRIDGE1.U_DECODER1.rx_end_w
 @22
@@ -381,7 +395,6 @@ U_USB_BRIDGE1.U_DECODER1.crc16_w[15:0]
 U_USB_BRIDGE1.U_DECODER1.rx_crc5_w[4:0]
 @1000200
 -Dec
-@1401200
 -Rx
 @c00200
 -CtlPipe0

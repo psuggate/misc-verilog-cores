@@ -75,6 +75,15 @@ module prefetch_buffer
     localparam [ASB:0] AZERO = {ABITS{1'b0}};
     localparam OUTREG = ABITS < 5 ? 1 : 2;
 
+    //
+    // Todo:
+    //  - count the number of packets & chunks ??
+    //  - if not-full, ready de-asserts, then contains a chunk, and requires a
+    //    "save" (or "drop") ??
+    //  - if not-empty, and valid de-asserts, then has output a chunk, and now
+    //    requires a "next" (or "redo") ??
+    //  - update FIFOs as packets/transactions are accepted
+    //
 
     packet_fifo
       #( .OUTREG(OUTREG),

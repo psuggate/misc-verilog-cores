@@ -1,11 +1,19 @@
 `timescale 1ns / 100ps
 /**
  * Coordinates USB transactions across all endpoints.
+ *
  * Responsible for:
  *  - selecting relevant endpoints;
  *  - controlling the MUX that feeds the packet-encoder;
  *  - generating the timeouts, as required by the USB 2.0 spec;
  *  - halting/stalling endpoints, when necessary;
+ *
+ * Todo:
+ *  - on CRC-failure, make sure that the minimum turn-around time is elapsed,
+ *    and so that the rest of the transaction is discarded ??
+ *  - STALL responses for invalid or disabled end-points;
+ *  - packet-length checks ??
+ *  - auto-queue ZDPs ??
  */
 module transactor #(
     parameter ENDPOINT1 = 1,
@@ -709,6 +717,7 @@ module transactor #(
         end
 
         BLK_DATO_ERR: begin
+          // Todo: not the best end-of-packet condition ...
           if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
             xbulk <= BLK_DATO_NAK;
           end
