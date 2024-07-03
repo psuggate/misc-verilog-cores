@@ -1,11 +1,11 @@
 `timescale 1ns / 100ps
 /**
- * Bulk IN End-Point.
+ * Bulk OUT End-Point.
  *
- * Emits frames with size >512B in multiple chunks, issuing a ZDP if the frame-
- * size is a multiple of 512.
+ * Re-assembles frames with size >512B from multiple chunks, and receipt of a
+ * ZDP indicates that the frame-size is a multiple of 512, generating a 'tlast'.
  */
-module ep_bulk_in
+module ep_bulk_out
   #(
      parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
@@ -20,19 +20,16 @@ module ep_bulk_in
    input clr_conf_i, // From CONTROL PIPE0
 
    input selected_i, // From USB controller
-   input ack_recv_i, // From USB controller
-   input timedout_i, // From USB controller
-
    output stalled_o, // If invariants violated
 
-   // From bulk data source
+   // From USB/ULPI packet decoder
    input s_tvalid,
-   output s_tready,
+   output s_tready, // Only asserted when space for at least one packet
    input s_tlast,
    input [7:0] s_tdata,
 
-   // To USB/ULPI packet encoder MUX
-   output m_tvalid,
+   // To bulk data sink
+   output m_tvalid, // Only asserted after CRC16 succeeds
    input m_tready,
    output m_tkeep,
    output m_tlast,
@@ -131,50 +128,16 @@ module ep_bulk_in
   end
 
 
-  // -- DATA0/1 Parity -- //
-
-  always @(posedge clock) begin
-    if (reset || set_conf_i) begin
-      parity <= 1'b0;
-    end else begin
-      if (state == ST_WAIT && ack_recv_i) begin
-        parity <= ~parity;
-      end
-    end
-  end
-
-
-  // -- Output Registers -- //
-
-  axis_skid
- #(
-   .BYPASS(0),
-   .WIDTH(9)
-   ) SKID0
-   (
-    .clock   (clock),
-    .reset   (reset),
-
-    .s_tvalid(tvalid_w),
-    .s_tready(tready_w),
-    .s_tlast (tlast_w),
-    .s_tdata ({tkeep_w, s_tdata}),
-
-    .m_tvalid(m_tvalid),
-    .m_tready(m_tready),
-    .m_tlast (m_tlast),
-    .m_tdata ({m_tkeep, m_tdata})
-    );
-
+  // -- Output Packet FIFO -- //
 
   packet_fifo
     #( .WIDTH(8),
        .DEPTH(PACKET_FIFO_DEPTH),
        .STORE_LASTS(1),
-       .SAVE_ON_LAST(1),
-       .NEXT_ON_LAST(0),
-       .USE_LENGTH(1),
-       .MAX_LENGTH(USB_MAX_PACKET_SIZE),
+       .SAVE_ON_LAST(0), // save on CRC16-valid
+       .NEXT_ON_LAST(1),
+       .USE_LENGTH(0),
+       .MAX_LENGTH(0),
        .OUTREG(2)
        )
   U_TX_FIFO1
@@ -193,7 +156,7 @@ module ep_bulk_in
       .last_i(s_tlast),
       .data_i(s_tdata),
 
-      .valid_o(m_tvalid),
+      .valid_o(tvalid_w),
       .ready_i(m_tready),
       .last_o(tlast_w),
       .data_o(m_tdata)
@@ -231,4 +194,4 @@ module ep_bulk_in
 `endif /* __icarus */
 
 
-endmodule // ep_bulk_in
+endmodule // ep_bulk_out

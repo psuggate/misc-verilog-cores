@@ -12,6 +12,8 @@ module packet_fifo_tb;
 
   // -- Simulation Data -- //
 
+  // initial $hello;
+
   initial begin
     $dumpfile("packet_fifo_tb.vcd");
     $dumpvars;
@@ -30,6 +32,7 @@ module packet_fifo_tb;
   initial begin
     #10 reset <= 1'b1;
     #20 reset <= 1'b0;
+    // $stain(reset);
   end
 
 

@@ -1,4 +1,11 @@
 `timescale 1ns / 100ps
+/**
+ * Packet FIFO use cases:
+ *  - break a "frame" into packets of 'MAX_LENGTH', and residual;
+ *  - only update occupancy when 'tlast' is received/transmitted;
+ *  - support 'redo' of a packet, if an ACK was not received;
+ *  - 'drop' a packet on CRC failure;
+ */
 module packet_fifo
   #( parameter WIDTH = 8,
      localparam MSB = WIDTH - 1,
@@ -11,6 +18,10 @@ module packet_fifo
 
      // Generate save/next signals using 'tlast's?
      parameter USE_LASTS = 1,
+     parameter STORE_LASTS = 1,
+
+     parameter SAVE_ON_LAST = 1,
+     parameter NEXT_ON_LAST = 1,
 
      // Break up large packets into chunks of up to this length? If we reach the
      // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
@@ -43,7 +54,11 @@ module packet_fifo
   output [MSB:0] data_o
 );
 
-  reg [WIDTH:0] sram [0:DEPTH-1];
+
+  // Store the 'last'-bits?
+  localparam integer WSB = STORE_LASTS != 0 ? WIDTH : MSB;
+
+  reg [WSB:0] sram [0:DEPTH-1];
 
   // Write-port signals
   reg wready;
@@ -84,11 +99,11 @@ module packet_fifo
 
 
   // Accept/reject a packet-store
-  assign accept_a = ((USE_LASTS && valid_i && wready && last_i) || save_i) && !drop_i;
+  assign accept_a = ((SAVE_ON_LAST && valid_i && wready && last_i) || save_i) && !drop_i;
   assign reject_a = drop_i;  // ??
 
   // Advance/replace a packet-fetch
-  assign finish_a = ((USE_LASTS && valid_o && ready_i && last_o) || next_i) && !redo_i;
+  assign finish_a = ((NEXT_ON_LAST && valid_o && ready_i && last_o) || next_i) && !redo_i;
   assign replay_a = redo_i;
 
   // SRAM control & status signals
@@ -117,7 +132,7 @@ module packet_fifo
         waddr <= paddr;
       end else begin
         if (store_w) begin
-          sram[waddr[ASB:0]] <= {last_i, data_i};
+          sram[waddr[ASB:0]] <= STORE_LASTS != 0 ? {last_i, data_i} : data_i;
         end
         waddr <= waddr_next;
       end
@@ -191,7 +206,7 @@ module packet_fifo
   generate
     if (OUTREG == 0) begin : g_async
 
-      wire [WIDTH:0] data_w = sram[raddr[ASB:0]];
+      wire [WIDTH:0] data_w = STORE_LASTS != 0 ? sram[raddr[ASB:0]] : {1'b0, sram[raddr[ASB:0]]};
 
       // Suitable for Xilinx Distributed SRAM's, and similar, with fast, async
       // reads.
@@ -212,7 +227,7 @@ module packet_fifo
         end else begin
           if (fetch_w) begin
             xvalid <= 1'b1;
-            {xlast, xdata} <= sram[raddr[ASB:0]];
+            {xlast, xdata} <= STORE_LASTS != 0 ? sram[raddr[ASB:0]] : {1'b0, sram[raddr[ASB:0]]};
           end else if (xvalid && xready) begin
             xvalid <= 1'b0;
           end
