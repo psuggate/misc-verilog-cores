@@ -7,33 +7,34 @@
  *  - generating the timeouts, as required by the USB 2.0 spec;
  *  - halting/stalling endpoints, when necessary;
  */
-module protocol_layer #(
-    parameter ENDPOINT1 = 1,
-    parameter ENDPOINT2 = 0,  // todo: ...
-                    // parameter [3:0] BULK_IN_EP1 = 1, // toods
-                    // parameter [3:0] BULK_IN_EP2 = 3, // toods
-                    // parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
-                    // parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
-    parameter PIPELINED = 0,
-    parameter USE_ULPI_TX_FIFO = 0
+module protocol_layer
+ #(
+   parameter ENDPOINT1 = 1,
+   parameter ENDPOINT2 = 0,  // todo: ...
+   // parameter [3:0] BULK_IN_EP1 = 1, // toods
+   // parameter [3:0] BULK_IN_EP2 = 3, // toods
+   // parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
+   // parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
+   parameter PIPELINED = 0,
+   parameter USE_ULPI_TX_FIFO = 0
 ) (
-    input clock,
-    input reset,
+   input clock,
+   input reset,
 
-    // Configured device address (or all zero)
+   // Configured device address (or all zero)
    input set_conf_i, // Enables end-points
    input clr_conf_i, // Disables end-points
-    input [6:0] usb_addr_i, // Configured address
+   input [6:0] usb_addr_i, // Configured address
 
    // Todo: combine into status-register ??
-    output usb_timeout_error_o,
-    output usb_device_idle_o,
-    output [2:0] err_code_o,
-    output [3:0] usb_state_o,
-    output [7:0] blk_state_o,
-    output parity0_o,
-    output parity1_o,
-    output parity2_o,
+   output usb_timeout_error_o,
+   output usb_device_idle_o,
+   output [2:0] err_code_o,
+   output [3:0] usb_state_o,
+   output [7:0] blk_state_o,
+   output parity0_o,
+   output parity1_o,
+   output parity2_o,
 
    // Control end-point
    output ep0_select_o,
@@ -51,27 +52,28 @@ module protocol_layer #(
    input ep2_halted_i,
    output ep2_enable_o,
 
-    // Signals from the USB packet decoder (upstream)
-    input tok_recv_i,
-    input tok_ping_i,
-    input [6:0] tok_addr_i,
-    input [3:0] tok_endp_i,
+   // Signals from the USB packet decoder (upstream)
+   input tok_recv_i,
+   input tok_ping_i,
+   input [6:0] tok_addr_i,
+   input [3:0] tok_endp_i,
 
-    input  hsk_recv_i,
-    output hsk_send_o,
-    input  hsk_sent_i,
+   input  hsk_recv_i,
+   output hsk_send_o,
+   input  hsk_sent_i,
 
-    // DATA0/1 info from the decoder, and to the encoder
-    input eop_recv_i,
-    input usb_recv_i,
-    input usb_busy_i,
-    input usb_sent_i,
+   // DATA0/1 info from the decoder, and to the encoder
+   input eop_recv_i,
+   input usb_recv_i,
+   input usb_busy_i,
+   input usb_sent_i,
    input [3:0] dec_pid_i,
 
    // ULPI encoder signals
    output [3:0] enc_pid_o
 );
 
+`include "usb_defs.vh"
 
   // -- Module Constants -- //
 

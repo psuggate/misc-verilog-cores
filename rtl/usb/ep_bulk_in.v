@@ -7,7 +7,7 @@
  */
 module ep_bulk_in
   #(
-     parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
+    parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
     parameter USE_ZDP = 0 // TODO

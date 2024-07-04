@@ -62,7 +62,7 @@ module ulpi_decoder
     output [7:0] m_tdata
 );
 
-  `include "usb_defs.vh"
+`include "usb_defs.vh"
 
   // -- Constants -- //
 
@@ -100,6 +100,7 @@ module ulpi_decoder
   wire [15:0] crc16_w;
   reg  [10:0] token_data;
   wire [ 4:0] rx_crc5_w;
+
 
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
