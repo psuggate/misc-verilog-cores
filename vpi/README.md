@@ -36,7 +36,7 @@ Iterate through the set of test scenarios. Each test scenario consists of the fo
 
 1. Initialise the DUT.
 2. Setup the test.
-3. Simulate, checking outputs at after each clock-edge.
+3. Simulate, checking outputs at after each clock-edge, and advancing the simulation state.
 4. Teardown the test.
 
 ## VPI Module

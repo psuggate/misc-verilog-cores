@@ -35,4 +35,4 @@ vpi:
 build:	$(OUT)
 
 ../build/%.out: %.v $(LIB)
-	$(IVC) $(OPT) -L. -mmonitor -o $@ -s $(*F) $^
+	$(IVC) $(OPT) -L../vpi -mulpisim -o $@ -s $(*F) $^

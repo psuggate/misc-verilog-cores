@@ -1,29 +1,7 @@
-#include "ulpi.h"
+#include "ulpisim.h"
 #include "testcase.h"
-#include <vpi_user.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-
-/**
- * ULPI signals, state, and test-cases.
- */
-typedef struct {
-    vpiHandle clock;
-    vpiHandle rst_n;
-    vpiHandle dir;
-    vpiHandle nxt;
-    vpiHandle stp;
-    vpiHandle data;
-    uint64_t tick_ns;
-    uint64_t t_recip;
-    uint64_t cycle;
-    ulpi_bus_t prev;
-    int test_num;
-    int test_curr;
-    testcase_t* tests;
-} ut_state_t;
 
 
 /**
@@ -65,6 +43,32 @@ static void ut_store_bus(ut_state_t* state, ulpi_bus_t* bus)
     bus->data.b = (uint8_t)curr_value.value.vector->bval;
 }
 
+static void ut_set_phy_idle(ut_state_t* state)
+{
+    s_vpi_value sig;
+    s_vpi_time now;
+    sig.format = vpiScalarVal;
+    sig.value.scalar = vpi0;
+    vpi_get_time(NULL, &now);
+    vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
+    vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+}
+
+static int get_signal(vpiHandle* dst, vpiHandle iter)
+{
+    vpiHandle arg_handle;
+    int arg_type;
+
+    arg_handle = vpi_scan(iter);
+    arg_type = vpi_get(vpiType, arg_handle);
+    if (arg_type != vpiNet && arg_type != vpiReg) {
+	vpi_free_object(iter); /* free iterator memory */
+	return ut_error("arg must be a net or reg");
+    }
+    *dst = arg_handle;
+    return 1;
+}
+
 /**
  * Monitor the ULPI bus signals.
  * Arguments:
@@ -91,59 +95,15 @@ static int ut_compiletf(char* user_data)
     if (arg_iterator == NULL)
 	return ut_error("requires 6 arguments");
 
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
+    /* check the types of the objects in system task arguments */
+    if (!get_signal(&state->clock, arg_iterator) ||
+	!get_signal(&state->rst_n, arg_iterator) ||
+	!get_signal(&state->dir  , arg_iterator) ||
+	!get_signal(&state->nxt  , arg_iterator) ||
+	!get_signal(&state->stp  , arg_iterator) ||
+	!get_signal(&state->data , arg_iterator)) {
+	return 0;
     }
-    state->clock = arg_handle;
-
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
-    }
-    state->rst_n = arg_handle;
-
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
-    }
-    state->dir = arg_handle;
-
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
-    }
-    state->nxt = arg_handle;
-
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
-    }
-    state->stp = arg_handle;
-
-    /* check the type of object in system task arguments */
-    arg_handle = vpi_scan(arg_iterator);
-    arg_type = vpi_get(vpiType, arg_handle);
-    if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
-    }
-    state->data = arg_handle;
 
     /* check that there are no more system task arguments */
     arg_handle = vpi_scan(arg_iterator);
@@ -170,6 +130,10 @@ static int ut_compiletf(char* user_data)
     return 0;
 }
 
+/**
+ * Emulates a USB host, USB bus, and the ULPI PHY of a link, and runs tests on
+ * the simulated link/device, via ULPI.
+ */
 static int ut_calltf(char* user_data)
 {
     vpiHandle systf_handle, arg_iterator, net_handle, time_handle;

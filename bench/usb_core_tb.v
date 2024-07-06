@@ -243,7 +243,7 @@ module usb_core_tb;
 
   // Salad days
   always @(negedge usb_clock) begin
-    $ulpi_monitor(usb_clock, usb_rst_n, ulpi_dir, ulpi_nxt, ulpi_stp, ulpi_data);
+    $ulpi_step(usb_clock, usb_rst_n, ulpi_dir, ulpi_nxt, ulpi_stp, ulpi_data);
   end
 
   ulpi_axis_bridge #(
