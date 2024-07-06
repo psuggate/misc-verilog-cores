@@ -1,4 +1,3 @@
-*.out
 *.vcd
 *.pdf
 impl/
@@ -9,3 +8,9 @@ target/
 *.log
 .stack-work/
 *~
+
+# Icarus/GCC Artifacts
+*.out
+*.o
+*.vvp
+*.vpi

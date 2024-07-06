@@ -89,6 +89,7 @@ module ulpi_axis_bridge #(
     output [7:0] m_axis_tdata_o
 );
 
+`include "usb_defs.vh"
 
   // -- Constants -- //
 

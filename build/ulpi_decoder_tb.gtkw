@@ -1,6 +1,6 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Jul  4 13:18:09 2024
+[*] Fri Jul  5 06:08:50 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/ulpi_decoder_tb.vcd"
 [dumpfile_mtime] "Thu Jul  4 05:45:49 2024"
@@ -51,15 +51,6 @@ ulpi_decoder_tb.ulpi_nxt
 ulpi_decoder_tb.ulpi_data[7:0]
 @1000200
 -ULPI
-@800200
--Exp
-@200
--** Stage I
--** Stage II
--** Output
--** Flags
-@1000200
--Exp
 @28
 [color] 1
 ulpi_decoder_tb.U_DECODER1.crc_error_o
@@ -81,7 +72,7 @@ ulpi_decoder_tb.U_DECODER1.tok_endp_o[3:0]
 @28
 [color] 7
 ulpi_decoder_tb.U_DECODER1.dec_idle_o
-@821
+@820
 [color] 5
 ulpi_decoder_tb.U_DECODER1.dbg_pid[47:0]
 @800200
@@ -96,7 +87,7 @@ ulpi_decoder_tb.ulpi_rx_tuser_w[3:0]
 ulpi_decoder_tb.ulpi_rx_tdata_w[7:0]
 @1000200
 -OUT
-@c00200
+@800200
 -Decoder
 @28
 ulpi_decoder_tb.U_DECODER1.ulpi_dir
@@ -114,7 +105,7 @@ ulpi_decoder_tb.U_DECODER1.rx_end_w
 @22
 [color] 2
 ulpi_decoder_tb.U_DECODER1.crc16_q[15:0]
-@1401200
+@1000200
 -Decoder
 @22
 ulpi_decoder_tb.tdata_q[63:0]

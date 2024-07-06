@@ -1,4 +1,4 @@
-.PHONY:	all build sim
+.PHONY:	all build sim vpi
 all:	sim
 
 #
@@ -27,9 +27,12 @@ LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(SRC)
 TOP	?= $(wildcard *_tb.v)
 OUT	?= $(TOP:%.v=../build/%.out)
 
-sim:	build
+sim:	build vpi
+
+vpi:
+	@make -C src all
 
 build:	$(OUT)
 
 ../build/%.out: %.v $(LIB)
-	$(IVC) $(OPT) -o $@ -s $(*F) $^
+	$(IVC) $(OPT) -L. -mmonitor -o $@ -s $(*F) $^

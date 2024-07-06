@@ -91,6 +91,8 @@ module protocol
 
 `include "usb_defs.vh"
 
+`ifdef __potato_tomato
+
   // -- End-Point Control -- //
 
   localparam EP1_EN = BULK_EP1 != 0 && (USE_EP1_IN || USE_EP1_OUT);
@@ -500,6 +502,8 @@ module protocol
   end
 
 `endif /* __icarus */
+
+`endif /* __potato_tomato */
 
 
 endmodule  /* protocol */

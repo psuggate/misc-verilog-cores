@@ -1,15 +1,18 @@
-.PHONY:	all sim simall doc clean
-all:
+.PHONY:	all sim simall doc clean vpi
+all:	vpi
 	@make -C bench all
 	@make -C rtl all
 	@make -C rtl/fifo all
 	@make -C synth all
 
-sim:
+vpi:
+	@make -C vpi all
+
+sim:	vpi
 	@make -C bench sim
 	@make -C build sim
 
-simall:	sim
+simall:	sim vpi
 	@make -C rtl sim
 	@make -C rtl/fifo sim
 	@make -C build sim
