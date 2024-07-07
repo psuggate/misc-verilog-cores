@@ -22,10 +22,17 @@ typedef struct {
     uint64_t t_recip;
     uint64_t cycle;
     ulpi_bus_t prev;
+    ulpi_phy_t phy;
     int test_num;
     int test_curr;
     testcase_t** tests;
 } ut_state_t;
+
+
+static inline int phy_is_driving(ut_state_t* state)
+{
+    return state->prev.dir == vpi1;
+}
 
 
 #endif  /* __ULPISIM_H__ */

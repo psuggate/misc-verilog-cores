@@ -41,6 +41,13 @@ Iterate through the set of test scenarios. Each test scenario consists of the fo
 
 ## VPI Module
 
+Restarts:
+
++ PHY registers to initial values
++ Deassert 'dir' and 'nxt', and release 'data' (if necessary)
++ Suspend 'clock'
++ Restart 'clock', after some delay
+
 The VPI module registers a callback for the positive edges of the ULPI clock.
 
 Line-speed negotiation.

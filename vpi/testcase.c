@@ -1,52 +1,47 @@
 #include "testcase.h"
+#include <vpi_user.h>
 #include <stdlib.h>
 
 
-testcase_t* tc_alloc(const char* name, void* data)
+testcase_t* tc_create(const char* name, void* data)
 {
     testcase_t* test = malloc(sizeof(testcase_t));
 
     test->name = name;
     test->data = data;
-    test->state = malloc(sizeof(ulpi_phy_t));
-    test->cycle = 0;
+    test->phy  = NULL;
     test->init = NULL;
     test->step = NULL;
 
     return test;
 }
 
-void tc_free(testcase_t* test)
+void tc_finish(testcase_t* test)
 {
     if (test != NULL) {
 	if (test->data != NULL) {
 	    free(test->data);
 	}
-	if (test->state != NULL) {
-	    free(test->state);
-	}
 	free(test);
     }
 }
 
-int tc_init(testcase_t* test, ulpi_bus_t* curr)
+int tc_init(testcase_t* test, ulpi_phy_t* phy)
 {
-    if (test->init != NULL) {
-	return test->init(curr, test->state, test->data);
+    if (test->init != NULL && test->step != NULL && test->phy == NULL) {
+	test->phy = phy;
+	return test->init(test->phy, test->data);
+    } else {
+	vpi_printf("Invalid initial state for test-case\n");
+	vpi_control(vpiFinish, 2);
     }
     return 0;
 }
 
-int tc_step(testcase_t* test, ulpi_bus_t* curr)
+int tc_step(testcase_t* test)
 {
-    uint64_t cycle = ++test->cycle;
-    ulpi_phy_t* state = test->state;
-
-    if (curr->rst_n != vpi1) {
-	// Todo: reset the ULPI PHY ...
-	return tc_init(test, curr);
-    } else if (test->step != NULL) {
-	int result = test->step(cycle, curr, state, test->data);
+    if (test->step != NULL) {
+	int result = test->step(test->phy, test->data);
 	if (result < 0) {
 	    // Todo: error-handling
 	    return -1;
@@ -54,6 +49,9 @@ int tc_step(testcase_t* test, ulpi_bus_t* curr)
 	    // Todo: done
 	    return 1;
 	}
+    } else {
+	vpi_printf("Missing STEP function for test-case\n");
+	vpi_control(vpiFinish, 2);
     }
 
     return 0;
@@ -76,12 +74,12 @@ typedef struct {
 
 static const char hs_neg[] = "High-speed negotiation";
 
-int test_hs_neg_init(ulpi_bus_t* curr, ulpi_phy_t* state, void* data)
+int test_hs_neg_init(ulpi_phy_t* phy, void* data)
 {
     return 0;
 }
 
-int test_hs_neg_step(uint64_t cycle, ulpi_bus_t* curr, ulpi_phy_t* state, void* data)
+int test_hs_neg_step(ulpi_phy_t* phy, void* data)
 {
     return 0;
 }
@@ -90,9 +88,8 @@ void test_hs_negotiation(void)
 {
     testcase_t* test = malloc(sizeof(testcase_t));
     test->name = hs_neg;
-    test->data = 0;
-    test->state = malloc(sizeof(ulpi_phy_t));
-    test->cycle = 0;
+    test->data = NULL;
+    test->phy  = NULL;
     test->init = test_hs_neg_init;
     test->step = test_hs_neg_step;
 }

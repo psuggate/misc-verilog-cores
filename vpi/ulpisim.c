@@ -17,7 +17,7 @@ static int ut_error(const char* reason)
 /**
  * Extract the current bus values using the VPI handles to each bus signal.
  */
-static void ut_store_bus(ut_state_t* state, ulpi_bus_t* bus)
+static void ut_fetch_bus(ut_state_t* state, ulpi_bus_t* bus)
 {
     s_vpi_value curr_value;
     curr_value.format = vpiScalarVal;
@@ -47,6 +47,7 @@ static void ut_set_phy_idle(ut_state_t* state)
 {
     s_vpi_value sig;
     s_vpi_time now;
+
     sig.format = vpiScalarVal;
     sig.value.scalar = vpi0;
     vpi_get_time(NULL, &now);
@@ -54,6 +55,12 @@ static void ut_set_phy_idle(ut_state_t* state)
     vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
 }
 
+static int ut_step_xfer(ut_state_t* state)
+{
+    return 0;
+}
+
+// Helper for parsing the argument-list.
 static int get_signal(vpiHandle* dst, vpiHandle iter)
 {
     vpiHandle arg_handle;
@@ -122,6 +129,8 @@ static int ut_compiletf(char* user_data)
     }
     state->cycle = 0;
     state->test_curr = 0;
+    state->test_num = 0;
+    state->tests = NULL;
 
     // Todo: populate the set of tests ...
 
@@ -158,10 +167,51 @@ static int ut_calltf(char* user_data)
     state->tick_ns = tick_ns;
 
     uint64_t cycle = state->cycle++;
-    ut_store_bus(state, &curr);
+    ut_fetch_bus(state, &curr);
+    ulpi_phy_t* phy = &state->phy;
 
     if (cycle == 0) {
+	//
 	// Todo: startup things ...
+	//
+    } else if (phy->xfer.type != XferIdle) {
+	//
+	// Todo:
+	//  - step the current transfer, until complete;
+	//  - make sure the bus is back to idle;
+	//  - then proceed to the next test-stage;
+	//
+    } else if (state->test_curr < state->test_num) {
+	//
+	// Todo: keep progressing through the test-cases ...
+	//
+	testcase_t* test = state->tests[state->test_curr];
+	int result = tc_step(test);
+
+	if (result < 0) {
+	    // Test failed
+	    vpi_printf("At: %8lu ns => %s STEP failed, result = %d\n",
+		       tick_ns, test->name, result);
+	    ut_error("test STEP failed");
+	} else if (result > 0) {
+	    // Test finished, advance to the next, if possible
+	    vpi_printf("At: %8lu ns => %s completed\n",
+		       tick_ns, test->name);
+
+	    if (++state->test_curr < state->test_num) {
+		// Todo: start the next test
+		test = state->tests[state->test_curr];
+		result = tc_init(test, phy);
+		if (result < 0) {
+		    vpi_printf("At: %8lu ns => %s INIT failed, result = %d\n",
+			       tick_ns, test->name, result);
+		    ut_error("test INIT failed");
+		}
+	    } else {
+		vpi_printf("At: %8lu ns => testbench completed\n", tick_ns);
+		vpi_control(vpiFinish, 0);
+	    }
+	}
     } else if (curr.dir != state->prev.dir) {
 	// Else, step ...
 	net_handle = state->data;
