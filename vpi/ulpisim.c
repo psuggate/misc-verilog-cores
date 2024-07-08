@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "tc_restarts.h"
+
 
 /**
  * Abort simulation and emit the error-reason.
@@ -50,9 +52,39 @@ static void ut_set_phy_idle(ut_state_t* state)
 
     sig.format = vpiScalarVal;
     sig.value.scalar = vpi0;
+    now.type = vpiSimTime;
     vpi_get_time(NULL, &now);
     vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
     vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+}
+
+static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t* next)
+{
+    s_vpi_value sig;
+    s_vpi_time now;
+
+    sig.format = vpiScalarVal;
+    now.type = vpiSimTime;
+    vpi_get_time(NULL, &now);
+
+    if (curr->dir != next->dir) {
+	sig.value.scalar = next->dir;
+	vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
+    }
+
+    if (curr->nxt != next->nxt) {
+	sig.value.scalar = next->nxt;
+	vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+    }
+
+    if (curr->data.a != next->data.a || curr->data.b != next->data.b) {
+	s_vpi_vecval vec = {next->data.a, next->data.b};
+	sig.format = vpiVectorVal;
+	sig.value.vector = &vec;
+	vpi_put_value(state->data, &sig, &now, vpiInertialDelay);
+    }
+
+    memcpy(&state->prev, &next, sizeof(ulpi_bus_t));
 }
 
 static int ut_step_xfer(ut_state_t* state)
@@ -129,8 +161,9 @@ static int ut_compiletf(char* user_data)
     }
     state->cycle = 0;
     state->test_curr = 0;
-    state->test_num = 0;
-    state->tests = NULL;
+    state->test_num = 1;
+    state->tests = (testcase_t**)malloc(sizeof(testcase_t*));
+    state->tests[0] = test_restarts();
 
     // Todo: populate the set of tests ...
 
@@ -167,8 +200,9 @@ static int ut_calltf(char* user_data)
     state->tick_ns = tick_ns;
 
     uint64_t cycle = state->cycle++;
-    ut_fetch_bus(state, &curr);
     ulpi_phy_t* phy = &state->phy;
+    ut_fetch_bus(state, &curr);
+    memcpy(&phy->bus, &curr, sizeof(ulpi_bus_t));
 
     if (cycle == 0) {
 	//
@@ -224,7 +258,10 @@ static int ut_calltf(char* user_data)
 		   value.value.vector[0].bval);
     }
 
-    memcpy(&state->prev, &curr, sizeof(ulpi_bus_t));
+    // If the update-step has changed the bus-state, then schedule that change
+    ulpi_bus_t* next = &phy->bus;
+    ut_update_bus_state(state, &curr, next);
+
     return 0;
 }
 

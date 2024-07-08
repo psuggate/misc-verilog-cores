@@ -3,6 +3,14 @@
 #include <stdint.h>
 
 
+#define RESETB_TICKS    60
+#define TSTART_TICKS    61800
+#define LINK_IDLE_TICKS 1
+
+
+/**
+ * Various stages during Power-On Reset (POR), for a ULPI PHY.
+ */
 typedef enum {
     ErrReset = -1,
     PowerOff = 0,
@@ -10,7 +18,8 @@ typedef enum {
     TStart,
     LinkIdle,
     RXCMD,
-    Restarted
+    Restarted,
+    Completed
 } __restart_stage_t;
 
 /**
@@ -25,16 +34,44 @@ typedef struct {
 static const char tc_restarts[] = "Link-restart test-case";
 
 
+//
+//  Helpers
+///
+
+static inline int data_is_idle(ulpi_bus_t* bus)
+{
+    return (bus->data.a == 0x00 && bus->data.b == 0x00);
+}
+
+static inline int phy_is_driving(ulpi_bus_t* bus)
+{
+    return (bus->rst_n == vpi1 && bus->dir == vpi1);
+}
+
+static inline int link_is_idle(ulpi_bus_t* bus)
+{
+    return (bus->rst_n == vpi1 && bus->dir == vpi0 &&
+	    bus->nxt == vpi0 && bus->stp == vpi0 && data_is_idle(bus));
+}
+
+
+//
+//  Simulation Routines
+///
+
 int test_restarts_init(ulpi_phy_t* phy, void* data)
 {
-    data->stage = PowerOff;
-    data->ticks = 0;
+    restart_t* por = (restart_t*)data;
+    por->stage = PowerOff;
+    por->ticks = 0;
     return 0;
 }
 
 int test_restarts_step(ulpi_phy_t* phy, void* data)
 {
-    switch (data->stage) {
+    restart_t* por = (restart_t*)data;
+
+    switch (por->stage) {
 
     ErrReset: return -1;
 
@@ -42,32 +79,35 @@ int test_restarts_step(ulpi_phy_t* phy, void* data)
 	if (phy->bus.rst_n == vpi0) {
 	    // Todo:
 	    //  - reset the PHY registers
-	    data->stage = RefClock;
+	    por->stage = RefClock;
 	}
 	break;
 
     RefClock:
 	if (phy->bus.rst_n == vpi1) {
-	    data->stage = TStart;
-	    data->ticks = 0;
+	    por->stage = TStart;
+	    por->ticks = 0;
 	    // Todo: correctly drive the bus to ULPI-idle
 	    phy->bus.dir = vpi1;
 	    phy->bus.nxt = vpi0;
 	    phy->bus.data.a = 0x00;
 	    phy->bus.data.b = 0x00;
-	} else if (phy->bus.rst_n == vpi0) {
+	} else if (phy->bus.rst_n != vpi0) {
 	    vpi_printf("ERROR: RESETB != 0 or 1\n");
 	    vpi_control(vpiFinish, 3);
-	    data->stage = ErrReset;
+	    por->stage = ErrReset;
 	    return -1;
+	} else {
+	    por->ticks++;
 	}
 	break;
 
     TStart:
-	if (phy->bus.rst_n == vpi1 && phy->bus.dir == vpi1 && phy->bus.data.a == 0x00 && phy->bus.data.b == 0x00) {
-	    if (++data->ticks >= TSTART_TICKS && phy->bus.stp == vpi0) {
-		data->stage = LinkIdle;
-		data->ticks = 0;
+	if (phy_is_driving(&phy->bus) && data_is_idle(&phy->bus)) {
+	    if (++por->ticks >= TSTART_TICKS && phy->bus.stp == vpi0) {
+		por->stage = LinkIdle;
+		por->ticks = 0;
+		phy_bus_release(&phy->bus);
 	    }
 	} else {
 	    vpi_printf("ERROR: Bad TStart bus state\n");
@@ -77,28 +117,37 @@ int test_restarts_step(ulpi_phy_t* phy, void* data)
 	break;
 
     LinkIdle:
-	if (phy->bus.rst_n == vpi1 && phy->bus.dir == vpi0 && phy->bus.data.a == 0x00 && phy->bus.data.b == 0x00 && phy->bus.stp == vpi0) {
-	    if (++data->ticks >= LINK_IDLE_TICKS) {
+	if (link_is_idle(&phy->bus)) {
+	    if (++por->ticks >= LINK_IDLE_TICKS) {
 		// Todo:
 		//  - assert 'dir'
-		data->stage = RXCMD;
-		data->ticks = 0;
+		por->stage = RXCMD;
+		por->ticks = 0;
+		phy->bus.dir = vpi1;
 	    }
 	}
 	break;
 
     RXCMD:
-	// Todo ...
+	phy_drive_rx_cmd(phy);
+	por->stage = Restarted;
+	por->ticks = 0;
 	break;
 
     Restarted:
-	// Todo ...
+	phy_bus_release(&phy->bus);
+	por->stage = Completed;
+	por->ticks = 0;
 	break;
+
+    Completed:
+	return 1;
 
     default:
 	// Todo ...
 	break;
     }
+
     return 0;
 }
 

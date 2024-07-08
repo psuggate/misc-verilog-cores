@@ -84,6 +84,7 @@ typedef struct {
     uint8_t alt_int : 1;
 } RX_CMD_t;
 
+
 /**
  * Current PHY state/mode.
  */
@@ -183,6 +184,26 @@ typedef struct {
     ulpi_bus_t bus;
     transfer_t xfer;
 } ulpi_phy_t;
+
+
+static inline void phy_drive_rx_cmd(ulpi_phy_t* phy)
+{
+    phy->bus.dir = vpi1;
+    phy->bus.nxt = vpi0;
+    uint8_t val = phy->state.rx_cmd.alt_int << 7 | phy->state.rx_cmd.ID << 6 |
+	phy->state.rx_cmd.RxEvent << 4 | phy->state.rx_cmd.VbusState << 2 |
+	phy->state.rx_cmd.LineState;
+    phy->bus.data.a = val;
+    phy->bus.data.b = 0x00;
+}
+
+static inline void phy_bus_release(ulpi_bus_t* bus)
+{
+    bus->dir = vpi0;
+    bus->nxt = vpi0;
+    bus->data.a = 0x00;
+    bus->data.b = 0xff;
+}
 
 
 ulpi_phy_t* phy_init(void);
