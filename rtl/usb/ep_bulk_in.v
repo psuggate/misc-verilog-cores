@@ -42,7 +42,7 @@ module ep_bulk_in
   localparam [4:0] RX_HALT = 5'b00001;
   localparam [4:0] RX_FILL = 5'b00010;
 
-  localparam [3:0] TX_IDLE = 5'b00001;
+  localparam [4:0] TX_IDLE = 5'b00001;
   localparam [4:0] ST_SEND = 5'b00100;
   localparam [4:0] ST_NONE = 5'b01000;
   localparam [4:0] ST_WAIT = 5'b10000;
@@ -178,25 +178,25 @@ module ep_bulk_in
        .OUTREG(2)
        )
   U_TX_FIFO1
-    ( .clock(clock),
-      .reset(reset),
+    ( .clock  (clock),
+      .reset  (reset),
 
       .level_o(level_w),
 
-      .drop_i(1'b0),
-      .save_i(1'b0),
-      .redo_i(redo_w),
-      .next_i(next_w),
+      .drop_i (1'b0),
+      .save_i (1'b0),
+      .redo_i (redo_w),
+      .next_i (next_w),
 
       .valid_i(s_tvalid),
       .ready_o(tready_w),
-      .last_i(s_tlast),
-      .data_i(s_tdata),
+      .last_i (s_tlast),
+      .data_i (s_tdata),
 
       .valid_o(m_tvalid),
       .ready_i(m_tready),
-      .last_o(tlast_w),
-      .data_o(m_tdata)
+      .last_o (tlast_w),
+      .data_o (m_tdata)
       );
 
 

@@ -208,6 +208,13 @@ static int ut_calltf(char* user_data)
 	//
 	// Todo: startup things ...
 	//
+	int result = -1;
+	if (state->test_curr < state->test_num) {
+	    testcase_t* test = state->tests[state->test_curr];
+	    result = tc_init(test, phy);
+	}
+	vpi_printf("ZERO: result = %d !!\n", result);
+
     } else if (phy->xfer.type != XferIdle) {
 	//
 	// Todo:
@@ -215,6 +222,7 @@ static int ut_calltf(char* user_data)
 	//  - make sure the bus is back to idle;
 	//  - then proceed to the next test-stage;
 	//
+	vpi_printf("NOT IDLE!\n");
     } else if (state->test_curr < state->test_num) {
 	//
 	// Todo: keep progressing through the test-cases ...
@@ -256,6 +264,7 @@ static int ut_calltf(char* user_data)
 		   vpi_get_str(vpiFullName, net_handle),
 		   value.value.vector[0].aval,
 		   value.value.vector[0].bval);
+	vpi_printf("I AM BEING ABUSED!\n");
     }
 
     // If the update-step has changed the bus-state, then schedule that change
