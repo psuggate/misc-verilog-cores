@@ -172,6 +172,10 @@ module usb_ulpi_top
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_index_w, ctl_value_w, ctl_length_w;
 
+  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
+  wire ep2_tvalid_w, ep2_tready_w, ep2_tlast_w;
+  wire [7:0] ep1_tdata_w, ep2_tdata_w;
+
 
   assign clock = ulpi_clock_i;
   assign reset = usb_reset_w;
@@ -360,17 +364,17 @@ module usb_ulpi_top
       .blk_endpt_o    (blk_endpt_o),
       .blk_error_i    (blk_error_i),
 
-      .blk_tvalid_i   (blki_tvalid_i),
-      .blk_tready_o   (blki_tready_o),
-      .blk_tlast_i    (blki_tlast_i),
-      .blk_tkeep_i    (blki_tkeep_i),
-      .blk_tdata_i    (blki_tdata_i),
+      .blk_tvalid_i   (ep1_tvalid_w),
+      .blk_tready_o   (ep1_tready_w),
+      .blk_tlast_i    (ep1_tlast_w),
+      .blk_tkeep_i    (ep1_tkeep_w),
+      .blk_tdata_i    (ep1_tdata_w),
 
-      .blk_tvalid_o   (blko_tvalid_o),
-      .blk_tready_i   (blko_tready_i),
-      .blk_tlast_o    (blko_tlast_o),
-      .blk_tkeep_o    (blko_tkeep_o),
-      .blk_tdata_o    (blko_tdata_o),
+      .blk_tvalid_o   (ep2_tvalid_w),
+      .blk_tready_i   (ep2_tready_w),
+      .blk_tlast_o    (ep2_tlast_w),
+      .blk_tkeep_o    (),
+      .blk_tdata_o    (ep2_tdata_w),
 
       // To/from USB control transfer endpoints
       .ctl_start_o    (ctl0_start_w),
@@ -443,6 +447,53 @@ module usb_ulpi_top
       .m_tdata_o   (ctl0_tdata_w),
       .m_tready_i  (ctl0_tready_w)
   );
+
+
+  // -- USB Bulk IN & OUT End-Points -- //
+
+  ep_bulk_in
+    #( .ENABLED  (USE_EP2_IN)
+       )
+  U_IN_EP2
+    ( .clock     (clock),
+      .reset     (reset),
+      .set_conf_i(ctl0_event_w),
+      .clr_conf_i(ctl0_error_w),
+      .selected_i(),
+      .ack_recv_i(),
+      .timedout_i(),
+      .stalled_o (),
+      .s_tvalid  (blki_tvalid_i),
+      .s_tready  (blki_tready_o),
+      .s_tlast   (blki_tlast_i),
+      .s_tdata   (blki_tdata_i),
+      .m_tvalid  (ep1_tvalid_w),
+      .m_tready  (ep1_tready_w),
+      .m_tkeep   (ep1_tkeep_w),
+      .m_tlast   (ep1_tlast_w),
+      .m_tdata   (ep1_tdata_w)
+      );
+
+  ep_bulk_out
+    #( .ENABLED  (USE_EP1_OUT)
+       )
+  U_OUT_EP1
+    ( .clock     (clock),
+      .reset     (reset),
+      .set_conf_i(ctl0_event_w),
+      .clr_conf_i(ctl0_error_w),
+      .selected_i(),
+      .stalled_o (),
+      .s_tvalid  (ep2_tvalid_w),
+      .s_tready  (ep2_tready_w),
+      .s_tlast   (ep2_tlast_w),
+      .s_tdata   (ep2_tdata_w),
+      .m_tvalid  (blko_tvalid_o),
+      .m_tready  (blko_tready_i),
+      .m_tkeep   (blko_tkeep_o),
+      .m_tlast   (blko_tlast_o),
+      .m_tdata   (blko_tdata_o)
+      );
 
 
 endmodule  /* usb_ulpi_top */

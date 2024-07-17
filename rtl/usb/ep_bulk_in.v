@@ -55,10 +55,8 @@ module ep_bulk_in
 
   assign stalled_o = ~enabled;
 
-
   assign redo_w = state == ST_WAIT && timedout_i;
   assign next_w = state == ST_WAIT && ack_recv_i;
-
 
   assign tvalid_w = state == ST_SEND && s_tvalid || state == ST_NONE;
   assign s_tready = tready_w && state == ST_SEND;
@@ -154,12 +152,10 @@ module ep_bulk_in
    (
     .clock   (clock),
     .reset   (reset),
-
     .s_tvalid(tvalid_w),
     .s_tready(tready_w),
     .s_tlast (tlast_w),
     .s_tdata ({tkeep_w, s_tdata}),
-
     .m_tvalid(m_tvalid),
     .m_tready(m_tready),
     .m_tlast (m_tlast),
@@ -180,19 +176,15 @@ module ep_bulk_in
   U_TX_FIFO1
     ( .clock  (clock),
       .reset  (reset),
-
       .level_o(level_w),
-
       .drop_i (1'b0),
       .save_i (1'b0),
       .redo_i (redo_w),
       .next_i (next_w),
-
       .valid_i(s_tvalid),
       .ready_o(tready_w),
       .last_i (s_tlast),
       .data_i (s_tdata),
-
       .valid_o(m_tvalid),
       .ready_i(m_tready),
       .last_o (tlast_w),
