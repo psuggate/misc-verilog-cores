@@ -10,6 +10,7 @@ module ep_bulk_in
     parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
+    parameter CONSTANT = 0,
     parameter USE_ZDP = 0 // TODO
   )
   (
@@ -23,6 +24,7 @@ module ep_bulk_in
    input ack_recv_i, // From USB controller
    input timedout_i, // From USB controller
 
+   output ep_ready_o,
    output stalled_o, // If invariants violated
 
    // From bulk data source
@@ -38,6 +40,45 @@ module ep_bulk_in
    output m_tlast,
    output [7:0] m_tdata
    );
+
+generate if (CONSTANT) begin : g_constant
+
+  //
+  //  Just produce constant data
+  ///
+
+  assign ep_ready_o = 1'b1;
+  assign stalled_o = 1'b0;
+  assign s_tready = 1'b0;
+  assign m_tkeep = 1'b1;
+  assign m_tdata = 8'ha5;
+
+  reg m_tvalid, m_tlast;
+  reg [5:0] count;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      m_tvalid <= 1'b0;
+      m_tlast  <= 1'b0;
+      count    <= 6'd0;
+    end else begin
+      if (selected_i && count < 6'd63) begin
+        m_tvalid <= 1'b1;
+        m_tlast  <= m_tready && count == 6'd62;
+        if (m_tready) begin
+          count <= count + 1;
+        end
+      end else if (m_tvalid && m_tready && m_tlast) begin
+        m_tvalid <= 1'b0;
+        m_tlast  <= 1'b0;
+      end else if (!selected_i) begin
+        m_tvalid <= 1'b0;
+        m_tlast  <= 1'b0;
+      end
+    end
+  end
+
+end else begin : g_bulk_in
 
   localparam [4:0] RX_HALT = 5'b00001;
   localparam [4:0] RX_FILL = 5'b00010;
@@ -221,6 +262,9 @@ module ep_bulk_in
   end
 
 `endif /* __icarus */
+
+end  /* g_bulk_in */
+endgenerate
 
 
 endmodule // ep_bulk_in

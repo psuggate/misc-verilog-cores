@@ -7,9 +7,10 @@
  */
 module ep_bulk_out
   #(
-     parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
+    parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
+    parameter DUMPSTER = 0,
     parameter USE_ZDP = 0 // TODO
   )
   (
@@ -20,6 +21,7 @@ module ep_bulk_out
    input clr_conf_i, // From CONTROL PIPE0
 
    input selected_i, // From USB controller
+   output ep_ready_o,
    output stalled_o, // If invariants violated
 
    // From USB/ULPI packet decoder
@@ -35,6 +37,20 @@ module ep_bulk_out
    output m_tlast,
    output [7:0] m_tdata
    );
+
+generate if (DUMPSTER) begin : g_dumpster
+  //
+  //  Just dump whatever we receive
+  ///
+  assign ep_ready_o = 1'b1;
+  assign stalled_o = 1'b0;
+  assign s_tready = selected_i;
+  assign m_tvalid = 1'b0;
+  assign m_tlast = 1'b0;
+  assign m_tkeep = 1'b0;
+  assign m_tdata = 8'bx;
+
+end else begin : g_bulk_out
 
   localparam [4:0] RX_HALT = 5'b00001;
   localparam [4:0] RX_FILL = 5'b00010;
@@ -52,10 +68,8 @@ module ep_bulk_out
 
   assign stalled_o = ~enabled;
 
-
   assign redo_w = state == ST_WAIT && timedout_i;
   assign next_w = state == ST_WAIT && ack_recv_i;
-
 
   assign tvalid_w = state == ST_SEND && s_tvalid || state == ST_NONE;
   assign s_tready = tready_w && state == ST_SEND;
@@ -193,5 +207,8 @@ module ep_bulk_out
 
 `endif /* __icarus */
 
+end  /* g_bulk_out */
+endgenerate
 
-endmodule // ep_bulk_out
+
+endmodule  /* ep_bulk_out */

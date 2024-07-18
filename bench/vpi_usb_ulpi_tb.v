@@ -10,23 +10,20 @@ module vpi_usb_ulpi_tb;
   end
 
 
-  // -- Simulation Data -- //
-
-  initial begin
-    $dumpfile("vpi_usb_ulpi_tb.vcd");
-    $dumpvars;
-
-    #15000 $finish;
-  end
-
-
   // -- Globals -- //
 
-  reg clock = 1'b1, clk25 = 1'b1, reset, arst_n;
+  reg clock, clk25, reset, arst_n;
   wire usb_clock, usb_rst_n, dev_clock, dev_reset;
+
+  initial begin
+    clock <= 1'b1;
+    clk25 <= 1'b1;
+  end
 
   always #20 clk25 <= ~clk25;
   always #5 clock <= ~clock;
+
+  assign usb_clock = clock;
 
   initial begin
     reset  <= 1'b1;
@@ -34,6 +31,16 @@ module vpi_usb_ulpi_tb;
 
     #40 arst_n <= 1'b1;
     #20 reset <= 1'b0;
+  end
+
+
+  // -- Simulation Data -- //
+
+  initial begin
+    $dumpfile("vpi_usb_ulpi_tb.vcd");
+    $dumpvars;
+
+    #15000 $finish;
   end
 
 
@@ -77,21 +84,23 @@ module vpi_usb_ulpi_tb;
 
   // -- System Clocks & Resets -- //
 
+/*
   ulpi_reset #(
       .PHASE("0000"),  // Note: timing-constraints used instead
       .PLLEN(0)
   ) U_RESET1 (
-      .areset_n  (areset_n),
-      .ulpi_clk  (ulpi_clock_i),
-      .sys_clock (clk26_i),
+      .areset_n  (arst_n),
+      .ulpi_clk  (clock),
+      .sys_clock (clk25),
 
       .ulpi_rst_n(reset_no),// Active LO
       .pll_locked(locked),
 
-      .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
+      // .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
       .usb_reset (reset),   // Active HI
       .ddr_clock ()         // 120 MHz, PLL output, phase-shifted
   );
+*/
 
 
   //
@@ -127,8 +136,8 @@ module vpi_usb_ulpi_tb;
       .blk_fetch_o    (bulk_fetch_w),
       .blk_store_o    (bulk_store_w),
       .blk_endpt_o    (bulk_endpt_w),
-      .blk_error_i    (1'b0),
 */
+      .blk_error_i    (1'b0),
 
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
       .blki_tready_o  (blki_tready_w),

@@ -33,8 +33,8 @@ module usb_ulpi_top
     output configured_o,
     output [2:0] usb_conf_o,
 
-    input bulk_in_packet_i,
-    input bulk_out_space_i,
+    // input bulk_in_packet_i,
+    // input bulk_out_space_i,
 
     output blk_start_o,
     output blk_cycle_o,
@@ -134,6 +134,7 @@ module usb_ulpi_top
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
   wire parity1_w; // TODO: remove ...
+  wire space_avail_w, has_packet_w;
 
   wire usb_idle_w, usb_enum_w, locked, clock, reset;
   wire high_speed_w, encode_idle_w, decode_idle_w, usb_reset_w, timeout_w;
@@ -172,8 +173,8 @@ module usb_ulpi_top
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_index_w, ctl_value_w, ctl_length_w;
 
-  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
-  wire ep2_tvalid_w, ep2_tready_w, ep2_tlast_w;
+  wire ep1_tvalid_w, ep1_tready_w, ep1_tlast_w;
+  wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
   wire [7:0] ep1_tdata_w, ep2_tdata_w;
 
 
@@ -185,6 +186,38 @@ module usb_ulpi_top
 
   assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
+
+
+  //
+  //  Bulk IN & OUT End-Point selects and ACKs
+  ///
+
+  reg ep1_sel_q, ep2_sel_q, ep2_ack_q;
+  wire ep2_err_w = 1'b0;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      ep1_sel_q <= 1'b0;
+      ep2_sel_q <= 1'b0;
+      ep2_ack_q <= 1'b0;
+    end else begin
+      if (USE_EP1_OUT && blk_start_o && blk_endpt_o == 4'd1) begin
+        ep1_sel_q <= 1'b1;
+      end else if (USE_EP1_OUT && !blk_cycle_o) begin
+        ep1_sel_q <= 1'b0;
+      end
+      if (USE_EP2_IN && blk_start_o && blk_endpt_o == 4'd2) begin
+        ep2_sel_q <= 1'b1;
+      end else if (USE_EP2_IN && !blk_cycle_o) begin
+        ep2_sel_q <= 1'b0;
+      end
+      if (USE_EP2_IN && hsk_rx_recv_w && tok_endp_w == 4'd2 && ulpi_rx_tuser_w == `USBPID_ACK) begin
+        ep2_ack_q <= 1'b1;
+      end else if (USE_EP2_IN && tok_endp_w != 4'd2) begin
+        ep2_ack_q <= 1'b0;
+      end
+    end
+  end
 
 
   //
@@ -354,8 +387,10 @@ module usb_ulpi_top
       .usb_tdata_o    (ulpi_tx_tdata_w),
 
       // USB bulk endpoint data-paths
-      .blk_in_ready_i (bulk_in_packet_i),
-      .blk_out_ready_i(bulk_out_space_i),
+      .blk_in_ready_i (has_packet_w),
+      .blk_out_ready_i(space_avail_w),
+      // .blk_in_ready_i (bulk_in_packet_i),
+      // .blk_out_ready_i(bulk_out_space_i),
 
       .blk_start_o    (blk_start_o),
       .blk_cycle_o    (blk_cycle_o),
@@ -364,17 +399,17 @@ module usb_ulpi_top
       .blk_endpt_o    (blk_endpt_o),
       .blk_error_i    (blk_error_i),
 
-      .blk_tvalid_i   (ep1_tvalid_w),
-      .blk_tready_o   (ep1_tready_w),
-      .blk_tlast_i    (ep1_tlast_w),
-      .blk_tkeep_i    (ep1_tkeep_w),
-      .blk_tdata_i    (ep1_tdata_w),
+      .blk_tvalid_i   (ep2_tvalid_w),
+      .blk_tready_o   (ep2_tready_w),
+      .blk_tlast_i    (ep2_tlast_w),
+      .blk_tkeep_i    (ep2_tkeep_w),
+      .blk_tdata_i    (ep2_tdata_w),
 
-      .blk_tvalid_o   (ep2_tvalid_w),
-      .blk_tready_i   (ep2_tready_w),
-      .blk_tlast_o    (ep2_tlast_w),
+      .blk_tvalid_o   (ep1_tvalid_w),
+      .blk_tready_i   (ep1_tready_w),
+      .blk_tlast_o    (ep1_tlast_w),
       .blk_tkeep_o    (),
-      .blk_tdata_o    (ep2_tdata_w),
+      .blk_tdata_o    (ep1_tdata_w),
 
       // To/from USB control transfer endpoints
       .ctl_start_o    (ctl0_start_w),
@@ -451,48 +486,52 @@ module usb_ulpi_top
 
   // -- USB Bulk IN & OUT End-Points -- //
 
-  ep_bulk_in
-    #( .ENABLED  (USE_EP2_IN)
-       )
-  U_IN_EP2
-    ( .clock     (clock),
-      .reset     (reset),
-      .set_conf_i(ctl0_event_w),
-      .clr_conf_i(ctl0_error_w),
-      .selected_i(),
-      .ack_recv_i(),
-      .timedout_i(),
-      .stalled_o (),
-      .s_tvalid  (blki_tvalid_i),
-      .s_tready  (blki_tready_o),
-      .s_tlast   (blki_tlast_i),
-      .s_tdata   (blki_tdata_i),
-      .m_tvalid  (ep1_tvalid_w),
-      .m_tready  (ep1_tready_w),
-      .m_tkeep   (ep1_tkeep_w),
-      .m_tlast   (ep1_tlast_w),
-      .m_tdata   (ep1_tdata_w)
-      );
-
   ep_bulk_out
-    #( .ENABLED  (USE_EP1_OUT)
+    #( .ENABLED  (USE_EP1_OUT),
+       .DUMPSTER (1) // TODO
        )
   U_OUT_EP1
     ( .clock     (clock),
       .reset     (reset),
       .set_conf_i(ctl0_event_w),
       .clr_conf_i(ctl0_error_w),
-      .selected_i(),
+      .selected_i(ep1_sel_q),
+      .ep_ready_o(space_avail_w),
       .stalled_o (),
-      .s_tvalid  (ep2_tvalid_w),
-      .s_tready  (ep2_tready_w),
-      .s_tlast   (ep2_tlast_w),
-      .s_tdata   (ep2_tdata_w),
+      .s_tvalid  (ep1_tvalid_w),
+      .s_tready  (ep1_tready_w),
+      .s_tlast   (ep1_tlast_w),
+      .s_tdata   (ep1_tdata_w),
       .m_tvalid  (blko_tvalid_o),
       .m_tready  (blko_tready_i),
       .m_tkeep   (blko_tkeep_o),
       .m_tlast   (blko_tlast_o),
       .m_tdata   (blko_tdata_o)
+      );
+
+  ep_bulk_in
+    #( .ENABLED  (USE_EP2_IN),
+       .CONSTANT (1) // TODO
+       )
+  U_IN_EP2
+    ( .clock     (clock),
+      .reset     (reset),
+      .set_conf_i(ctl0_event_w),
+      .clr_conf_i(ctl0_error_w),
+      .selected_i(ep2_sel_q),
+      .ack_recv_i(ep2_ack_q),
+      .timedout_i(ep2_err_w),
+      .ep_ready_o(has_packet_w),
+      .stalled_o (),
+      .s_tvalid  (blki_tvalid_i),
+      .s_tready  (blki_tready_o),
+      .s_tlast   (blki_tlast_i),
+      .s_tdata   (blki_tdata_i),
+      .m_tvalid  (ep2_tvalid_w),
+      .m_tready  (ep2_tready_w),
+      .m_tkeep   (ep2_tkeep_w),
+      .m_tlast   (ep2_tlast_w),
+      .m_tdata   (ep2_tdata_w)
       );
 
 
