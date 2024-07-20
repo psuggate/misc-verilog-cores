@@ -1,0 +1,57 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Jul 20 02:42:36 2024
+[*]
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
+[dumpfile_mtime] "Sat Jul 20 02:42:17 2024"
+[dumpfile_size] 28510
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-16.381653 60000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] vpi_usb_ulpi_tb.
+[sst_width] 233
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+vpi_usb_ulpi_tb.clock
+vpi_usb_ulpi_tb.arst_n
+vpi_usb_ulpi_tb.reset
+@800200
+-ULPI
+@28
+vpi_usb_ulpi_tb.usb_clock
+vpi_usb_ulpi_tb.usb_rst_n
+vpi_usb_ulpi_tb.ulpi_dir
+vpi_usb_ulpi_tb.ulpi_nxt
+vpi_usb_ulpi_tb.ulpi_stp
+@22
+vpi_usb_ulpi_tb.ulpi_data[7:0]
+@1000200
+-ULPI
+@800200
+-OUT
+@28
+vpi_usb_ulpi_tb.blko_tvalid_w
+vpi_usb_ulpi_tb.blko_tready_w
+vpi_usb_ulpi_tb.blko_tlast_w
+vpi_usb_ulpi_tb.blko_tkeep_w
+@22
+vpi_usb_ulpi_tb.blko_tdata_w[7:0]
+@1000200
+-OUT
+@800200
+-IN
+@28
+vpi_usb_ulpi_tb.blki_tvalid_w
+vpi_usb_ulpi_tb.blki_tready_w
+vpi_usb_ulpi_tb.blki_tlast_w
+vpi_usb_ulpi_tb.blki_tkeep_w
+@22
+vpi_usb_ulpi_tb.blki_tdata_w[7:0]
+@1000200
+-IN
+[pattern_trace] 1
+[pattern_trace] 0

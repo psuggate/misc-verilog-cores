@@ -54,8 +54,10 @@ static void ut_set_phy_idle(ut_state_t* state)
     sig.value.scalar = vpi0;
     now.type = vpiSimTime;
     vpi_get_time(NULL, &now);
-    vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
-    vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+    // vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
+    // vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+    vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
+    vpi_put_value(state->nxt, &sig, &now, vpiNoDelay);
 }
 
 static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t* next)
@@ -69,19 +71,22 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t*
 
     if (curr->dir != next->dir) {
 	sig.value.scalar = next->dir;
-	vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
+	// vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
+	vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
     }
 
     if (curr->nxt != next->nxt) {
 	sig.value.scalar = next->nxt;
-	vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+	// vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+	vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
     }
 
     if (curr->data.a != next->data.a || curr->data.b != next->data.b) {
 	s_vpi_vecval vec = {next->data.a, next->data.b};
 	sig.format = vpiVectorVal;
 	sig.value.vector = &vec;
-	vpi_put_value(state->data, &sig, &now, vpiInertialDelay);
+	// vpi_put_value(state->data, &sig, &now, vpiInertialDelay);
+	vpi_put_value(state->data, &sig, NULL, vpiNoDelay);
     }
 
     memcpy(&state->prev, &next, sizeof(ulpi_bus_t));
@@ -121,7 +126,6 @@ static int get_signal(vpiHandle* dst, vpiHandle iter)
 static int ut_compiletf(char* user_data)
 {
     vpiHandle systf_handle, arg_iterator, arg_handle;
-    int arg_type;
     ut_state_t* state = (ut_state_t*)malloc(sizeof(ut_state_t));
 
     /* obtain a handle to the system task instance */
@@ -132,7 +136,7 @@ static int ut_compiletf(char* user_data)
     /* obtain handles to system task arguments */
     arg_iterator = vpi_iterate(vpiArgument, systf_handle);
     if (arg_iterator == NULL)
-	return ut_error("requires 6 arguments");
+	return ut_error("requires 7 arguments");
 
     /* check the types of the objects in system task arguments */
     if (!get_signal(&state->clock, arg_iterator) ||
@@ -140,7 +144,8 @@ static int ut_compiletf(char* user_data)
 	!get_signal(&state->dir  , arg_iterator) ||
 	!get_signal(&state->nxt  , arg_iterator) ||
 	!get_signal(&state->stp  , arg_iterator) ||
-	!get_signal(&state->data , arg_iterator)) {
+	!get_signal(&state->dati , arg_iterator) ||
+	!get_signal(&state->dato , arg_iterator)) {
 	return 0;
     }
 
@@ -151,6 +156,27 @@ static int ut_compiletf(char* user_data)
 	return ut_error("can only have 6 arguments");
     }
 
+    if (vpi_get(vpiType, state->dir) != vpiReg ||
+	vpi_get(vpiSize, state->dir) != 1) {
+	return ut_error("ULPI 'dir' must be a 1-bit reg");
+    }
+
+    if (vpi_get(vpiType, state->nxt) != vpiReg ||
+	vpi_get(vpiSize, state->nxt) != 1) {
+	return ut_error("ULPI 'nxt' must be a 1-bit reg");
+    }
+
+    if (vpi_get(vpiType, state->dati) != vpiNet ||
+	vpi_get(vpiSize, state->dati) != 8) {
+	return ut_error("ULPI 'dati' must be an 8-bit net");
+    }
+
+    if (vpi_get(vpiType, state->dato) != vpiReg ||
+	vpi_get(vpiSize, state->dato) != 8) {
+	return ut_error("ULPI 'dato' must be an 8-bit reg");
+    }
+
+#if 0
     /* track time in nanoseconds */
     // uint32_t t_unit = vpi_get(vpiTimeUnit, NULL);
     uint32_t t_prec = vpi_get(vpiTimePrecision, NULL);
@@ -159,7 +185,9 @@ static int ut_compiletf(char* user_data)
     while (scale-- > 0) {
 	state->t_recip *= 10;
     }
+#endif /* 0 */
     state->cycle = 0;
+    state->sync_flag = 0;
     state->test_curr = 0;
     state->test_num = 1;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*));
@@ -172,32 +200,56 @@ static int ut_compiletf(char* user_data)
     return 0;
 }
 
-/**
- * Emulates a USB host, USB bus, and the ULPI PHY of a link, and runs tests on
- * the simulated link/device, via ULPI.
- */
-static int ut_calltf(char* user_data)
+static int cb_step_sync(p_cb_data cb_data)
 {
-    vpiHandle systf_handle, arg_iterator, net_handle, time_handle;
-    s_vpi_value value;
+    return 0;
+}
+
+static int cb_step_clock(p_cb_data cb_data)
+{
+    vpiHandle net_handle;
+    s_vpi_value x;
     ut_state_t* state;
     s_vpi_time time;
     ulpi_bus_t curr;
 
-    /* obtain a handle to the system task instance */
-    systf_handle = vpi_handle(vpiSysTfCall, NULL);
-
-    /* check the user-data */
-    state = (ut_state_t*)vpi_get_userdata(systf_handle);
+    state = (ut_state_t*)cb_data->user_data;
     if (state == NULL)
 	ut_error("'*state' problem");
 
+    x.format = vpiIntVal;
+    vpi_get_value(state->clock, &x);
+    int clock = (int)x.value.integer;
+    if (clock != 1) {
+	vpi_printf("Clock = %d\n", clock);
+	return 0;
+    }
+
+    s_vpi_value x;
+    s_vpi_time t;
+    s_cb_data cb;
+    vpiHandle cb_handle;
+    ut_state_t* state;
+
+    t.type       = vpiSuppressTime;
+    x.format     = vpiSuppressVal;
+    cb.reason    = cbValueChange;
+    cb.cb_rtn    = cb_step_clock;
+    cb.time      = &t;
+    cb.value     = &x;
+    cb.user_data = (PLI_BYTE8*)state;
+    cb.obj       = state->clock;
+    cb_handle    = vpi_register_cb(&cb);
+    vpi_free_object(cb_handle);
+
+#if 0
     /* get the simulation-time (in nanoseconds) */
     time.type = vpiSimTime;
     vpi_get_time(NULL, &time);
     uint64_t tick_ns = ((uint64_t)time.high << 32) | (uint64_t)time.low;
     tick_ns /= state->t_recip;
     state->tick_ns = tick_ns;
+#endif /* 0 */
 
     uint64_t cycle = state->cycle++;
     ulpi_phy_t* phy = &state->phy;
@@ -232,44 +284,80 @@ static int ut_calltf(char* user_data)
 
 	if (result < 0) {
 	    // Test failed
-	    vpi_printf("At: %8lu ns => %s STEP failed, result = %d\n",
-		       tick_ns, test->name, result);
+	    vpi_printf("At: %8lu => %s STEP failed, result = %d\n",
+		       cycle, test->name, result);
 	    ut_error("test STEP failed");
 	} else if (result > 0) {
 	    // Test finished, advance to the next, if possible
-	    vpi_printf("At: %8lu ns => %s completed\n",
-		       tick_ns, test->name);
+	    vpi_printf("At: %8lu => %s completed\n",
+		       cycle, test->name);
 
 	    if (++state->test_curr < state->test_num) {
 		// Todo: start the next test
 		test = state->tests[state->test_curr];
 		result = tc_init(test, phy);
 		if (result < 0) {
-		    vpi_printf("At: %8lu ns => %s INIT failed, result = %d\n",
-			       tick_ns, test->name, result);
+		    vpi_printf("At: %8lu => %s INIT failed, result = %d\n",
+			       cycle, test->name, result);
 		    ut_error("test INIT failed");
 		}
 	    } else {
-		vpi_printf("At: %8lu ns => testbench completed\n", tick_ns);
+		vpi_printf("At: %8lu => testbench completed\n", cycle);
 		vpi_control(vpiFinish, 0);
 	    }
 	}
     } else if (curr.dir != state->prev.dir) {
 	// Else, step ...
 	net_handle = state->data;
-	value.format = vpiVectorVal;
-	vpi_get_value(net_handle, &value);
-	vpi_printf("At: %8lu ns => signal %s has the value (a: %2x, b: %2x)\n",
-		   tick_ns,
+	x.format = vpiVectorVal;
+	vpi_get_value(net_handle, &x);
+	vpi_printf("At: %8lu => signal %s has the value (a: %2x, b: %2x)\n",
+		   cycle,
 		   vpi_get_str(vpiFullName, net_handle),
-		   value.value.vector[0].aval,
-		   value.value.vector[0].bval);
+		   x.value.vector[0].aval,
+		   x.value.vector[0].bval);
 	vpi_printf("I AM BEING ABUSED!\n");
     }
 
     // If the update-step has changed the bus-state, then schedule that change
     ulpi_bus_t* next = &phy->bus;
     ut_update_bus_state(state, &curr, next);
+
+    return 0;
+}
+
+/**
+ * Emulates a USB host, USB bus, and the ULPI PHY of a link, and runs tests on
+ * the simulated link/device, via ULPI.
+ */
+static int ut_calltf(char* user_data)
+{
+    vpiHandle systf_handle;
+    s_vpi_value x;
+    s_vpi_time t;
+    s_cb_data cb;
+    vpiHandle cb_handle;
+    ut_state_t* state;
+
+    /* obtain a handle to the system task instance */
+    systf_handle = vpi_handle(vpiSysTfCall, NULL);
+
+    /* check the user-data */
+    state = (ut_state_t*)vpi_get_userdata(systf_handle);
+    if (state == NULL) {
+	return ut_error("'*state' problem");
+    }
+
+    t.type       = vpiSuppressTime;
+    x.format     = vpiSuppressVal;
+    cb.reason    = cbValueChange;
+    cb.cb_rtn    = cb_step_clock;
+    cb.time      = &t;
+    cb.value     = &x;
+    cb.user_data = (PLI_BYTE8*)state;
+    cb.obj       = state->clock;
+    cb_handle    = vpi_register_cb(&cb);
+    vpi_free_object(cb_handle);
 
     return 0;
 }

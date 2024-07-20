@@ -17,12 +17,16 @@ typedef struct {
     vpiHandle dir;
     vpiHandle nxt;
     vpiHandle stp;
-    vpiHandle data;
+    vpiHandle dati;
+    vpiHandle dato;
+#if 0
     uint64_t tick_ns;
     uint64_t t_recip;
+#endif /* 0 */
     uint64_t cycle;
     ulpi_bus_t prev;
     ulpi_phy_t phy;
+    int sync_flag;
     int test_num;
     int test_curr;
     testcase_t** tests;

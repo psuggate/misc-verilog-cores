@@ -61,7 +61,6 @@ module axi_spi_slave #(
     input [MSB:0] axi_rdata_i
 );
 
-
   // -- Signals & State -- //
 
   wire active_w, tready_w, tvalid_w, rvalid_nw, rvalid_w, rready_w;

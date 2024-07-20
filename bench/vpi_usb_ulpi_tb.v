@@ -40,7 +40,7 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    #15000 $finish;
+    #150 $finish;
   end
 
 
@@ -77,9 +77,20 @@ module vpi_usb_ulpi_tb;
   end
 
   // Salad days
+  /*
   always @(negedge usb_clock) begin
     $ulpi_step(usb_clock, arst_nw, ulpi_dir, ulpi_nxt, ulpi_stp, ulpi_data);
   end
+   */
+
+  ulpi_shell U_ULPI_HOST1
+    ( .clock(usb_clock),
+      .rst_n(usb_rst_n),
+      .dir(ulpi_dir),
+      .nxt(ulpi_nxt),
+      .stp(ulpi_stp),
+      .data(ulpi_data)
+      );
 
 
   // -- System Clocks & Resets -- //
