@@ -137,15 +137,15 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     uint64_t cycle = host->cycle;
 
     if (in->rst_n == SIG0) {
-	printf("@%8lu => Reset issued\n", cycle);
+	printf("H@%8lu => Reset issued\n", cycle);
 	usbh_reset(host);
     } else if (host->cycle % SOF_N_TICKS == 0ul) {
 	if (host->op > HostIdle) {
-	    printf("@%8lu => Transaction cancelled for SOF\n", cycle);
+	    printf("H@%8lu => Transaction cancelled for SOF\n", cycle);
 	} else if (host->op < HostIdle) {
 	    // Ignore SOF
 	} else {
-	    printf("@%8lu => SOF\n", cycle);
+	    printf("H@%8lu => SOF\n", cycle);
 	    host->op = HostSOF;
 	    host->step = 0u;
 	}
@@ -160,11 +160,11 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case HostReset: {
 	uint32_t step = ++host->step;
 	if (step < 2) {
-	    printf("@%8lu => RESET START\n", cycle);
+	    printf("H@%8lu => RESET START\n", cycle);
 	} else if (step >= RESET_TICKS) {
 	    host->op = HostIdle;
 	    host->step = 0u;
-	    printf("@%8lu => RESET END\n", cycle);
+	    printf("H@%8lu => RESET END\n", cycle);
 	}
 	result = 0;
 	break;
@@ -191,17 +191,17 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	// DATAx
 	// STATUS
 	host->step++;
-	printf("ERROR\n");
+	printf("H@%8lu => ERROR\n", cycle);
 	break;
 
     case HostBulkIN:
 	host->step++;
-	printf("ERROR\n");
+	printf("H@%8lu => ERROR\n", cycle);
 	break;
 
     default:
 	host->step++;
-	printf("ERROR\n");
+	printf("H@%8lu => ERROR\n", cycle);
 	break;
     }
 
