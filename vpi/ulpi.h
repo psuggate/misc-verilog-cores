@@ -205,6 +205,7 @@ static inline void phy_bus_release(ulpi_bus_t* bus)
     bus->data.b = 0xff;
 }
 
+void ulpi_bus_idle(ulpi_bus_t* bus);
 
 ulpi_phy_t* phy_init(void);
 

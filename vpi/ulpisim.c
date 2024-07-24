@@ -40,7 +40,7 @@ static void ut_fetch_bus(ut_state_t* state, ulpi_bus_t* bus)
     bus->stp = (bit_t)curr_value.value.scalar;
 
     curr_value.format = vpiVectorVal;
-    vpi_get_value(state->data, &curr_value);
+    vpi_get_value(state->dati, &curr_value);
     bus->data.a = (uint8_t)curr_value.value.vector->aval;
     bus->data.b = (uint8_t)curr_value.value.vector->bval;
 }
@@ -48,16 +48,12 @@ static void ut_fetch_bus(ut_state_t* state, ulpi_bus_t* bus)
 static void ut_set_phy_idle(ut_state_t* state)
 {
     s_vpi_value sig;
-    s_vpi_time now;
 
     sig.format = vpiScalarVal;
     sig.value.scalar = vpi0;
-    now.type = vpiSimTime;
-    vpi_get_time(NULL, &now);
-    // vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
-    // vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
+
     vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
-    vpi_put_value(state->nxt, &sig, &now, vpiNoDelay);
+    vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
 }
 
 static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t* next)
@@ -71,13 +67,11 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t*
 
     if (curr->dir != next->dir) {
 	sig.value.scalar = next->dir;
-	// vpi_put_value(state->dir, &sig, &now, vpiInertialDelay);
 	vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
     }
 
     if (curr->nxt != next->nxt) {
 	sig.value.scalar = next->nxt;
-	// vpi_put_value(state->nxt, &sig, &now, vpiInertialDelay);
 	vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
     }
 
@@ -85,8 +79,7 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t*
 	s_vpi_vecval vec = {next->data.a, next->data.b};
 	sig.format = vpiVectorVal;
 	sig.value.vector = &vec;
-	// vpi_put_value(state->data, &sig, &now, vpiInertialDelay);
-	vpi_put_value(state->data, &sig, NULL, vpiNoDelay);
+	vpi_put_value(state->dato, &sig, NULL, vpiNoDelay);
     }
 
     memcpy(&state->prev, &next, sizeof(ulpi_bus_t));
@@ -94,6 +87,142 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t*
 
 static int ut_step_xfer(ut_state_t* state)
 {
+    return 0;
+}
+
+/**
+ * Process the bus signal values, and update the state & signals, as required.
+ */
+static int cb_step_sync(p_cb_data cb_data)
+{
+    vpiHandle net_handle;
+    s_vpi_value x;
+    ulpi_phy_t* phy;
+    ulpi_bus_t curr;
+    ut_state_t* state = (ut_state_t*)cb_data->user_data;
+    if (state == NULL)
+	ut_error("'*state' problem");
+
+    uint64_t cycle = state->cycle++;
+    phy = &state->phy;
+    ut_fetch_bus(state, &curr);
+
+    if (cycle == 0) {
+	//
+	// Todo: startup things ...
+	//
+	int result = -1;
+	if (state->test_curr < state->test_num) {
+	    testcase_t* test = state->tests[state->test_curr];
+	    result = tc_init(test, phy);
+	}
+	vpi_printf("ZERO: result = %d !!\n", result);
+    } else if (phy->xfer.type != XferIdle) {
+	//
+	// Todo:
+	//  - step the current transfer, until complete;
+	//  - make sure the bus is back to idle;
+	//  - then proceed to the next test-stage;
+	//
+	vpi_printf("NOT IDLE!\n");
+    } else if (state->test_curr < state->test_num) {
+	//
+	// Todo: keep progressing through the test-cases ...
+	//
+	testcase_t* test = state->tests[state->test_curr];
+	int result = tc_step(test);
+
+	if (result < 0) {
+	    // Test failed
+	    vpi_printf("At: %8lu => %s STEP failed, result = %d\n",
+		       cycle, test->name, result);
+	    ut_error("test STEP failed");
+	} else if (result > 0) {
+	    // Test finished, advance to the next, if possible
+	    vpi_printf("At: %8lu => %s completed\n",
+		       cycle, test->name);
+
+	    if (++state->test_curr < state->test_num) {
+		// Todo: start the next test
+		test = state->tests[state->test_curr];
+		result = tc_init(test, phy);
+		if (result < 0) {
+		    vpi_printf("At: %8lu => %s INIT failed, result = %d\n",
+			       cycle, test->name, result);
+		    ut_error("test INIT failed");
+		}
+	    } else {
+		vpi_printf("At: %8lu => testbench completed\n", cycle);
+		vpi_control(vpiFinish, 0);
+	    }
+	}
+    } else if (curr.dir != state->prev.dir) {
+	// Else, step ...
+	net_handle = state->dati;
+	x.format = vpiVectorVal;
+	vpi_get_value(net_handle, &x);
+	vpi_printf("At: %8lu => signal %s has the value (a: %2x, b: %2x)\n",
+		   cycle,
+		   vpi_get_str(vpiFullName, net_handle),
+		   x.value.vector[0].aval,
+		   x.value.vector[0].bval);
+	vpi_printf("I AM BEING ABUSED!\n");
+    }
+
+    // If the update-step has changed the bus-state, then schedule that change
+    ulpi_bus_t* next = &phy->bus;
+    ut_update_bus_state(state, &curr, next);
+
+    state->sync_flag = 0;
+    return 0;
+}
+
+/**
+ * Event-handler for every posedge-clock event.
+ */
+static int cb_step_clock(p_cb_data cb_data)
+{
+    ut_state_t* state = (ut_state_t*)cb_data->user_data;
+    if (state == NULL) {
+	ut_error("'*state' missing");
+    }
+
+    // Check to see if posedge of clock
+    s_vpi_value x;
+    x.format = vpiIntVal;
+    vpi_get_value(state->clock, &x);
+
+    int clock = (int)x.value.integer;
+    if (clock != 1) {
+	vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
+	return 0;
+    }
+
+    // Capture the bus signals at the time of the clock-edge
+    ulpi_phy_t* phy = &state->phy;
+    ulpi_bus_t curr;
+    ut_fetch_bus(state, &curr);
+    memcpy(&phy->bus, &curr, sizeof(ulpi_bus_t));
+
+    // Setup a read/write synchronisation callback, to process the current bus
+    // values, and update signals & state.
+    s_vpi_time t;
+    t.type       = vpiSimTime;
+    t.high       = 0;
+    t.low        = 0;
+
+    s_cb_data cb;
+    cb.reason    = cbReadWriteSynch;
+    cb.cb_rtn    = cb_step_sync;
+    cb.user_data = (PLI_BYTE8*)state;
+    cb.time      = &t;
+    cb.value     = NULL;
+    cb.obj       = NULL;
+
+    vpiHandle cb_handle = vpi_register_cb(&cb);
+    vpi_free_object(cb_handle);
+    state->sync_flag = 1;
+
     return 0;
 }
 
@@ -176,16 +305,6 @@ static int ut_compiletf(char* user_data)
 	return ut_error("ULPI 'dato' must be an 8-bit reg");
     }
 
-#if 0
-    /* track time in nanoseconds */
-    // uint32_t t_unit = vpi_get(vpiTimeUnit, NULL);
-    uint32_t t_prec = vpi_get(vpiTimePrecision, NULL);
-    state->t_recip = 1;
-    int scale = -9 - t_prec;
-    while (scale-- > 0) {
-	state->t_recip *= 10;
-    }
-#endif /* 0 */
     state->cycle = 0;
     state->sync_flag = 0;
     state->test_curr = 0;
@@ -196,132 +315,6 @@ static int ut_compiletf(char* user_data)
     // Todo: populate the set of tests ...
 
     vpi_put_userdata(systf_handle, (void*)state);
-
-    return 0;
-}
-
-static int cb_step_sync(p_cb_data cb_data)
-{
-    return 0;
-}
-
-static int cb_step_clock(p_cb_data cb_data)
-{
-    vpiHandle net_handle;
-    s_vpi_value x;
-    ut_state_t* state;
-    s_vpi_time time;
-    ulpi_bus_t curr;
-
-    state = (ut_state_t*)cb_data->user_data;
-    if (state == NULL)
-	ut_error("'*state' problem");
-
-    x.format = vpiIntVal;
-    vpi_get_value(state->clock, &x);
-    int clock = (int)x.value.integer;
-    if (clock != 1) {
-	vpi_printf("Clock = %d\n", clock);
-	return 0;
-    }
-
-    s_vpi_value x;
-    s_vpi_time t;
-    s_cb_data cb;
-    vpiHandle cb_handle;
-    ut_state_t* state;
-
-    t.type       = vpiSuppressTime;
-    x.format     = vpiSuppressVal;
-    cb.reason    = cbValueChange;
-    cb.cb_rtn    = cb_step_clock;
-    cb.time      = &t;
-    cb.value     = &x;
-    cb.user_data = (PLI_BYTE8*)state;
-    cb.obj       = state->clock;
-    cb_handle    = vpi_register_cb(&cb);
-    vpi_free_object(cb_handle);
-
-#if 0
-    /* get the simulation-time (in nanoseconds) */
-    time.type = vpiSimTime;
-    vpi_get_time(NULL, &time);
-    uint64_t tick_ns = ((uint64_t)time.high << 32) | (uint64_t)time.low;
-    tick_ns /= state->t_recip;
-    state->tick_ns = tick_ns;
-#endif /* 0 */
-
-    uint64_t cycle = state->cycle++;
-    ulpi_phy_t* phy = &state->phy;
-    ut_fetch_bus(state, &curr);
-    memcpy(&phy->bus, &curr, sizeof(ulpi_bus_t));
-
-    if (cycle == 0) {
-	//
-	// Todo: startup things ...
-	//
-	int result = -1;
-	if (state->test_curr < state->test_num) {
-	    testcase_t* test = state->tests[state->test_curr];
-	    result = tc_init(test, phy);
-	}
-	vpi_printf("ZERO: result = %d !!\n", result);
-
-    } else if (phy->xfer.type != XferIdle) {
-	//
-	// Todo:
-	//  - step the current transfer, until complete;
-	//  - make sure the bus is back to idle;
-	//  - then proceed to the next test-stage;
-	//
-	vpi_printf("NOT IDLE!\n");
-    } else if (state->test_curr < state->test_num) {
-	//
-	// Todo: keep progressing through the test-cases ...
-	//
-	testcase_t* test = state->tests[state->test_curr];
-	int result = tc_step(test);
-
-	if (result < 0) {
-	    // Test failed
-	    vpi_printf("At: %8lu => %s STEP failed, result = %d\n",
-		       cycle, test->name, result);
-	    ut_error("test STEP failed");
-	} else if (result > 0) {
-	    // Test finished, advance to the next, if possible
-	    vpi_printf("At: %8lu => %s completed\n",
-		       cycle, test->name);
-
-	    if (++state->test_curr < state->test_num) {
-		// Todo: start the next test
-		test = state->tests[state->test_curr];
-		result = tc_init(test, phy);
-		if (result < 0) {
-		    vpi_printf("At: %8lu => %s INIT failed, result = %d\n",
-			       cycle, test->name, result);
-		    ut_error("test INIT failed");
-		}
-	    } else {
-		vpi_printf("At: %8lu => testbench completed\n", cycle);
-		vpi_control(vpiFinish, 0);
-	    }
-	}
-    } else if (curr.dir != state->prev.dir) {
-	// Else, step ...
-	net_handle = state->data;
-	x.format = vpiVectorVal;
-	vpi_get_value(net_handle, &x);
-	vpi_printf("At: %8lu => signal %s has the value (a: %2x, b: %2x)\n",
-		   cycle,
-		   vpi_get_str(vpiFullName, net_handle),
-		   x.value.vector[0].aval,
-		   x.value.vector[0].bval);
-	vpi_printf("I AM BEING ABUSED!\n");
-    }
-
-    // If the update-step has changed the bus-state, then schedule that change
-    ulpi_bus_t* next = &phy->bus;
-    ut_update_bus_state(state, &curr, next);
 
     return 0;
 }

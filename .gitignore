@@ -14,3 +14,4 @@ target/
 *.o
 *.vvp
 *.vpi
+vpi/ulpisim

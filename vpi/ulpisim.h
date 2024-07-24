@@ -19,10 +19,6 @@ typedef struct {
     vpiHandle stp;
     vpiHandle dati;
     vpiHandle dato;
-#if 0
-    uint64_t tick_ns;
-    uint64_t t_recip;
-#endif /* 0 */
     uint64_t cycle;
     ulpi_bus_t prev;
     ulpi_phy_t phy;

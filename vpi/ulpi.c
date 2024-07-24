@@ -41,6 +41,22 @@ void phy_free(ulpi_phy_t* phy)
 
 
 //
+//  Helper Routines
+///
+
+void ulpi_bus_idle(ulpi_bus_t* bus)
+{
+    bus->clock = vpi1;
+    bus->rst_n = vpi1;
+    bus->dir = vpi0;
+    bus->nxt = vpi0;
+    bus->stp = vpi0;
+    bus->data.a = 0x00;
+    bus->data.b = 0x00;
+}
+
+
+//
 //  Higher-Level Routines
 ///
 
