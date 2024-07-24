@@ -2,6 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+//
+// Todo:
+//  - HS negotiation (pp.39, ULPI_v1_1.pdf)
+//  - Reset handling
+//  - Suspend and Resume
+//
+
 
 // Initialisation/reset/default values for the ULPI PHY registers.
 static const uint8_t ULPI_REG_DEFAULTS[10] = {
@@ -16,18 +23,14 @@ ulpi_phy_t* phy_init(void)
 
     memcpy(phy->state.regs, ULPI_REG_DEFAULTS, sizeof(ULPI_REG_DEFAULTS));
 
-    phy->state.rx_cmd.LineState = 0; // squelch
-    phy->state.rx_cmd.VbusState = 3; // VbusValid
-    phy->state.rx_cmd.RxEvent = 0;
-    phy->state.rx_cmd.ID = 0;
-    phy->state.rx_cmd.alt_int = 0;
+    phy->state.rx_cmd = 0x0C;
     phy->state.status = PowerOn;
 
-    phy->bus.clock = vpiX;
-    phy->bus.rst_n = vpiX;
-    phy->bus.dir = vpiZ;
-    phy->bus.nxt = vpiZ;
-    phy->bus.stp = vpiX;
+    phy->bus.clock = SIGX;
+    phy->bus.rst_n = SIGX;
+    phy->bus.dir = SIGZ;
+    phy->bus.nxt = SIGZ;
+    phy->bus.stp = SIGX;
     phy->bus.data.a = 0x00;
     phy->bus.data.b = 0xff;
 
@@ -46,11 +49,11 @@ void phy_free(ulpi_phy_t* phy)
 
 void ulpi_bus_idle(ulpi_bus_t* bus)
 {
-    bus->clock = vpi1;
-    bus->rst_n = vpi1;
-    bus->dir = vpi0;
-    bus->nxt = vpi0;
-    bus->stp = vpi0;
+    bus->clock = SIG1;
+    bus->rst_n = SIG1;
+    bus->dir = SIG0;
+    bus->nxt = SIG0;
+    bus->stp = SIG0;
     bus->data.a = 0x00;
     bus->data.b = 0x00;
 }

@@ -14,4 +14,4 @@ target/
 *.o
 *.vvp
 *.vpi
-vpi/ulpisim
+vpi/usb/usbmodel

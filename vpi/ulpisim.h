@@ -2,10 +2,9 @@
 #define __ULPISIM_H__
 
 
-#include <vpi_user.h>
 #include <stdint.h>
 #include "ulpi.h"
-#include "testcase.h"
+// #include "testcase.h"
 
 
 /**
@@ -31,7 +30,7 @@ typedef struct {
 
 static inline int phy_is_driving(ut_state_t* state)
 {
-    return state->prev.dir == vpi1;
+    return state->prev.dir == SIG1;
 }
 
 
