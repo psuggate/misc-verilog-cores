@@ -46,6 +46,9 @@ int main(int argc, char* argv[])
 {
     usb_host_t* host = (usb_host_t*)malloc(sizeof(usb_host_t));
     ulpi_bus_t bus, upd;
+    int result;
+    uint8_t buf[64];
+    uint16_t len = 64;
 
     check_crc5();
     check_crc16();
@@ -60,12 +63,32 @@ int main(int argc, char* argv[])
     // bus.rst_n = SIG0;
     // host->op = HostReset;
     while (host->op == HostReset) {
-	usbh_step(host, &bus, &upd);
+	result = usbh_step(host, &bus, &upd);
+	if (result < 0) {
+	    printf("ERROR: %d\n", result);
+	    break;
+	}
 	memcpy(&bus, &upd, sizeof(ulpi_bus_t));
     }
 
     // Do some transactions
     printf("Starting ULPI transactions\n");
+
+    printf("Requesting CONFIG DESCRIPTOR\n");
+    result = usbh_get_descriptor(host, 0x01, buf, &len);
+    if (result < 0) {
+	printf("ERROR: %d\n", result);
+	exit(1);
+    }
+
+    while (host->op != HostIdle) {
+	result = usbh_step(host, &bus, &upd);
+	if (result < 0) {
+	    printf("ERROR: %d\n", result);
+	    break;
+	}
+	memcpy(&bus, &upd, sizeof(ulpi_bus_t));
+    }
 
     // Disconnect device
 

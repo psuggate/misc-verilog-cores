@@ -2,7 +2,29 @@
 #define __STDREQ_H__
 
 
-#include "usbhost.h"
+#include <stdint.h>
+
+
+#define STDREQ_GET_STATUS        0
+#define STDREQ_CLEAR_FEATURE     1
+#define STDREQ_SET_FEATURE       3
+#define STDREQ_SET_ADDRESS       5
+#define STDREQ_GET_DESCRIPTOR    6
+#define STDREQ_SET_DESCRIPTOR    7
+#define STDREQ_GET_CONFIGURATION 8
+#define STDREQ_SET_CONFIGURATION 9
+#define STDREQ_GET_INTERFACE     10
+#define STDREQ_SET_INTERFACE     11
+#define STDREQ_SYNCH_FRAME       12
+
+#define DESC_DEVICE              1
+#define DESC_CONFIGURATION       2
+#define DESC_STRING              3
+#define DESC_INTERFACE           4
+#define DESC_ENDPOINT            5
+#define DESC_DEVICE_QUALIFIER    6
+#define DESC_OTHER_SPEED_CONFIG  7
+#define DESC_INTERFACE_POWER     8
 
 
 /**
@@ -30,8 +52,11 @@ typedef struct {
 } usb_desc_t;
 
 
+// void stdreq_init(stdreq_steps_t* steps)
+
+
 int set_configuration(uint16_t wValue);
-int get_descriptor(uint16_t type, uint16_t lang, usb_desc_t);
+int get_descriptor(uint16_t type, uint16_t lang, usb_desc_t* desc);
 
 
 #endif  /* __STDREQ_H__ */

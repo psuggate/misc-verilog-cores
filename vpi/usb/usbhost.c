@@ -14,6 +14,10 @@
 #define SOF_N_TICKS 7500
 
 
+// Global, default configuration-request step-functions
+static stdreq_steps_t stdreqs;
+
+
 /**
  * Take ownership of the bus, terminating any existing transaction, and then
  * driving an RX CMD to the device.
@@ -122,6 +126,7 @@ void usbh_init(usb_host_t* host)
     if (host == NULL) {
 	return;
     }
+    stdreq_init(&stdreqs);
     usbh_reset(host);
     host->cycle = 0ul;
     host->sof = 0u;
@@ -189,10 +194,9 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case HostSETUP:
 	// SETUP
+	result = stdreqs.setup(host, in, out);
 	// DATAx
 	// STATUS
-	host->step++;
-	printf("H@%8lu => ERROR\n", cycle);
 	break;
 
     case HostBulkIN:
@@ -215,40 +219,18 @@ int usbh_busy(usb_host_t* host)
     return host->op != HostIdle;
 }
 
+/*
 int usbh_send(usb_host_t* host, usb_xact_t* xact)
 {
     return -1;
 }
+*/
 
 
 /**
  * Queue-up a device reset, to be issued.
  */
 int usbh_reset_device(usb_host_t* host, uint8_t addr)
-{
-    return -1;
-}
-
-/**
- * Request the indicated descriptor, from a device.
- */
-int usbh_get_descriptor(usb_host_t* host, uint8_t num, uint8_t* buf, uint16_t* len)
-{
-    return -1;
-}
-
-/**
- * Configure a USB device to use the given 'addr'.
- */
-int usbh_set_address(usb_host_t* host, uint8_t addr)
-{
-    return -1;
-}
-
-/**
- * Set the device to use the indicated configuration.
- */
-int usbh_set_config(usb_host_t* host, uint8_t num)
 {
     return -1;
 }
