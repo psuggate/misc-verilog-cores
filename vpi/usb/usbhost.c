@@ -139,6 +139,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     if (in->rst_n == SIG0) {
 	printf("H@%8lu => Reset issued\n", cycle);
 	usbh_reset(host);
+	out->rst_n = SIG1;
     } else if (host->cycle % SOF_N_TICKS == 0ul) {
 	if (host->op > HostIdle) {
 	    printf("H@%8lu => Transaction cancelled for SOF\n", cycle);
