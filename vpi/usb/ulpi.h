@@ -179,6 +179,7 @@ typedef struct {
     uint8_t type;
     uint8_t stage;
     bit_t ep_seq[16];
+    uint32_t cycle;
     uint8_t tx[MAX_PACKET];
     int tx_len;
     int tx_ptr;
@@ -192,6 +193,10 @@ typedef struct {
     ulpi_bus_t bus;
     transfer_t xfer;
 } ulpi_phy_t;
+
+
+// typedef int (*step_fn_t)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+typedef int (*step_fn_t)(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
 static inline void phy_drive_rx_cmd(ulpi_phy_t* phy)

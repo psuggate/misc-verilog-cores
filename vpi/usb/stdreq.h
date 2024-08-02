@@ -52,11 +52,24 @@ typedef struct {
 } usb_desc_t;
 
 
-// void stdreq_init(stdreq_steps_t* steps)
+typedef struct {
+    /*
+    int (*setup)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+    int (*data0)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+    int (*data1)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+    int (*status)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+    */
+    step_fn_t setup;
+    step_fn_t data0;
+    step_fn_t data1;
+    step_fn_t status;
+} stdreq_steps_t;
 
 
-int set_configuration(uint16_t wValue);
-int get_descriptor(uint16_t type, uint16_t lang, usb_desc_t* desc);
+void stdreq_init(stdreq_steps_t* steps);
+
+int set_configuration(usb_stdreq_t* req, uint16_t wValue);
+int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len, usb_desc_t* desc);
 
 
 #endif  /* __STDREQ_H__ */

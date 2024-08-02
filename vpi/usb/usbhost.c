@@ -10,31 +10,111 @@
 #include <string.h>
 
 
-#define RESET_TICKS 60000
-#define SOF_N_TICKS 7500
-
+#define RESET_TICKS     60000
+#define SOF_N_TICKS      7500
+#define HOST_BUF_LEN    65536
+#define CONTROL_PACKET_SIZE 64
 
 // Global, default configuration-request step-functions
 static stdreq_steps_t stdreqs;
 
 
+// Is the ULPI bus idle, and ready for the PHY to take control of?
+static int is_ulpi_phy_idle(const ulpi_bus_t* in)
+{
+    return in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00;
+}
+
+// Is the PHY in bus-turnaround (link -> PHY)?
+static int is_ulpi_phy_turn(const ulpi_bus_t* in)
+{
+    return in->dir == SIG1 && in->nxt == SIG1 && in->data.a == 0x00 && in->data.b == 0xff;
+}
+
+static int stdreq_start(usb_host_t* host, usb_stdreq_t* req)
+{
+    transfer_t* xfer = &(host->xfer);
+    xfer->address = host->addr;
+    xfer->endpoint = 0;
+    xfer->type = SETUP;
+    xfer->stage = AssertDir;
+
+    // SETUP DATA0 (OUT) packet info, for the std. req.
+    xfer->tx_len = sizeof(usb_stdreq_t);
+    xfer->tx_ptr = 0;
+    memcpy(&xfer->tx, req, sizeof(usb_stdreq_t));
+
+    // IN DATA1 packet
+    xfer->rx_len = host->len;
+    xfer->rx_ptr = 0;
+
+    host->op = HostSETUP;
+    host->step = 0;
+
+    return 1;
+}
+
+/**
+ * Step through a USB standard request (to control-pipe #0).
+ * Returns:
+ *  -1  --  failure/error;
+ *   0  --  stepped successfully; OR
+ *   1  --  completed.
+ */
+static int stdreq_step(usb_host_t* host, usb_stdreq_t* req)
+{
+    return -1;
+}
+
+/**
+ * Request the indicated descriptor, from a device.
+ */
+int usbh_get_descriptor(usb_host_t* host, uint16_t num)
+{
+    if (host->op != HostIdle) {
+	return -1;
+    }
+    usb_stdreq_t req;
+    usb_desc_t* desc = malloc(sizeof(usb_desc_t));
+    desc->dtype = num; // Todo: string-descriptor type
+    desc->value.dat = host->buf;
+
+    if (get_descriptor(&req, num, 0, CONTROL_PACKET_SIZE, desc) < 0) {
+	return -1;
+    }
+
+    return stdreq_start(host, &req);
+}
+
 /**
  * Take ownership of the bus, terminating any existing transaction, and then
  * driving an RX CMD to the device.
  */
-static int take_bus(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
+static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    if (in->dir != 0 || in->nxt != 0) {
-	out->dir = 1;
-	out->nxt = 0;
-	out->data.a = 0xff; // Todo: RX CMD
-	out->data.b = 0xff; // Todo: RX CMD
-    } else if (in->data.a == 0 && in->data.b == 0) {
-	out->dir = 1;
-	out->nxt = 1;
+    if (host->step > 1) {
+	printf("H@%8lu => ERROR, step = %d\n", host->cycle, host->step);
+	return -1;
+    } else if (host->step == 0 && is_ulpi_phy_idle(in)) {
+	// Happy path, Step I:
+	out->dir = SIG1;
+	out->nxt = SIG1;
 	out->data.a = 0x00; // High-impedance
 	out->data.b = 0xff; // High-impedance
 	host->step = 1;
+    } else if (host->step == 1 && is_ulpi_phy_turn(in)) {
+	// Happy path, Step II:
+	out->nxt = SIG0;
+	out->data.a = host->phy.state.rx_cmd;
+	out->data.b = 0x00;
+	host->step = 2;
+    } else {
+	printf("H@%8lu => ERROR, dir = %d, nxt = %d\n", host->cycle, in->dir, in->nxt);
+	out->dir = SIGX;
+	out->nxt = SIGX;
+	out->data.a = 0xff; // Todo: RX CMD
+	out->data.b = 0xff; // Todo: RX CMD
+	return -1;
     }
 
     return 0;
@@ -69,26 +149,25 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case 0:
     case 1:
-    case 2:
-	result = take_bus(host, in, out);
+	result = start_host_to_func(host, in, out);
 	break;
 
-    case 3:
+    case 2:
 	// PID byte, for the SOF
 	host->step++;
 	break;
 
-    case 4:
+    case 3:
 	// First data byte of SOF
 	host->step++;
 	break;
 
-    case 5:
+    case 4:
 	// Last byte of SOF
 	host->step++;
 	break;
 
-    case 6:
+    case 5:
 	result = drive_eop(host, in, out);
 	break;
 
@@ -130,6 +209,8 @@ void usbh_init(usb_host_t* host)
     usbh_reset(host);
     host->cycle = 0ul;
     host->sof = 0u;
+    host->buf = (uint8_t*)malloc(HOST_BUF_LEN);
+    host->len = HOST_BUF_LEN;
 }
 
 /**
