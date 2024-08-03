@@ -1,4 +1,5 @@
 #include "descriptor.h"
+#include <stdint.h>
 #include <stdio.h>
 
 
@@ -75,14 +76,15 @@ void test_desc_recv(void)
     };
 
     // receive a DATA0 packet, upto 64 bytes in size
+    const uint8_t pid = USBPID_DATA1;
     bus.clock = SIG1;
     bus.rst_n = SIG1;
     bus.nxt = SIG1;
-    bus.data.a = (~USBPID_DATA0 << 4) | USBPID_DATA0;
-    xfer.type = UpDATA0;
+    bus.data.a = ((uint8_t)(~pid & 0x0f) << 4) | pid;
+    xfer.type = UpDATA1;
     xfer.stage = DATAxPID;
+    xfer.ep_seq[0] = 1;
     xfer.rx_len = 64;
-    printf("DIR = %u, STP = %u, DATA.B = %u\n", bus.dir, bus.stp, bus.data.b);
 
     printf("Testing 'GET DESCRIPTOR'");
     do {

@@ -3,7 +3,6 @@
 
 
 #include "ulpi.h"
-#include <stdint.h>
 
 
 int desc_recv(transfer_t* xfer, const ulpi_bus_t* in);
