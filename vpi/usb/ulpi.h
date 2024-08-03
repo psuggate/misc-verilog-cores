@@ -1,6 +1,7 @@
 #ifndef __ULPI_H__
 #define __ULPI_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 
 
@@ -52,6 +53,25 @@ typedef struct {
 #define LINE_STATE_MASK 0x03
 #define VBUS_STATE_MASK 0x0C
 #define RX_EVENT_MASK   0x30
+#define RX_ACTIVE_BITS  0x10
+
+#define USBPID_OUT      0b0001
+#define USBPID_IN       0b1001
+#define USBPID_SOF      0b0101
+#define USBPID_SETUP    0b1101
+#define USBPID_DATA0    0b0011
+#define USBPID_DATA1    0b1011
+#define USBPID_DATA2    0b0111
+#define USBPID_MDATA    0b1111
+#define USBPID_ACK      0b0010
+#define USBPID_NAK      0b1010
+#define USBPID_STALL    0b1110
+#define USBPID_NYET     0b0110
+#define USBPID_PRE      0b1100
+#define USBPID_ERR      0b1100
+#define USBPID_SPLIT    0b1000
+#define USBPID_PING     0b0100
+#define USBPID_RESERVED 0b0000
 
 typedef uint8_t RX_CMD_t;
 
@@ -153,14 +173,14 @@ typedef enum {
 
 typedef enum {
     NoXfer,
-    AssertDir,
-    InitRXCMD,
-    TokenPID,
+    AssertDir, // 1
+    InitRXCMD, // 2
+    TokenPID,  // 3
     Token1,
     Token2,
-    HskPID,
-    HskStop,
-    DATAxPID,
+    HskPID,    // 6
+    HskStop,   // 7
+    DATAxPID,  // 8
     DATAxBody,
     DATAxCRC1,
     DATAxCRC2,
@@ -213,6 +233,23 @@ static inline void phy_bus_release(ulpi_bus_t* bus)
     bus->nxt = SIG0;
     bus->data.a = 0x00;
     bus->data.b = 0xff;
+}
+
+static inline bool check_pid(const ulpi_bus_t* bus)
+{
+    if (bus->data.b != 0x00) {
+	return false;
+    }
+    uint8_t u = (bus->data.a >> 4) ^ 0x0f;
+    return u == (bus->data.a & 0x0f);
+}
+
+static inline bool check_seq(const transfer_t* xfer, const uint8_t pid, const uint8_t ep)
+{
+    bool seq =
+	pid == USBPID_DATA0 && xfer->ep_seq[ep & 0x0f] == 0 ||
+	pid == USBPID_DATA1 && xfer->ep_seq[ep & 0x0f] == 1;
+    return seq;
 }
 
 void ulpi_bus_idle(ulpi_bus_t* bus);

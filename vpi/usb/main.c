@@ -1,5 +1,6 @@
 #include "usbhost.h"
 #include "usbcrc.h"
+#include "descriptor.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -52,6 +53,9 @@ int main(int argc, char* argv[])
 
     check_crc5();
     check_crc16();
+
+    test_desc_recv();
+
     printf("Simulating ULPI\n");
 
     // Issue host-reset
@@ -75,7 +79,8 @@ int main(int argc, char* argv[])
     printf("Starting ULPI transactions\n");
 
     printf("Requesting CONFIG DESCRIPTOR\n");
-    result = usbh_get_descriptor(host, 0x01, buf, &len);
+    // result = usbh_get_descriptor(host, 0x01, buf, &len);
+    result = usbh_get_descriptor(host, 0x01);
     if (result < 0) {
 	printf("ERROR: %d\n", result);
 	exit(1);
