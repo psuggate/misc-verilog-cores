@@ -219,6 +219,8 @@ typedef struct {
 typedef int (*step_fn_t)(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
+// -- Helpers -- //
+
 static inline void phy_drive_rx_cmd(ulpi_phy_t* phy)
 {
     phy->bus.dir = SIG1;
@@ -253,11 +255,24 @@ static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
 }
 
 void ulpi_bus_idle(ulpi_bus_t* bus);
+void transfer_out(transfer_t* xfer, uint8_t addr, uint8_t ep);
+void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
+void sof_frame(transfer_t* xfer, uint16_t frame);
+
+
+// -- PHY Settings -- //
 
 ulpi_phy_t* phy_init(void);
 
 int phy_set_reg(uint8_t reg, uint8_t val);
 int phy_get_reg(uint8_t reg, uint8_t* val);
+
+
+// -- Transaction Step-Functions -- //
+
+int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
+int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
+int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
 #endif  /* __ULPI_H__ */

@@ -71,5 +71,7 @@ void stdreq_init(stdreq_steps_t* steps);
 int set_configuration(usb_stdreq_t* req, uint16_t wValue);
 int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len, usb_desc_t* desc);
 
+void test_stdreq_get_desc(uint16_t num);
+
 
 #endif  /* __STDREQ_H__ */
