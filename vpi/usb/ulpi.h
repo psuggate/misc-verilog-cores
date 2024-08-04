@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 
-#define MAX_PACKET (512u)
-#define MAX_CONFIG (64u)
+#define MAX_PACKET_SIZE (512u)
+#define MAX_CONFIG_SIZE (64u)
 
 // Todoos
 #define MODE_HIGH_SPEED 2
@@ -200,10 +200,10 @@ typedef struct {
     uint8_t stage;
     bit_t ep_seq[16];
     uint32_t cycle;
-    uint8_t tx[MAX_PACKET];
+    uint8_t tx[MAX_PACKET_SIZE];
     int tx_len;
     int tx_ptr;
-    uint8_t rx[MAX_PACKET];
+    uint8_t rx[MAX_PACKET_SIZE];
     int rx_len;
     int rx_ptr;
 } transfer_t;
@@ -244,11 +244,11 @@ static inline bool check_pid(const ulpi_bus_t* bus)
     return u == (bus->data.a & 0x0f);
 }
 
-static inline bool check_seq(const transfer_t* xfer, const uint8_t pid, const uint8_t ep)
+static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
 {
     bool seq =
-	pid == USBPID_DATA0 && xfer->ep_seq[ep & 0x0f] == 0 ||
-	pid == USBPID_DATA1 && xfer->ep_seq[ep & 0x0f] == 1;
+	pid == USBPID_DATA0 && xfer->ep_seq[xfer->endpoint & 0x0f] == 0 ||
+	pid == USBPID_DATA1 && xfer->ep_seq[xfer->endpoint & 0x0f] == 1;
     return seq;
 }
 

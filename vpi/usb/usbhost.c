@@ -12,11 +12,10 @@
 
 #define RESET_TICKS     60000
 #define SOF_N_TICKS      7500
-#define HOST_BUF_LEN    65536
-#define CONTROL_PACKET_SIZE 64
+#define HOST_BUF_LEN    16384u
 
 // Global, default configuration-request step-functions
-static stdreq_steps_t stdreqs;
+extern stdreq_steps_t stdreqs;
 
 
 // Is the ULPI bus idle, and ready for the PHY to take control of?
@@ -79,7 +78,7 @@ int usbh_get_descriptor(usb_host_t* host, uint16_t num)
     desc->dtype = num; // Todo: string-descriptor type
     desc->value.dat = host->buf;
 
-    if (get_descriptor(&req, num, 0, CONTROL_PACKET_SIZE, desc) < 0) {
+    if (get_descriptor(&req, num, 0, MAX_CONFIG_SIZE, desc) < 0) {
 	return -1;
     }
 
@@ -275,7 +274,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case HostSETUP:
 	// SETUP
-	result = stdreqs.setup(host, in, out);
+	result = stdreqs.setup(&host->xfer, in, out);
 	// DATAx
 	// STATUS
 	break;

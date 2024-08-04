@@ -19,7 +19,7 @@ int desc_recv(transfer_t* xfer, const ulpi_bus_t* in)
 
     switch ((xfer_stage_t)xfer->stage) {
     case DATAxPID:
-	if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0f, 0)) {
+	if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0f)) {
 	    printf("Invalid PID value\n");
 	    return -1;
 	}
