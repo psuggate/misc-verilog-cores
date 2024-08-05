@@ -6,7 +6,9 @@
 static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
 static int fn_datax_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
 static int fn_datax_send_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
-static int fn_packet_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
+
+static int fn_send_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
+static int fn_recv_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
 /**
@@ -24,7 +26,7 @@ void usbf_init(usb_func_t* func)
 
 static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    if (in->dir != SIG1) {
+    if (in->dir != SIG1 && func->xfer.stage < Token2) {
 	printf("Unexpected early termination of packet-receive\n");
 	return -1;
     }
@@ -82,6 +84,7 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 	if (in->nxt == SIG0 && (in->data.a & RX_EVENT_MASK) != RX_ACTIVE_BITS) {
 	    // EOP
 	    func->xfer.stage = EndRXCMD;
+	    func->step++;
 	    return 0;
 	}
 	break;
@@ -102,17 +105,30 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 
 static int fn_datax_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    if (in->dir != SIG1) {
+    if (in->dir != SIG1 && func->xfer.stage < EndRXCMD) {
 	printf("Unexpected early termination of packet-receive\n");
 	return -1;
     }
     memcpy(out, in, sizeof(ulpi_bus_t));
 
     switch (func->xfer.stage) {
+
+    case NoXfer:
+	if (in->dir != SIG1) {
+	    // Todo: use a turn-around timer, instead of the above termination-
+	    //   condition !?
+	    func->turnaround++;
+	    return 0;
+	} else if (in->dir == SIG1 && in->nxt == SIG1) {
+	    func->xfer.stage = AssertDir;
+	    return 0;
+	}
+	break;
+
     case AssertDir:
 	// If 'NXT' is asserted, then we are receiving a packet, else invalid
 	// ULPI bus signals
-	if (in->nxt == SIG1) {
+	if (in->nxt == SIG0 && (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
 	    func->xfer.stage = InitRXCMD;
 	    return 0;
 	}
@@ -141,6 +157,7 @@ static int fn_datax_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 		// Todo: End-of-Packet, so check CRC16
 		func->xfer.stage = EndRXCMD;
 		func->xfer.rx_len = func->xfer.rx_ptr - 2;
+		func->step++;
 	    }
 	    return 0;
 	}
@@ -243,7 +260,57 @@ static int fn_datax_send_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
     return -1;
 }
 
-static int fn_packet_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
+static int fn_recv_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    memcpy(out, in, sizeof(ulpi_bus_t));
+
+    switch (func->xfer.stage) {
+
+    case NoXfer:
+	if (ulpi_bus_is_idle(in)) {
+	    // Wait for 'ACK'
+	    func->turnaround++;
+	    return 0;
+	} else if (in->dir == SIG1 && in->nxt == SIG1) {
+	    func->xfer.stage = InitRXCMD;
+	    return 0;
+	}
+	printf("Invalid ULPI bus signal levels, while waiting for 'ACK'\n");
+	break;
+
+    case AssertDir:
+	if (in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00 &&
+	    (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
+	    func->xfer.stage = InitRXCMD;
+	    return 0;
+	}
+
+    case InitRXCMD:
+	if (in->dir == SIG1 && in->nxt == SIG1 && check_pid(in) &&
+	    in->data.b == 0x00 && (in->data.a & 0x0F) == USBPID_ACK) {
+	    func->xfer.stage = HskPID;
+	    return 0;
+	}
+	printf("Handshake 'ACK' PID expected\n");
+	break;
+
+    case HskPID:
+	if (in->dir != SIG0 || in->nxt != SIG0) {
+	    printf("Expected ULPI bus turn-around\n");
+	    break;
+	}
+	func->step++;
+	func->xfer.stage = NoXfer;
+	return 1;
+
+    default:
+	break;
+    }
+
+    return -1;
+}
+
+static int fn_send_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     if (in->dir != SIG0) {
 	printf("Handshake transmission interrupted\n");
@@ -276,6 +343,7 @@ static int fn_packet_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 	out->data.b = 0x00;
 	out->stp = SIG0;
 	func->xfer.stage = EOP;
+	func->step++;
 	return 0;
 
     case EOP:
@@ -299,84 +367,87 @@ static int stdreq_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 
 static int func_xfer_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    switch (func->op) {
-    case HostBulkOUT:
-	
-	break;
-    case HostBulkIN:
-	break;
-    case HostSETUP:
-	break;
-    case HostSOF:
-	break;
-    default:
-	return -1;
+    if (func->step == 0) {
+	// Token step
+	return fn_token_recv_step(func, in, out);
     }
 
-    switch (func->xfer.type) {
-    case XferIdle:
-	// If 'DIR' asserts then we are waiting for a token.
-	if (func->xfer.stage == NoXfer && ulpi_bus_is_idle(in)) {
-	    return 0;
-	} else if (in->dir == SIG1) {
-	    if (in->nxt == SIG1) {
-		func->xfer.stage = AssertDir;
-	    } else if (in->nxt == SIG0) {
-		func->state = FuncRXCMD;
-	    } else {
-		break;
-	    }
-	    func->step = 0u;
-	    return 0;
+    switch (func->op) {
+
+    case HostBulkOUT:
+	if (func->step < 2) {
+	    return fn_datax_recv_step(func, in, out);
+	} else if (func->step < 3) {
+	    return fn_send_ack_step(func, in, out);
 	}
-	break;
+	return 1;
 
-    case AssertDir:
-	// We are expecting an RX CMD followed by a USB token
-	if (in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00 &&
-	    (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
-	    func->state = FuncRxPID;
-	    return 0;
+    case HostBulkIN:
+	if (func->step < 2) {
+	    return fn_datax_send_step(func, in, out);
+	} else if (func->step < 3) {
+	    return fn_recv_ack_step(func, in, out);
 	}
+	return 1;
+
+    case HostSETUP:
+	printf("TODO: SETUP control-pipe transactions\n");
 	break;
 
-    case IN:
-	break;
-
-    case OUT:
-	break;
-
-    case SETUP:
-	break;
-
-    case SOF:
+    case HostSOF:
+	printf("SOF should have already been processed\n");
 	break;
 
     default:
+	printf("Invalid host-wait state: %u\n", func->op);
 	break;
     }
 
     return -1;
 }
 
+/**
+ * Step through a complete USB transaction (which is at least 3x packets).
+ */
 int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    if (in->rst_n != SIG1) {
+	printf("ULPI PHY has RST# asserted\n");
+	return -1;
+    } else if (in->clock != SIG1) {
+	printf("ULPI PHY must be driven at the positive clock-edge\n");
+	return -1;
+    }
+
     switch (func->state) {
+
     case FuncIdle:
-	// If 'DIR' asserts then we are waiting for a token.
 	if (ulpi_bus_is_idle(in)) {
 	    return 0;
-	} else if (in->dir == SIG1) {
-	    if (in->nxt == SIG1) {
-		func->state = FuncRecv;
-	    } else if (in->nxt == SIG0) {
-		func->state = FuncRXCMD;
+	}
+
+	// If 'DIR' asserts then we are waiting for a token, or merely receiving
+	// an RX CMD
+	if (in->dir == SIG1) {
+	    if (in->nxt > SIG1) {
+		printf("Invalid NXT signal level: %u\n", in->nxt);
 	    } else {
-		break;
+		func->state = in->nxt == SIG0 ? FuncRXCMD : FuncRecv;
+		return 0;
 	    }
-	    func->step = 0u;
+	}
+	printf("Invalid ULPI bus signal levels\n");
+	break;
+
+    case FuncRXCMD:
+	if (in->dir == SIG1 && in->nxt == SIG0) {
+	    // Stay in 'FuncRXCMD' until 'DIR' deasserts
+	    return 0;
+	} else if (in->dir == SIG0) {
+	    func->state = FuncIdle;
 	    return 0;
 	}
+	printf("Invalid ULPI bus signal levels\n");
 	break;
 
     case FuncRecv:
@@ -388,30 +459,15 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 	}
 	break;
 
-    case FuncRXCMD:
-	if (in->dir == SIG1) {
-	    if (in->nxt == SIG0) {
-		// Stay in 'FuncRXCMD' until 'DIR' deasserts
-		return 0;
-	    }
-	} else if (in->dir == SIG0) {
-	    func->state = FuncIdle;
-	    return 0;
-	}
-	break;
-
     case FuncRxPID:
 	// When 'NXT' asserts, we have received a USB PID for the packet
 	if (in->dir == SIG1) {
 	    if (in->nxt == SIG1 && check_pid(in)) {
 		func->state = FuncBusy;
+		func->step = 0u; // We are at the "TOKEN" step
 		func->xfer.stage = Token1;
-		func->xfer.tx_len = 0;
-		func->xfer.tx_ptr = 0;
-		func->xfer.rx_len = 0;
-		func->xfer.rx_ptr = 0;
 
-		switch (in->data.a & 0x0f) {
+		switch (in->data.a & 0x0F) {
 		case USBPID_OUT:
 		    func->op = HostBulkOUT;
 		    func->xfer.type = OUT;
@@ -438,20 +494,26 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 		}
 
 		return 0;
-	    } else if (in->nxt == SIG0) {
-		// Just another RX CMD
-		// Todo: check if 'RxActive == 1'
-		return 0;
+	    } else if (in->nxt == SIG0 && in->data.b == 0x00) {
+		if ((in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
+		    // Just another RX CMD
+		    return 0;
+		}
 	    }
 	}
+	printf("Failed to receive a USB packet\n");
 	break;
 
     case FuncBusy:
 	return func_xfer_step(func, in, out);
 
     case FuncEOT:
-	// Todo: stuff
-	return 1;
+	if (ulpi_bus_is_idle(in)) {
+	    // Todo: is this stuff correct ?!
+	    func->xfer.type = XferIdle;
+	    func->xfer.stage = NoXfer;
+	    return 1;
+	}
 
     default:
 	break;
