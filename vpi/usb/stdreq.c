@@ -116,6 +116,7 @@ int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len
  * Evaluates a step-function, until it completes.
  * Note: doesn't handle receiving packets.
  */
+#if 0
 static int ulpi_step_with(step_fn_t step_fn, transfer_t* xfer, ulpi_bus_t* bus)
 {
     ulpi_bus_t out = {0};
@@ -132,7 +133,15 @@ static int ulpi_step_with(step_fn_t step_fn, transfer_t* xfer, ulpi_bus_t* bus)
 
     return result;
 }
+#endif /* 0 */
 
+/**
+ * USB function being simulated.
+ */
+static int user_func_step(const ulpi_bus_t* in, ulpi_bus_t* out, void* user_data)
+{
+    return -1;
+}
 
 /**
  * Request a descriptor, stepping through and checking all stages.
@@ -154,9 +163,9 @@ void test_stdreq_get_desc(uint16_t num)
     // Phase III: wait for the 'ACK' (if successful)
     xfer.type = SETUP;
     get_descriptor(&req, num, 0x00, MAX_CONFIG_SIZE, &desc);
-    assert(ulpi_step_with(token_send_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(token_send_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.type = DnDATA0;
-    assert(ulpi_step_with(datax_send_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(datax_send_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.ep_seq[0] = SIG1; // 'ACK'
 
 
@@ -166,9 +175,9 @@ void test_stdreq_get_desc(uint16_t num)
     // Phase V: wait for the 'DATA1'
     // Phase VI: send 'ACK' handshake if receive was successful
     transfer_in(&xfer, 0, 0);
-    assert(ulpi_step_with(token_send_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(token_send_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.type = UpDATA1;
-    assert(ulpi_step_with(datax_recv_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(datax_recv_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.ep_seq[0] = SIG0; // 'ACK'
 
 
@@ -179,10 +188,10 @@ void test_stdreq_get_desc(uint16_t num)
     // Phase IX: wait for 'ACK' handshake (if successful)
     transfer_out(&xfer, 0, 0);
     xfer.ep_seq[0] = SIG1; // Required by USB standard
-    assert(ulpi_step_with(token_send_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(token_send_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.type = DnDATA1;
     xfer.tx_len = 0;
-    assert(ulpi_step_with(datax_send_step, &xfer, &bus) == 1);
+    assert(ulpi_step_with(datax_send_step, &xfer, &bus, user_func_step, NULL) == 1);
     xfer.ep_seq[0] = SIG0; // 'ACK'
 
     printf("\t\tSUCCESS\n");

@@ -124,6 +124,35 @@ int phy_get_reg(uint8_t reg, uint8_t* val)
 //  Transaction Step-Functions
 ///
 
+/**
+ * Evaluates step-functions for both a USB host, and a USB "function" (device),
+ * until completion.
+ */
+int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
+		   user_fn_t user_fn, void* user_data)
+{
+    ulpi_bus_t out = {0};
+    int result = 0;
+
+    xfer->stage = 0;
+    ulpi_bus_idle(bus);
+
+    while (result == 0) {
+	result = host_fn(xfer, bus, &out);
+	memcpy(bus, &out, sizeof(ulpi_bus_t));
+	if (result != 0) {
+	    break;
+	}
+
+	result = user_fn(user_data, bus, &out);
+	memcpy(bus, &out, sizeof(ulpi_bus_t));
+
+	printf(".");
+    }
+
+    return result;
+}
+
 int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     switch (xfer->type) {
