@@ -1,6 +1,7 @@
+#include "descriptor.h"
+#include "usbfunc.h"
 #include "usbhost.h"
 #include "usbcrc.h"
-#include "descriptor.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -42,7 +43,20 @@ static void check_crc5(void)
     assert(crc5_check(tok));
 }
 
+void usb_unit_tests(void)
+{
+    printf("\nUSB simultor/model start-up unit-tests:\n");
+    check_crc5();
+    check_crc16();
+    test_desc_recv();
+    test_func_recv();
+    printf("Done\n\n");
+}
 
+
+/**
+ * Main entry-point for the USB simulator/model.
+ */
 int main(int argc, char* argv[])
 {
     usb_host_t* host = (usb_host_t*)malloc(sizeof(usb_host_t));
@@ -51,10 +65,7 @@ int main(int argc, char* argv[])
     uint8_t buf[64];
     uint16_t len = 64;
 
-    check_crc5();
-    check_crc16();
-
-    test_desc_recv();
+    usb_unit_tests();
 
     printf("Simulating ULPI\n");
 

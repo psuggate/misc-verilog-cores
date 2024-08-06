@@ -30,4 +30,7 @@ void usbf_init(usb_func_t* func);
 int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
+void test_func_recv(void);
+
+
 #endif  /* __USBFUNC_H__ */

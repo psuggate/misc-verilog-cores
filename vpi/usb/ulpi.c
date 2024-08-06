@@ -52,6 +52,13 @@ void phy_free(ulpi_phy_t* phy)
 //  Helper Routines
 ///
 
+void ulpi_bus_show(const ulpi_bus_t* bus)
+{
+    unsigned int dat = bus->data.b << 8 | bus->data.a;
+    printf("clock: %u, rst#: %u, dir: %u, nxt: %u, stp: %u, data: 0x%x\n",
+	   bus->clock, bus->rst_n, bus->dir, bus->nxt, bus->stp, dat);
+}
+
 void ulpi_bus_idle(ulpi_bus_t* bus)
 {
     bus->clock = SIG1;
