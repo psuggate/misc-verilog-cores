@@ -1,8 +1,7 @@
 #include "usbfunc.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
-
-#include <assert.h>
 
 
 static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
@@ -25,7 +24,7 @@ void usbf_init(usb_func_t* func)
     func->addr = 0;
 }
 
-static int ulpi_bus_rx(ulpi_bus_t* in) {
+static int ulpi_bus_rx(const ulpi_bus_t* in) {
     if (in->dir != SIG1 || in->data.b != 0x00) {
 	return -1;
     } else if (in->nxt == SIG0 && (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
@@ -576,6 +575,7 @@ void test_func_recv(void)
     assert(usbf_step(&func, &bus, &out) == 0);
     memcpy(&bus, &out, sizeof(ulpi_bus_t));
 
+#if 0
     // Send the 'SETUP' token
     printf("Testing 'GET DESCRIPTOR'\n");
     printf("DIR\t=>\t");
@@ -620,6 +620,66 @@ void test_func_recv(void)
     bus.data.a = 0x00;
     assert(usbf_step(&func, &bus, &out) == 1);
     memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+#else
+
+    transfer_t host = {0};
+    host.type = SETUP;
+    host.tok1 = 0x00;
+    host.tok2 = 0x10;
+
+    result = ulpi_step_with(token_send_step, &host, &bus, usbf_step, (void*)(&func));
+    assert(result == 1);
+
+#if 0
+
+    // Send the 'SETUP' token
+    printf("Testing 'GET DESCRIPTOR'\n");
+    printf("DIR\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("RX CMD\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("PID\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("Tok[1]\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("Tok[2]\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("RX CMD\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 0);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+    printf("EOP\t=>\t");
+    assert(token_send_step(&host, &bus, &out) == 1);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+    assert(usbf_step(&func, &bus, &out) == 1);
+    memcpy(&bus, &out, sizeof(ulpi_bus_t));
+
+#endif /* 0 */
+
+#endif /* 1 */
 
     printf("Token Sent\n");
 

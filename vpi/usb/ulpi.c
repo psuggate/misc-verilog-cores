@@ -147,11 +147,13 @@ int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
     while (result == 0) {
 	result = host_fn(xfer, bus, &out);
 	memcpy(bus, &out, sizeof(ulpi_bus_t));
-	if (result != 0) {
+	if (result < 0) {
+	// if (result != 0) {
 	    break;
 	}
 
-	result = user_fn(user_data, bus, &out);
+	result |= user_fn(user_data, bus, &out);
+	// result = user_fn(user_data, bus, &out);
 	memcpy(bus, &out, sizeof(ulpi_bus_t));
 
 	printf(".");
@@ -160,32 +162,136 @@ int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
     return result;
 }
 
+uint8_t transfer_type_to_pid(transfer_t* xfer)
+{
+    uint8_t pid;
+    switch (xfer->type) {
+    case SETUP:
+	pid = USBPID_SETUP;
+	break;
+    case OUT:
+	pid = USBPID_OUT;
+	break;
+    case IN:
+	pid = USBPID_IN;
+	break;
+    case SOF:
+	pid = USBPID_SOF;
+	break;
+    case PING:
+	pid = USBPID_PING;
+	break;
+    case DnACK:
+    case UpACK:
+	pid = USBPID_ACK;
+	break;
+    case UpNAK:
+	pid = USBPID_NAK;
+	break;
+    case UpNYET:
+	pid = USBPID_NYET;
+	break;
+    case UpSTALL:
+	pid = USBPID_STALL;
+	break;
+    case DnDATA0:
+    case UpDATA0:
+	pid = USBPID_DATA0;
+	break;
+    case DnDATA1:
+    case UpDATA1:
+	pid = USBPID_DATA1;
+	break;
+    default:
+	printf("Invalid transfer type\n");
+	return 255;
+    }
+    if (xfer->type < UpACK) {
+	// Host to device encoding
+	pid |= (pid << 4) ^ 0xF0;
+    } else {
+	// ULPI PHY transmit-encoding
+	pid |= 0x10;
+    }
+    return pid;
+}
+
 int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    if (xfer->stage > NoXfer && in->dir != SIG1) {
+        printf("Invalid ULPI bus signal levels for token-transmission\n");
+	return -1;
+    }
+
     switch (xfer->type) {
+
     case SETUP:
     case OUT:
     case IN:
     case SOF:
+	memcpy(out, in, sizeof(ulpi_bus_t));
 	switch (xfer->stage) {
-	case NoXfer: break;
-	case AssertDir: break;
-	case TokenPID: break;
-	case Token1: break;
-	case Token2: break;
-	case EndRXCMD: return 1;
-	case EOP: return 1;
+
+	case NoXfer:
+	    out->dir = SIG1;
+	    out->nxt = SIG1;
+	    out->data.a = 0x00;
+	    out->data.b = 0xFF;
+	    xfer->stage = AssertDir;
+	    break;
+
+	case AssertDir:
+	    out->nxt = SIG0;
+	    out->data.a = 0x5D;
+	    out->data.b = 0x00;
+	    xfer->stage = TokenPID;
+	    break;
+
+	case TokenPID:
+	    out->nxt = SIG1;
+	    out->data.a = transfer_type_to_pid(xfer);
+	    out->data.b = 0x00;
+	    xfer->stage = Token1;
+	    break;
+
+	case Token1:
+	    out->nxt = SIG1;
+	    out->data.a = xfer->tok1;
+	    out->data.b = 0x00;
+	    xfer->stage = Token2;
+	    break;
+
+	case Token2:
+	    out->nxt = SIG1;
+	    out->data.a = xfer->tok2;
+	    out->data.b = 0x00;
+	    xfer->stage = EndRXCMD;
+	    break;
+
+	case EndRXCMD:
+	    out->nxt = SIG0;
+	    out->data.a = 0x4C;
+	    out->data.b = 0x00;
+	    xfer->stage = EOP;
+	    break;
+
+	case EOP:
+	    out->dir = SIG0;
+	    out->data.a = 0x00;
+	    out->data.b = 0xFF;
+	    return 1;
+
 	default:
 	    printf("Not a valid TOKEN stage: %u\n", xfer->stage);
 	    return -1;
 	}
 	break;
+
     default:
 	printf("Not a TOKEN: %u\n", xfer->type);
 	return -1;
     }
 
-    xfer->stage++;
     return 0;
 }
 

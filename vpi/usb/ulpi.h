@@ -285,6 +285,8 @@ void transfer_out(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void sof_frame(transfer_t* xfer, uint16_t frame);
 
+uint8_t transfer_type_to_pid(transfer_t* xfer);
+
 
 // -- PHY Settings -- //
 
