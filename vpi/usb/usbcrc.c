@@ -20,8 +20,8 @@ static uint8_t reflect8(uint8_t x)
 {
     uint8_t y = 0;
     for (int j=8; j--;) {
-	y |= (x & 0x01) << j;
-	x >>= 1;
+        y |= (x & 0x01) << j;
+        x >>= 1;
     }
     return y;
 }
@@ -34,7 +34,7 @@ uint16_t crc5_calc(const uint16_t dat)
 {
     uint16_t crc = CRC5_START_REFLECTED | (dat & 0x07FF);
     for (int j = 11; j--;) {
-	crc = (crc >> 1) ^ (((crc ^ (crc << 11)) & 0x0800) * CRC5_POLYN_REFLECTED);
+        crc = (crc >> 1) ^ (((crc ^ (crc << 11)) & 0x0800) * CRC5_POLYN_REFLECTED);
     }
     return (dat & 0x07FF) | ((~crc) & 0xF800);
 }
@@ -43,8 +43,8 @@ int crc5_check(uint16_t dat)
 {
     uint8_t crc = CRC5_START;
     for (int j = 16; j--;) {
-	crc = (crc << 1) ^ (((dat ^ (crc >> 4)) & 0x01) * CRC5_POLYN);
-	dat >>= 1;
+        crc = (crc << 1) ^ (((dat ^ (crc >> 4)) & 0x01) * CRC5_POLYN);
+        dat >>= 1;
     }
     return (crc & 0x1F) == 0x0C;
 }
@@ -57,11 +57,11 @@ uint16_t crc16_calc(const uint8_t* ptr, const uint32_t len)
 {
     uint16_t crc = CRC16_START_REFLECTED;
     for (int i = 0; i < len; i++) {
-	uint16_t val = ptr[i];
-	for (int j = 8; j--;) {
-	    crc = (crc >> 1) ^ (((val ^ crc) & 0x01) * CRC16_POLYN_REFLECTED);
-	    val >>= 1;
-	}
+        uint16_t val = ptr[i];
+        for (int j = 8; j--;) {
+            crc = (crc >> 1) ^ (((val ^ crc) & 0x01) * CRC16_POLYN_REFLECTED);
+            val >>= 1;
+        }
     }
     return ~crc;
 }

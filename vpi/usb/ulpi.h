@@ -259,13 +259,13 @@ static inline void phy_bus_release(ulpi_bus_t* bus)
 static inline bool ulpi_bus_is_idle(const ulpi_bus_t* bus)
 {
     return (bus->rst_n == SIG1 && bus->data.a == 0x00 && bus->data.b == 0x00 &&
-	    bus->dir == SIG0 && bus->nxt == SIG0 && bus->stp == SIG0);
+            bus->dir == SIG0 && bus->nxt == SIG0 && bus->stp == SIG0);
 }
 
 static inline bool check_pid(const ulpi_bus_t* bus)
 {
     if (bus->data.b != 0x00) {
-	return false;
+        return false;
     }
     uint8_t u = (bus->data.a >> 4) ^ 0x0f;
     return u == (bus->data.a & 0x0f);
@@ -274,8 +274,8 @@ static inline bool check_pid(const ulpi_bus_t* bus)
 static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
 {
     bool seq =
-	pid == USBPID_DATA0 && xfer->ep_seq[xfer->endpoint & 0x0f] == 0 ||
-	pid == USBPID_DATA1 && xfer->ep_seq[xfer->endpoint & 0x0f] == 1;
+        pid == USBPID_DATA0 && xfer->ep_seq[xfer->endpoint & 0x0f] == 0 ||
+        pid == USBPID_DATA1 && xfer->ep_seq[xfer->endpoint & 0x0f] == 1;
     return seq;
 }
 
@@ -299,7 +299,7 @@ int phy_get_reg(uint8_t reg, uint8_t* val);
 // -- Transaction Step-Functions -- //
 
 int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
-		   user_fn_t user_fn, void* user_data);
+                   user_fn_t user_fn, void* user_data);
 
 int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);

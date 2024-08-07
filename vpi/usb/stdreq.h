@@ -46,8 +46,8 @@ typedef struct {
 typedef struct {
     uint8_t dtype;
     union {
-	char* str;
-	uint8_t* dat;
+        char* str;
+        uint8_t* dat;
     } value;
 } usb_desc_t;
 

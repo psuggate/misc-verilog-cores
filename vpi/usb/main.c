@@ -15,15 +15,15 @@ static void check_crc16(void)
     uint8_t* ptr = buf;
 
     for (int i = 0; i < 512; i++) {
-	buf[i] = rand();
+        buf[i] = rand();
     }
 
     for (int i = 4; i--;) {
-	uint16_t crc = crc16_calc(buf, 56);
-	buf[56] = crc & 0x0ff;
-	buf[57] = crc >> 8;
-	assert(crc16_check(buf, 58));
-	buf += 64;
+        uint16_t crc = crc16_calc(buf, 56);
+        buf[56] = crc & 0x0ff;
+        buf[57] = crc >> 8;
+        assert(crc16_check(buf, 58));
+        buf += 64;
     }
 
     free(ptr);
@@ -78,12 +78,12 @@ int main(int argc, char* argv[])
     // bus.rst_n = SIG0;
     // host->op = HostReset;
     while (host->op == HostReset) {
-	result = usbh_step(host, &bus, &upd);
-	if (result < 0) {
-	    printf("ERROR: %d\n", result);
-	    break;
-	}
-	memcpy(&bus, &upd, sizeof(ulpi_bus_t));
+        result = usbh_step(host, &bus, &upd);
+        if (result < 0) {
+            printf("ERROR: %d\n", result);
+            break;
+        }
+        memcpy(&bus, &upd, sizeof(ulpi_bus_t));
     }
 
     // Do some transactions
@@ -93,17 +93,17 @@ int main(int argc, char* argv[])
     // result = usbh_get_descriptor(host, 0x01, buf, &len);
     result = usbh_get_descriptor(host, 0x01);
     if (result < 0) {
-	printf("ERROR: %d\n", result);
-	exit(1);
+        printf("ERROR: %d\n", result);
+        exit(1);
     }
 
     while (host->op != HostIdle) {
-	result = usbh_step(host, &bus, &upd);
-	if (result < 0) {
-	    printf("ERROR: %d\n", result);
-	    break;
-	}
-	memcpy(&bus, &upd, sizeof(ulpi_bus_t));
+        result = usbh_step(host, &bus, &upd);
+        if (result < 0) {
+            printf("ERROR: %d\n", result);
+            break;
+        }
+        memcpy(&bus, &upd, sizeof(ulpi_bus_t));
     }
 
     // Disconnect device

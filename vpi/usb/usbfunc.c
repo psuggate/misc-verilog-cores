@@ -26,11 +26,11 @@ void usbf_init(usb_func_t* func)
 
 static int ulpi_bus_rx(const ulpi_bus_t* in) {
     if (in->dir != SIG1 || in->data.b != 0x00) {
-	return -1;
+        return -1;
     } else if (in->nxt == SIG0 && (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
-	return 0;
+        return 0;
     } else if (in->nxt == SIG1) {
-	return 1;
+        return 1;
     }
     return -1;
 }
@@ -72,29 +72,29 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 
     case TokenPID:
         if (rx < 0) {
-	    break;
-	} else if (rx > 0) {
+            break;
+        } else if (rx > 0) {
             func->xfer.stage = Token1;
-	}
-	return 0;
+        }
+        return 0;
 
     case Token1:
-	if (rx < 0) {
-	    break;
-	} else if (rx > 0) {
-	    func->xfer.tok1 = in->data.a;
-	    func->xfer.stage = Token2;
-	}
-	return 0;
+        if (rx < 0) {
+            break;
+        } else if (rx > 0) {
+            func->xfer.tok1 = in->data.a;
+            func->xfer.stage = Token2;
+        }
+        return 0;
 
     case Token2:
-	if (rx < 0) {
-	    break;
-	} else if (rx > 0) {
-	    func->xfer.tok2 = in->data.a;
-	    func->xfer.stage = EndRXCMD;
-	}
-	return 0;
+        if (rx < 0) {
+            break;
+        } else if (rx > 0) {
+            func->xfer.tok2 = in->data.a;
+            func->xfer.stage = EndRXCMD;
+        }
+        return 0;
 
     case EndRXCMD:
         if (in->nxt == SIG0 && (in->data.a & RX_EVENT_MASK) != RX_ACTIVE_BITS) {
@@ -108,7 +108,7 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
             func->step++;
             return 1;
         }
-	return 0;
+        return 0;
         // break;
 
     default:
@@ -441,7 +441,7 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case FuncIdle:
         if (ulpi_bus_is_idle(in)) {
-	    memcpy(out, in, sizeof(ulpi_bus_t));
+            memcpy(out, in, sizeof(ulpi_bus_t));
             return 0;
         }
 
@@ -452,7 +452,7 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
                 printf("Invalid NXT signal level: %u\n", in->nxt);
             } else {
                 func->state = in->nxt == SIG0 ? FuncRXCMD : FuncRecv;
-		memcpy(out, in, sizeof(ulpi_bus_t));
+                memcpy(out, in, sizeof(ulpi_bus_t));
                 return 0;
             }
         }
@@ -465,7 +465,7 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
             return 0;
         } else if (in->dir == SIG0) {
             func->state = FuncIdle;
-	    memcpy(out, in, sizeof(ulpi_bus_t));
+            memcpy(out, in, sizeof(ulpi_bus_t));
             return 0;
         }
         printf("Invalid ULPI bus signal levels\n");
@@ -476,7 +476,7 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
         if (in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00 &&
             (in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
             func->state = FuncRxPID;
-	    memcpy(out, in, sizeof(ulpi_bus_t));
+            memcpy(out, in, sizeof(ulpi_bus_t));
             return 0;
         }
         break;
@@ -515,12 +515,12 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
                     return -1;
                 }
 
-		memcpy(out, in, sizeof(ulpi_bus_t));
+                memcpy(out, in, sizeof(ulpi_bus_t));
                 return 0;
             } else if (in->nxt == SIG0 && in->data.b == 0x00) {
                 if ((in->data.a & RX_EVENT_MASK) == RX_ACTIVE_BITS) {
                     // Just another RX CMD
-		    memcpy(out, in, sizeof(ulpi_bus_t));
+                    memcpy(out, in, sizeof(ulpi_bus_t));
                     return 0;
                 }
             }
@@ -536,7 +536,7 @@ int usbf_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
             // Todo: is this stuff correct ?!
             func->xfer.type = XferIdle;
             func->xfer.stage = NoXfer;
-	    memcpy(out, in, sizeof(ulpi_bus_t));
+            memcpy(out, in, sizeof(ulpi_bus_t));
             return 1;
         }
 
@@ -560,10 +560,8 @@ void test_func_recv(void)
     uint16_t index = 0;
     uint16_t length = 20;
     uint8_t packet[68] = {
-	0x2D, 0x00, 0x10, // SETUP token
-
-	0xC3, 0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x40,
-	0x00, 0xDD, 0x94,
+        0xC3, 0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x40,
+        0x00, 0xDD, 0x94,
     };
     usb_func_t func = {0};
     uint8_t pid;
@@ -575,112 +573,12 @@ void test_func_recv(void)
     assert(usbf_step(&func, &bus, &out) == 0);
     memcpy(&bus, &out, sizeof(ulpi_bus_t));
 
-#if 0
-    // Send the 'SETUP' token
-    printf("Testing 'GET DESCRIPTOR'\n");
-    printf("DIR\t=>\t");
-    bus.dir = SIG1; // Assert DIR
-    bus.nxt = SIG1;
-    bus.data.a = 0x00;
-    bus.data.b = 0xFF;
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("RX CMD\t=>\t");
-    bus.nxt = SIG0; // RX CMD
-    bus.data.a = 0x5D;
-    bus.data.b = 0x00;
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("PID\t=>\t");
-    bus.nxt = SIG1; // PID
-    bus.data.a = 0x2D;
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("Tok[1]\t=>\t");
-    bus.data.a = 0x00; // Token 1
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("Tok[2]\t=>\t");
-    bus.data.a = 0x10; // Token 2
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("RX CMD\t=>\t");
-    bus.nxt = SIG0;
-    bus.data.a = 0x4C;
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("EOP\t=>\t");
-    bus.dir = SIG0;
-    bus.data.a = 0x00;
-    assert(usbf_step(&func, &bus, &out) == 1);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-#else
-
     transfer_t host = {0};
     host.type = SETUP;
     host.tok1 = 0x00;
     host.tok2 = 0x10;
 
-    result = ulpi_step_with(token_send_step, &host, &bus, usbf_step, (void*)(&func));
-    assert(result == 1);
-
-#if 0
-
-    // Send the 'SETUP' token
-    printf("Testing 'GET DESCRIPTOR'\n");
-    printf("DIR\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("RX CMD\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("PID\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("Tok[1]\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("Tok[2]\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("RX CMD\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 0);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-    printf("EOP\t=>\t");
-    assert(token_send_step(&host, &bus, &out) == 1);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-    assert(usbf_step(&func, &bus, &out) == 1);
-    memcpy(&bus, &out, sizeof(ulpi_bus_t));
-
-#endif /* 0 */
-
-#endif /* 1 */
-
+    assert(ulpi_step_with(token_send_step, &host, &bus, usbf_step, (void*)(&func)) == 1);
     printf("Token Sent\n");
 
     // receive a DATA0 packet, upto 64 bytes in size
@@ -695,7 +593,7 @@ void test_func_recv(void)
 
     do {
         result = usbf_step(&func, &bus, &out);
-	memcpy(&bus, &out, sizeof(ulpi_bus_t));
+        memcpy(&bus, &out, sizeof(ulpi_bus_t));
 
         if (func.xfer.stage == DATAxBody) {
             printf(".");

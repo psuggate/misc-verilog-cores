@@ -17,9 +17,9 @@ static int stdreq_setup_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t*
 
     switch (xfer->stage) {
     default:
-	xfer->stage++;
-	printf("H@%8u => ERROR\n", xfer->cycle);
-	exit(1);
+        xfer->stage++;
+        printf("H@%8u => ERROR\n", xfer->cycle);
+        exit(1);
     }
 
     return result;
@@ -31,9 +31,9 @@ static int stdreq_data0_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t*
 
     switch (xfer->stage) {
     default:
-	xfer->stage++;
-	printf("H@%8u => ERROR\n", xfer->cycle);
-	exit(1);
+        xfer->stage++;
+        printf("H@%8u => ERROR\n", xfer->cycle);
+        exit(1);
     }
 
     return result;
@@ -45,9 +45,9 @@ static int stdreq_data1_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t*
 
     switch (xfer->stage) {
     default:
-	xfer->stage++;
-	printf("H@%8u => ERROR\n", xfer->cycle);
-	exit(1);
+        xfer->stage++;
+        printf("H@%8u => ERROR\n", xfer->cycle);
+        exit(1);
     }
 
     return result;
@@ -59,9 +59,9 @@ static int stdreq_status_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t
 
     switch (xfer->stage) {
     default:
-	xfer->stage++;
-	printf("H@%8u => ERROR\n", xfer->cycle);
-	exit(1);
+        xfer->stage++;
+        printf("H@%8u => ERROR\n", xfer->cycle);
+        exit(1);
     }
 
     return result;
@@ -126,9 +126,9 @@ static int ulpi_step_with(step_fn_t step_fn, transfer_t* xfer, ulpi_bus_t* bus)
     ulpi_bus_idle(bus);
 
     while (result == 0) {
-	result = step_fn(xfer, bus, &out);
-	memcpy(bus, &out, sizeof(ulpi_bus_t));
-	printf(".");
+        result = step_fn(xfer, bus, &out);
+        memcpy(bus, &out, sizeof(ulpi_bus_t));
+        printf(".");
     }
 
     return result;
