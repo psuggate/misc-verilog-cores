@@ -113,33 +113,11 @@ int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len
 // -- Testbench -- //
 
 /**
- * Evaluates a step-function, until it completes.
- * Note: doesn't handle receiving packets.
- */
-#if 0
-static int ulpi_step_with(step_fn_t step_fn, transfer_t* xfer, ulpi_bus_t* bus)
-{
-    ulpi_bus_t out = {0};
-    int result = 0;
-
-    xfer->stage = 0;
-    ulpi_bus_idle(bus);
-
-    while (result == 0) {
-        result = step_fn(xfer, bus, &out);
-        memcpy(bus, &out, sizeof(ulpi_bus_t));
-        printf(".");
-    }
-
-    return result;
-}
-#endif /* 0 */
-
-/**
  * USB function being simulated.
  */
-static int user_func_step(const ulpi_bus_t* in, ulpi_bus_t* out, void* user_data)
+static int user_func_step(void* user_data, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    // Toods
     return -1;
 }
 

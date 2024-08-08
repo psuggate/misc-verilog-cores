@@ -12,16 +12,25 @@ static int fn_send_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* 
 static int fn_recv_ack_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
-/**
- * Issue a device reset.
- */
-void usbf_init(usb_func_t* func)
+//
+//  Helper Routines and Data
+///
+
+static char hstates[9][8] = {
+    {"Error"}, {"Reset"}, {"Suspend"}, {"Resume"}, {"Idle"},
+    {"SOF"}, {"SETUP"}, {"BulkOUT"}, {"BulkIN"}
+};
+
+static char fstates[6][8] = {
+    {"IDLE"}, {"RECV"}, {"RXCMD"}, {"RxPID"}, {"BUSY"}, {"EOT"}
+};
+
+static void func_show(usb_func_t* func)
 {
-    func->cycle = 0ul;
-    func->op = HostReset;
-    func->step = 0u;
-    func->turnaround = 0;
-    func->addr = 0;
+    printf("State\t = %d\t(%s)\n", func->state, fstates[func->state]);
+    printf("OP   \t = %d\t(%s)\n", func->op, hstates[func->op - HostError]);
+    printf("Step \t = %d\n", func->step);
+    printf("Timer\t = %d\n", func->turnaround);
 }
 
 static int ulpi_bus_rx(const ulpi_bus_t* in) {
@@ -109,7 +118,6 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
             return 1;
         }
         return 0;
-        // break;
 
     default:
         break;
@@ -381,6 +389,9 @@ static int stdreq_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
     return -1;
 }
 
+/**
+ * Steps through the various phases and packets of a complete transaction.
+ */
 static int func_xfer_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     if (func->step == 0) {
@@ -407,8 +418,12 @@ static int func_xfer_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* ou
         return 1;
 
     case HostSETUP:
-        printf("TODO: SETUP control-pipe transactions\n");
-        break;
+	if (func->step < 2) {
+	    return fn_datax_recv_step(func, in, out);
+	} else if (func->step < 3) {
+            return fn_recv_ack_step(func, in, out);
+	}
+        return 1;
 
     case HostSOF:
         printf("SOF should have already been processed\n");
@@ -420,6 +435,23 @@ static int func_xfer_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* ou
     }
 
     return -1;
+}
+
+
+//
+//  Public API Routines
+///
+
+/**
+ * Issue a device reset.
+ */
+void usbf_init(usb_func_t* func)
+{
+    func->cycle = 0ul;
+    func->op = HostReset;
+    func->step = 0u;
+    func->turnaround = 0;
+    func->addr = 0;
 }
 
 /**
@@ -558,14 +590,14 @@ void test_func_recv(void)
     ulpi_bus_t out;
     int result = 0;
     uint16_t index = 0;
-    uint16_t length = 20;
-    uint8_t packet[68] = {
-        0xC3, 0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x40,
-        0x00, 0xDD, 0x94,
+    uint8_t packet[8] = {
+        0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x40, 0x00
     };
+    transfer_t host = {0};
     usb_func_t func = {0};
     uint8_t pid;
 
+    // Bring the USB bus & device to idle.
     func.op = HostIdle;
     func.state = FuncIdle;
     bus.clock = SIG1;
@@ -573,15 +605,28 @@ void test_func_recv(void)
     assert(usbf_step(&func, &bus, &out) == 0);
     memcpy(&bus, &out, sizeof(ulpi_bus_t));
 
-    transfer_t host = {0};
+    // Transmit a 'SETUP' token to the device.
     host.type = SETUP;
     host.tok1 = 0x00;
     host.tok2 = 0x10;
 
-    assert(ulpi_step_with(token_send_step, &host, &bus, usbf_step, (void*)(&func)) == 1);
+    assert(ulpi_step_with(token_send_step, &host, &bus, (user_fn_t)usbf_step, (void*)(&func)) == 1);
     printf("Token Sent\n");
 
-    // receive a DATA0 packet, upto 64 bytes in size
+    // Host-to-device transmission of a DATA0 packet, containing the parameters
+    // of the CONTROL request.
+    host.type = DnDATA0;
+    host.crc1 = 0xDD;
+    host.crc2 = 0x94;
+    host.tx_len = 8;
+    memcpy(&host.tx, &packet, sizeof(packet));
+    func_show(&func);
+
+    assert(ulpi_step_with(datax_send_step, &host, &bus, (user_fn_t)usbf_step, (void*)(&func)) == 1);
+    printf("DATA0 Sent\n");
+
+#if 0
+
     bus.dir = SIG1;
     bus.nxt = SIG1;
     bus.data.a = ((uint8_t)(~pid & 0x0f) << 4) | pid;
@@ -613,4 +658,7 @@ void test_func_recv(void)
     } else {
         printf("\t\tHAIL SEITAN\n");
     }
+
+#endif /* 0 */
+
 }

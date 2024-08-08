@@ -2,7 +2,7 @@
 #define __TESTCASE_H__
 
 
-#include "ulpi.h"
+#include "ulpivpi.h"
 #include <stdint.h>
 
 

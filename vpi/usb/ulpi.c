@@ -156,7 +156,7 @@ int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
         // result = user_fn(user_data, bus, &out);
         memcpy(bus, &out, sizeof(ulpi_bus_t));
 
-        printf(".");
+        // printf(".");
     }
 
     return result;
@@ -299,7 +299,7 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     uint8_t pid = xfer->type == DnDATA0 ? 0xC3 : 0x4B;
 
-    if (!check_seq(xfer, pid)) {
+    if (!check_seq(xfer, pid & 0x0f)) {
         printf("Invalid send DATAx operation: %u\n", pid);
         return -1;
     }
@@ -360,17 +360,18 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
                 out->data.a = xfer->tx[xfer->tx_ptr++];
                 xfer->stage = DATAxBody;
             } else {
-                out->data.a = ZDP_CRC16_BYTE1; // Todo ...
+		out->data.a = xfer->crc1;
                 xfer->stage = DATAxCRC1;
             }
             break;
 
         case DATAxCRC1:
             out->nxt = SIG1;
-            out->data.a = ZDP_CRC16_BYTE2; // Todo ...
+            out->data.a = xfer->crc2;
             out->data.b = 0x00;
             xfer->stage = DATAxCRC2;
             break;
+
         case DATAxCRC2:
             out->nxt = SIG0;
             out->data.a = 0x5C; // RX CMD: RxActive = 1

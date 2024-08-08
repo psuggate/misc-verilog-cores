@@ -13,7 +13,7 @@ int desc_recv(transfer_t* xfer, const ulpi_bus_t* in)
         return -1;
     } else if (in->nxt != SIG1) {
         // Wait-state ignore
-        printf(".");
+        // printf(".");
         return 0;
     }
 
