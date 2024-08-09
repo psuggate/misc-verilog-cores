@@ -100,14 +100,24 @@ static int cb_step_sync(p_cb_data cb_data)
     ulpi_phy_t* phy;
     ulpi_bus_t curr;
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
-    if (state == NULL)
+    if (state == NULL) {
 	ut_error("'*state' problem");
+    }
 
     uint64_t cycle = state->cycle++;
     phy = &state->phy;
     ut_fetch_bus(state, &curr);
 
-    if (cycle == 0) {
+    x.format = vpiIntVal;
+    vpi_get_value(state->rst_n, &x);
+    int rst_n = (int)x.value.integer;
+
+    if (rst_n == SIG0) {
+	vpi_printf("RST#\n");
+	phy->bus.dir = SIG0;
+	phy->bus.nxt = SIG0;
+	state->cycle = 0;
+    } else if (cycle == 0) {
 	//
 	// Todo: startup things ...
 	//

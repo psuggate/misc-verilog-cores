@@ -12,8 +12,8 @@ module vpi_usb_ulpi_tb;
 
   // -- Globals -- //
 
-  reg clock, clk25, reset, arst_n;
-  wire usb_clock, usb_rst_n, dev_clock, dev_reset;
+  reg clock, clk25, arst_n;
+  wire usb_clock, usb_rst_n, dev_clock, dev_reset, reset;
 
   initial begin
     clock <= 1'b1;
@@ -26,11 +26,8 @@ module vpi_usb_ulpi_tb;
   assign usb_clock = clock;
 
   initial begin
-    reset  <= 1'b1;
     arst_n <= 1'b0;
-
     #40 arst_n <= 1'b1;
-    #20 reset <= 1'b0;
   end
 
 
@@ -40,7 +37,7 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    #150 $finish;
+    #1500 $finish;
   end
 
 
@@ -76,13 +73,10 @@ module vpi_usb_ulpi_tb;
     end
   end
 
-  // Salad days
-  /*
-  always @(negedge usb_clock) begin
-    $ulpi_step(usb_clock, arst_nw, ulpi_dir, ulpi_nxt, ulpi_stp, ulpi_data);
-  end
-   */
 
+  /**
+   * Wrapper to the VPI model of a USB host, for providing the stimulus.
+   */
   ulpi_shell U_ULPI_HOST1
     ( .clock(usb_clock),
       .rst_n(usb_rst_n),
@@ -95,7 +89,6 @@ module vpi_usb_ulpi_tb;
 
   // -- System Clocks & Resets -- //
 
-/*
   ulpi_reset #(
       .PHASE("0000"),  // Note: timing-constraints used instead
       .PLLEN(0)
@@ -104,14 +97,13 @@ module vpi_usb_ulpi_tb;
       .ulpi_clk  (clock),
       .sys_clock (clk25),
 
-      .ulpi_rst_n(reset_no),// Active LO
+      .ulpi_rst_n(usb_rst_n),// Active LO
       .pll_locked(locked),
 
       // .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
       .usb_reset (reset),   // Active HI
       .ddr_clock ()         // 120 MHz, PLL output, phase-shifted
   );
-*/
 
 
   //
@@ -123,7 +115,7 @@ module vpi_usb_ulpi_tb;
       .USE_EP1_OUT(1)
   ) U_USB_ULPI_TOP1 (
       .areset_n       (arst_nw),
-      .reset_no       (usb_rst_n),
+      // .reset_no       (usb_rst_n),
 
       .ulpi_clock_i   (usb_clock),
       .ulpi_dir_i     (ulpi_dir),
