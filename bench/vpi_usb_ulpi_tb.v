@@ -114,7 +114,8 @@ module vpi_usb_ulpi_tb;
       .USE_EP2_IN (1),
       .USE_EP1_OUT(1)
   ) U_USB_ULPI_TOP1 (
-      .areset_n       (arst_nw),
+      // .areset_n       (arst_nw),
+      .areset_n       (usb_rst_n),
       // .reset_no       (usb_rst_n),
 
       .ulpi_clock_i   (usb_clock),

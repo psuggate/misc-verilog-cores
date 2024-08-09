@@ -104,7 +104,7 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
     } else if (host->step == 1 && is_ulpi_phy_turn(in)) {
 	// Happy path, Step II:
 	out->nxt = SIG0;
-	out->data.a = host->phy.state.rx_cmd;
+	out->data.a = 0x5D;
 	out->data.b = 0x00;
 	host->step = 2;
     } else {
@@ -212,6 +212,37 @@ void usbh_init(usb_host_t* host)
     host->len = HOST_BUF_LEN;
 }
 
+int usbh_busy(usb_host_t* host)
+{
+    return host->op != HostIdle;
+}
+
+/*
+int usbh_send(usb_host_t* host, usb_xact_t* xact)
+{
+    return -1;
+}
+*/
+
+
+/**
+ * Queue-up a device reset, to be issued.
+ */
+int usbh_reset_device(usb_host_t* host, uint8_t addr)
+{
+    return -1;
+}
+
+int usbh_bulk_out(usb_host_t* host, uint8_t* data, uint16_t len)
+{
+    return -1;
+}
+
+int usbh_bulk_in(usb_host_t* host, uint8_t* data, uint16_t* len)
+{
+    return -1;
+}
+
 /**
  * Given the current USB host-state, and bus values, compute the next state and
  * bus values.
@@ -221,10 +252,14 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     int result = -1;
     uint64_t cycle = host->cycle;
 
+    memcpy(out, in, sizeof(ulpi_bus_t));
+
     if (in->rst_n == SIG0) {
 	printf("H@%8lu => Reset issued\n", cycle);
 	usbh_reset(host);
 	out->rst_n = SIG1;
+	out->dir = SIG0;
+	out->nxt = SIG0;
     } else if (host->cycle % SOF_N_TICKS == 0ul) {
 	if (host->op > HostIdle) {
 	    printf("H@%8lu => Transaction cancelled for SOF\n", cycle);
@@ -292,35 +327,4 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     host->cycle++;
     return result; 
-}
-
-int usbh_busy(usb_host_t* host)
-{
-    return host->op != HostIdle;
-}
-
-/*
-int usbh_send(usb_host_t* host, usb_xact_t* xact)
-{
-    return -1;
-}
-*/
-
-
-/**
- * Queue-up a device reset, to be issued.
- */
-int usbh_reset_device(usb_host_t* host, uint8_t addr)
-{
-    return -1;
-}
-
-int usbh_bulk_out(usb_host_t* host, uint8_t* data, uint16_t len)
-{
-    return -1;
-}
-
-int usbh_bulk_in(usb_host_t* host, uint8_t* data, uint16_t* len)
-{
-    return -1;
 }

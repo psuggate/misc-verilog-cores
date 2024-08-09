@@ -17,7 +17,7 @@ typedef enum {
 
 typedef struct __usb_func {
     uint64_t cycle;
-    operation_t op;
+    host_op_t op;
     uint8_t state;
     uint32_t step;
     transfer_t xfer;

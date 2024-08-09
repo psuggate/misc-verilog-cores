@@ -98,7 +98,7 @@ static int cb_step_sync(p_cb_data cb_data)
     vpiHandle net_handle;
     s_vpi_value x;
     ulpi_phy_t* phy;
-    ulpi_bus_t curr;
+    ulpi_bus_t curr, next;
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
     if (state == NULL) {
 	ut_error("'*state' problem");
@@ -112,11 +112,35 @@ static int cb_step_sync(p_cb_data cb_data)
     vpi_get_value(state->rst_n, &x);
     int rst_n = (int)x.value.integer;
 
+    //
+    // Todo:
+    //  1. handle reset
+    //  2. line-speed negotiation
+    //  3. idle line-state
+    //  4. start-of-frame & end-of-frame
+    //  5. scheduling transactions
+    //  6. stepping current transaction to completion
+    //
+
+    ulpi_bus_show(&curr);
+    usbh_step(&state->host, &curr, &next);
+
     if (rst_n == SIG0) {
+
 	vpi_printf("RST#\n");
-	phy->bus.dir = SIG0;
-	phy->bus.nxt = SIG0;
+	// phy->bus.dir = SIG0;
+	// phy->bus.nxt = SIG0;
 	state->cycle = 0;
+
+    } else {
+
+    }
+
+    ulpi_bus_show(&next);
+    ut_update_bus_state(state, &curr, &next);
+
+#ifdef __being_weird
+
     } else if (cycle == 0) {
 	//
 	// Todo: startup things ...
@@ -183,6 +207,10 @@ static int cb_step_sync(p_cb_data cb_data)
     ulpi_bus_t* next = &phy->bus;
     ut_update_bus_state(state, &curr, next);
 
+#endif /* __being_weird */
+
+    vpi_printf("Haapi: %u\n", cycle);
+
     state->sync_flag = 0;
     return 0;
 }
@@ -204,7 +232,7 @@ static int cb_step_clock(p_cb_data cb_data)
 
     int clock = (int)x.value.integer;
     if (clock != 1) {
-	vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
+	// vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
 	return 0;
     }
 

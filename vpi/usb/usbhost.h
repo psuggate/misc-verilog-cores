@@ -30,7 +30,7 @@ typedef enum {
     HostSETUP,
     HostBulkOUT,
     HostBulkIN,
-} operation_t;
+} host_op_t;
 
 typedef struct __usb_packet {
     uint16_t len;
@@ -44,10 +44,9 @@ typedef struct {
 
 typedef struct {
     uint64_t cycle;
-    operation_t op;
+    host_op_t op;
     uint32_t step;
     transfer_t xfer;
-    ulpi_phy_t phy;
     uint16_t sof;
     uint16_t turnaround;
     uint8_t addr;
