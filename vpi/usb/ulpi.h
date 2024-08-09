@@ -5,12 +5,6 @@
 #include <stdint.h>
 
 
-// Todoos
-#define MODE_HIGH_SPEED 2
-#define MODE_FULL_SPEED 1
-#define MODE_LOW_SPEED  0
-#define MODE_SUSPEND    4
-
 // Signal/logic levels
 #define SIG0 0
 #define SIG1 1
@@ -18,9 +12,29 @@
 #define SIGX 3
 
 
+/**
+ * VPI scalar value, 0-5.
+ */
+typedef uint8_t bit_t;
+
+/**
+ * Uses the same ('aval', 'bval') encoding as VPI vectors (but only 8b).
+ */
+typedef struct {
+    uint8_t a;
+    uint8_t b;
+} byte_t;
+
+
 //
 //  USB Protocol Definitions
 ///
+
+// Todoos
+#define MODE_HIGH_SPEED 2
+#define MODE_FULL_SPEED 1
+#define MODE_LOW_SPEED  0
+#define MODE_SUSPEND    4
 
 #define MAX_PACKET_SIZE (512u)
 #define MAX_CONFIG_SIZE (64u)
@@ -54,28 +68,6 @@
 #define USBPID_PING     0b0100
 #define USBPID_RESERVED 0b0000
 
-// ULPI Transmit encoding for (upstream) DATAx & handshakes
-#define ULPITX_DATA0 (USBPID_DATA0 | 0x40)
-#define ULPITX_DATA1 (USBPID_DATA1 | 0x40)
-#define ULPITX_ACK   (USBPID_ACK   | 0x40)
-#define ULPITX_NAK   (USBPID_NAK   | 0x40)
-#define ULPITX_NYET  (USBPID_NYET  | 0x40)
-#define ULPITX_STALL (USBPID_STALL | 0x40)
-
-
-/**
- * VPI scalar value, 0-5.
- */
-typedef uint8_t bit_t;
-
-/**
- * Uses the same ('aval', 'bval') encoding as VPI vectors (but only 8b).
- */
-typedef struct {
-    uint8_t a;
-    uint8_t b;
-} byte_t;
-
 
 //
 //  RX CMD definitions
@@ -90,70 +82,21 @@ typedef struct {
 typedef uint8_t RX_CMD_t;
 
 
-/**
- * ULPI PHY register map.
- */
-typedef enum __ulpi_reg_map {
-    VendorIDLow = 0,
-    VendorIDHigh,
-    ProductIDLow = 2,
-    ProductIDHigh,
-    FunctionControlWrite = 4,
-    FunctionControlSet,
-    FunctionControlClear,
-    InterfaceControlWrite = 7,
-    InterfaceControlSet,
-    InterfaceControlClear,
-} ulpi_reg_map_t;
+//
+//  ULPI Transmit encoding for (upstream) DATAx & handshakes
+///
+
+#define ULPITX_DATA0 (USBPID_DATA0 | 0x40)
+#define ULPITX_DATA1 (USBPID_DATA1 | 0x40)
+#define ULPITX_ACK   (USBPID_ACK   | 0x40)
+#define ULPITX_NAK   (USBPID_NAK   | 0x40)
+#define ULPITX_NYET  (USBPID_NYET  | 0x40)
+#define ULPITX_STALL (USBPID_STALL | 0x40)
 
 
-#define XCVR_SELECT_MASK 0x03
-#define TERM_SELECT_MASK 0x04
-#define OP_MODE_MASK     0x18
-#define RESET_MASK       0x20
-#define SUSPENDM_MASK    0x40
-
-typedef uint8_t FunctionControl_t;
-
-typedef struct {
-    uint8_t FsLsSerialMode_6pin : 1;
-    uint8_t FsLsSerialMode_3pin : 1;
-    uint8_t CarkitMode : 1;
-    uint8_t ClockSuspendM : 1;
-    uint8_t AutoResume : 1;
-    uint8_t IndicatorComplement : 1;
-    uint8_t IndicatorPassThru : 1;
-    uint8_t InterfaceProtectDisable : 1;
-} InterfaceControl_t;
-
-
-/**
- * Current PHY state/mode.
- */
-typedef enum {
-    Disconnected = -3,
-    ErrorResetB = -2,
-    Undefined = -1,
-    PowerOn = 0,
-    RefClkValid,
-    Starting,
-    WaitForIdle,
-    StatusRXCMD,
-    PhyIdle,
-    PhyRecv,
-    PhySend,
-    PhySuspend,
-    PhyResume,
-    PhyChirpJ,
-    PhyChirpK,
-    HostChirp
-} __phy_status_t;
-
-typedef struct {
-    uint8_t regs[10];
-    RX_CMD_t rx_cmd;
-    int8_t status;
-} phy_state_t;
+//
+// USB & ULPI Definitions
+///
 
 typedef struct {
     bit_t clock;
@@ -226,12 +169,6 @@ typedef struct {
     uint8_t crc2;
 } transfer_t;
 
-typedef struct {
-    phy_state_t state;
-    ulpi_bus_t bus;
-    transfer_t xfer;
-} ulpi_phy_t;
-
 
 // typedef int (*step_fn_t)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
 typedef int (*step_fn_t)(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
@@ -239,14 +176,6 @@ typedef int (*user_fn_t)(void* user_data, const ulpi_bus_t* in, ulpi_bus_t* out)
 
 
 // -- Helpers -- //
-
-static inline void phy_drive_rx_cmd(ulpi_phy_t* phy)
-{
-    phy->bus.dir = SIG1;
-    phy->bus.nxt = SIG0;
-    phy->bus.data.a = phy->state.rx_cmd;
-    phy->bus.data.b = 0x00;
-}
 
 static inline void phy_bus_release(ulpi_bus_t* bus)
 {
@@ -286,14 +215,6 @@ void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void sof_frame(transfer_t* xfer, uint16_t frame);
 
 uint8_t transfer_type_to_pid(transfer_t* xfer);
-
-
-// -- PHY Settings -- //
-
-ulpi_phy_t* phy_init(void);
-
-int phy_set_reg(uint8_t reg, uint8_t val);
-int phy_get_reg(uint8_t reg, uint8_t* val);
 
 
 // -- Transaction Step-Functions -- //

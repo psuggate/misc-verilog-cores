@@ -15,39 +15,6 @@
 #define ZDP_CRC16_BYTE2 0x00u
 
 
-// Initialisation/reset/default values for the ULPI PHY registers.
-static const uint8_t ULPI_REG_DEFAULTS[10] = {
-    0x24, 0x04, 0x06, 0x00, 0x41, 0x41, 0x41, 0x00, 0x00, 0x00
-};
-
-
-// Todo ...
-ulpi_phy_t* phy_init(void)
-{
-    ulpi_phy_t* phy = (ulpi_phy_t*)malloc(sizeof(ulpi_phy_t));
-
-    memcpy(phy->state.regs, ULPI_REG_DEFAULTS, sizeof(ULPI_REG_DEFAULTS));
-
-    phy->state.rx_cmd = 0x0C;
-    phy->state.status = PowerOn;
-
-    phy->bus.clock = SIGX;
-    phy->bus.rst_n = SIGX;
-    phy->bus.dir = SIGZ;
-    phy->bus.nxt = SIGZ;
-    phy->bus.stp = SIGX;
-    phy->bus.data.a = 0x00;
-    phy->bus.data.b = 0xff;
-
-    return phy;
-}
-
-void phy_free(ulpi_phy_t* phy)
-{
-    free(phy);
-}
-
-
 //
 //  Helper Routines
 ///
@@ -105,25 +72,6 @@ void sof_frame(transfer_t* xfer, uint16_t frame)
     xfer->rx_ptr = 0;
     xfer->tx_len = 0;
     xfer->tx_ptr = 0;
-}
-
-
-//
-//  Higher-Level Routines
-///
-
-/**
- * Todo:
- *  - on pp.22, USB3317C datasheet, register values for each mode;
- */
-int phy_set_reg(uint8_t reg, uint8_t val)
-{
-    return -1;
-}
-
-int phy_get_reg(uint8_t reg, uint8_t* val)
-{
-    return -1;
 }
 
 

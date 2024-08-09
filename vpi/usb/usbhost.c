@@ -254,10 +254,15 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     memcpy(out, in, sizeof(ulpi_bus_t));
 
+    //
+    // Todo:
+    //  1. handle
+
     if (in->rst_n == SIG0) {
-	printf("H@%8lu => Reset issued\n", cycle);
-	usbh_reset(host);
-	out->rst_n = SIG1;
+	if (host->prev.rst_n != SIG0) {
+	    printf("H@%8lu => Reset issued\n", cycle);
+	    usbh_reset(host);
+	}
 	out->dir = SIG0;
 	out->nxt = SIG0;
     } else if (host->cycle % SOF_N_TICKS == 0ul) {
@@ -326,5 +331,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     }
 
     host->cycle++;
+    memcpy(&host->prev, in, sizeof(ulpi_bus_t));
+
     return result; 
 }

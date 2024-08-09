@@ -46,6 +46,7 @@ typedef struct {
     uint64_t cycle;
     host_op_t op;
     uint32_t step;
+    ulpi_bus_t prev;
     transfer_t xfer;
     uint16_t sof;
     uint16_t turnaround;

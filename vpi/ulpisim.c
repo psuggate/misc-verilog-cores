@@ -115,28 +115,32 @@ static int cb_step_sync(p_cb_data cb_data)
     //
     // Todo:
     //  1. handle reset
-    //  2. line-speed negotiation
+    //  2. TX CMDs & line-speed negotiation
     //  3. idle line-state
     //  4. start-of-frame & end-of-frame
     //  5. scheduling transactions
     //  6. stepping current transaction to completion
     //
 
-    ulpi_bus_show(&curr);
+    if (memcmp(&phy->bus, &curr, sizeof(ulpi_bus_t)) != 0) {
+	ulpi_bus_show(&curr);
+    }
     usbh_step(&state->host, &curr, &next);
 
     if (rst_n == SIG0) {
 
-	vpi_printf("RST#\n");
-	// phy->bus.dir = SIG0;
-	// phy->bus.nxt = SIG0;
+	if (phy->bus.rst_n != SIG0) {
+	    vpi_printf("RST#\n");
+	}
 	state->cycle = 0;
 
     } else {
 
     }
 
-    ulpi_bus_show(&next);
+    if (memcmp(&curr, &next, sizeof(ulpi_bus_t)) != 0) {
+	ulpi_bus_show(&next);
+    }
     ut_update_bus_state(state, &curr, &next);
 
 #ifdef __being_weird
@@ -208,8 +212,6 @@ static int cb_step_sync(p_cb_data cb_data)
     ut_update_bus_state(state, &curr, next);
 
 #endif /* __being_weird */
-
-    vpi_printf("Haapi: %u\n", cycle);
 
     state->sync_flag = 0;
     return 0;
