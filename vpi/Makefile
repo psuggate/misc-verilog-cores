@@ -17,5 +17,8 @@ clean:
 %.o: %.c
 	gcc -c -fpic -O2 -I/usr/include/iverilog $<
 
+%.o: usb/%.c
+	gcc -c -fpic -O2 -I/usr/include/iverilog $<
+
 %.vpi:	$(OBJ)
 	gcc -shared -o $@ $^ -lvpi
