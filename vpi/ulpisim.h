@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 
+#include "usb/usbhost.h"
 #include "ulpivpi.h"
 #include "testcase.h"
 
@@ -22,6 +23,7 @@ typedef struct {
     uint64_t cycle;
     ulpi_bus_t prev;
     ulpi_phy_t phy;
+    usb_host_t host;
     int sync_flag;
     int test_num;
     int test_curr;

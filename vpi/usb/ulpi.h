@@ -93,7 +93,7 @@ typedef uint8_t RX_CMD_t;
 /**
  * ULPI PHY register map.
  */
-typedef enum {
+typedef enum __ulpi_reg_map {
     VendorIDLow = 0,
     VendorIDHigh,
     ProductIDLow = 2,

@@ -317,6 +317,7 @@ static int ut_compiletf(char* user_data)
 
     state->cycle = 0;
     state->sync_flag = 0;
+    usbh_init(&state->host);
     state->test_curr = 0;
     state->test_num = 1;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*));

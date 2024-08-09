@@ -1,8 +1,9 @@
 .PHONY:	all build clean
 
-INC	?= $(wildcard *.h)
+INC	?= $(wildcard *.h) $(wildcard usb/*.h)
 SRC	?= $(wildcard *.c)
-OBJ	?= $(SRC:.c=.o)
+DEP	?= $(wildcard usb/*.c)
+OBJ	?= $(SRC:.c=.o) $(DEP:usb/%.c=%.o)
 VPI	?= ulpisim.vpi
 
 
