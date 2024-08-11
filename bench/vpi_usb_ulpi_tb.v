@@ -38,6 +38,7 @@ module vpi_usb_ulpi_tb;
     $dumpvars;
 
     #1500 $finish;
+    // #500 $finish;
   end
 
 

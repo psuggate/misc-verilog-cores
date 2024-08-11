@@ -9,6 +9,21 @@
 #include "testcase.h"
 
 
+typedef enum __ulpi_op {
+    ULPI_Error = -1,
+    ULPI_PowerOn = 0,
+    ULPI_Suspend,
+    ULPI_Resume,
+    ULPI_Reset,
+    ULPI_FullSpeed,
+    ULPI_HighSpeed,
+    ULPI_Idle,
+    ULPI_HostToPHY, // RECEIVE
+    ULPI_PHYToHost, // TRANSMIT
+    ULPI_LinkToPHY, // REGR/REGW/SPECIAL
+} ulpi_op_t;
+
+
 /**
  * ULPI signals, state, and test-cases.
  */
@@ -21,19 +36,20 @@ typedef struct {
     vpiHandle dati;
     vpiHandle dato;
     uint64_t cycle;
-    ulpi_bus_t prev;
+    ulpi_bus_t bus;
     ulpi_phy_t phy;
     usb_host_t host;
     int sync_flag;
     int test_num;
     int test_curr;
     testcase_t** tests;
+    int8_t op;
 } ut_state_t;
 
 
 static inline int phy_is_driving(ut_state_t* state)
 {
-    return state->prev.dir == SIG1;
+    return state->phy.bus.dir == SIG1;
 }
 
 

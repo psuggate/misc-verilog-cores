@@ -24,6 +24,10 @@ typedef enum __ulpi_reg_map {
 } ulpi_reg_map_t;
 
 
+#define UPHY_REG_FN_CTRL 4
+#define UPHY_REG_IF_CTRL 7
+
+
 #define XCVR_SELECT_MASK 0x03
 #define TERM_SELECT_MASK 0x04
 #define OP_MODE_MASK     0x18
@@ -56,9 +60,15 @@ typedef enum {
     Starting,
     WaitForIdle,
     StatusRXCMD,
-    PhyIdle,
+    PhyIdle, // 5
     PhyRecv,
     PhySend,
+    PhyREGW, // 8
+    PhyREGI, // 9
+    PhyStop,
+    PhyREGR,
+    PhyREGZ,
+    PhyREGO,
     PhySuspend,
     PhyResume,
     PhyChirpJ,
@@ -67,9 +77,11 @@ typedef enum {
 } __phy_status_t;
 
 typedef struct {
-    uint8_t regs[10];
+    uint32_t timer;
+    int8_t op;
     RX_CMD_t rx_cmd;
-    int8_t status;
+    uint8_t regs[10];
+    uint8_t regnum;
 } phy_state_t;
 
 typedef struct {

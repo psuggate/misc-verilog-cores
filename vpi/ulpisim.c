@@ -19,30 +19,30 @@ static int ut_error(const char* reason)
 /**
  * Extract the current bus values using the VPI handles to each bus signal.
  */
-static void ut_fetch_bus(ut_state_t* state, ulpi_bus_t* bus)
+static void ut_fetch_bus(ut_state_t* state)
 {
     s_vpi_value curr_value;
     curr_value.format = vpiScalarVal;
 
     vpi_get_value(state->clock, &curr_value);
-    bus->clock = (bit_t)curr_value.value.scalar;
+    state->bus.clock = (bit_t)curr_value.value.scalar;
 
     vpi_get_value(state->rst_n, &curr_value);
-    bus->rst_n = (bit_t)curr_value.value.scalar;
+    state->bus.rst_n = (bit_t)curr_value.value.scalar;
 
     vpi_get_value(state->dir, &curr_value);
-    bus->dir = (bit_t)curr_value.value.scalar;
+    state->bus.dir = (bit_t)curr_value.value.scalar;
 
     vpi_get_value(state->nxt, &curr_value);
-    bus->nxt = (bit_t)curr_value.value.scalar;
+    state->bus.nxt = (bit_t)curr_value.value.scalar;
 
     vpi_get_value(state->stp, &curr_value);
-    bus->stp = (bit_t)curr_value.value.scalar;
+    state->bus.stp = (bit_t)curr_value.value.scalar;
 
     curr_value.format = vpiVectorVal;
     vpi_get_value(state->dati, &curr_value);
-    bus->data.a = (uint8_t)curr_value.value.vector->aval;
-    bus->data.b = (uint8_t)curr_value.value.vector->bval;
+    state->bus.data.a = (uint8_t)curr_value.value.vector->aval;
+    state->bus.data.b = (uint8_t)curr_value.value.vector->bval;
 }
 
 static void ut_set_phy_idle(ut_state_t* state)
@@ -56,10 +56,11 @@ static void ut_set_phy_idle(ut_state_t* state)
     vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
 }
 
-static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t* next)
+static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* next)
 {
     s_vpi_value sig;
     s_vpi_time now;
+    const ulpi_bus_t* curr = &state->bus;
 
     sig.format = vpiScalarVal;
     now.type = vpiSimTime;
@@ -82,7 +83,7 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* curr, ulpi_bus_t*
 	vpi_put_value(state->dato, &sig, NULL, vpiNoDelay);
     }
 
-    memcpy(&state->prev, &next, sizeof(ulpi_bus_t));
+    memcpy(&state->phy.bus, next, sizeof(ulpi_bus_t));
 }
 
 static int ut_step_xfer(ut_state_t* state)
@@ -106,7 +107,7 @@ static int cb_step_sync(p_cb_data cb_data)
 
     uint64_t cycle = state->cycle++;
     phy = &state->phy;
-    ut_fetch_bus(state, &curr);
+    memcpy(&curr, &state->bus, sizeof(ulpi_bus_t));
 
     x.format = vpiIntVal;
     vpi_get_value(state->rst_n, &x);
@@ -125,8 +126,15 @@ static int cb_step_sync(p_cb_data cb_data)
     if (memcmp(&phy->bus, &curr, sizeof(ulpi_bus_t)) != 0) {
 	ulpi_bus_show(&curr);
     }
-    usbh_step(&state->host, &curr, &next);
 
+    if (uphy_step(phy, &curr, &next) < 0) {
+	return ut_error("ULPI PHY step failed\n");
+    }
+    if (phy->state.op == PhyRecv || phy->state.op == PhySend) {
+	usbh_step(&state->host, &curr, &next);
+    }
+
+/*
     if (rst_n == SIG0) {
 
 	if (phy->bus.rst_n != SIG0) {
@@ -137,11 +145,12 @@ static int cb_step_sync(p_cb_data cb_data)
     } else {
 
     }
+*/
 
     if (memcmp(&curr, &next, sizeof(ulpi_bus_t)) != 0) {
 	ulpi_bus_show(&next);
     }
-    ut_update_bus_state(state, &curr, &next);
+    ut_update_bus_state(state, &next);
 
 #ifdef __being_weird
 
@@ -209,7 +218,7 @@ static int cb_step_sync(p_cb_data cb_data)
 
     // If the update-step has changed the bus-state, then schedule that change
     ulpi_bus_t* next = &phy->bus;
-    ut_update_bus_state(state, &curr, next);
+    ut_update_bus_state(state, next);
 
 #endif /* __being_weird */
 
@@ -239,10 +248,7 @@ static int cb_step_clock(p_cb_data cb_data)
     }
 
     // Capture the bus signals at the time of the clock-edge
-    ulpi_phy_t* phy = &state->phy;
-    ulpi_bus_t curr;
-    ut_fetch_bus(state, &curr);
-    memcpy(&phy->bus, &curr, sizeof(ulpi_bus_t));
+    ut_fetch_bus(state);
 
     // Setup a read/write synchronisation callback, to process the current bus
     // values, and update signals & state.
