@@ -35,6 +35,8 @@ typedef struct {
     vpiHandle stp;
     vpiHandle dati;
     vpiHandle dato;
+    uint64_t tick_ns;
+    uint64_t t_recip;
     uint64_t cycle;
     ulpi_bus_t bus;
     ulpi_phy_t phy;

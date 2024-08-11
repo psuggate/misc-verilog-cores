@@ -99,7 +99,7 @@ static int cb_step_sync(p_cb_data cb_data)
     vpiHandle net_handle;
     s_vpi_value x;
     ulpi_phy_t* phy;
-    ulpi_bus_t curr, next;
+    ulpi_bus_t next;
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
     if (state == NULL) {
 	ut_error("'*state' problem");
@@ -107,7 +107,7 @@ static int cb_step_sync(p_cb_data cb_data)
 
     uint64_t cycle = state->cycle++;
     phy = &state->phy;
-    memcpy(&curr, &state->bus, sizeof(ulpi_bus_t));
+    // memcpy(&curr, &state->bus, sizeof(ulpi_bus_t));
 
     x.format = vpiIntVal;
     vpi_get_value(state->rst_n, &x);
@@ -115,39 +115,30 @@ static int cb_step_sync(p_cb_data cb_data)
 
     //
     // Todo:
-    //  1. handle reset
+    //  1. ~~handle reset~~
     //  2. TX CMDs & line-speed negotiation
     //  3. idle line-state
     //  4. start-of-frame & end-of-frame
     //  5. scheduling transactions
     //  6. stepping current transaction to completion
     //
+    const ulpi_phy_t* prev = &state->phy.bus;
+    const ulpi_phy_t* curr = &state->bus;
+    bool changed = memcmp(prev, curr, sizeof(ulpi_bus_t)) != 0;
 
-    if (memcmp(&phy->bus, &curr, sizeof(ulpi_bus_t)) != 0) {
-	ulpi_bus_show(&curr);
-    }
-
-    if (uphy_step(phy, &curr, &next) < 0) {
+    if (uphy_step(phy, curr, &next) < 0) {
 	return ut_error("ULPI PHY step failed\n");
     }
-    if (phy->state.op == PhyRecv || phy->state.op == PhySend) {
-	usbh_step(&state->host, &curr, &next);
+    if (phy->state.op == PhyIdle || phy->state.op == PhyRecv || phy->state.op == PhySend) {
+	vpi_printf(".");
+	usbh_step(&state->host, curr, &next);
     }
 
-/*
-    if (rst_n == SIG0) {
+    changed |= memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
+	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
 
-	if (phy->bus.rst_n != SIG0) {
-	    vpi_printf("RST#\n");
-	}
-	state->cycle = 0;
-
-    } else {
-
-    }
-*/
-
-    if (memcmp(&curr, &next, sizeof(ulpi_bus_t)) != 0) {
+    if (changed) {
+	printf("@%8lu ns  =>\t", state->tick_ns);
 	ulpi_bus_show(&next);
     }
     ut_update_bus_state(state, &next);
@@ -243,16 +234,24 @@ static int cb_step_clock(p_cb_data cb_data)
 
     int clock = (int)x.value.integer;
     if (clock != 1) {
-	// vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
-	return 0;
+        // vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
+        return 0;
     }
+
+    s_vpi_time t;
+    t.type = vpiSimTime;
+    vpi_get_time(NULL, &t);
+
+    uint64_t tick_ns = ((uint64_t)t.high << 32) | (uint64_t)t.low;
+    tick_ns /= state->t_recip;
+    state->tick_ns = tick_ns;
+    // vpi_printf("At: %8lu ns\n", tick_ns);
 
     // Capture the bus signals at the time of the clock-edge
     ut_fetch_bus(state);
 
     // Setup a read/write synchronisation callback, to process the current bus
     // values, and update signals & state.
-    s_vpi_time t;
     t.type       = vpiSimTime;
     t.high       = 0;
     t.low        = 0;
@@ -388,6 +387,16 @@ static int ut_calltf(char* user_data)
 	return ut_error("'*state' problem");
     }
 
+    /* compute the scaling-factor for displaying the simulation-time */
+    int scale = -9 - vpi_get(vpiTimePrecision, NULL);
+    uint64_t t_recip = 1;
+
+    while (scale-- > 0) {
+        t_recip *= 10;
+    }
+    state->t_recip = t_recip;
+
+    /* setup the callback for clock-events */
     t.type       = vpiSuppressTime;
     x.format     = vpiSuppressVal;
     cb.reason    = cbValueChange;

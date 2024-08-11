@@ -304,9 +304,11 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	return -1;
     }
 
+#if 0
     if (phy->state.op != op) {
 	printf("PHY state: %u (prev: %u)\n", phy->state.op, op);
     }
+#endif
 
     memcpy(&phy->bus, out, sizeof(ulpi_bus_t));
     return 0;

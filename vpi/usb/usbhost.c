@@ -10,8 +10,10 @@
 #include <string.h>
 
 
-#define RESET_TICKS     60000
-#define SOF_N_TICKS      7500
+// #define RESET_TICKS     60000
+#define RESET_TICKS     60
+#define SOF_N_TICKS      75
+// #define SOF_N_TICKS      7500
 #define HOST_BUF_LEN    16384u
 
 // Global, default configuration-request step-functions
@@ -265,7 +267,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	}
 	out->dir = SIG0;
 	out->nxt = SIG0;
-    } else if (host->cycle % SOF_N_TICKS == 0ul) {
+    } else if ((host->cycle % SOF_N_TICKS) == 0ul) {
 	if (host->op > HostIdle) {
 	    printf("H@%8lu => Transaction cancelled for SOF\n", cycle);
 	} else if (host->op < HostIdle) {
@@ -276,6 +278,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    host->step = 0u;
 	}
     }
+    printf("AT %lu, OP = %d\n", cycle, host->op);
 
     switch (host->op) {
 

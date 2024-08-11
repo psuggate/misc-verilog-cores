@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Jul 24 14:16:55 2024
+[*] Sun Aug 11 22:35:36 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.vcd"
 [dumpfile_mtime] "Sun Jul 21 05:29:38 2024"
 [dumpfile_size] 749519
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_core_tb.gtkw"
-[timestart] 1600300
+[timestart] 0
 [size] 2560 1376
 [pos] 0 26
-*-16.457176 2070000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.457176 200000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] U_USB_BRIDGE1.
 [treeopen] U_USB_BRIDGE1.U_CFG_PIPE0.
 [treeopen] U_USB_BRIDGE1.U_DECODER1.
