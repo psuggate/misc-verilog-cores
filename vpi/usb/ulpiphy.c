@@ -17,6 +17,9 @@
 // #define UPHY_CHIRPK_TIMER 60000
 #define UPHY_CHIRPK_TIMER 30
 
+#define HOST_CHIRPK_TIMER 5
+#define HOST_CHIRPJ_TIMER 5
+
 
 // Initialisation/reset/default values for the ULPI PHY registers.
 static const uint8_t ULPI_REG_DEFAULTS[10] = {
@@ -46,6 +49,15 @@ bool ulpi_phy_is_reg_write(const ulpi_phy_t* phy, const ulpi_bus_t* in)
     bool regw = in->rst_n == SIG1 && in->dir == SIG0 && in->data.b == 0x00 &&
 	(in->data.a & UPHY_TXCMD_MASK == UPHY_REGW_BITS);
     return ulpi_phy_is_idle(phy) && regw;
+}
+
+/**
+ * Return 'true' if the ULPI PHY is configured to send & receive chirps.
+ */
+static bool ulpi_phy_is_chirp(const ulpi_phy_t* phy)
+{
+    printf("PHY function-control register: 0x%x\n", phy->state.regs[UPHY_REG_FN_CTRL]);
+    return (phy->state.regs[UPHY_REG_FN_CTRL] & 0x1C) == 0x14;
 }
 
 static uint32_t ulpi_bus_data_hex(const ulpi_bus_t* in)
@@ -103,6 +115,7 @@ static int uphy_txcmd_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* ou
 	    // NOPID (so probably a CHIRPx)
 	    phy->state.op = PhyChirpK;
 	    phy->state.timer = 0;
+	    phy->state.speed = FuncChirpK;
 	} else {
 	    // Todo: needs to be able to get the USB host to step ...
 	    phy->state.op = PhySend;
@@ -184,6 +197,8 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
     }
     memcpy(out, in, sizeof(ulpi_bus_t));
 
+    assert(in->clock == SIG1);
+
     const int8_t op = phy->state.op;
     switch (op) {
 
@@ -242,11 +257,53 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
     case StatusRXCMD:
 	out->dir = SIG1;
 	out->nxt = SIG0;
-	if ((phy->state.regs[UPHY_REG_FN_CTRL] & 0x01C) == 0x10) {
+	if (ulpi_phy_is_chirp(phy)) {
 	    // Termination disabled, non-NRZI, and not being driven by the USB
-	    // host, so line-state is SE0
+	    // host, so line-state is SE0, SE1, or chirp
 	    phy->state.rx_cmd &= 0xFC;
+	    printf("\n\nWoohoo, PHY reached\n\n\n");
+
+	    switch (phy->state.speed) {
+
+	    case FullSpeed:
+		phy->state.speed = HostSE0;
+		phy->state.timer = 0;
+		break;
+
+	    case HostSE0:
+		break;
+
+	    case FuncChirpK:
+		phy->state.rx_cmd |= 0x01; // K
+		break;
+
+	    case HostChirpK1:
+	    case HostChirpK2:
+	    case HostChirpK3:
+		printf("Woohoo, HostChirpK reached\n");
+		phy->state.rx_cmd |= 0x01; // K
+		phy->state.timer = 0;
+		break;
+
+	    case HostChirpJ1:
+	    case HostChirpJ2:
+	    case HostChirpJ3:
+		printf("Woohoo, HostChirpJ reached\n");
+		phy->state.rx_cmd |= 0x02; // J
+		phy->state.timer = 0;
+		break;
+
+	    case HighSpeed:
+		// Squelch ??
+		phy->state.timer = 0;
+		break;
+
+	    default:
+		printf("Invalid line speed-state: 0x%x\n", phy->state.speed);
+		return -1;
+	    }
 	}
+
 	out->data.a = phy->state.rx_cmd;
 	out->data.b = 0x00;
 	phy->state.update = 0;
@@ -258,11 +315,21 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    if (in->data.b == 0x00 && in->data.a != 0x00) {
 		// Idle -> Busy
 		return uphy_txcmd_step(phy, in, out);
-	    } else if (phy->state.update != 0 && ulpi_bus_is_idle(in)) {
+	    } else if (!ulpi_bus_is_idle(in)) {
+		printf("Unexpected non-TX CMD, while idle: 0x%x\n",
+		       ulpi_bus_data_hex(in));
+		return -1;
+	    } else if (phy->state.update != 0) {
 		// Send an RX CMD
 		out->dir = SIG1;
 		out->data.b = 0xFF;
 		phy->state.op = StatusRXCMD;
+	    } else if (phy->state.speed > FuncChirpK && phy->state.speed < HighSpeed) {
+		if ((++phy->state.timer) >= HOST_CHIRPK_TIMER) {
+		    phy->state.update = 1;
+		    // phy->state.timer = 0;
+		    phy->state.speed++;
+		}
 	    }
 	}
 	break;
@@ -341,6 +408,7 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    out->nxt = SIG0;
 	    phy->state.op = WaitForIdle;
 	    phy->state.update = 1;
+	    phy->state.speed = HostChirpK1;
 	}
 	break;
 

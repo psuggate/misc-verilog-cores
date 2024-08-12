@@ -126,9 +126,12 @@ static int cb_step_sync(p_cb_data cb_data)
     const ulpi_phy_t* curr = &state->bus;
     bool changed = memcmp(prev, curr, sizeof(ulpi_bus_t)) != 0;
 
+    // Step-function for the ULPI PHY of the USB device/peripheral
     if (uphy_step(phy, curr, &next) < 0) {
 	return ut_error("ULPI PHY step failed\n");
     }
+
+    // Step-function for the USB host
     if (phy->state.op == PhyIdle || phy->state.op == PhyRecv || phy->state.op == PhySend) {
 	vpi_printf(".");
 	usbh_step(&state->host, curr, &next);

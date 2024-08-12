@@ -51,7 +51,6 @@ typedef struct {
     uint16_t sof;
     uint16_t turnaround;
     uint8_t addr;
-    uint8_t speed;
     uint8_t error_count;
     uint16_t len;
     uint8_t* buf;

@@ -76,6 +76,19 @@ typedef enum {
     HostChirp
 } __phy_status_t;
 
+typedef enum __line_speed {
+    FullSpeed = 0,
+    HostSE0,
+    FuncChirpK,
+    HostChirpK1,
+    HostChirpJ1,
+    HostChirpK2,
+    HostChirpJ2,
+    HostChirpK3,
+    HostChirpJ3,
+    HighSpeed
+} line_speed_t;
+
 typedef struct {
     uint32_t timer;
     int8_t op;
@@ -83,6 +96,7 @@ typedef struct {
     uint8_t regs[10];
     uint8_t regnum;
     uint8_t update;
+    uint8_t speed;
 } phy_state_t;
 
 typedef struct {

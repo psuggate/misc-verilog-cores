@@ -1,4 +1,4 @@
-.PHONY:	all build sim vpi
+.PHONY:	all build sim
 all:	sim
 
 #
@@ -27,10 +27,7 @@ LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(SRC)
 TOP	?= $(wildcard *_tb.v)
 OUT	?= $(TOP:%.v=../build/%.out)
 
-sim:	build vpi
-
-vpi:
-	@make -C src all
+sim:	build
 
 build:	$(OUT)
 
