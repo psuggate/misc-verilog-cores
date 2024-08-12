@@ -13,10 +13,25 @@
 #include <string.h>
 
 
-// #define RESET_TICKS     60000
-// #define SOF_N_TICKS      7500
+#ifdef __short_timers
+
 #define RESET_TICKS     60
 #define SOF_N_TICKS      75
+
+#else  /* !__short_timers */
+#ifdef __long_timers
+
+#define RESET_TICKS     60000
+#define SOF_N_TICKS      7500
+
+#else  /* !__long_timers */
+
+#define RESET_TICKS        60
+#define SOF_N_TICKS       750
+
+#endif /* !__long_timers */
+#endif /* !__short_timers */
+
 #define HOST_BUF_LEN    16384u
 
 // Global, default configuration-request step-functions
@@ -97,7 +112,7 @@ int usbh_get_descriptor(usb_host_t* host, uint16_t num)
 static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     if (host->step > 1) {
-	printf("H@%8lu => ERROR, step = %d\n", host->cycle, host->step);
+	printf("\nHOST\t#%8lu cyc =>\tERROR, step = %d\n", host->cycle, host->step);
 	return -1;
     } else if (host->step == 0 && is_ulpi_phy_idle(in)) {
 	// Happy path, Step I:
@@ -113,7 +128,7 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
 	out->data.b = 0x00;
 	host->step = 2;
     } else {
-	printf("H@%8lu => ERROR, dir = %d, nxt = %d\n", host->cycle, in->dir, in->nxt);
+	printf("\nHOST\t#%8lu cyc =>\tERROR, dir = %d, nxt = %d\n", host->cycle, in->dir, in->nxt);
 	out->dir = SIGX;
 	out->nxt = SIGX;
 	out->data.a = 0xff; // Todo: RX CMD
@@ -168,9 +183,9 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case 0: {
 	const uint16_t sof = (host->sof++) >> 3;
 	const uint16_t crc = crc5_calc(sof);
-	host->xfer.tok1 = sof & 0xFF;
-	host->xfer.tok2 = ((sof >> 8) & 0x07) | (crc << 3);
-	printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
+	host->xfer.tok1 = crc & 0xFF;
+	host->xfer.tok2 = (crc >> 8) & 0xFF;
+	// printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
     }
     case 1:
 	result = start_host_to_func(host, in, out);
@@ -195,7 +210,7 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case 4:
 	// Last byte of SOF
 	assert(out->nxt == SIG1 && out->data.b == 0x00);
-	out->data.a = host->xfer.tok1;
+	out->data.a = host->xfer.tok2;
 	host->step++;
 	break;
 
@@ -225,7 +240,6 @@ static void usbh_reset(usb_host_t* host)
     host->step = 0u;
     host->turnaround = 0;
     host->addr = 0;
-    host->speed = 0;
     host->error_count = 0;
 }
 
@@ -294,23 +308,23 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     if (in->rst_n == SIG0) {
 	if (host->prev.rst_n != SIG0) {
-	    printf("H@%8lu => Reset issued\n", cycle);
+	    printf("\nHOST\t#%8lu cyc =>\tReset issued\n", cycle);
 	    usbh_reset(host);
 	}
 	out->dir = SIG0;
 	out->nxt = SIG0;
     } else if ((host->cycle % SOF_N_TICKS) == 0ul) {
 	if (host->op > HostIdle) {
-	    printf("H@%8lu => Transaction cancelled for SOF\n", cycle);
+	    printf("\nHOST\t#%8lu cyc =>\tTransaction cancelled for SOF\n", cycle);
 	} else if (host->op < HostIdle) {
 	    // Ignore SOF
 	} else {
-	    printf("H@%8lu => SOF\n", cycle);
+	    printf("\nHOST\t#%8lu cyc =>\tSOF\n", cycle);
 	    host->op = HostSOF;
 	    host->step = 0u;
 	}
     }
-    printf("AT %lu, OP = %d\n", cycle, host->op);
+    // printf("AT %lu, OP = %d\n", cycle, host->op);
 
     switch (host->op) {
 
@@ -321,11 +335,11 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case HostReset: {
 	uint32_t step = ++host->step;
 	if (step < 2) {
-	    printf("H@%8lu => RESET START\n", cycle);
+	    printf("\nHOST\t#%8lu cyc =>\tRESET START\n", cycle);
 	} else if (step >= RESET_TICKS) {
 	    host->op = HostIdle;
 	    host->step = 0u;
-	    printf("H@%8lu => RESET END\n", cycle);
+	    printf("\nHOST\t#%8lu cyc =>\tRESET END\n", cycle);
 	}
 	result = 0;
 	break;
@@ -367,12 +381,12 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case HostBulkIN:
 	host->step++;
-	printf("H@%8lu => ERROR\n", cycle);
+	printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
 	break;
 
     default:
 	host->step++;
-	printf("H@%8lu => ERROR\n", cycle);
+	printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
 	break;
     }
 

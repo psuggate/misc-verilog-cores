@@ -14,11 +14,29 @@
 #define UPHY_REGR_BITS  (0xC0u)
 
 #define UPHY_DELAY_2_5_US 150
-// #define UPHY_CHIRPK_TIMER 60000
-#define UPHY_CHIRPK_TIMER 30
 
+
+#ifdef __short_timers
+
+#define UPHY_CHIRPK_TIMER 30
 #define HOST_CHIRPK_TIMER 5
 #define HOST_CHIRPJ_TIMER 5
+
+#else  /* !__short_timers */
+#ifdef __long_timers
+
+#define UPHY_CHIRPK_TIMER 60000
+#define HOST_CHIRPK_TIMER 3000
+#define HOST_CHIRPJ_TIMER 3000
+
+#else  /* !__long_timers */
+
+#define UPHY_CHIRPK_TIMER 60
+#define HOST_CHIRPK_TIMER 30
+#define HOST_CHIRPJ_TIMER 30
+
+#endif /* !__long_timers */
+#endif /* !__short_timers */
 
 
 // Initialisation/reset/default values for the ULPI PHY registers.

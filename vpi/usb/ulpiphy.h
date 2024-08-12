@@ -60,12 +60,12 @@ typedef enum {
     Starting,
     WaitForIdle,
     StatusRXCMD,
-    PhyIdle, // 5
+    PhyIdle,    // 5
     PhyRecv,
     PhySend,
-    PhyREGW, // 8
-    PhyREGI, // 9
-    PhyStop, // 10
+    PhyREGW,    // 8
+    PhyREGI,    // 9
+    PhyStop,    // 10
     PhyREGR,
     PhyREGZ,
     PhyREGO,

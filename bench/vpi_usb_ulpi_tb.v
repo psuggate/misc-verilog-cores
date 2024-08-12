@@ -37,8 +37,8 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    #2500 $finish;
-    // #15000 $finish;
+    // #2500 $finish;
+    #150000 $finish;
   end
 
 

@@ -51,9 +51,15 @@ module line_state #(
   // -- Constants -- //
 
 `ifdef __icarus
+`ifdef __super_short_delays
   localparam [7:0] COUNT_2_5_US = 5;
   localparam [5:0] COUNT_100_US = 6;
   localparam [8:0] COUNT_1_0_MS = 7;
+`else  /* !__super_short_delays */
+  localparam [7:0] COUNT_2_5_US = 14;
+  localparam [5:0] COUNT_100_US = 3;
+  localparam [8:0] COUNT_1_0_MS = 39;
+`endif /* !__super_short_delays */
 `else
   localparam [7:0] COUNT_2_5_US = 149;
   localparam [5:0] COUNT_100_US = 39;

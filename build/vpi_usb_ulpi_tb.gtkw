@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Aug 12 05:09:40 2024
+[*] Mon Aug 12 21:53:34 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Mon Aug 12 05:08:28 2024"
-[dumpfile_size] 56963
+[dumpfile_mtime] "Mon Aug 12 21:51:56 2024"
+[dumpfile_size] 945105
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
-[timestart] 1506600
+[timestart] 6840000
 [size] 1920 1043
 [pos] -1 -1
-*-16.377718 1820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-21.284607 16250000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
 [sst_width] 233
@@ -54,10 +54,18 @@ vpi_usb_ulpi_tb.blki_tkeep_w
 vpi_usb_ulpi_tb.blki_tdata_w[7:0]
 @1000200
 -IN
-@29
+@28
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.LineState[1:0]
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.dbg_state[95:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.dbg_pid[47:0]
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_valid_o
+@29
+[color] 1
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_error_o
 [pattern_trace] 1
 [pattern_trace] 0

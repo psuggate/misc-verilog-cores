@@ -142,7 +142,7 @@ static int cb_step_sync(p_cb_data cb_data)
 	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
 
     if (changed) {
-	printf("@%8lu ns  =>\t", state->tick_ns);
+	printf("\t@%8lu ns  =>\t", state->tick_ns);
 	ulpi_bus_show(&next);
     }
     ut_update_bus_state(state, &next);
