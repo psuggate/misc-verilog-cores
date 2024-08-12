@@ -132,7 +132,7 @@ static int cb_step_sync(p_cb_data cb_data)
     }
 
     // Step-function for the USB host
-    if (phy->state.op == PhyIdle || phy->state.op == PhyRecv || phy->state.op == PhySend) {
+    if (phy->state.speed == HighSpeed && (phy->state.op == PhyIdle || phy->state.op == PhyRecv || phy->state.op == PhySend)) {
 	vpi_printf(".");
 	usbh_step(&state->host, curr, &next);
     }

@@ -56,7 +56,7 @@ bool ulpi_phy_is_reg_write(const ulpi_phy_t* phy, const ulpi_bus_t* in)
  */
 static bool ulpi_phy_is_chirp(const ulpi_phy_t* phy)
 {
-    printf("PHY function-control register: 0x%x\n", phy->state.regs[UPHY_REG_FN_CTRL]);
+    // printf("PHY function-control register: 0x%x\n", phy->state.regs[UPHY_REG_FN_CTRL]);
     return (phy->state.regs[UPHY_REG_FN_CTRL] & 0x1C) == 0x14;
 }
 
@@ -261,7 +261,6 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    // Termination disabled, non-NRZI, and not being driven by the USB
 	    // host, so line-state is SE0, SE1, or chirp
 	    phy->state.rx_cmd &= 0xFC;
-	    printf("\n\nWoohoo, PHY reached\n\n\n");
 
 	    switch (phy->state.speed) {
 
@@ -280,7 +279,6 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    case HostChirpK1:
 	    case HostChirpK2:
 	    case HostChirpK3:
-		printf("Woohoo, HostChirpK reached\n");
 		phy->state.rx_cmd |= 0x01; // K
 		phy->state.timer = 0;
 		break;
@@ -288,7 +286,6 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    case HostChirpJ1:
 	    case HostChirpJ2:
 	    case HostChirpJ3:
-		printf("Woohoo, HostChirpJ reached\n");
 		phy->state.rx_cmd |= 0x02; // J
 		phy->state.timer = 0;
 		break;
@@ -325,9 +322,9 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 		out->data.b = 0xFF;
 		phy->state.op = StatusRXCMD;
 	    } else if (phy->state.speed > FuncChirpK && phy->state.speed < HighSpeed) {
+		// Output K-J-K-J-K-J chirps
 		if ((++phy->state.timer) >= HOST_CHIRPK_TIMER) {
 		    phy->state.update = 1;
-		    // phy->state.timer = 0;
 		    phy->state.speed++;
 		}
 	    }
@@ -347,12 +344,12 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case PhyREGI:
 	if (in->data.b == 0x00) {
-	    phy->state.regs[phy->state.regnum] = in->data.a;
 	    out->dir = SIG0;
 	    out->nxt = SIG0;
-	    phy->state.op = PhyStop;
 	    // PHY electrical settings may have changed, so schedule an RX CMD
 	    phy->state.update = phy->state.regnum == UPHY_REG_FN_CTRL;
+	    phy->state.regs[phy->state.regnum] = in->data.a;
+	    phy->state.op = PhyStop;
 	} else {
 	    printf("Invalid UPLI bus data: 0x%x\n", ulpi_bus_data_hex(in));
 	    phy->state.op = Undefined;
@@ -399,6 +396,7 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
     case PhyRecv:
 	// These states should be handled by the USB host, as they are not ULPI-
 	// PHY specific.
+	// Todo: return '1' ??
 	break;
 
     case PhyChirpK:
@@ -417,12 +415,6 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	phy->state.op = Undefined;
 	return -1;
     }
-
-#if 0
-    if (phy->state.op != op) {
-	printf("PHY state: %u (prev: %u)\n", phy->state.op, op);
-    }
-#endif
 
     memcpy(&phy->bus, out, sizeof(ulpi_bus_t));
     return 0;
