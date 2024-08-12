@@ -5,15 +5,18 @@
  *  - to generate SOF's and EOF's, needs additional structure;
  */
 #include "usbhost.h"
+#include "usbcrc.h"
+
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 
 // #define RESET_TICKS     60000
+// #define SOF_N_TICKS      7500
 #define RESET_TICKS     60
 #define SOF_N_TICKS      75
-// #define SOF_N_TICKS      7500
 #define HOST_BUF_LEN    16384u
 
 // Global, default configuration-request step-functions
@@ -126,6 +129,20 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
  */
 static int drive_eop(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    if (host->step < 1024) {
+	out->dir = SIG1;
+	out->nxt = SIG0;
+	out->data.a = 0x4C;
+	out->data.b = 0x00;
+	host->step = 1024;
+    } else {
+	out->dir = SIG0;
+	out->nxt = SIG0;
+	out->data.a = 0x00;
+	out->data.b = 0xFF;
+	host->step++;
+	return 1;
+    }
     return 0;
 }
 
@@ -148,27 +165,42 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     switch (host->step) {
 
-    case 0:
+    case 0: {
+	const uint16_t sof = (host->sof++) >> 3;
+	const uint16_t crc = crc5_calc(sof);
+	host->xfer.tok1 = sof & 0xFF;
+	host->xfer.tok2 = ((sof >> 8) & 0x07) | (crc << 3);
+	printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
+    }
     case 1:
 	result = start_host_to_func(host, in, out);
 	break;
 
     case 2:
 	// PID byte, for the SOF
+	out->dir = SIG1;
+	out->nxt = SIG1;
+	out->data.a = transfer_type_to_pid(&host->xfer);
 	host->step++;
 	break;
 
     case 3:
 	// First data byte of SOF
+	out->nxt = SIG1;
+	out->data.a = host->xfer.tok1;
+	out->data.b = 0x00;
 	host->step++;
 	break;
 
     case 4:
 	// Last byte of SOF
+	assert(out->nxt == SIG1 && out->data.b == 0x00);
+	out->data.a = host->xfer.tok1;
 	host->step++;
 	break;
 
     case 5:
+    case 1024:
 	result = drive_eop(host, in, out);
 	break;
 
@@ -308,7 +340,18 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	break;
 
     case HostSOF:
+	if (host->xfer.type != SOF) {
+	    host->xfer.type = SOF;
+	    host->xfer.stage = NoXfer;
+	    host->xfer.tx_len = 0;
+	}
 	result = sof_step(host, in, out);
+	if (result == 1) {
+	    host->xfer.type = XferIdle;
+	    host->xfer.stage = NoXfer;
+	    host->op = HostIdle;
+	    result = 0;
+	}
 	break;
 
     case HostBulkOUT:

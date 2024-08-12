@@ -14,6 +14,8 @@
 #define UPHY_REGR_BITS  (0xC0u)
 
 #define UPHY_DELAY_2_5_US 150
+// #define UPHY_CHIRPK_TIMER 60000
+#define UPHY_CHIRPK_TIMER 30
 
 
 // Initialisation/reset/default values for the ULPI PHY registers.
@@ -226,10 +228,42 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	}
 	break;
 
+    case WaitForIdle:
+	if (ulpi_bus_is_idle(in)) {
+	    phy->state.op = PhyIdle;
+	} else {
+	    out->dir = SIG0;
+	    out->nxt = SIG0;
+	    out->data.a = 0x00;
+	    out->data.b = 0xFF;
+	}
+	break;
+
+    case StatusRXCMD:
+	out->dir = SIG1;
+	out->nxt = SIG0;
+	if ((phy->state.regs[UPHY_REG_FN_CTRL] & 0x01C) == 0x10) {
+	    // Termination disabled, non-NRZI, and not being driven by the USB
+	    // host, so line-state is SE0
+	    phy->state.rx_cmd &= 0xFC;
+	}
+	out->data.a = phy->state.rx_cmd;
+	out->data.b = 0x00;
+	phy->state.update = 0;
+	phy->state.op = WaitForIdle;
+	break;
+
     case PhyIdle:
-	if (ulpi_bus_is_idle(&phy->bus) && in->data.b == 0x00 && in->data.a != 0x00) {
-	    // Idle -> Busy
-	    return uphy_txcmd_step(phy, in, out);
+	if (ulpi_bus_is_idle(&phy->bus)) {
+	    if (in->data.b == 0x00 && in->data.a != 0x00) {
+		// Idle -> Busy
+		return uphy_txcmd_step(phy, in, out);
+	    } else if (phy->state.update != 0 && ulpi_bus_is_idle(in)) {
+		// Send an RX CMD
+		out->dir = SIG1;
+		out->data.b = 0xFF;
+		phy->state.op = StatusRXCMD;
+	    }
 	}
 	break;
 
@@ -250,6 +284,8 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    out->dir = SIG0;
 	    out->nxt = SIG0;
 	    phy->state.op = PhyStop;
+	    // PHY electrical settings may have changed, so schedule an RX CMD
+	    phy->state.update = phy->state.regnum == UPHY_REG_FN_CTRL;
 	} else {
 	    printf("Invalid UPLI bus data: 0x%x\n", ulpi_bus_data_hex(in));
 	    phy->state.op = Undefined;
@@ -296,6 +332,16 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
     case PhyRecv:
 	// These states should be handled by the USB host, as they are not ULPI-
 	// PHY specific.
+	break;
+
+    case PhyChirpK:
+	phy->state.timer++;
+	if (in->stp == SIG1 && phy->state.timer > UPHY_CHIRPK_TIMER) {
+	    out->dir = SIG0;
+	    out->nxt = SIG0;
+	    phy->state.op = WaitForIdle;
+	    phy->state.update = 1;
+	}
 	break;
 
     default:

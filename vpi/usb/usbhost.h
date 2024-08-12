@@ -23,11 +23,11 @@
 typedef enum {
     HostError = -1,
     HostReset = 0,
-    HostSuspend,
-    HostResume,
-    HostIdle,
-    HostSOF,
-    HostSETUP,
+    HostSuspend, // 1
+    HostResume,  // 2
+    HostIdle,    // 3
+    HostSOF,     // 4
+    HostSETUP,   // 5
     HostBulkOUT,
     HostBulkIN,
 } host_op_t;

@@ -134,7 +134,8 @@ static int cb_step_sync(p_cb_data cb_data)
 	usbh_step(&state->host, curr, &next);
     }
 
-    changed |= memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
+    changed |=
+	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
 	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
 
     if (changed) {

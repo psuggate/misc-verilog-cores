@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Aug 11 23:26:35 2024
+[*] Mon Aug 12 01:55:38 2024
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sun Aug 11 23:26:21 2024"
-[dumpfile_size] 45818
+[dumpfile_mtime] "Mon Aug 12 01:54:33 2024"
+[dumpfile_size] 48782
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
 [timestart] 0
-[size] 1920 1043
+[size] 2560 1376
 [pos] -1 -1
-*-18.377718 1490000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.855694 1560000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
 [sst_width] 233
 [signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 414
+[sst_vpaned_height] 575
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -54,5 +54,10 @@ vpi_usb_ulpi_tb.blki_tkeep_w
 vpi_usb_ulpi_tb.blki_tdata_w[7:0]
 @1000200
 -IN
+@29
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.LineState[1:0]
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.dbg_state[95:0]
 [pattern_trace] 1
 [pattern_trace] 0

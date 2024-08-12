@@ -65,14 +65,14 @@ typedef enum {
     PhySend,
     PhyREGW, // 8
     PhyREGI, // 9
-    PhyStop,
+    PhyStop, // 10
     PhyREGR,
     PhyREGZ,
     PhyREGO,
-    PhySuspend,
-    PhyResume,
-    PhyChirpJ,
-    PhyChirpK,
+    PhySuspend, // 14
+    PhyResume,  // 15
+    PhyChirpJ,  // 16
+    PhyChirpK,  // 17
     HostChirp
 } __phy_status_t;
 
@@ -82,6 +82,7 @@ typedef struct {
     RX_CMD_t rx_cmd;
     uint8_t regs[10];
     uint8_t regnum;
+    uint8_t update;
 } phy_state_t;
 
 typedef struct {
