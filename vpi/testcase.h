@@ -3,9 +3,27 @@
 
 
 #include "ulpivpi.h"
+#include "usb/usbhost.h"
 #include <stdint.h>
 
 
+/**
+ * Represents a single test-case, where a sequence of packets is sent to the
+ * USB (ULPI, peripheral) device.
+ *
+ * The 'init(..)' routine sets up the test-data, and queues the initial packet,
+ * while the 'step(..)' routine checks the responses, and queues additional
+ * packets until the test has completed.
+ */
+typedef struct {
+    const char* name;
+    void* data;
+    int (*init)(usb_host_t* host, void* data);
+    int (*step)(usb_host_t* host, void* data);
+} testcase_t;
+
+
+#if 0
 typedef struct {
     const char* name;
     void* data;
@@ -13,6 +31,7 @@ typedef struct {
     int (*init)(ulpi_phy_t* phy, void* data);
     int (*step)(ulpi_phy_t* phy, void* data);
 } testcase_t;
+#endif /* 0 */
 
 //     int (*step)(ulpi_bus_t* curr, void* data);
 

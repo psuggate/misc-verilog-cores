@@ -13,24 +13,26 @@
 #include <string.h>
 
 
-#ifdef __short_timers
+// #define __short_timers
+#ifdef  __short_timers
 
-#define RESET_TICKS     60
-#define SOF_N_TICKS      75
+#define RESET_TICKS        60
+#define SOF_N_TICKS        75
 
-#else  /* !__short_timers */
-#ifdef __long_timers
+#else   /* !__short_timers */
+#ifdef  __long_timers
 
 #define RESET_TICKS     60000
 #define SOF_N_TICKS      7500
 
-#else  /* !__long_timers */
+#else   /* !__long_timers */
 
 #define RESET_TICKS        60
 #define SOF_N_TICKS       750
 
-#endif /* !__long_timers */
-#endif /* !__short_timers */
+#endif  /* !__long_timers */
+#endif  /* !__short_timers */
+
 
 #define HOST_BUF_LEN    16384u
 

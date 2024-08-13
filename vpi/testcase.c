@@ -9,7 +9,6 @@ testcase_t* tc_create(const char* name, void* data)
 
     test->name = name;
     test->data = data;
-    test->phy  = NULL;
     test->init = NULL;
     test->step = NULL;
 
@@ -25,6 +24,8 @@ void tc_finish(testcase_t* test)
 	free(test);
     }
 }
+
+#if 0
 
 int tc_init(testcase_t* test, ulpi_phy_t* phy)
 {
@@ -93,3 +94,5 @@ void test_hs_negotiation(void)
     test->init = test_hs_neg_init;
     test->step = test_hs_neg_step;
 }
+
+#endif /* 0 */

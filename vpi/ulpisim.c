@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tc_restarts.h"
+#include "tc_getdesc.h"
 
 
 /**
@@ -135,12 +135,13 @@ static int test_step(ut_state_t* state)
 
     if (state->host.op != HostIdle) {
 	vpi_printf(
-	    "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy.\n",
+	    "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy (op: 0x%x).\n",
 	    cycle, state->host.op);
 	return -1;
     } else if (state->test_curr < state->test_num) {
 	testcase_t* test = state->tests[state->test_curr];
-	int result = tc_step(test);
+	usb_host_t* host = &state->host;
+	int result = test->step(host, test->data);
 
 	if (result < 0) {
 	    // Test failed
@@ -373,7 +374,7 @@ static int ut_compiletf(char* user_data)
     state->test_curr = 0;
     state->test_num = 1;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*));
-    state->tests[0] = test_restarts();
+    state->tests[0] = test_getdesc();
 
     // Todo: populate the set of tests ...
 
