@@ -91,6 +91,38 @@ static int ut_step_xfer(ut_state_t* state)
     return 0;
 }
 
+//
+// Todo:
+//  1. ~~handle reset~~
+//  2. TX CMDs & line-speed negotiation
+//  3. idle line-state
+//  4. start-of-frame & end-of-frame
+//  5. scheduling transactions
+//  6. stepping current transaction to completion
+//
+static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, ulpi_bus_t* next)
+{
+    if (phy->state.speed < HighSpeed || phy->state.op != PhyIdle) {
+	// Step-function for the ULPI PHY of the USB device/peripheral
+	int result = uphy_step(phy, curr, next);
+	if (result < 0) {
+	    return ut_error("ULPI PHY step failed\n");
+	} else if (result > 0) {
+	    // vpi_printf("Dunzoes: speed = %x, op = %x\n\n", phy->state.speed, phy->state.op);
+	    host->op = HostIdle;
+	}
+	host->cycle++;
+    } else {
+	// Step-function for the USB host, if the PHY 
+	vpi_printf(".");
+	if (usbh_step(host, curr, next) < 0) {
+	    vpi_printf("Weird: host->op = %x\n\n", host->op);
+	}
+    }
+
+    return 0;
+}
+
 /**
  * Process the bus signal values, and update the state & signals, as required.
  */
@@ -99,6 +131,7 @@ static int cb_step_sync(p_cb_data cb_data)
     vpiHandle net_handle;
     s_vpi_value x;
     ulpi_phy_t* phy;
+    usb_host_t* host;
     ulpi_bus_t next;
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
     if (state == NULL) {
@@ -107,32 +140,43 @@ static int cb_step_sync(p_cb_data cb_data)
 
     uint64_t cycle = state->cycle++;
     phy = &state->phy;
-    // memcpy(&curr, &state->bus, sizeof(ulpi_bus_t));
+    host = &state->host;
 
     x.format = vpiIntVal;
     vpi_get_value(state->rst_n, &x);
     int rst_n = (int)x.value.integer;
 
-    //
-    // Todo:
-    //  1. ~~handle reset~~
-    //  2. TX CMDs & line-speed negotiation
-    //  3. idle line-state
-    //  4. start-of-frame & end-of-frame
-    //  5. scheduling transactions
-    //  6. stepping current transaction to completion
-    //
-    const ulpi_phy_t* prev = &state->phy.bus;
-    const ulpi_phy_t* curr = &state->bus;
+    const ulpi_bus_t* prev = &state->phy.bus;
+    const ulpi_bus_t* curr = &state->bus;
     bool changed = memcmp(prev, curr, sizeof(ulpi_bus_t)) != 0;
 
+    if (stim_step(phy, host, curr, &next) < 0) {
+	vpi_printf("Undunzoes: speed = %x, phy->op = %x, host->op = %x\n\n",
+		   phy->state.speed, phy->state.op, host->op);
+	ut_error("fA1l3d");
+    }
+
+    changed |=
+	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
+	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
+
+    if (changed) {
+	printf("\t@%8lu ns  =>\t", state->tick_ns);
+	ulpi_bus_show(&next);
+    }
+    ut_update_bus_state(state, &next);
+
+#if 0
     // Step-function for the ULPI PHY of the USB device/peripheral
     if (uphy_step(phy, curr, &next) < 0) {
 	return ut_error("ULPI PHY step failed\n");
     }
 
-    // Step-function for the USB host
-    if (phy->state.speed == HighSpeed && (phy->state.op == PhyIdle || phy->state.op == PhyRecv || phy->state.op == PhySend)) {
+    if (memcmp(curr, &next, sizeof(ulpi_bus_t)) == 0 && phy->state.op == ) {
+	// Step-function for the USB host, if the PHY 
+	
+    if ((phy->state.op == PhyIdle || phy->state.op == PhyRecv ||
+	 phy->state.op == PhySend) && phy->state.speed == HighSpeed) {
 	vpi_printf(".");
 	usbh_step(&state->host, curr, &next);
     }
@@ -146,6 +190,7 @@ static int cb_step_sync(p_cb_data cb_data)
 	ulpi_bus_show(&next);
     }
     ut_update_bus_state(state, &next);
+#endif /* 0 */
 
 #ifdef __being_weird
 

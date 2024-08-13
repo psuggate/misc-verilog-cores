@@ -51,7 +51,7 @@ typedef struct {
 /**
  * Current PHY state/mode.
  */
-typedef enum {
+typedef enum __phy_op {
     Disconnected = -3,
     ErrorResetB = -2,
     Undefined = -1,
@@ -74,7 +74,7 @@ typedef enum {
     PhyChirpJ,  // 16
     PhyChirpK,  // 17
     HostChirp
-} __phy_status_t;
+} ulpi_phy_op_t;
 
 typedef enum __line_speed {
     FullSpeed = 0,
@@ -120,11 +120,7 @@ static inline void phy_drive_rx_cmd(ulpi_phy_t* phy)
 // -- PHY Settings -- //
 
 ulpi_phy_t* phy_init(void);
-
-int phy_set_reg(uint8_t reg, uint8_t val);
-int phy_get_reg(uint8_t reg, uint8_t* val);
-
-
+void phy_free(ulpi_phy_t* phy);
 int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 

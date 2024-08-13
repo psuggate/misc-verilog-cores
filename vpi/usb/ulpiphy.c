@@ -171,20 +171,6 @@ static void uphy_reset(ulpi_phy_t* phy)
 //  Higher-Level Routines
 ///
 
-/**
- * Todo:
- *  - on pp.22, USB3317C datasheet, register values for each mode;
- */
-int phy_set_reg(uint8_t reg, uint8_t val)
-{
-    return -1;
-}
-
-int phy_get_reg(uint8_t reg, uint8_t* val)
-{
-    return -1;
-}
-
 
 // Todo ...
 ulpi_phy_t* phy_init(void)
@@ -435,5 +421,5 @@ int uphy_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* out)
     }
 
     memcpy(&phy->bus, out, sizeof(ulpi_bus_t));
-    return 0;
+    return phy->state.op == PhyIdle && phy->state.speed == HighSpeed;
 }

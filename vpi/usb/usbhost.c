@@ -176,8 +176,6 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
 
 static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    int result = -1;
-
     switch (host->step) {
 
     case 0: {
@@ -188,8 +186,7 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	// printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
     }
     case 1:
-	result = start_host_to_func(host, in, out);
-	break;
+	return start_host_to_func(host, in, out);
 
     case 2:
 	// PID byte, for the SOF
@@ -215,19 +212,38 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	break;
 
     case 5:
-    case 1024:
-	result = drive_eop(host, in, out);
+	// Drive 'squelch' ('00b')
+	out->dir = SIG1;
+	out->nxt = SIG0;
+	out->data.a = 0x4C;
+	out->data.b = 0x00;
+	host->step++;
+	break;
+
+    case 6:
+	// Drive '!squelch' ('01b')
+	out->dir = SIG1;
+	out->nxt = SIG0;
+	out->data.a = 0x4D;
+	out->data.b = 0x00;
+	host->step++;
+	break;
+
+    case 7:
+	out->dir = SIG0;
+	out->nxt = SIG0;
+	out->data.a = 0x00;
+	out->data.b = 0xFF;
+	host->step++;
 	break;
 
     default:
 	host->op = HostIdle;
 	host->step = 0u;
-	result = 0;
-	break;
-
+	return 1;
     }
 
-    return result;
+    return 0;
 }
 
 /**
@@ -305,7 +321,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     //
     // Todo:
     //  1. handle
-
+    //
     if (in->rst_n == SIG0) {
 	if (host->prev.rst_n != SIG0) {
 	    printf("\nHOST\t#%8lu cyc =>\tReset issued\n", cycle);
@@ -324,7 +340,6 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    host->step = 0u;
 	}
     }
-    // printf("AT %lu, OP = %d\n", cycle, host->op);
 
     switch (host->op) {
 
