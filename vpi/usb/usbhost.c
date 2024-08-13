@@ -93,15 +93,17 @@ static int stdreq_step(usb_host_t* host, usb_stdreq_t* req)
 int usbh_get_descriptor(usb_host_t* host, uint16_t num)
 {
     if (host->op != HostIdle) {
-	return -1;
+        return -1;
     }
+
     usb_stdreq_t req;
     usb_desc_t* desc = malloc(sizeof(usb_desc_t));
     desc->dtype = num; // Todo: string-descriptor type
     desc->value.dat = host->buf;
 
     if (get_descriptor(&req, num, 0, MAX_CONFIG_SIZE, desc) < 0) {
-	return -1;
+        printf("HOST\t#%8lu cyc =>\tUSBH GET DESCRIPTOR failed\n", host->cycle);
+        return -1;
     }
 
     return stdreq_start(host, &req);
@@ -114,28 +116,28 @@ int usbh_get_descriptor(usb_host_t* host, uint16_t num)
 static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     if (host->step > 1) {
-	printf("\nHOST\t#%8lu cyc =>\tERROR, step = %d\n", host->cycle, host->step);
-	return -1;
+        printf("\nHOST\t#%8lu cyc =>\tERROR, step = %d\n", host->cycle, host->step);
+        return -1;
     } else if (host->step == 0 && is_ulpi_phy_idle(in)) {
-	// Happy path, Step I:
-	out->dir = SIG1;
-	out->nxt = SIG1;
-	out->data.a = 0x00; // High-impedance
-	out->data.b = 0xff; // High-impedance
-	host->step = 1;
+        // Happy path, Step I:
+        out->dir = SIG1;
+        out->nxt = SIG1;
+        out->data.a = 0x00; // High-impedance
+        out->data.b = 0xFF; // High-impedance
+        host->step = 1;
     } else if (host->step == 1 && is_ulpi_phy_turn(in)) {
-	// Happy path, Step II:
-	out->nxt = SIG0;
-	out->data.a = 0x5D;
-	out->data.b = 0x00;
-	host->step = 2;
+        // Happy path, Step II:
+        out->nxt = SIG0;
+        out->data.a = 0x5D;
+        out->data.b = 0x00;
+        host->step = 2;
     } else {
-	printf("\nHOST\t#%8lu cyc =>\tERROR, dir = %d, nxt = %d\n", host->cycle, in->dir, in->nxt);
-	out->dir = SIGX;
-	out->nxt = SIGX;
-	out->data.a = 0xff; // Todo: RX CMD
-	out->data.b = 0xff; // Todo: RX CMD
-	return -1;
+        printf("\nHOST\t#%8lu cyc =>\tERROR, dir = %d, nxt = %d\n", host->cycle, in->dir, in->nxt);
+        out->dir = SIGX;
+        out->nxt = SIGX;
+        out->data.a = 0xFF; // Todo: RX CMD
+        out->data.b = 0xFF; // Todo: RX CMD
+        return -1;
     }
 
     return 0;
@@ -147,18 +149,18 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
 static int drive_eop(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     if (host->step < 1024) {
-	out->dir = SIG1;
-	out->nxt = SIG0;
-	out->data.a = 0x4C;
-	out->data.b = 0x00;
-	host->step = 1024;
+        out->dir = SIG1;
+        out->nxt = SIG0;
+        out->data.a = 0x4C;
+        out->data.b = 0x00;
+        host->step = 1024;
     } else {
-	out->dir = SIG0;
-	out->nxt = SIG0;
-	out->data.a = 0x00;
-	out->data.b = 0xFF;
-	host->step++;
-	return 1;
+        out->dir = SIG0;
+        out->nxt = SIG0;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        host->step++;
+        return 1;
     }
     return 0;
 }
@@ -181,68 +183,68 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     switch (host->step) {
 
     case 0: {
-	const uint16_t sof = (host->sof++) >> 3;
-	const uint16_t crc = crc5_calc(sof);
-	host->xfer.tok1 = crc & 0xFF;
-	host->xfer.tok2 = (crc >> 8) & 0xFF;
-	// printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
+        const uint16_t sof = (host->sof++) >> 3;
+        const uint16_t crc = crc5_calc(sof);
+        host->xfer.tok1 = crc & 0xFF;
+        host->xfer.tok2 = (crc >> 8) & 0xFF;
+        // printf("SOF token: 0x%02x%02x\n", host->xfer.tok2, host->xfer.tok1);
     }
     case 1:
-	return start_host_to_func(host, in, out);
+        return start_host_to_func(host, in, out);
 
     case 2:
-	// PID byte, for the SOF
-	out->dir = SIG1;
-	out->nxt = SIG1;
-	out->data.a = transfer_type_to_pid(&host->xfer);
-	host->step++;
-	break;
+        // PID byte, for the SOF
+        out->dir = SIG1;
+        out->nxt = SIG1;
+        out->data.a = transfer_type_to_pid(&host->xfer);
+        host->step++;
+        break;
 
     case 3:
-	// First data byte of SOF
-	out->nxt = SIG1;
-	out->data.a = host->xfer.tok1;
-	out->data.b = 0x00;
-	host->step++;
-	break;
+        // First data byte of SOF
+        out->nxt = SIG1;
+        out->data.a = host->xfer.tok1;
+        out->data.b = 0x00;
+        host->step++;
+        break;
 
     case 4:
-	// Last byte of SOF
-	assert(out->nxt == SIG1 && out->data.b == 0x00);
-	out->data.a = host->xfer.tok2;
-	host->step++;
-	break;
+        // Last byte of SOF
+        assert(out->nxt == SIG1 && out->data.b == 0x00);
+        out->data.a = host->xfer.tok2;
+        host->step++;
+        break;
 
     case 5:
-	// Drive 'squelch' ('00b')
-	out->dir = SIG1;
-	out->nxt = SIG0;
-	out->data.a = 0x4C;
-	out->data.b = 0x00;
-	host->step++;
-	break;
+        // Drive 'squelch' ('00b')
+        out->dir = SIG1;
+        out->nxt = SIG0;
+        out->data.a = 0x4C;
+        out->data.b = 0x00;
+        host->step++;
+        break;
 
     case 6:
-	// Drive '!squelch' ('01b')
-	out->dir = SIG1;
-	out->nxt = SIG0;
-	out->data.a = 0x4D;
-	out->data.b = 0x00;
-	host->step++;
-	break;
+        // Drive '!squelch' ('01b')
+        out->dir = SIG1;
+        out->nxt = SIG0;
+        out->data.a = 0x4D;
+        out->data.b = 0x00;
+        host->step++;
+        break;
 
     case 7:
-	out->dir = SIG0;
-	out->nxt = SIG0;
-	out->data.a = 0x00;
-	out->data.b = 0xFF;
-	host->step++;
-	break;
+        out->dir = SIG0;
+        out->nxt = SIG0;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        host->step++;
+        break;
 
     default:
-	host->op = HostIdle;
-	host->step = 0u;
-	return 1;
+        host->op = HostIdle;
+        host->step = 0u;
+        return 1;
     }
 
     return 0;
@@ -268,7 +270,7 @@ void usbh_init(usb_host_t* host)
 {
     // Todo ...
     if (host == NULL) {
-	return;
+        return;
     }
     stdreq_init(&stdreqs);
     usbh_reset(host);
@@ -325,86 +327,86 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     //  1. handle
     //
     if (in->rst_n == SIG0) {
-	if (host->prev.rst_n != SIG0) {
-	    printf("\nHOST\t#%8lu cyc =>\tReset issued\n", cycle);
-	    usbh_reset(host);
-	}
-	out->dir = SIG0;
-	out->nxt = SIG0;
+        if (host->prev.rst_n != SIG0) {
+            printf("\nHOST\t#%8lu cyc =>\tReset issued\n", cycle);
+            usbh_reset(host);
+        }
+        out->dir = SIG0;
+        out->nxt = SIG0;
     } else if ((host->cycle % SOF_N_TICKS) == 0ul) {
-	if (host->op > HostIdle) {
-	    printf("\nHOST\t#%8lu cyc =>\tTransaction cancelled for SOF\n", cycle);
-	} else if (host->op < HostIdle) {
-	    // Ignore SOF
-	} else {
-	    printf("\nHOST\t#%8lu cyc =>\tSOF\n", cycle);
-	    host->op = HostSOF;
-	    host->step = 0u;
-	}
+        if (host->op > HostIdle) {
+            printf("\nHOST\t#%8lu cyc =>\tTransaction cancelled for SOF\n", cycle);
+        } else if (host->op < HostIdle) {
+            // Ignore SOF
+        } else {
+            printf("\nHOST\t#%8lu cyc =>\tSOF\n", cycle);
+            host->op = HostSOF;
+            host->step = 0u;
+        }
     }
 
     switch (host->op) {
 
     case HostError:
-	host->step++;
-	break;
+        host->step++;
+        break;
 
     case HostReset: {
-	uint32_t step = ++host->step;
-	if (step < 2) {
-	    printf("\nHOST\t#%8lu cyc =>\tRESET START\n", cycle);
-	} else if (step >= RESET_TICKS) {
-	    host->op = HostIdle;
-	    host->step = 0u;
-	    printf("\nHOST\t#%8lu cyc =>\tRESET END\n", cycle);
-	}
-	result = 0;
-	break;
+        uint32_t step = ++host->step;
+        if (step < 2) {
+            printf("\nHOST\t#%8lu cyc =>\tRESET START\n", cycle);
+        } else if (step >= RESET_TICKS) {
+            host->op = HostIdle;
+            host->step = 0u;
+            printf("\nHOST\t#%8lu cyc =>\tRESET END\n", cycle);
+        }
+        result = 0;
+        break;
     }
 
     case HostSuspend:
     case HostResume:
     case HostIdle:
-	// Nothing to do ...
-	host->step++;
-	result = 0;
-	break;
+        // Nothing to do ...
+        host->step++;
+        result = 0;
+        break;
 
     case HostSOF:
-	if (host->xfer.type != SOF) {
-	    host->xfer.type = SOF;
-	    host->xfer.stage = NoXfer;
-	    host->xfer.tx_len = 0;
-	}
-	result = sof_step(host, in, out);
-	if (result == 1) {
-	    host->xfer.type = XferIdle;
-	    host->xfer.stage = NoXfer;
-	    host->op = HostIdle;
-	    // result = 0;
-	}
-	break;
+        if (host->xfer.type != SOF) {
+            host->xfer.type = SOF;
+            host->xfer.stage = NoXfer;
+            host->xfer.tx_len = 0;
+        }
+        result = sof_step(host, in, out);
+        if (result == 1) {
+            host->xfer.type = XferIdle;
+            host->xfer.stage = NoXfer;
+            host->op = HostIdle;
+            // result = 0;
+        }
+        break;
 
     case HostBulkOUT:
-	result = bulk_out_step(host, in, out);
-	break;
+        result = bulk_out_step(host, in, out);
+        break;
 
     case HostSETUP:
-	// SETUP
-	result = stdreqs.setup(&host->xfer, in, out);
-	// DATAx
-	// STATUS
-	break;
+        // SETUP
+        result = stdreqs.setup(&host->xfer, in, out);
+        // DATAx
+        // STATUS
+        break;
 
     case HostBulkIN:
-	host->step++;
-	printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
-	break;
+        host->step++;
+        printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
+        break;
 
     default:
-	host->step++;
-	printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
-	break;
+        host->step++;
+        printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
+        break;
     }
 
     host->cycle++;

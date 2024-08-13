@@ -418,11 +418,11 @@ static int func_xfer_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t* ou
         return 1;
 
     case HostSETUP:
-	if (func->step < 2) {
-	    return fn_datax_recv_step(func, in, out);
-	} else if (func->step < 3) {
+        if (func->step < 2) {
+            return fn_datax_recv_step(func, in, out);
+        } else if (func->step < 3) {
             return fn_recv_ack_step(func, in, out);
-	}
+        }
         return 1;
 
     case HostSOF:

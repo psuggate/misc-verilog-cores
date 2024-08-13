@@ -68,8 +68,8 @@ typedef struct {
 typedef struct {
     int type;
     union __payload {
-	usb_stdreq_t* conf;
-	usb_bulk_t* bulk;
+        usb_stdreq_t* conf;
+        usb_bulk_t* bulk;
     } payload;
 } usb_xact_t;
 */

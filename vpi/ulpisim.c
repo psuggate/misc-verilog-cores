@@ -67,20 +67,20 @@ static void ut_update_bus_state(ut_state_t* state, ulpi_bus_t* next)
     vpi_get_time(NULL, &now);
 
     if (curr->dir != next->dir) {
-	sig.value.scalar = next->dir;
-	vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
+        sig.value.scalar = next->dir;
+        vpi_put_value(state->dir, &sig, NULL, vpiNoDelay);
     }
 
     if (curr->nxt != next->nxt) {
-	sig.value.scalar = next->nxt;
-	vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
+        sig.value.scalar = next->nxt;
+        vpi_put_value(state->nxt, &sig, NULL, vpiNoDelay);
     }
 
     if (curr->data.a != next->data.a || curr->data.b != next->data.b) {
-	s_vpi_vecval vec = {next->data.a, next->data.b};
-	sig.format = vpiVectorVal;
-	sig.value.vector = &vec;
-	vpi_put_value(state->dato, &sig, NULL, vpiNoDelay);
+        s_vpi_vecval vec = {next->data.a, next->data.b};
+        sig.format = vpiVectorVal;
+        sig.value.vector = &vec;
+        vpi_put_value(state->dato, &sig, NULL, vpiNoDelay);
     }
 
     memcpy(&state->phy.bus, next, sizeof(ulpi_bus_t));
@@ -103,23 +103,23 @@ static int ut_step_xfer(ut_state_t* state)
 static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, ulpi_bus_t* next)
 {
     if (phy->state.speed < HighSpeed || phy->state.op != PhyIdle) {
-	// Step-function for the ULPI PHY of the USB device/peripheral
-	int result = uphy_step(phy, curr, next);
-	if (result < 0) {
-	    return ut_error("ULPI PHY step failed\n");
-	} else if (result > 0) {
-	    // vpi_printf("Dunzoes: speed = %x, op = %x\n\n", phy->state.speed, phy->state.op);
-	    host->op = HostIdle;
-	}
-	host->cycle++;
+        // Step-function for the ULPI PHY of the USB device/peripheral
+        int result = uphy_step(phy, curr, next);
+        if (result < 0) {
+            return ut_error("ULPI PHY step failed\n");
+        } else if (result > 0) {
+            // vpi_printf("Dunzoes: speed = %x, op = %x\n\n", phy->state.speed, phy->state.op);
+            host->op = HostIdle;
+        }
+        host->cycle++;
     } else {
-	// Step-function for the USB host, if the PHY 
-	vpi_printf(".");
-	int result = usbh_step(host, curr, next);
-	if (result < 0) {
-	    vpi_printf("USB host-step failed: host->op = %x\n\n", host->op);
-	}
-	return result;
+        // Step-function for the USB host, if the PHY 
+        vpi_printf(".");
+        int result = usbh_step(host, curr, next);
+        if (result < 0) {
+            vpi_printf("USB host-step failed: host->op = %x\n\n", host->op);
+        }
+        return result;
     }
 
     return 0;
@@ -131,44 +131,46 @@ static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, 
 static int test_step(ut_state_t* state)
 {
     uint64_t cycle = state->cycle;
-    ulpi_phy_t* phy = &state->phy;
 
-    if (state->host.op != HostIdle) {
-	vpi_printf(
-	    "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy (op: 0x%x).\n",
-	    cycle, state->host.op);
-	return -1;
-    } else if (state->test_curr < state->test_num) {
-	testcase_t* test = state->tests[state->test_curr];
-	usb_host_t* host = &state->host;
-	int result = test->step(host, test->data);
+    if (state->test_curr < state->test_num) {
+        if (state->test_step != 0 && state->host.op != HostIdle) {
+            vpi_printf(
+                "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy (op: 0x%x).\n",
+                cycle, state->host.op);
+            return -1;
+        }
 
-	if (result < 0) {
-	    // Test failed
-	    vpi_printf("HOST\t#%8lu cyc =>\t%s STEP failed, result = %d\n",
-		       cycle, test->name, result);
-	    ut_error("test STEP failed");
-	} else if (result > 0) {
-	    // Test finished, advance to the next, if possible
-	    vpi_printf("HOST\t#%8lu cyc =>\t%s completed\n", cycle, test->name);
-	    if (++state->test_curr < state->test_num) {
-		// Todo: start the next test
-		test = state->tests[state->test_curr];
-		result = tc_init(test, phy);
-		if (result < 0) {
-		    vpi_printf("HOST\t#%8lu cyc =>\t%s INIT failed, result = %d\n",
-			       cycle, test->name, result);
-		    ut_error("test INIT failed");
-		}
-	    } else {
-		vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
-		vpi_control(vpiFinish, 0);
-	    }
-	}
+        testcase_t* test = state->tests[state->test_curr];
+        usb_host_t* host = &state->host;
+        int result;
+
+        if (state->test_step++ == 0) {
+            result = test->init(host, test->data);
+            if (result < 0) {
+                vpi_printf("HOST\t#%8lu cyc =>\t%s INIT failed, result = %d\n",
+                           cycle, test->name, result);
+                ut_error("test INIT failed");
+            }
+        } else {
+            result = test->step(host, test->data);
+            if (result < 0) {
+                // Test failed
+                vpi_printf("HOST\t#%8lu cyc =>\t%s STEP failed, result = %d\n",
+                           cycle, test->name, result);
+                ut_error("test STEP failed");
+            }
+        }
+
+        if (result > 0) {
+            // Test finished, advance to the next, if possible
+            vpi_printf("HOST\t#%8lu cyc =>\t%s completed\n", cycle, test->name);
+            state->test_step = 0;
+            state->test_curr++;
+        }
     } else {
-	// No more tests remaining
-	vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
-	return 1;
+        // No more tests remaining
+        vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
+        return 1;
     }
 
     return 0;
@@ -187,7 +189,7 @@ static int cb_step_sync(p_cb_data cb_data)
     ulpi_bus_t next;
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
     if (state == NULL) {
-	ut_error("'*state' problem");
+        ut_error("'*state' problem");
     }
 
     uint64_t cycle = state->cycle++;
@@ -203,33 +205,33 @@ static int cb_step_sync(p_cb_data cb_data)
     bool changed = memcmp(prev, curr, sizeof(ulpi_bus_t)) != 0;
     int result = stim_step(phy, host, curr, &next);
     if (result < 0) {
-	vpi_printf("Failed in state: speed = %x, phy->op = %x, host->op = %x\n\n",
-		   phy->state.speed, phy->state.op, host->op);
-	ut_error("Simulation-step failed");
+        vpi_printf("Failed in state: speed = %x, phy->op = %x, host->op = %x\n\n",
+                   phy->state.speed, phy->state.op, host->op);
+        ut_error("Simulation-step failed");
     } else if (result > 0) {
-	// --
-	// Todo: queue up the next transaction
-	// --
-	vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-	vpi_printf("PHY/Host op completed\n");
-	result = test_step(state);
-	if (result < 0) {
-	    vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-	    vpi_printf("Test-case failed\n");
-	    ut_error("Test-case failed\n");
-	} else if (result > 0) {
-	    vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-	    vpi_printf("All test-cases completed\n");
-	}
+        // --
+        // Todo: queue up the next transaction
+        // --
+        vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+        vpi_printf("PHY/Host op completed\n");
+        result = test_step(state);
+        if (result < 0) {
+            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+            vpi_printf("Test-case failed\n");
+            ut_error("Test-case failed\n");
+        } else if (result > 0) {
+            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+            vpi_printf("All test-cases completed\n");
+        }
     }
 
     changed |=
-	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
-	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
+        memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
+        memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
 
     if (changed) {
-	vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-	ulpi_bus_show(&next);
+        vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+        ulpi_bus_show(&next);
     }
     ut_update_bus_state(state, &next);
 
@@ -244,7 +246,7 @@ static int cb_step_clock(p_cb_data cb_data)
 {
     ut_state_t* state = (ut_state_t*)cb_data->user_data;
     if (state == NULL) {
-	ut_error("'*state' missing");
+        ut_error("'*state' missing");
     }
 
     // Check to see if posedge of clock
@@ -298,8 +300,8 @@ static int get_signal(vpiHandle* dst, vpiHandle iter)
     arg_handle = vpi_scan(iter);
     arg_type = vpi_get(vpiType, arg_handle);
     if (arg_type != vpiNet && arg_type != vpiReg) {
-	vpi_free_object(iter); /* free iterator memory */
-	return ut_error("arg must be a net or reg");
+        vpi_free_object(iter); /* free iterator memory */
+        return ut_error("arg must be a net or reg");
     }
     *dst = arg_handle;
     return 1;
@@ -323,55 +325,56 @@ static int ut_compiletf(char* user_data)
     /* obtain a handle to the system task instance */
     systf_handle = vpi_handle(vpiSysTfCall, NULL);
     if (systf_handle == NULL)
-	return ut_error("failed to obtain systf handle");
+        return ut_error("failed to obtain systf handle");
 
     /* obtain handles to system task arguments */
     arg_iterator = vpi_iterate(vpiArgument, systf_handle);
     if (arg_iterator == NULL)
-	return ut_error("requires 7 arguments");
+        return ut_error("requires 7 arguments");
 
     /* check the types of the objects in system task arguments */
     if (!get_signal(&state->clock, arg_iterator) ||
-	!get_signal(&state->rst_n, arg_iterator) ||
-	!get_signal(&state->dir  , arg_iterator) ||
-	!get_signal(&state->nxt  , arg_iterator) ||
-	!get_signal(&state->stp  , arg_iterator) ||
-	!get_signal(&state->dati , arg_iterator) ||
-	!get_signal(&state->dato , arg_iterator)) {
-	return 0;
+        !get_signal(&state->rst_n, arg_iterator) ||
+        !get_signal(&state->dir  , arg_iterator) ||
+        !get_signal(&state->nxt  , arg_iterator) ||
+        !get_signal(&state->stp  , arg_iterator) ||
+        !get_signal(&state->dati , arg_iterator) ||
+        !get_signal(&state->dato , arg_iterator)) {
+        return 0;
     }
 
     /* check that there are no more system task arguments */
     arg_handle = vpi_scan(arg_iterator);
     if (arg_handle != NULL) {
-	vpi_free_object(arg_iterator); /* free iterator memory */
-	return ut_error("can only have 6 arguments");
+        vpi_free_object(arg_iterator); /* free iterator memory */
+        return ut_error("can only have 6 arguments");
     }
 
     if (vpi_get(vpiType, state->dir) != vpiReg ||
-	vpi_get(vpiSize, state->dir) != 1) {
-	return ut_error("ULPI 'dir' must be a 1-bit reg");
+        vpi_get(vpiSize, state->dir) != 1) {
+        return ut_error("ULPI 'dir' must be a 1-bit reg");
     }
 
     if (vpi_get(vpiType, state->nxt) != vpiReg ||
-	vpi_get(vpiSize, state->nxt) != 1) {
-	return ut_error("ULPI 'nxt' must be a 1-bit reg");
+        vpi_get(vpiSize, state->nxt) != 1) {
+        return ut_error("ULPI 'nxt' must be a 1-bit reg");
     }
 
     if (vpi_get(vpiType, state->dati) != vpiNet ||
-	vpi_get(vpiSize, state->dati) != 8) {
-	return ut_error("ULPI 'dati' must be an 8-bit net");
+        vpi_get(vpiSize, state->dati) != 8) {
+        return ut_error("ULPI 'dati' must be an 8-bit net");
     }
 
     if (vpi_get(vpiType, state->dato) != vpiReg ||
-	vpi_get(vpiSize, state->dato) != 8) {
-	return ut_error("ULPI 'dato' must be an 8-bit reg");
+        vpi_get(vpiSize, state->dato) != 8) {
+        return ut_error("ULPI 'dato' must be an 8-bit reg");
     }
 
     state->cycle = 0;
     state->sync_flag = 0;
     usbh_init(&state->host);
     state->test_curr = 0;
+    state->test_step = 0;
     state->test_num = 1;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*));
     state->tests[0] = test_getdesc();
@@ -402,7 +405,7 @@ static int ut_calltf(char* user_data)
     /* check the user-data */
     state = (ut_state_t*)vpi_get_userdata(systf_handle);
     if (state == NULL) {
-	return ut_error("'*state' problem");
+        return ut_error("'*state' problem");
     }
 
     /* compute the scaling-factor for displaying the simulation-time */

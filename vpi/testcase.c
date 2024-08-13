@@ -18,10 +18,10 @@ testcase_t* tc_create(const char* name, void* data)
 void tc_finish(testcase_t* test)
 {
     if (test != NULL) {
-	if (test->data != NULL) {
-	    free(test->data);
-	}
-	free(test);
+        if (test->data != NULL) {
+            free(test->data);
+        }
+        free(test);
     }
 }
 
@@ -30,11 +30,11 @@ void tc_finish(testcase_t* test)
 int tc_init(testcase_t* test, ulpi_phy_t* phy)
 {
     if (test->init != NULL && test->step != NULL && test->phy == NULL) {
-	test->phy = phy;
-	return test->init(test->phy, test->data);
+        test->phy = phy;
+        return test->init(test->phy, test->data);
     } else {
-	vpi_printf("Invalid initial state for test-case\n");
-	vpi_control(vpiFinish, 2);
+        vpi_printf("Invalid initial state for test-case\n");
+        vpi_control(vpiFinish, 2);
     }
     return 0;
 }
@@ -42,17 +42,17 @@ int tc_init(testcase_t* test, ulpi_phy_t* phy)
 int tc_step(testcase_t* test)
 {
     if (test->step != NULL) {
-	int result = test->step(test->phy, test->data);
-	if (result < 0) {
-	    // Todo: error-handling
-	    return -1;
-	} else if (result != 0) {
-	    // Todo: done
-	    return 1;
-	}
+        int result = test->step(test->phy, test->data);
+        if (result < 0) {
+            // Todo: error-handling
+            return -1;
+        } else if (result != 0) {
+            // Todo: done
+            return 1;
+        }
     } else {
-	vpi_printf("Missing STEP function for test-case\n");
-	vpi_control(vpiFinish, 2);
+        vpi_printf("Missing STEP function for test-case\n");
+        vpi_control(vpiFinish, 2);
     }
 
     return 0;

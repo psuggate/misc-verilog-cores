@@ -308,7 +308,7 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
                 out->data.a = xfer->tx[xfer->tx_ptr++];
                 xfer->stage = DATAxBody;
             } else {
-		out->data.a = xfer->crc1;
+                out->data.a = xfer->crc1;
                 xfer->stage = DATAxCRC1;
             }
             break;

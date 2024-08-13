@@ -44,6 +44,7 @@ typedef struct {
     int sync_flag;
     int test_num;
     int test_curr;
+    int test_step;
     testcase_t** tests;
     int8_t op;
 } ut_state_t;
