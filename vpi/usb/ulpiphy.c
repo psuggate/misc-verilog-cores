@@ -162,7 +162,7 @@ static int uphy_txcmd_step(ulpi_phy_t* phy, const ulpi_bus_t* in, ulpi_bus_t* ou
 static void uphy_reset(ulpi_phy_t* phy)
 {
     memcpy(phy->state.regs, ULPI_REG_DEFAULTS, sizeof(ULPI_REG_DEFAULTS));
-    phy->state.rx_cmd = 0x0C;
+    phy->state.rx_cmd = 0x4C;
     phy->state.op = PowerOn;
 }
 

@@ -379,7 +379,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 	    host->xfer.type = XferIdle;
 	    host->xfer.stage = NoXfer;
 	    host->op = HostIdle;
-	    result = 0;
+	    // result = 0;
 	}
 	break;
 

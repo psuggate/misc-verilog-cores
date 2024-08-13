@@ -115,13 +115,64 @@ static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, 
     } else {
 	// Step-function for the USB host, if the PHY 
 	vpi_printf(".");
-	if (usbh_step(host, curr, next) < 0) {
-	    vpi_printf("Weird: host->op = %x\n\n", host->op);
+	int result = usbh_step(host, curr, next);
+	if (result < 0) {
+	    vpi_printf("USB host-step failed: host->op = %x\n\n", host->op);
 	}
+	return result;
     }
 
     return 0;
 }
+
+//
+// Todo: keep progressing through the test-cases ...
+//
+static int test_step(ut_state_t* state)
+{
+    uint64_t cycle = state->cycle;
+    ulpi_phy_t* phy = &state->phy;
+
+    if (state->host.op != HostIdle) {
+	vpi_printf(
+	    "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy.\n",
+	    cycle, state->host.op);
+	return -1;
+    } else if (state->test_curr < state->test_num) {
+	testcase_t* test = state->tests[state->test_curr];
+	int result = tc_step(test);
+
+	if (result < 0) {
+	    // Test failed
+	    vpi_printf("HOST\t#%8lu cyc =>\t%s STEP failed, result = %d\n",
+		       cycle, test->name, result);
+	    ut_error("test STEP failed");
+	} else if (result > 0) {
+	    // Test finished, advance to the next, if possible
+	    vpi_printf("HOST\t#%8lu cyc =>\t%s completed\n", cycle, test->name);
+	    if (++state->test_curr < state->test_num) {
+		// Todo: start the next test
+		test = state->tests[state->test_curr];
+		result = tc_init(test, phy);
+		if (result < 0) {
+		    vpi_printf("HOST\t#%8lu cyc =>\t%s INIT failed, result = %d\n",
+			       cycle, test->name, result);
+		    ut_error("test INIT failed");
+		}
+	    } else {
+		vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
+		vpi_control(vpiFinish, 0);
+	    }
+	}
+    } else {
+	// No more tests remaining
+	vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
+	return 1;
+    }
+
+    return 0;
+}
+
 
 /**
  * Process the bus signal values, and update the state & signals, as required.
@@ -149,118 +200,37 @@ static int cb_step_sync(p_cb_data cb_data)
     const ulpi_bus_t* prev = &state->phy.bus;
     const ulpi_bus_t* curr = &state->bus;
     bool changed = memcmp(prev, curr, sizeof(ulpi_bus_t)) != 0;
-
-    if (stim_step(phy, host, curr, &next) < 0) {
-	vpi_printf("Undunzoes: speed = %x, phy->op = %x, host->op = %x\n\n",
+    int result = stim_step(phy, host, curr, &next);
+    if (result < 0) {
+	vpi_printf("Failed in state: speed = %x, phy->op = %x, host->op = %x\n\n",
 		   phy->state.speed, phy->state.op, host->op);
-	ut_error("fA1l3d");
-    }
-
-    changed |=
-	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
-	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
-
-    if (changed) {
-	printf("\t@%8lu ns  =>\t", state->tick_ns);
-	ulpi_bus_show(&next);
-    }
-    ut_update_bus_state(state, &next);
-
-#if 0
-    // Step-function for the ULPI PHY of the USB device/peripheral
-    if (uphy_step(phy, curr, &next) < 0) {
-	return ut_error("ULPI PHY step failed\n");
-    }
-
-    if (memcmp(curr, &next, sizeof(ulpi_bus_t)) == 0 && phy->state.op == ) {
-	// Step-function for the USB host, if the PHY 
-	
-    if ((phy->state.op == PhyIdle || phy->state.op == PhyRecv ||
-	 phy->state.op == PhySend) && phy->state.speed == HighSpeed) {
-	vpi_printf(".");
-	usbh_step(&state->host, curr, &next);
-    }
-
-    changed |=
-	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
-	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
-
-    if (changed) {
-	printf("\t@%8lu ns  =>\t", state->tick_ns);
-	ulpi_bus_show(&next);
-    }
-    ut_update_bus_state(state, &next);
-#endif /* 0 */
-
-#ifdef __being_weird
-
-    } else if (cycle == 0) {
-	//
-	// Todo: startup things ...
-	//
-	int result = -1;
-	if (state->test_curr < state->test_num) {
-	    testcase_t* test = state->tests[state->test_curr];
-	    result = tc_init(test, phy);
-	}
-	vpi_printf("ZERO: result = %d !!\n", result);
-    } else if (phy->xfer.type != XferIdle) {
-	//
-	// Todo:
-	//  - step the current transfer, until complete;
-	//  - make sure the bus is back to idle;
-	//  - then proceed to the next test-stage;
-	//
-	vpi_printf("NOT IDLE!\n");
-    } else if (state->test_curr < state->test_num) {
-	//
-	// Todo: keep progressing through the test-cases ...
-	//
-	testcase_t* test = state->tests[state->test_curr];
-	int result = tc_step(test);
-
+	ut_error("Simulation-step failed");
+    } else if (result > 0) {
+	// --
+	// Todo: queue up the next transaction
+	// --
+	vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+	vpi_printf("PHY/Host op completed\n");
+	result = test_step(state);
 	if (result < 0) {
-	    // Test failed
-	    vpi_printf("At: %8lu => %s STEP failed, result = %d\n",
-		       cycle, test->name, result);
-	    ut_error("test STEP failed");
+	    vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+	    vpi_printf("Test-case failed\n");
+	    ut_error("Test-case failed\n");
 	} else if (result > 0) {
-	    // Test finished, advance to the next, if possible
-	    vpi_printf("At: %8lu => %s completed\n",
-		       cycle, test->name);
-
-	    if (++state->test_curr < state->test_num) {
-		// Todo: start the next test
-		test = state->tests[state->test_curr];
-		result = tc_init(test, phy);
-		if (result < 0) {
-		    vpi_printf("At: %8lu => %s INIT failed, result = %d\n",
-			       cycle, test->name, result);
-		    ut_error("test INIT failed");
-		}
-	    } else {
-		vpi_printf("At: %8lu => testbench completed\n", cycle);
-		vpi_control(vpiFinish, 0);
-	    }
+	    vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+	    vpi_printf("All test-cases completed\n");
 	}
-    } else if (curr.dir != state->prev.dir) {
-	// Else, step ...
-	net_handle = state->dati;
-	x.format = vpiVectorVal;
-	vpi_get_value(net_handle, &x);
-	vpi_printf("At: %8lu => signal %s has the value (a: %2x, b: %2x)\n",
-		   cycle,
-		   vpi_get_str(vpiFullName, net_handle),
-		   x.value.vector[0].aval,
-		   x.value.vector[0].bval);
-	vpi_printf("I AM BEING ABUSED!\n");
     }
 
-    // If the update-step has changed the bus-state, then schedule that change
-    ulpi_bus_t* next = &phy->bus;
-    ut_update_bus_state(state, next);
+    changed |=
+	memcmp(curr, &next, sizeof(ulpi_bus_t)) != 0 ||
+	memcmp(prev, &next, sizeof(ulpi_bus_t)) != 0;
 
-#endif /* __being_weird */
+    if (changed) {
+	vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
+	ulpi_bus_show(&next);
+    }
+    ut_update_bus_state(state, &next);
 
     state->sync_flag = 0;
     return 0;
@@ -283,7 +253,6 @@ static int cb_step_clock(p_cb_data cb_data)
 
     int clock = (int)x.value.integer;
     if (clock != 1) {
-        // vpi_printf("Clock = %d (cycle: %lu)\n", clock, state->cycle);
         return 0;
     }
 
@@ -294,7 +263,6 @@ static int cb_step_clock(p_cb_data cb_data)
     uint64_t tick_ns = ((uint64_t)t.high << 32) | (uint64_t)t.low;
     tick_ns /= state->t_recip;
     state->tick_ns = tick_ns;
-    // vpi_printf("At: %8lu ns\n", tick_ns);
 
     // Capture the bus signals at the time of the clock-edge
     ut_fetch_bus(state);
