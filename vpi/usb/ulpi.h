@@ -139,15 +139,14 @@ typedef enum {
     HskStop,   // 7
     DATAxPID,  // 8
     DATAxBody,
-    DATAxCRC1,
+    DATAxCRC1, // 10
     DATAxCRC2,
     DATAxStop,
-    EndRXCMD,
+    EndRXCMD,  // 13
     EOP,
     REGW,
     REGR,
-    // REGA,
-    REGD,
+    REGD,      // 17
 } xfer_stage_t;
 
 typedef struct {
@@ -210,6 +209,8 @@ static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
 
 void ulpi_bus_idle(ulpi_bus_t* bus);
 void ulpi_bus_show(const ulpi_bus_t* bus);
+char* ulpi_bus_string(const ulpi_bus_t* bus);
+char* transfer_string(const transfer_t* xfer);
 void transfer_out(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void sof_frame(transfer_t* xfer, uint16_t frame);

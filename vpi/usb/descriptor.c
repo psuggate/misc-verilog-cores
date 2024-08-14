@@ -3,6 +3,19 @@
 #include <stdio.h>
 
 
+void show_desc(transfer_t* xfer)
+{
+    if (xfer->rx_len < 0 || xfer->rx_len > MAX_CONFIG_SIZE) {
+        return;
+    }
+    printf("USB_DESCRIPTOR[%d] = {\n", xfer->rx_len);
+    for (int i=0; i<xfer->rx_len; i++) {
+        printf(" 0x%X, ", xfer->rx[i]);
+    }
+    printf("\n};\n");
+}
+
+
 /**
  * Receive and assemble a USB descriptor, byte-by-byte.
  */

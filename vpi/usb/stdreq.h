@@ -67,6 +67,7 @@ typedef struct {
 
 
 void stdreq_init(stdreq_steps_t* steps);
+void show_stdreq(usb_stdreq_t* req);
 
 int set_configuration(usb_stdreq_t* req, uint16_t wValue);
 int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len, usb_desc_t* desc);

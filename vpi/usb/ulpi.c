@@ -15,15 +15,107 @@
 #define ZDP_CRC16_BYTE2 0x00u
 
 
+static const char type_strings[18][16] = {
+    {"XferIdle"},
+    {"NOPID"},
+    {"RegWrite"},
+    {"RegRead"},
+    {"SETUP"},
+    {"OUT"},
+    {"IN"},
+    {"SOF"},
+    {"PING"},
+    {"DnDATA0"},
+    {"DnDATA1"},
+    {"DnACK"},
+    {"UpACK"},
+    {"UpNYET"},
+    {"UpNAK"},
+    {"UpSTALL"},
+    {"UpDATA0"},
+    {"UpDATA1"}
+};
+
+static const char stage_strings[18][16] = {
+    {"NoXfer"},
+    {"AssertDir"},
+    {"InitRXCMD"},
+    {"TokenPID"},
+    {"Token1"},
+    {"Token2"},
+    {"HskPID"},
+    {"HskStop"},
+    {"DATAxPID"},
+    {"DATAxBody"},
+    {"DATAxCRC1"},
+    {"DATAxCRC2"},
+    {"DATAxStop"},
+    {"EndRXCMD"},
+    {"EOP"},
+    {"REGW"},
+    {"REGR"},
+    {"REGD"}
+};
+
+
 //
 //  Helper Routines
 ///
 
+char* transfer_string(const transfer_t* xfer)
+{
+    static char str[256];
+    const uint16_t tok = ((uint16_t)xfer->tok2 << 8) | xfer->tok1;
+    const uint16_t crc = ((uint16_t)xfer->crc2 << 8) | xfer->crc1;
+    uint16_t seq_val = 0;
+    char seq_str[7] = {0};
+
+    for (int i=0; i<16; i++) {
+        if (xfer->ep_seq[i] == 0) {
+            continue;
+        } else if (xfer->ep_seq[i] > 1) {
+            printf("\n YUCKY seq[%d] = 0x%x\n\n", i, xfer->ep_seq[i]);
+            seq_str[0] = '0';
+            seq_str[1] = 'x';
+            seq_str[2] = 'X';
+            seq_str[3] = 'X';
+            seq_str[4] = 'X';
+            seq_str[5] = 'X';
+            break;
+        }
+        seq_val |= (1 << i);
+    }
+    if (seq_str[0] == '\0') {
+        sprintf(seq_str, "0x%04x", seq_val);
+    }
+
+    sprintf(str, "addr: %u, ep: %u, type: %d (%s), stage: %d (%s), ep_seq: %s, "
+            "cycle: %u, tx: <%p>, tx_len: %d, tx_ptr: %d, rx: <%p>, rx_len: %d, "
+            "rx_ptr: %d, tok: 0x%04x, crc: 0x%04x",
+            xfer->address, xfer->endpoint, xfer->type, type_strings[xfer->type],
+            xfer->stage, stage_strings[xfer->stage], seq_str, xfer->cycle,
+            xfer->tx, xfer->tx_len, xfer->tx_ptr, xfer->rx, xfer->rx_len,
+            xfer->rx_ptr, tok, crc
+        );
+
+    return str;
+}
+
+char* ulpi_bus_string(const ulpi_bus_t* bus)
+{
+    static char str[256];
+    unsigned int dat = bus->data.b << 8 | bus->data.a;
+    sprintf(str, "clock: %u, rst#: %u, dir: %u, nxt: %u, stp: %u, data: 0x%x",
+            bus->clock, bus->rst_n, bus->dir, bus->nxt, bus->stp, dat);
+    return str;
+}
+
 void ulpi_bus_show(const ulpi_bus_t* bus)
 {
-    unsigned int dat = bus->data.b << 8 | bus->data.a;
-    printf("clock: %u, rst#: %u, dir: %u, nxt: %u, stp: %u, data: 0x%x\n",
-           bus->clock, bus->rst_n, bus->dir, bus->nxt, bus->stp, dat);
+    printf("%s\n", ulpi_bus_string(bus));
+    // unsigned int dat = bus->data.b << 8 | bus->data.a;
+    // printf("clock: %u, rst#: %u, dir: %u, nxt: %u, stp: %u, data: 0x%x\n",
+    //        bus->clock, bus->rst_n, bus->dir, bus->nxt, bus->stp, dat);
 }
 
 void ulpi_bus_idle(ulpi_bus_t* bus)

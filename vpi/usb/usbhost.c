@@ -39,6 +39,18 @@
 // Global, default configuration-request step-functions
 extern stdreq_steps_t stdreqs;
 
+static const char host_op_strings[9][16] = {
+    {"HostError"},
+    {"HostReset"},
+    {"HostSuspend"},
+    {"HostResume"},
+    {"HostIdle"},
+    {"HostSOF"},
+    {"HostSETUP"},
+    {"HostBulkOUT"},
+    {"HostBulkIN"}
+};
+
 
 // Is the ULPI bus idle, and ready for the PHY to take control of?
 static int is_ulpi_phy_idle(const ulpi_bus_t* in)
@@ -261,6 +273,7 @@ static void usbh_reset(usb_host_t* host)
     host->turnaround = 0;
     host->addr = 0;
     host->error_count = 0;
+    memset(&host->xfer, 0, sizeof(transfer_t));
 }
 
 /**
@@ -278,6 +291,21 @@ void usbh_init(usb_host_t* host)
     host->sof = 0u;
     host->buf = (uint8_t*)malloc(HOST_BUF_LEN);
     host->len = HOST_BUF_LEN;
+}
+
+void show_host(usb_host_t* host)
+{
+    printf("USB_HOST = {\n");
+    printf("  cycle: %lu,\n", host->cycle);
+    printf("  op: %d (%s),\n", host->op, host_op_strings[host->op+1]);
+    printf("  step: %u,\n", host->step);
+    printf("  prev: {\n  %s\n  },\n", ulpi_bus_string(&host->prev));
+    printf("  xfer: {\n  %s\n  },\n", transfer_string(&host->xfer));
+    printf("  sof: 0x%x (%u),\n", host->sof, host->sof);
+    printf("  timer: %d,\n", host->turnaround);
+    printf("  addr: 0x%02x,\n", host->addr);
+    printf("  error_count: %d,\n", host->error_count);
+    printf("  buf[%u]: %p\n};\n", host->len, host->buf);
 }
 
 int usbh_busy(usb_host_t* host)

@@ -75,6 +75,8 @@ typedef struct {
 */
 
 
+void show_host(usb_host_t* host);
+
 void usbh_init(usb_host_t* host);
 int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
 int usbh_busy(usb_host_t* host);

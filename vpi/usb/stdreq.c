@@ -19,6 +19,7 @@ static int stdreq_setup_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t*
     default:
         xfer->stage++;
         printf("H@%8u => ERROR\n", xfer->cycle);
+        printf("Transer = {\n  %s\n};\n", transfer_string(xfer));
         exit(1);
     }
 
@@ -73,6 +74,16 @@ void stdreq_init(stdreq_steps_t* steps)
     steps->data0 = stdreq_data0_step;
     steps->data1 = stdreq_data1_step;
     steps->status = stdreq_status_step;
+}
+
+void show_stdreq(usb_stdreq_t* req)
+{
+    printf("STD_REQ = {\n");
+    printf("  bmRequestType:\t  0x%02x,\n", req->bmRequestType);
+    printf("  bRequest:     \t  0x%02x,\n", req->bRequest);
+    printf("  wValue:       \t0x%04x,\n", req->wValue);
+    printf("  wIndex:       \t0x%04x,\n", req->wIndex);
+    printf("  wLength:      \t0x%04x\n};\n", req->wLength);
 }
 
 /**

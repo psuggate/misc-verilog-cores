@@ -108,7 +108,6 @@ static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, 
         if (result < 0) {
             return ut_error("ULPI PHY step failed\n");
         } else if (result > 0) {
-            // vpi_printf("Dunzoes: speed = %x, op = %x\n\n", phy->state.speed, phy->state.op);
             host->op = HostIdle;
         }
         host->cycle++;

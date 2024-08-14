@@ -1,4 +1,5 @@
 #include "tc_getdesc.h"
+#include "usb/descriptor.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@ static int tc_getdesc_init(usb_host_t* host, void* data)
     }
     // assert(usbh_get_descriptor(host, 0x0100) == 0);
     vpi_printf("GET DESCRIPTOR initialised\n");
+    show_stdreq((usb_stdreq_t*)&host->xfer.tx);
     return 0;
 }
 
@@ -53,7 +55,7 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
         return -1;
 
     case RecvACK1:
-        show_desc(xfer->rx, xfer->rx_len);
+        show_desc(xfer);
         return 1;
 
     default:
