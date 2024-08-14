@@ -105,106 +105,106 @@ static int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     switch (host->step) {
 
     case 0:
-	// SETUP (SETUP)
-	if (xfer->type != SETUP) {
-	    printf("Host transfer not configured for SETUP\n");
-	    show_host(host);
-	    return -1;
-	}
-	result = token_send_step(&host->xfer, in, out);
-	break;
+        // SETUP (SETUP)
+        if (xfer->type != SETUP) {
+            printf("Host transfer not configured for SETUP\n");
+            show_host(host);
+            return -1;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
 
     case 1:
-	// DATA0 (SETUP)
-	if (xfer->type != DnDATA0) {
-	    xfer->type = DnDATA0;
-	    xfer->stage = NoXfer;
-	    assert(xfer->tx_len >= 8);
-	}
-	result = datax_send_step(&host->xfer, in, out);
-	break;
+        // DATA0 (SETUP)
+        if (xfer->type != DnDATA0) {
+            xfer->type = DnDATA0;
+            xfer->stage = NoXfer;
+            assert(xfer->tx_len >= 8);
+        }
+        result = datax_send_step(&host->xfer, in, out);
+        break;
 
     case 2:
-	// ACK (SETUP)
-	if (xfer->type != UpACK) {
-	    xfer->type = UpACK;
-	    xfer->stage = NoXfer;
-	}
-	result = ack_recv_step(&host->xfer, in, out);
-	break;
+        // ACK (SETUP)
+        if (xfer->type != UpACK) {
+            xfer->type = UpACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_recv_step(&host->xfer, in, out);
+        break;
 
     case 3:
-	// IN (DATA)
-	if (xfer->type != IN) {
-	    xfer->type = IN;
-	    xfer->stage = NoXfer;
-	}
-	result = token_send_step(&host->xfer, in, out);
-	break;
+        // IN (DATA)
+        if (xfer->type != IN) {
+            xfer->type = IN;
+            xfer->stage = NoXfer;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
 
     case 4:
-	// DATA1 (DATA)
-	if (xfer->type != UpDATA1) {
-	    xfer->type = UpDATA1;
-	    xfer->stage = NoXfer;
-	    xfer->rx_len = MAX_PACKET_SIZE;
-	    xfer->rx_ptr = 0;
-	}
-	result = datax_recv_step(&host->xfer, in, out);
-	break;
+        // DATA1 (DATA)
+        if (xfer->type != UpDATA1) {
+            xfer->type = UpDATA1;
+            xfer->stage = NoXfer;
+            xfer->rx_len = MAX_PACKET_SIZE;
+            xfer->rx_ptr = 0;
+        }
+        result = datax_recv_step(&host->xfer, in, out);
+        break;
 
     case 5:
-	// ACK (DATA)
-	if (xfer->type != DnACK) {
-	    xfer->type = DnACK;
-	    xfer->stage = NoXfer;
-	}
-	result = ack_send_step(&host->xfer, in, out);
-	break;
+        // ACK (DATA)
+        if (xfer->type != DnACK) {
+            xfer->type = DnACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_send_step(&host->xfer, in, out);
+        break;
 
     case 6:
-	// OUT (STATUS)
-	if (xfer->type != OUT) {
-	    xfer->type = OUT;
-	    xfer->stage = NoXfer;
-	}
-	result = token_send_step(&host->xfer, in, out);
-	break;
+        // OUT (STATUS)
+        if (xfer->type != OUT) {
+            xfer->type = OUT;
+            xfer->stage = NoXfer;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
 
     case 7:
-	// ZDP (STATUS)
-	if (xfer->type != DnDATA1) {
-	    xfer->type = DnDATA1;
-	    xfer->stage = NoXfer;
-	    xfer->tx_len = 0;
-	}
-	result = datax_send_step(&host->xfer, in, out);
-	break;
+        // ZDP (STATUS)
+        if (xfer->type != DnDATA1) {
+            xfer->type = DnDATA1;
+            xfer->stage = NoXfer;
+            xfer->tx_len = 0;
+        }
+        result = datax_send_step(&host->xfer, in, out);
+        break;
 
     case 8:
-	// ACK (STATUS)
-	if (xfer->type != UpACK) {
-	    xfer->type = UpACK;
-	    xfer->stage = NoXfer;
-	}
-	result = ack_recv_step(&host->xfer, in, out);
-	break;
+        // ACK (STATUS)
+        if (xfer->type != UpACK) {
+            xfer->type = UpACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_recv_step(&host->xfer, in, out);
+        break;
 
     default:
-	// ERROR
-	printf("Invalid SETUP transaction step: %u\n", host->step);
-	show_host(host);
-	return -1;
+        // ERROR
+        printf("Invalid SETUP transaction step: %u\n", host->step);
+        show_host(host);
+        return -1;
     }
 
     if (result < 0) {
-	printf("SETUP transaction failed\n");
-	show_host(host);
-	ulpi_bus_show(in);
+        printf("SETUP transaction failed\n");
+        show_host(host);
+        ulpi_bus_show(in);
     } else if (result > 1) {
-	host->step++;
-	xfer->type = XferIdle;
-	return 0;
+        host->step++;
+        xfer->type = XferIdle;
+        return 0;
     }
 
     return result;
@@ -317,7 +317,7 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case Token2:
-        // Drive 'squelch' ('00b')
+        // Drive 'squelch' ('00b') line-state
         out->dir = SIG1;
         out->nxt = SIG0;
         out->data.a = 0x4C;
@@ -326,7 +326,7 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case EndRXCMD:
-        // Drive '!squelch' ('01b')
+        // Drive '!squelch' ('01b') line-state
         out->dir = SIG1;
         out->nxt = SIG0;
         out->data.a = 0x4D;
@@ -344,10 +344,10 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         return 1;
 
     default:
-	printf("Unexpected transfer stage:\n");
-	transfer_show(&host->xfer);
-	printf("ULPI bus input:\n");
-	ulpi_bus_show(in);
+        printf("Unexpected transfer stage:\n");
+        transfer_show(&host->xfer);
+        printf("ULPI bus input:\n");
+        ulpi_bus_show(in);
         host->xfer.stage = NoXfer;
         return -1;
     }
@@ -530,7 +530,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case HostSETUP:
-	result = stdreq_step(host, in, out);
+        result = stdreq_step(host, in, out);
         break;
 
     case HostBulkIN:

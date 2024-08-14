@@ -294,13 +294,13 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = InitRXCMD;
             break;
 
-	case InitRXCMD:
-	    // Now output the PID byte, for the SOF
-	    out->dir = SIG1;
-	    out->nxt = SIG1;
-	    out->data.a = transfer_type_to_pid(xfer);
-	    xfer->stage = TokenPID;
-	    break;
+        case InitRXCMD:
+            // Now output the PID byte, for the SOF
+            out->dir = SIG1;
+            out->nxt = SIG1;
+            out->data.a = transfer_type_to_pid(xfer);
+            xfer->stage = TokenPID;
+            break;
 
         case TokenPID:
             out->nxt = SIG1;
@@ -310,31 +310,31 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case Token1:
-	    assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
+            assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
             out->data.a = xfer->tok2;
             xfer->stage = Token2;
             break;
 
         case Token2:
-	    assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
+            assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
             out->nxt = SIG0;
             out->data.a = 0x4C; // squ
             xfer->stage = EndRXCMD;
             break;
 
         case EndRXCMD:
-	    assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+            assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
             out->data.a = 0x4D;
             xfer->stage = EOP;
             break;
 
         case EOP:
-	    assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+            assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
             out->dir = SIG0;
             out->data.a = 0x00;
             out->data.b = 0xFF;
-	    xfer->stage = NoXfer;
-	    xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+            xfer->type = XferIdle;
             return 1;
 
         default:

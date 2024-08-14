@@ -249,13 +249,13 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         break;
 
     case UT_Idle:
-	if (!ulpi_bus_is_idle(curr)) {
-	    // Wait for the ULPI bus to become idle, first ...
-	    result = usbh_step(host, curr, next);
-	} else {
-	    // Initiate each of the various test-cases
-	    result = test_step(state);
-	}
+        if (!ulpi_bus_is_idle(curr)) {
+            // Wait for the ULPI bus to become idle, first ...
+            result = usbh_step(host, curr, next);
+        } else {
+            // Initiate each of the various test-cases
+            result = test_step(state);
+        }
         if (result < 0) {
             vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
             vpi_printf("Test-case failed\n");
