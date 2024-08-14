@@ -23,6 +23,13 @@ typedef enum __ulpi_op {
     ULPI_LinkToPHY, // REGR/REGW/SPECIAL
 } ulpi_op_t;
 
+typedef enum __ut_step {
+    UT_PowerOn,
+    UT_StartUp,
+    UT_Idle,
+    UT_Test,
+    UT_Done
+} ut_step_t;
 
 /**
  * ULPI signals, state, and test-cases.
@@ -54,6 +61,8 @@ static inline int phy_is_driving(ut_state_t* state)
 {
     return state->phy.bus.dir == SIG1;
 }
+
+void show_ut_state(ut_state_t* state);
 
 
 #endif  /* __ULPISIM_H__ */

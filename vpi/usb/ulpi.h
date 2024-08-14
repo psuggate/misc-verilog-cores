@@ -210,12 +210,14 @@ static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
 void ulpi_bus_idle(ulpi_bus_t* bus);
 void ulpi_bus_show(const ulpi_bus_t* bus);
 char* ulpi_bus_string(const ulpi_bus_t* bus);
+
+void transfer_show(const transfer_t* xfer);
 char* transfer_string(const transfer_t* xfer);
 void transfer_out(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
-void sof_frame(transfer_t* xfer, uint16_t frame);
-
 uint8_t transfer_type_to_pid(transfer_t* xfer);
+
+void sof_frame(transfer_t* xfer, uint16_t frame);
 
 
 // -- Transaction Step-Functions -- //
@@ -226,6 +228,9 @@ int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
 int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
+
+int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
+int ack_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
 #endif  /* __ULPI_H__ */

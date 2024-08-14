@@ -1,4 +1,6 @@
 #include "ulpi.h"
+
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -99,6 +101,11 @@ char* transfer_string(const transfer_t* xfer)
         );
 
     return str;
+}
+
+void transfer_show(const transfer_t* xfer)
+{
+    printf("Transfer = {\n  %s\n};\n", transfer_string(xfer));
 }
 
 char* ulpi_bus_string(const ulpi_bus_t* bus)
@@ -284,41 +291,50 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             out->nxt = SIG0;
             out->data.a = 0x5D;
             out->data.b = 0x00;
-            xfer->stage = TokenPID;
+            xfer->stage = InitRXCMD;
             break;
+
+	case InitRXCMD:
+	    // Now output the PID byte, for the SOF
+	    out->dir = SIG1;
+	    out->nxt = SIG1;
+	    out->data.a = transfer_type_to_pid(xfer);
+	    xfer->stage = TokenPID;
+	    break;
 
         case TokenPID:
             out->nxt = SIG1;
-            out->data.a = transfer_type_to_pid(xfer);
+            out->data.a = xfer->tok1;
             out->data.b = 0x00;
             xfer->stage = Token1;
             break;
 
         case Token1:
-            out->nxt = SIG1;
-            out->data.a = xfer->tok1;
-            out->data.b = 0x00;
+	    assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
+            out->data.a = xfer->tok2;
             xfer->stage = Token2;
             break;
 
         case Token2:
-            out->nxt = SIG1;
-            out->data.a = xfer->tok2;
-            out->data.b = 0x00;
+	    assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
+            out->nxt = SIG0;
+            out->data.a = 0x4C; // squ
             xfer->stage = EndRXCMD;
             break;
 
         case EndRXCMD:
-            out->nxt = SIG0;
-            out->data.a = 0x4C;
-            out->data.b = 0x00;
+	    assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+            out->data.a = 0x4D;
             xfer->stage = EOP;
             break;
 
         case EOP:
+	    assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
             out->dir = SIG0;
             out->data.a = 0x00;
             out->data.b = 0xFF;
+	    xfer->stage = NoXfer;
+	    xfer->type = XferIdle;
             return 1;
 
         default:
@@ -501,4 +517,14 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
     }
 
     return 0;
+}
+
+int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    return -1;
+}
+
+int ack_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    return -1;
 }

@@ -19,7 +19,7 @@ static int stdreq_setup_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t*
     default:
         xfer->stage++;
         printf("H@%8u => ERROR\n", xfer->cycle);
-        printf("Transer = {\n  %s\n};\n", transfer_string(xfer));
+        transfer_show(xfer);
         exit(1);
     }
 
