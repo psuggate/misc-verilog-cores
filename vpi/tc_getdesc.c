@@ -44,8 +44,8 @@ static int tc_getdesc_init(usb_host_t* host, void* data)
                host->cycle, tc_getdesc_name, result);
     if (result < 0) {
         vpi_printf("[%s:%d] GET DESCRIPTOR initialisation failed\n",
-		   __FILE__, __LINE__);
-	show_host(host);
+                   __FILE__, __LINE__);
+        show_host(host);
         vpi_control(vpiFinish, 2);
         return -1;
     }
@@ -65,8 +65,13 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
     switch (*st) {
     case SendSETUP:
         // SendSETUP completed, so now send DATA0
-	host->step++;
-	*st = SendDATA0;
+        host->step++;
+        vpi_printf("[%s:%d] WARN -- DATA0 not setup correctly\n", __FILE__, __LINE__);
+        xfer->tx_ptr = 0;
+        xfer->tx_len = 8;
+        xfer->crc1 = 0xAB;
+        xfer->crc2 = 0xCD;
+        *st = SendDATA0;
         // vpi_printf("Potatoe, tomatoe\n");
         // vpi_control(vpiFinish, 2);
         // if (host->op == HostIdle && xfer->type == XferIdle) {
@@ -75,42 +80,42 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
         return 0;
 
     case SendDATA0:
-	host->step++;
-	*st = RecvACK0;
-	return 0;
+        host->step++;
+        *st = RecvACK0;
+        return 0;
 
     case RecvACK0:
-	*st = SendIN;
+        *st = SendIN;
         return 0;
 
     case SendIN:
-	*st = RecvDATA1;
-	return 0;
+        *st = RecvDATA1;
+        return 0;
 
     case RecvDATA1:
-	*st = SendACK;
-	return 0;
+        *st = SendACK;
+        return 0;
 
     case SendACK:
-	*st = SendOUT;
-	return 0;
+        *st = SendOUT;
+        return 0;
 
     case SendOUT:
-	*st = SendZDP;
-	return 0;
+        *st = SendZDP;
+        return 0;
 
     case SendZDP:
-	*st = RecvACK1;
-	return 0;
+        *st = RecvACK1;
+        return 0;
 
     case RecvACK1:
         show_desc(xfer);
-	*st = DescDone;
+        *st = DescDone;
         return 1;
 
     default:
         vpi_printf("[%s:%d] Invalid GET DESCRIPTOR state: 0x%x\n",
-		   __FILE__, __LINE__, *st);
+                   __FILE__, __LINE__, *st);
         vpi_control(vpiFinish, 1);
     }
 

@@ -462,9 +462,9 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         case LineIdle:
             // Wait for the USB (ULPI) bus to return to idle
             assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-	    out->dir = SIG0;
-	    out->data.a = 0x00;
-	    out->data.b = 0xFF;
+            out->dir = SIG0;
+            out->data.a = 0x00;
+            out->data.b = 0xFF;
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
             return 1;
