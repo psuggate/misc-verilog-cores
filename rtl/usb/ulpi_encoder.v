@@ -158,7 +158,8 @@ module ulpi_encoder #(
     if (reset) begin
       xsend <= TX_IDLE;
     end else if (dir_q || ulpi_dir) begin
-      xsend <= xsend;
+      xsend <= xsend == TX_DONE && LineState == 2'b00 ? TX_IDLE : xsend;
+      // xsend <= xsend;
     end else begin
       case (xsend)
         default: begin  // TX_IDLE
@@ -214,7 +215,7 @@ module ulpi_encoder #(
           //    module, via 'RX CMD', as the USB3317C datasheet states that an
           //    'RX CMD' follows every transmission (see pp.40) ??
           //
-          xsend <= !ulpi_stp && stp_q ? TX_IDLE : xsend;
+          xsend <= (!ulpi_stp && stp_q) || LineState == 2'b00 ? TX_IDLE : xsend;
         end
 
         //

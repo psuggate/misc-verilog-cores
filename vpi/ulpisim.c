@@ -138,7 +138,8 @@ static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, 
         vpi_printf(".");
         int result = usbh_step(host, curr, next);
         if (result < 0) {
-            vpi_printf("USB host-step failed: host->op = %x\n\n", host->op);
+            vpi_printf("[%s:%d] USB host-step failed: host->op = %x\n\n",
+                       __FILE__, __LINE__, host->op);
         }
         return result;
     }
@@ -154,15 +155,6 @@ static int test_step(ut_state_t* state)
     uint64_t cycle = state->cycle;
 
     if (state->test_curr < state->test_num) {
-        /*
-        if (state->test_step != 0 && state->host.op != HostIdle) {
-            vpi_printf(
-                "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy (op: 0x%x).\n",
-                cycle, state->host.op);
-            return -1;
-        }
-        */
-
         testcase_t* test = state->tests[state->test_curr];
         usb_host_t* host = &state->host;
         int result;
@@ -235,7 +227,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
 
     case UT_PowerOn:
         // Wait for the power-on time to elapse
-        vpi_printf("Todo: implement power-on steps\n");
+        vpi_printf("[%s:%d] Todo: implement power-on steps\n",
+                   __FILE__, __LINE__);
         host->cycle++;
         state->op = UT_StartUp;
         break;
@@ -250,8 +243,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
             return ut_failed(err, __LINE__, state);
         } else if (result > 0) {
             vpi_printf(
-                "\t@%8lu ns  =>\tPHY/Host high-speed negotiation completed\n",
-                state->tick_ns);
+                "\t@%8lu ns  =>\tPHY/Host high-speed negotiation completed [%s:%d]\n",
+                state->tick_ns, __FILE__, __LINE__);
             state->op = UT_Idle;
         }
         break;
@@ -267,7 +260,10 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         if (result < 0) {
             return ut_failed("", __LINE__, state);
         } else if (result > 0) {
-            vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
+            // Indicate that the test-cases completed successfully
+            vpi_printf("\t@%8lu ns  =>\tAll test-cases completed [%s:%d]\n",
+                       state->tick_ns, __FILE__, __LINE__);
+            // vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
             state->op = UT_Done;
         } else {
             state->op = UT_Test;
@@ -289,7 +285,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
 
     case UT_Done:
         // Indicate that the test-cases completed successfully
-        vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
+        // vpi_printf("\t@%8lu ns  =>\tAll test-cases completed [%s:%d]\n",
+        //         state->tick_ns, __FILE__, __LINE__);
         return 1;
 
     default:
@@ -318,6 +315,11 @@ static int cb_step_sync(p_cb_data cb_data)
 
     if (state == NULL) {
         ut_error("'*state' problem");
+    }
+
+    if (state->op == UT_Done) {
+        state->cycle++;
+        return 0;
     }
 
     int result = ut_step(state, &next);

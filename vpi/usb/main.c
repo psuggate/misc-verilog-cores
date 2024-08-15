@@ -1,6 +1,7 @@
 #include "descriptor.h"
 #include "usbfunc.h"
 #include "usbhost.h"
+#include "stdreq.h"
 #include "usbcrc.h"
 
 #include <assert.h>
@@ -90,8 +91,7 @@ int main(int argc, char* argv[])
     printf("Starting ULPI transactions\n");
 
     printf("Requesting CONFIG DESCRIPTOR\n");
-    // result = usbh_get_descriptor(host, 0x01, buf, &len);
-    result = usbh_get_descriptor(host, 0x01);
+    result = stdreq_get_descriptor(host, 0x01);
     if (result < 0) {
         printf("ERROR: %d\n", result);
         exit(1);

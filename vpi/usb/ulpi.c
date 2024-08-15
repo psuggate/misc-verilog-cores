@@ -182,6 +182,55 @@ void sof_frame(transfer_t* xfer, uint16_t frame)
 //  Transaction Step-Functions
 ///
 
+static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    switch (xfer->stage) {
+
+    case Token2:
+    case DATAxCRC2:
+    case HskPID:
+        assert(in->dir == SIG1 && in->nxt == SIG1 && in->data.b == 0x00);
+        out->nxt = SIG0;
+        out->data.a = 0x4C; // RX CMD: RxActive = 0
+        xfer->stage = EndRXCMD;
+        break;
+
+    case DATAxStop:
+        assert(in->dir == SIG1 && in->nxt == SIG0);
+        out->data.a = 0x4C;
+        out->data.b = 0x00;
+        xfer->stage = EndRXCMD;
+        break;
+
+    case EndRXCMD:
+        assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+        out->data.a = 0x4D;
+        xfer->stage = EOP;
+        break;
+
+    case EOP:
+        assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+        out->dir = SIG0;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        xfer->stage = LineIdle;
+        break;
+
+    case LineIdle:
+        assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+        xfer->type = XferIdle;
+        xfer->stage = NoXfer;
+        return 1;
+
+    default:
+        printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
+               xfer->stage, stage_strings[xfer->stage]);
+        return -1;
+    }
+
+    return 0;
+}
+
 /**
  * Evaluates step-functions for both a USB host, and a USB "function" (device),
  * until completion.
@@ -321,8 +370,8 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = Token2;
             break;
 
-	default:
-	    return drive_eop(xfer, in, out);
+        default:
+            return drive_eop(xfer, in, out);
         }
         break;
 
@@ -413,8 +462,8 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = DATAxCRC2;
             break;
 
-	default:
-	    return drive_eop(xfer, in, out);
+        default:
+            return drive_eop(xfer, in, out);
         }
         break;
     default:
@@ -442,33 +491,37 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxPID:
-            if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0f)) {
-                printf("[%s:%d] Invalid PID value\n", __FILE__, __LINE__);
+            assert(in->dir == SIG0 && in->nxt == SIG1);
+            if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0F)) {
+                printf("[%s:%d] Invalid PID value: 0x%02x\n", __FILE__, __LINE__, in->data.a);
                 return -1;
             }
+            out->nxt = SIG0;
             xfer->stage = DATAxBody;
             xfer->rx_ptr = 0;
             break;
 
         case DATAxBody:
-	    assert(in->dir == SIG0);
+            assert(in->dir == SIG0);
             if (in->nxt == SIG1) {
-		// Todo: check CRC
+                // Todo: check CRC
                 xfer->rx[xfer->rx_ptr++] = in->data.a;
             }
             if (in->stp == SIG1) {
-		// Turn around the ULPI bus, so that we can send an RX CMD
-		out->dir = SIG1;
+                // Turn around the ULPI bus, so that we can send an RX CMD
+                out->dir = SIG1;
                 out->nxt = SIG0;
-		out->data.a = 0x00;
-		out->data.b = 0xFF;
+                out->data.a = 0x00;
+                out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
                 xfer->rx_len = xfer->rx_ptr - 2;
+            } else {
+                out->nxt = SIG1;
             }
             break;
 
-	default:
-	    return drive_eop(xfer, in, out);
+        default:
+            return drive_eop(xfer, in, out);
         }
         break;
     default:
@@ -479,60 +532,105 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
     return 0;
 }
 
-static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+/**
+ * From the point-of-view of a ULPI PHY, receive a handshake packet from a link,
+ * and then transmit this over the USB.
+ */
+int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    if (xfer->type != UpACK) {
+        transfer_show(xfer);
+        printf("[%s:%d] Not an upstream 'ACK' transfer: %d (%s)\n", __FILE__,
+               __LINE__, xfer->type, type_strings[xfer->type]);
+        return -1;
+    }
+
     switch (xfer->stage) {
 
-    case Token2:
-    case DATAxCRC2:
-	assert(in->dir == SIG1 && in->nxt == SIG1 && in->data.b == 0x00);
-	out->nxt = SIG0;
-	out->data.a = 0x5D; // RX CMD: RxActive = 1
-	xfer->stage = DATAxStop;
-	break;
+    case NoXfer:
+        if (!ulpi_bus_is_idle(in)) {
+            switch (in->data.a) {
+            case ULPITX_ACK:
+                out->nxt = SIG1;
+                xfer->stage = HskPID;
+                break;
+            default:
+                printf("[%s:%d] Unexpected TX CMD: 0x%02x\n",
+                       __FILE__, __LINE__, in->data.a);
+                return -1;
+            }
+        }
+        break;
 
-    case DATAxStop:
-	assert(in->dir == SIG1 && in->nxt == SIG0);
-	out->data.a = 0x4C;
-	out->data.b = 0x00;
-	xfer->stage = EndRXCMD;
-	break;
+    case HskPID:
+        assert(in->dir == SIG0 && in->data.b == 0x00);
+        out->nxt = SIG0;
+        if (in->stp == SIG1) {
+            xfer->stage = HskStop;
+        }
+        break;
 
-    case EndRXCMD:
-	assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
-	out->data.a = 0x4D;
-	xfer->stage = EOP;
-	break;
-
-    case EOP:
-	assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
-	out->dir = SIG0;
-	out->data.a = 0x00;
-	out->data.b = 0xFF;
-	xfer->stage = LineIdle;
-	break;
-
-    case LineIdle:
-	assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
-	xfer->type = XferIdle;
-	xfer->stage = NoXfer;
-	return 1;
+    case HskStop:
+        // Todo: RX CMD !?
+        assert(in->dir == SIG0 && in->nxt == SIG0 && in->stp == SIG0);
+        xfer->stage = XferIdle;
+        return 1;
 
     default:
-	printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
-	       xfer->stage, stage_strings[xfer->stage]);
-	return -1;
+        printf("[%s:%d] Unexpected ACK receive stage: %u (%s)\n",
+               __FILE__, __LINE__, xfer->stage, stage_strings[xfer->stage]);
+        return -1;
     }
 
     return 0;
 }
 
-int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
-{
-    return -1;
-}
-
+/**
+ * From the point-of-view of a ULPI PHY, send a handshake packet to a link, from
+ * the USB.
+ */
 int ack_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    return -1;
+    if (xfer->type != DnACK) {
+        transfer_show(xfer);
+        printf("[%s:%d] Not a downstream 'ACK' transfer: %d (%s)\n", __FILE__,
+               __LINE__, xfer->type, type_strings[xfer->type]);
+        return -1;
+    }
+
+    switch (xfer->stage) {
+
+    case NoXfer:
+        if (!ulpi_bus_is_idle(in)) {
+            printf("[%s:%d] ULPI bus is busy, not ready to send 'ACK'\n",
+                   __FILE__, __LINE__);
+            return -1;
+        }
+        out->dir = SIG1;
+        out->nxt = SIG1;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        xfer->stage = AssertDir;
+        break;
+
+    case AssertDir:
+        assert(in->dir == SIG1 && in->nxt == SIG1 && in->stp == SIG0);
+        out->nxt = SIG0;
+        out->data.a = 0x5D; // RX CMD: RxActive = 1
+        out->data.b = 0x00;
+        xfer->stage = InitRXCMD;
+        break;
+
+    case InitRXCMD:
+        assert(in->dir == SIG1 && in->nxt == SIG0 && in->stp == SIG0 && in->data.b == 0x00);
+        out->nxt = SIG1;
+        out->data.a = transfer_type_to_pid(xfer);
+        xfer->stage = HskPID;
+        break;
+
+    default:
+        return drive_eop(xfer, in, out);
+    }
+
+    return 0;
 }

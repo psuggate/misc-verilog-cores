@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Aug 15 02:59:07 2024
+[*] Thu Aug 15 05:32:56 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Aug 15 02:58:45 2024"
-[dumpfile_size] 138199
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
-[timestart] 14147600
+[dumpfile] "./vpi_usb_ulpi_tb.vcd"
+[dumpfile_mtime] "Thu Aug 15 05:32:37 2024"
+[dumpfile_size] 217348
+[savefile] "./vpi_usb_ulpi_tb.gtkw"
+[timestart] 15193800
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 15350000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 15820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
 [sst_width] 233
@@ -64,8 +64,30 @@ vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.dbg_pid[47:0]
 @28
 [color] 3
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_valid_o
-@29
 [color] 1
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_error_o
+@800200
+-Transact
+@28
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tvalid_i
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tready_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tlast_i
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.hsk_send_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.hsk_sent_i
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.dbg_xctrl[119:0]
+@1000200
+-Transact
+@800200
+-Encoder
+@29
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dir_q
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.LineState[1:0]
+@821
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dbg_xsend[39:0]
+@1000200
+-Encoder
 [pattern_trace] 1
 [pattern_trace] 0

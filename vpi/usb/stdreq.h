@@ -2,6 +2,7 @@
 #define __STDREQ_H__
 
 
+#include "usbhost.h"
 #include <stdint.h>
 
 
@@ -66,11 +67,19 @@ typedef struct {
 } stdreq_steps_t;
 
 
-void stdreq_init(stdreq_steps_t* steps);
-void show_stdreq(usb_stdreq_t* req);
+// -- Helper Procedures -- //
 
 int set_configuration(usb_stdreq_t* req, uint16_t wValue);
 int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len, usb_desc_t* desc);
+
+// -- Main API Routines -- //
+
+void stdreq_init(stdreq_steps_t* steps);
+void stdreq_show(usb_stdreq_t* req);
+int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
+int stdreq_get_descriptor(usb_host_t* host, uint16_t num);
+
+// -- Unit Tests -- //
 
 void test_stdreq_get_desc(uint16_t num);
 

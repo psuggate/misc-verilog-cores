@@ -1,4 +1,5 @@
 #include "tc_getdesc.h"
+#include "usb/stdreq.h"
 #include "usb/descriptor.h"
 
 #include <assert.h>
@@ -39,7 +40,7 @@ static int tc_getdesc_init(usb_host_t* host, void* data)
     getdesc_state_t* st = (getdesc_state_t*)data;
     transfer_t* xfer = &host->xfer;
     *st = SendSETUP;
-    int result = usbh_get_descriptor(host, 0x0100);
+    int result = stdreq_get_descriptor(host, 0x0100);
     vpi_printf("HOST\t#%8lu cyc =>\t%s INIT result = %d\n",
                host->cycle, tc_getdesc_name, result);
     if (result < 0) {
@@ -49,12 +50,13 @@ static int tc_getdesc_init(usb_host_t* host, void* data)
         vpi_control(vpiFinish, 2);
         return -1;
     }
-    // assert(usbh_get_descriptor(host, 0x0100) == 0);
-    // vpi_printf("GET DESCRIPTOR initialised\n");
-    // show_stdreq((usb_stdreq_t*)&host->xfer.tx);
     return 0;
 }
 
+/**
+ * Step-function that is invoked as each packet of a SETUP transaction has been
+ * sent/received.
+ */
 static int tc_getdesc_step(usb_host_t* host, void* data)
 {
     getdesc_state_t* st = (getdesc_state_t*)data;
@@ -67,16 +69,7 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
         // SendSETUP completed, so now send DATA0
         host->step++;
         vpi_printf("[%s:%d] WARN -- DATA0 not setup correctly\n", __FILE__, __LINE__);
-        xfer->tx_ptr = 0;
-        xfer->tx_len = 8;
-        xfer->crc1 = 0xAB;
-        xfer->crc2 = 0xCD;
         *st = SendDATA0;
-        // vpi_printf("Potatoe, tomatoe\n");
-        // vpi_control(vpiFinish, 2);
-        // if (host->op == HostIdle && xfer->type == XferIdle) {
-        // }
-        // return -1;
         return 0;
 
     case SendDATA0:
@@ -85,32 +78,49 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
         return 0;
 
     case RecvACK0:
+        host->step++;
+        host->xfer.ep_seq[0] = SIG1;
         *st = SendIN;
         return 0;
 
     case SendIN:
+        host->step++;
         *st = RecvDATA1;
         return 0;
 
     case RecvDATA1:
+        host->step++;
         *st = SendACK;
         return 0;
 
     case SendACK:
+        host->step++;
         *st = SendOUT;
         return 0;
 
     case SendOUT:
+        host->step++;
         *st = SendZDP;
+        host->xfer.tx_len = 0;
+        host->xfer.type = DnDATA1;
+        host->xfer.crc1 = 0x00;
+        host->xfer.crc2 = 0x00;
         return 0;
 
     case SendZDP:
+        host->step++;
         *st = RecvACK1;
         return 0;
 
     case RecvACK1:
+        host->step++;
+        host->op = HostIdle;
         show_desc(xfer);
         *st = DescDone;
+        return 1;
+
+    case DescDone:
+        vpi_printf("[%s:%d] WARN => Invoked post-completion\n", __FILE__, __LINE__);
         return 1;
 
     default:

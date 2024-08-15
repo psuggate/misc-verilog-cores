@@ -1,5 +1,6 @@
 #include "ulpi.h"
 #include "stdreq.h"
+#include "usbcrc.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -7,83 +8,34 @@
 #include <string.h>
 
 
-// Global, default configuration-request step-functions
-stdreq_steps_t stdreqs;
-
-
-static int stdreq_setup_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+/**
+ * Queue-up a USB standard request.
+ */
+static int stdreq_start(usb_host_t* host, const usb_stdreq_t* req)
 {
-    int result = -1;
+    transfer_t* xfer = &(host->xfer);
+    const uint16_t crc = crc16_calc((uint8_t*)req, 8);
 
-    switch (xfer->stage) {
-    default:
-        xfer->stage++;
-        printf("H@%8u => ERROR\n", xfer->cycle);
-        transfer_show(xfer);
-        exit(1);
-    }
+    xfer->address = host->addr;
+    xfer->endpoint = 0;
+    xfer->type = SETUP;
+    xfer->stage = NoXfer; // AssertDir;
 
-    return result;
-}
+    // SETUP DATA0 (OUT) packet info, for the std. req.
+    xfer->tx_len = 8;
+    xfer->tx_ptr = 0;
+    xfer->crc1 = crc & 0xFF;
+    xfer->crc2 = (crc >> 8) & 0xFF;
+    memcpy(&xfer->tx, req, sizeof(usb_stdreq_t));
 
-static int stdreq_data0_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
-{
-    int result = -1;
+    // IN DATA1 packet
+    xfer->rx_len = host->len;
+    xfer->rx_ptr = 0;
 
-    switch (xfer->stage) {
-    default:
-        xfer->stage++;
-        printf("H@%8u => ERROR\n", xfer->cycle);
-        exit(1);
-    }
+    host->op = HostSETUP;
+    host->step = 0;
 
-    return result;
-}
-
-static int stdreq_data1_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
-{
-    int result = -1;
-
-    switch (xfer->stage) {
-    default:
-        xfer->stage++;
-        printf("H@%8u => ERROR\n", xfer->cycle);
-        exit(1);
-    }
-
-    return result;
-}
-
-static int stdreq_status_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
-{
-    int result = -1;
-
-    switch (xfer->stage) {
-    default:
-        xfer->stage++;
-        printf("H@%8u => ERROR\n", xfer->cycle);
-        exit(1);
-    }
-
-    return result;
-}
-
-void stdreq_init(stdreq_steps_t* steps)
-{
-    steps->setup = stdreq_setup_step;
-    steps->data0 = stdreq_data0_step;
-    steps->data1 = stdreq_data1_step;
-    steps->status = stdreq_status_step;
-}
-
-void show_stdreq(usb_stdreq_t* req)
-{
-    printf("STD_REQ = {\n");
-    printf("  bmRequestType:\t  0x%02x,\n", req->bmRequestType);
-    printf("  bRequest:     \t  0x%02x,\n", req->bRequest);
-    printf("  wValue:       \t0x%04x,\n", req->wValue);
-    printf("  wIndex:       \t0x%04x,\n", req->wIndex);
-    printf("  wLength:      \t0x%04x\n};\n", req->wLength);
+    return 1;
 }
 
 /**
@@ -118,6 +70,160 @@ int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len
     req->data = (uint8_t*)desc;
 
     return 1;
+}
+
+/**
+ * Request the indicated descriptor, from a device.
+ */
+int stdreq_get_descriptor(usb_host_t* host, uint16_t num)
+{
+    if (host->op != HostIdle) {
+        return -1;
+    }
+
+    usb_stdreq_t req;
+    usb_desc_t* desc = malloc(sizeof(usb_desc_t));
+    desc->dtype = num; // Todo: string-descriptor type
+    desc->value.dat = host->buf;
+
+    if (get_descriptor(&req, num, 0, MAX_CONFIG_SIZE, desc) < 0) {
+        printf("HOST\t#%8lu cyc =>\tUSBH GET DESCRIPTOR failed\n", host->cycle);
+        return -1;
+    }
+
+    return stdreq_start(host, &req);
+}
+
+void stdreq_show(usb_stdreq_t* req)
+{
+    printf("STD_REQ = {\n");
+    printf("  bmRequestType:\t  0x%02x,\n", req->bmRequestType);
+    printf("  bRequest:     \t  0x%02x,\n", req->bRequest);
+    printf("  wValue:       \t0x%04x,\n", req->wValue);
+    printf("  wIndex:       \t0x%04x,\n", req->wIndex);
+    printf("  wLength:      \t0x%04x\n};\n", req->wLength);
+}
+
+/**
+ * Step through a USB standard request (to control-pipe #0).
+ * Returns:
+ *  -1  --  failure/error;
+ *   0  --  stepped successfully; OR
+ *   1  --  completed.
+ */
+int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    transfer_t* xfer = &host->xfer;
+    int result = -1;
+
+    switch (host->step) {
+
+    case 0:
+        // SETUP (SETUP)
+        if (xfer->type != SETUP) {
+            printf(
+                "HOST\t#%8lu cyc =>\tHost transfer not configured for SETUP [%s:%d]\n",
+                host->cycle, __FILE__, __LINE__);
+            show_host(host);
+            return -1;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
+
+    case 1:
+        // DATA0 (SETUP)
+        if (xfer->type != DnDATA0) {
+            xfer->type = DnDATA0;
+            xfer->stage = NoXfer;
+            assert(xfer->tx_len >= 8);
+        }
+        result = datax_send_step(&host->xfer, in, out);
+        break;
+
+    case 2:
+        // ACK (SETUP)
+        if (xfer->type != UpACK) {
+            xfer->type = UpACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_recv_step(&host->xfer, in, out);
+        break;
+
+    case 3:
+        // IN (DATA)
+        if (xfer->type != IN) {
+            xfer->type = IN;
+            xfer->stage = NoXfer;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
+
+    case 4:
+        // DATA1 (DATA)
+        if (xfer->type != UpDATA1) {
+            xfer->type = UpDATA1;
+            xfer->stage = NoXfer;
+            xfer->rx_len = MAX_PACKET_SIZE;
+            xfer->rx_ptr = 0;
+        }
+        result = datax_recv_step(&host->xfer, in, out);
+        break;
+
+    case 5:
+        // ACK (DATA)
+        if (xfer->type != DnACK) {
+            xfer->type = DnACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_send_step(&host->xfer, in, out);
+        break;
+
+    case 6:
+        // OUT (STATUS)
+        if (xfer->type != OUT) {
+            xfer->type = OUT;
+            xfer->stage = NoXfer;
+        }
+        result = token_send_step(&host->xfer, in, out);
+        break;
+
+    case 7:
+        // ZDP (STATUS)
+        if (xfer->type != DnDATA1) {
+            xfer->type = DnDATA1;
+            xfer->stage = NoXfer;
+            xfer->tx_len = 0;
+        }
+        result = datax_send_step(&host->xfer, in, out);
+        break;
+
+    case 8:
+        // ACK (STATUS)
+        if (xfer->type != UpACK) {
+            xfer->type = UpACK;
+            xfer->stage = NoXfer;
+        }
+        result = ack_recv_step(&host->xfer, in, out);
+        break;
+
+    default:
+        // ERROR
+        printf("Invalid SETUP transaction step: %u\n", host->step);
+        show_host(host);
+        return -1;
+    }
+
+    if (result < 0) {
+        printf("SETUP transaction failed\n");
+        show_host(host);
+        ulpi_bus_show(in);
+    } else if (result > 1) {
+        host->step++;
+        xfer->type = XferIdle;
+        return 0;
+    }
+
+    return result;
 }
 
 

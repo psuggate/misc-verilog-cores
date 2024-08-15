@@ -8,7 +8,6 @@
  */
 
 #include "ulpi.h"
-#include "stdreq.h"
 
 
 #define MAX_PACKET_LEN 512
@@ -85,8 +84,6 @@ int usbh_busy(usb_host_t* host);
 // int usbh_send(usb_host_t* host, usb_xact_t* xact);
 int usbh_recv(usb_host_t* host, usb_packet_t* packet);
 int usbh_next(usb_host_t* host, usb_packet_t* packet);
-
-int usbh_get_descriptor(usb_host_t* host, uint16_t num);
 
 
 #endif  /* __USBHOST_H__ */
