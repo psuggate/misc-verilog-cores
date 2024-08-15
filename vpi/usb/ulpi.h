@@ -147,6 +147,7 @@ typedef enum {
     REGW,
     REGR,
     REGD,      // 17
+    LineIdle,
 } xfer_stage_t;
 
 typedef struct {

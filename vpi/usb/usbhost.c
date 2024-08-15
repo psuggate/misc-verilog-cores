@@ -107,7 +107,9 @@ static int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case 0:
         // SETUP (SETUP)
         if (xfer->type != SETUP) {
-            printf("Host transfer not configured for SETUP\n");
+            printf(
+                "HOST\t#%8lu cyc =>\tHost transfer not configured for SETUP [%s:%d]\n",
+                host->cycle, __FILE__, __LINE__);
             show_host(host);
             return -1;
         }
@@ -339,12 +341,18 @@ static int sof_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         out->nxt = SIG0;
         out->data.a = 0x00;
         out->data.b = 0xFF;
+        host->xfer.stage = LineIdle;
+        break;
+
+    case LineIdle:
+        assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+        host->xfer.type = XferIdle;
         host->xfer.stage = NoXfer;
         host->op = HostIdle;
         return 1;
 
     default:
-        printf("Unexpected transfer stage:\n");
+        printf("[%s:%d] Unexpected transfer stage:\n", __FILE__, __LINE__);
         transfer_show(&host->xfer);
         printf("ULPI bus input:\n");
         ulpi_bus_show(in);
@@ -405,7 +413,7 @@ int host_string(usb_host_t* host, char* str, const int indent)
     idx += sprintf(&str[idx], "%stimer: %d,\n", sp, host->turnaround);
     idx += sprintf(&str[idx], "%saddr: 0x%02x,\n", sp, host->addr);
     idx += sprintf(&str[idx], "%serror_count: %d,\n", sp, host->error_count);
-    idx += sprintf(&str[idx], "%sbuf[%u]: %p\n", sp, host->len, host->buf);
+    idx += sprintf(&str[idx], "%sbuf[%u]: <%p>\n", sp, host->len, host->buf);
 
     return idx;
 }

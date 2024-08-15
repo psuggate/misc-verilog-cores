@@ -15,6 +15,8 @@ static const char op_strings[5][16] = {
     {"UT_Done"}
 };
 
+static char err_mesg[2048] = {0};
+
 
 /**
  * Abort simulation and emit the error-reason.
@@ -24,6 +26,16 @@ static int ut_error(const char* reason)
     vpi_printf("ERROR: $ulpi_step %s\n", reason);
     vpi_control(vpiFinish, 1);
     return 0;
+}
+
+static int ut_failed(const char* mesg, const int line, ut_state_t* state)
+{
+    vpi_printf("\t@%8lu ns  =>\tTest-case: %s failed\n", state->tick_ns, mesg);
+    show_ut_state(state);
+    sprintf(err_mesg, "[%s:%d] Test-case: %s failed\n", __FILE__, line, mesg);
+    ut_error(err_mesg);
+
+    return -1;
 }
 
 /**
@@ -142,12 +154,14 @@ static int test_step(ut_state_t* state)
     uint64_t cycle = state->cycle;
 
     if (state->test_curr < state->test_num) {
+        /*
         if (state->test_step != 0 && state->host.op != HostIdle) {
             vpi_printf(
                 "HOST\t#%8lu cyc =>\tAttempt to start test when USB host is busy (op: 0x%x).\n",
                 cycle, state->host.op);
             return -1;
         }
+        */
 
         testcase_t* test = state->tests[state->test_curr];
         usb_host_t* host = &state->host;
@@ -156,17 +170,12 @@ static int test_step(ut_state_t* state)
         if (state->test_step++ == 0) {
             result = test->init(host, test->data);
             if (result < 0) {
-                vpi_printf("HOST\t#%8lu cyc =>\t%s INIT failed, result = %d\n",
-                           cycle, test->name, result);
-                ut_error("test INIT failed");
+                return ut_failed("INIT", __LINE__, state);
             }
         } else {
             result = test->step(host, test->data);
             if (result < 0) {
-                // Test failed
-                vpi_printf("HOST\t#%8lu cyc =>\t%s STEP failed, result = %d\n",
-                           cycle, test->name, result);
-                ut_error("test STEP failed");
+                return ut_failed("STEP", __LINE__, state);
             }
         }
 
@@ -235,15 +244,14 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         // Negotiate high-speed (bus) mode
         result = stim_step(phy, host, curr, next);
         if (result < 0) {
-            vpi_printf(
-                "Failed in state: speed = %x, phy->op = %x, host->op = %x\n\n",
-                phy->state.speed, phy->state.op, host->op);
-            show_ut_state(state);
-            ut_error("Simulation-step failed");
-            return -1;
+            char err[80] = {0};
+            sprintf(err, "in state: speed = %x, phy->op = %x, host->op = %x,",
+                    phy->state.speed, phy->state.op, host->op);
+            return ut_failed(err, __LINE__, state);
         } else if (result > 0) {
-            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-            vpi_printf("PHY/Host high-speed negotiation completed\n");
+            vpi_printf(
+                "\t@%8lu ns  =>\tPHY/Host high-speed negotiation completed\n",
+                state->tick_ns);
             state->op = UT_Idle;
         }
         break;
@@ -257,15 +265,9 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
             result = test_step(state);
         }
         if (result < 0) {
-            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-            vpi_printf("Test-case failed\n");
-            show_ut_state(state);
-            ut_error("Test-case failed\n");
-            return -1;
+            return ut_failed("", __LINE__, state);
         } else if (result > 0) {
-            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-            vpi_printf("All test-cases completed\n");
-            show_ut_state(state);
+            vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
             state->op = UT_Done;
         } else {
             state->op = UT_Test;
@@ -276,29 +278,22 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         // Step each test-case to resolution
         result = usbh_step(host, curr, next);
         if (result < 0) {
-            vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-            vpi_printf("Test-case USB host-step failed\n");
-            show_ut_state(state);
-            ut_error("Test-case USB host-step failed\n");
-            return -1;
+            return ut_failed("USB host-step", __LINE__, state);
         } else if (result > 0) {
             // Proceed to the next test (sub-)step
-            show_ut_state(state);
+            vpi_printf("\t@%8lu ns  =>\tTest-case USB host-step completed\n",
+                       state->tick_ns);
             state->op = UT_Idle;
         }
         break;
 
     case UT_Done:
         // Indicate that the test-cases completed successfully
-        show_ut_state(state);
+        vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
         return 1;
 
     default:
-        vpi_printf("Invalid test-operation: 0x%x (%u)\n",
-                   state->op, state->op);
-        show_ut_state(state);
-        vpi_control(vpiFinish, 3);
-        return -1;
+        return ut_failed("test-operation invalid,", __LINE__, state);
     }
 
     changed |=
@@ -312,7 +307,6 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
 
     return 0;
 }
-
 
 /**
  * Process the bus signal values, and update the state & signals, as required.

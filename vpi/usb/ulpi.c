@@ -38,7 +38,7 @@ static const char type_strings[18][16] = {
     {"UpDATA1"}
 };
 
-static const char stage_strings[18][16] = {
+static const char stage_strings[19][16] = {
     {"NoXfer"},
     {"AssertDir"},
     {"InitRXCMD"},
@@ -56,7 +56,8 @@ static const char stage_strings[18][16] = {
     {"EOP"},
     {"REGW"},
     {"REGR"},
-    {"REGD"}
+    {"REGD"},
+    {"LineIdle"},
 };
 
 
@@ -76,7 +77,7 @@ char* transfer_string(const transfer_t* xfer)
         if (xfer->ep_seq[i] == 0) {
             continue;
         } else if (xfer->ep_seq[i] > 1) {
-            printf("\n YUCKY seq[%d] = 0x%x\n\n", i, xfer->ep_seq[i]);
+            printf("\n[%s:%d] YUCKY seq[%d] = 0x%x\n\n", __FILE__, __LINE__, i, xfer->ep_seq[i]);
             seq_str[0] = '0';
             seq_str[1] = 'x';
             seq_str[2] = 'X';
@@ -250,7 +251,7 @@ uint8_t transfer_type_to_pid(transfer_t* xfer)
         pid = USBPID_DATA1;
         break;
     default:
-        printf("Invalid transfer type\n");
+        printf("[%s:%d] Invalid transfer type\n", __FILE__, __LINE__);
         return 255;
     }
     if (xfer->type < UpACK) {
@@ -265,8 +266,10 @@ uint8_t transfer_type_to_pid(transfer_t* xfer)
 
 int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
-    if (xfer->stage > NoXfer && in->dir != SIG1) {
-        printf("Invalid ULPI bus signal levels for token-transmission\n");
+    if (xfer->stage > NoXfer && xfer->stage < LineIdle && in->dir != SIG1) {
+        printf(
+            "[%s:%d] Invalid ULPI bus signal levels for token-transmission\n",
+            __FILE__, __LINE__);
         return -1;
     }
 
@@ -333,18 +336,23 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             out->dir = SIG0;
             out->data.a = 0x00;
             out->data.b = 0xFF;
-            xfer->stage = NoXfer;
+            xfer->stage = LineIdle;
+            break;
+
+        case LineIdle:
+            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
             xfer->type = XferIdle;
+            xfer->stage = NoXfer;
             return 1;
 
         default:
-            printf("Not a valid TOKEN stage: %u\n", xfer->stage);
+            printf("[%s:%d] Not a valid TOKEN stage: %u\n", __FILE__, __LINE__, xfer->stage);
             return -1;
         }
         break;
 
     default:
-        printf("Not a TOKEN: %u\n", xfer->type);
+        printf("[%s:%d] Not a TOKEN: %u\n", __FILE__, __LINE__, xfer->type);
         return -1;
     }
 
@@ -356,7 +364,7 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
     uint8_t pid = xfer->type == DnDATA0 ? 0xC3 : 0x4B;
 
     if (!check_seq(xfer, pid & 0x0f)) {
-        printf("Invalid send DATAx operation: %u\n", pid);
+        printf("[%s:%d] Invalid send DATAx operation: %u\n", __FILE__, __LINE__, pid);
         return -1;
     }
     memcpy(out, in, sizeof(ulpi_bus_t));
@@ -368,8 +376,10 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         case NoXfer:
             // If ULPI bus is idle, grab it by asserting 'DIR'
             if (in->data.a != 0x00 || in->stp != SIG0) {
-                printf("ULPI bus not idle (data = %x, stp = %u) cannot send DATAx\n",
-                       (unsigned)in->data.a << 8 | (unsigned)in->data.b, in->stp);
+                printf(
+                    "[%s:%d] ULPI bus not idle (data = %x, stp = %u) cannot send DATAx\n",
+                    __FILE__, __LINE__,
+                    (unsigned)in->data.a << 8 | (unsigned)in->data.b, in->stp);
                 return -1;
             }
             out->dir = SIG1;
@@ -430,7 +440,7 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case DATAxCRC2:
             out->nxt = SIG0;
-            out->data.a = 0x5C; // RX CMD: RxActive = 1
+            out->data.a = 0x5D; // RX CMD: RxActive = 1
             out->data.b = 0x00;
             xfer->stage = EndRXCMD;
             break;
@@ -443,18 +453,47 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case EOP:
             // End-of-Packet, so stop driving the ULPI bus
+            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
+            out->data.a = 0x4D;
+            out->data.b = 0x00;
+            xfer->stage = LineIdle;
+            break;
+
+        case LineIdle:
+            // Wait for the USB (ULPI) bus to return to idle
+            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
+	    out->dir = SIG0;
+	    out->data.a = 0x00;
+	    out->data.b = 0xFF;
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+            return 1;
+
+#if 0
+        case EOP:
+            // End-of-Packet, so stop driving the ULPI bus
+            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
             out->dir = SIG0;
             out->data.a = 0x00;
             out->data.b = 0xFF;
+            xfer->stage = LineIdle;
+            break;
+
+        case LineIdle:
+            // Wait for the USB (ULPI) bus to return to idle
+            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
             return 1;
+#endif /* 0 */
 
         default:
-            printf("Not a valid DATAx stage: %u\n", xfer->stage);
+            printf("[%s:%d] Not a valid DATAx stage: %u\n", __FILE__, __LINE__, xfer->stage);
             return -1;
         }
         break;
     default:
-        printf("Not a DATAx packet: %u\n", xfer->type);
+        printf("[%s:%d] Not a DATAx packet: %u\n", __FILE__, __LINE__, xfer->type);
         return -1;
     }
 
@@ -479,7 +518,7 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case DATAxPID:
             if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0f)) {
-                printf("Invalid PID value\n");
+                printf("[%s:%d] Invalid PID value\n", __FILE__, __LINE__);
                 return -1;
             }
             xfer->stage = DATAxBody;
@@ -499,20 +538,47 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case DATAxStop:
             // Todo: check CRC
+            out->dir = SIG1;
+            out->data.a = 0x00;
+            out->data.b = 0xFF;
+            xfer->stage = AssertDir;
+            break;
+
+        case AssertDir:
+            assert(in->dir == SIG1 && in->nxt == SIG0);
+            out->data.a = 0x4C;
+            out->data.b = 0x00;
             xfer->stage = EndRXCMD;
             break;
 
         case EndRXCMD:
+            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
+            out->data.a = 0x4D;
+            out->data.b = 0x00;
+            xfer->stage = EOP;
+            break;
+
         case EOP:
+            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
+            out->dir = SIG0;
+            out->data.a = 0x00;
+            out->data.b = 0xFF;
+            xfer->stage = LineIdle;
+            break;
+
+        case LineIdle:
+            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
             return 1;
 
         default:
-            printf("Not a valid DATAx stage: %u\n", xfer->stage);
+            printf("[%s:%d] Not a valid DATAx stage: %u\n", __FILE__, __LINE__, xfer->stage);
             return -1;
         }
         break;
     default:
-        printf("Not a DATAx packet: %u\n", xfer->type);
+        printf("[%s:%d] Not a DATAx packet: %u\n", __FILE__, __LINE__, xfer->type);
         return -1;
     }
 
