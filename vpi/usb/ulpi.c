@@ -61,6 +61,9 @@ static const char stage_strings[19][16] = {
 };
 
 
+static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
+
+
 //
 //  Helper Routines
 ///
@@ -318,36 +321,8 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = Token2;
             break;
 
-        case Token2:
-            assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
-            out->nxt = SIG0;
-            out->data.a = 0x4C; // squ
-            xfer->stage = EndRXCMD;
-            break;
-
-        case EndRXCMD:
-            assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
-            out->data.a = 0x4D;
-            xfer->stage = EOP;
-            break;
-
-        case EOP:
-            assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
-            out->dir = SIG0;
-            out->data.a = 0x00;
-            out->data.b = 0xFF;
-            xfer->stage = LineIdle;
-            break;
-
-        case LineIdle:
-            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
-            xfer->type = XferIdle;
-            xfer->stage = NoXfer;
-            return 1;
-
-        default:
-            printf("[%s:%d] Not a valid TOKEN stage: %u\n", __FILE__, __LINE__, xfer->stage);
-            return -1;
+	default:
+	    return drive_eop(xfer, in, out);
         }
         break;
 
@@ -438,58 +413,8 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = DATAxCRC2;
             break;
 
-        case DATAxCRC2:
-            out->nxt = SIG0;
-            out->data.a = 0x5D; // RX CMD: RxActive = 1
-            out->data.b = 0x00;
-            xfer->stage = EndRXCMD;
-            break;
-
-        case EndRXCMD:
-            out->data.a = 0x4C; // RX CMD: RxActive = 0, LineState = 0
-            out->data.b = 0x00;
-            xfer->stage = EOP;
-            break;
-
-        case EOP:
-            // End-of-Packet, so stop driving the ULPI bus
-            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-            out->data.a = 0x4D;
-            out->data.b = 0x00;
-            xfer->stage = LineIdle;
-            break;
-
-        case LineIdle:
-            // Wait for the USB (ULPI) bus to return to idle
-            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-            out->dir = SIG0;
-            out->data.a = 0x00;
-            out->data.b = 0xFF;
-            xfer->type = XferIdle;
-            xfer->stage = NoXfer;
-            return 1;
-
-#if 0
-        case EOP:
-            // End-of-Packet, so stop driving the ULPI bus
-            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-            out->dir = SIG0;
-            out->data.a = 0x00;
-            out->data.b = 0xFF;
-            xfer->stage = LineIdle;
-            break;
-
-        case LineIdle:
-            // Wait for the USB (ULPI) bus to return to idle
-            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
-            xfer->type = XferIdle;
-            xfer->stage = NoXfer;
-            return 1;
-#endif /* 0 */
-
-        default:
-            printf("[%s:%d] Not a valid DATAx stage: %u\n", __FILE__, __LINE__, xfer->stage);
-            return -1;
+	default:
+	    return drive_eop(xfer, in, out);
         }
         break;
     default:
@@ -526,60 +451,77 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxBody:
+	    assert(in->dir == SIG0);
             if (in->nxt == SIG1) {
+		// Todo: check CRC
                 xfer->rx[xfer->rx_ptr++] = in->data.a;
             }
             if (in->stp == SIG1) {
+		// Turn around the ULPI bus, so that we can send an RX CMD
+		out->dir = SIG1;
                 out->nxt = SIG0;
+		out->data.a = 0x00;
+		out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
                 xfer->rx_len = xfer->rx_ptr - 2;
             }
             break;
 
-        case DATAxStop:
-            // Todo: check CRC
-            out->dir = SIG1;
-            out->data.a = 0x00;
-            out->data.b = 0xFF;
-            xfer->stage = AssertDir;
-            break;
-
-        case AssertDir:
-            assert(in->dir == SIG1 && in->nxt == SIG0);
-            out->data.a = 0x4C;
-            out->data.b = 0x00;
-            xfer->stage = EndRXCMD;
-            break;
-
-        case EndRXCMD:
-            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-            out->data.a = 0x4D;
-            out->data.b = 0x00;
-            xfer->stage = EOP;
-            break;
-
-        case EOP:
-            assert(in->dir == SIG1 && in->nxt == SIG0 && in->data.b == 0x00);
-            out->dir = SIG0;
-            out->data.a = 0x00;
-            out->data.b = 0xFF;
-            xfer->stage = LineIdle;
-            break;
-
-        case LineIdle:
-            assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
-            xfer->type = XferIdle;
-            xfer->stage = NoXfer;
-            return 1;
-
-        default:
-            printf("[%s:%d] Not a valid DATAx stage: %u\n", __FILE__, __LINE__, xfer->stage);
-            return -1;
+	default:
+	    return drive_eop(xfer, in, out);
         }
         break;
     default:
         printf("[%s:%d] Not a DATAx packet: %u\n", __FILE__, __LINE__, xfer->type);
         return -1;
+    }
+
+    return 0;
+}
+
+static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    switch (xfer->stage) {
+
+    case Token2:
+    case DATAxCRC2:
+	assert(in->dir == SIG1 && in->nxt == SIG1 && in->data.b == 0x00);
+	out->nxt = SIG0;
+	out->data.a = 0x5D; // RX CMD: RxActive = 1
+	xfer->stage = DATAxStop;
+	break;
+
+    case DATAxStop:
+	assert(in->dir == SIG1 && in->nxt == SIG0);
+	out->data.a = 0x4C;
+	out->data.b = 0x00;
+	xfer->stage = EndRXCMD;
+	break;
+
+    case EndRXCMD:
+	assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+	out->data.a = 0x4D;
+	xfer->stage = EOP;
+	break;
+
+    case EOP:
+	assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+	out->dir = SIG0;
+	out->data.a = 0x00;
+	out->data.b = 0xFF;
+	xfer->stage = LineIdle;
+	break;
+
+    case LineIdle:
+	assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+	xfer->type = XferIdle;
+	xfer->stage = NoXfer;
+	return 1;
+
+    default:
+	printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
+	       xfer->stage, stage_strings[xfer->stage]);
+	return -1;
     }
 
     return 0;

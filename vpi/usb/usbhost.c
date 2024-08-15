@@ -489,6 +489,14 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
             printf("\nHOST\t#%8lu cyc =>\tSOF\n", cycle);
             host->op = HostSOF;
             host->step = 0u;
+
+	    // -- NEW -- //
+	    const uint16_t sof = (host->sof++) >> 3;
+	    const uint16_t crc = crc5_calc(sof);
+	    host->xfer.type = SOF;
+	    host->xfer.tok1 = crc & 0xFF;
+	    host->xfer.tok2 = (crc >> 8) & 0xFF;
+	    // -- OLD -- //
         }
     }
 
@@ -520,6 +528,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case HostSOF:
+#if 0
         if (host->xfer.type != SOF) {
             host->xfer.type = SOF;
             host->xfer.stage = NoXfer;
@@ -531,6 +540,13 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
             host->xfer.stage = NoXfer;
             host->op = HostIdle;
         }
+#endif /* 0 */
+	// -- NEW -- //
+	result = token_send_step(&host->xfer, in, out);
+	if (result == 1) {
+            host->op = HostIdle;
+	}
+	// -- OLD -- //
         break;
 
     case HostBulkOUT:
