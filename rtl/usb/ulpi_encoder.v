@@ -158,6 +158,7 @@ module ulpi_encoder #(
     if (reset) begin
       xsend <= TX_IDLE;
     end else if (dir_q || ulpi_dir) begin
+      // Todo: refactor to make a more efficient circuit
       xsend <= xsend == TX_DONE && LineState == 2'b00 ? TX_IDLE : xsend;
       // xsend <= xsend;
     end else begin

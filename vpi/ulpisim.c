@@ -1,6 +1,7 @@
 #include "ulpisim.h"
 #include "testcase.h"
 #include "tc_getdesc.h"
+#include "tc_bulkout.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -160,6 +161,7 @@ static int test_step(ut_state_t* state)
         int result;
 
         if (state->test_step++ == 0) {
+            // show_host(host);
             result = test->init(host, test->data);
             if (result < 0) {
                 return ut_failed("INIT", __LINE__, state);
@@ -246,15 +248,18 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
                 "\t@%8lu ns  =>\tPHY/Host high-speed negotiation completed [%s:%d]\n",
                 state->tick_ns, __FILE__, __LINE__);
             state->op = UT_Idle;
+            // show_host(host);
         }
         break;
 
     case UT_Idle:
         if (!ulpi_bus_is_idle(curr)) {
             // Wait for the ULPI bus to become idle, first ...
+            // show_host(host);
             result = usbh_step(host, curr, next);
         } else {
             // Initiate each of the various test-cases
+            // show_host(host);
             result = test_step(state);
         }
         if (result < 0) {
@@ -277,8 +282,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
             return ut_failed("USB host-step", __LINE__, state);
         } else if (result > 0) {
             // Proceed to the next test (sub-)step
-            vpi_printf("\t@%8lu ns  =>\tTest-case USB host-step completed\n",
-                       state->tick_ns);
+            vpi_printf("\t@%8lu ns  =>\tTest-case USB host-step completed [%s:%d]\n",
+                       state->tick_ns, __FILE__, __LINE__);
             state->op = UT_Idle;
         }
         break;
@@ -474,9 +479,10 @@ static int ut_compiletf(char* user_data)
     usbh_init(&state->host);
     state->test_curr = 0;
     state->test_step = 0;
-    state->test_num = 1;
-    state->tests = (testcase_t**)malloc(sizeof(testcase_t*));
+    state->test_num = 2;
+    state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * 2);
     state->tests[0] = test_getdesc();
+    state->tests[1] = test_bulkout();
 
     // Todo: populate the set of tests ...
 

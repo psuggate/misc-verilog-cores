@@ -107,6 +107,48 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
  */
 static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
+    transfer_t* xfer = &host->xfer;
+    int result;
+
+    switch (xfer->type) {
+
+    case OUT:
+        result = token_send_step(xfer, in, out);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            xfer->type = xfer->ep_seq[xfer->endpoint] == SIG0 ? DnDATA0 : DnDATA1;
+            xfer->stage = NoXfer;
+        }
+        break;
+
+    case DnDATA0:
+    case DnDATA1:
+        result = datax_send_step(xfer, in, out);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            xfer->type = UpACK;
+            xfer->stage = NoXfer;
+        }
+        break;
+
+    case UpACK:
+        result = ack_recv_step(xfer, in, out);
+        if (result > 0) {
+            transfer_ack(xfer);
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+        }
+        return result;
+
+    default:
+        printf("[%s:%d] Unexpected 'Bulk OUT' transfer-type: %u (%s)\n",
+               __FILE__, __LINE__, xfer->type, transfer_type_string(xfer));
+        ulpi_bus_show(in);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -281,8 +323,8 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case HostBulkOUT:
-        result = bulk_out_step(host, in, out);
-        break;
+        // printf("[%s:%d] potatoe\n", __FILE__, __LINE__);
+        return bulk_out_step(host, in, out);
 
     case HostSETUP:
         result = stdreq_step(host, in, out);

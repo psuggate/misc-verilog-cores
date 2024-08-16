@@ -213,10 +213,12 @@ void ulpi_bus_show(const ulpi_bus_t* bus);
 char* ulpi_bus_string(const ulpi_bus_t* bus);
 
 void transfer_show(const transfer_t* xfer);
+const char* transfer_type_string(const transfer_t* xfer);
 char* transfer_string(const transfer_t* xfer);
+uint8_t transfer_type_to_pid(transfer_t* xfer);
 void transfer_out(transfer_t* xfer, uint8_t addr, uint8_t ep);
 void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep);
-uint8_t transfer_type_to_pid(transfer_t* xfer);
+void transfer_ack(transfer_t* xfer);
 
 void sof_frame(transfer_t* xfer, uint16_t frame);
 

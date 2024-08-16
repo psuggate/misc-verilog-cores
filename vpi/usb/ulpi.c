@@ -68,6 +68,11 @@ static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 //  Helper Routines
 ///
 
+const char* transfer_type_string(const transfer_t* xfer)
+{
+    return type_strings[xfer->type];
+}
+
 char* transfer_string(const transfer_t* xfer)
 {
     static char str[256];
@@ -161,6 +166,20 @@ void transfer_in(transfer_t* xfer, uint8_t addr, uint8_t ep)
 }
 
 /**
+ * Acknowledge a DATAx transfer, by toggling its sequence bit.
+ */
+void transfer_ack(transfer_t* xfer)
+{
+    uint8_t ep = xfer->endpoint;
+
+    if (xfer->ep_seq[ep] == SIG0) {
+        xfer->ep_seq[ep] = SIG1;
+    } else {
+        xfer->ep_seq[ep] = SIG0;
+    }
+}
+
+/**
  * Sets up for the start of a new (micro-)frame, canceling any ongoing
  * transactions.
  */
@@ -181,6 +200,22 @@ void sof_frame(transfer_t* xfer, uint16_t frame)
 //
 //  Transaction Step-Functions
 ///
+
+static int check_rx_crc16(transfer_t* xfer)
+{
+    int len = xfer->rx_len;
+    if (len > 0) {
+        uint16_t crc = crc16_calc(xfer->rx, len);
+        uint16_t cod = crc16_calc(xfer->rx, xfer->rx_ptr);
+        xfer->crc1 = crc & 0xFF;
+        xfer->crc2 = (crc >> 8) & 0xFF;
+        printf("[%s:%d] CRC16: 0x%04X (check code: 0x%04X, length: %d)\n",
+               __FILE__, __LINE__, crc, cod, len);
+        return xfer->crc1 == xfer->rx[len] && xfer->crc2 == xfer->rx[len+1] && cod == 0x4FFE;
+    } else {
+        return xfer->rx[0] == 0x00 && xfer->rx[1] == 0x00;
+    }
+}
 
 static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
@@ -502,19 +537,21 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxBody:
-            assert(in->dir == SIG0);
-            if (in->nxt == SIG1) {
-                // Todo: check CRC
-                xfer->rx[xfer->rx_ptr++] = in->data.a;
-            }
+            assert(in->dir == SIG0 && in->data.b == 0x00);
             if (in->stp == SIG1) {
                 // Turn around the ULPI bus, so that we can send an RX CMD
+                // Todo: check CRC
                 out->dir = SIG1;
                 out->nxt = SIG0;
                 out->data.a = 0x00;
                 out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
                 xfer->rx_len = xfer->rx_ptr - 2;
+                if (check_rx_crc16(xfer) < 1) {
+                    return -1;
+                }
+            } else if (in->nxt == SIG1) {
+                xfer->rx[xfer->rx_ptr++] = in->data.a;
             } else {
                 out->nxt = SIG1;
             }
