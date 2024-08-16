@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Aug 16 05:08:23 2024
+[*] Fri Aug 16 22:40:53 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Aug 16 05:07:48 2024"
-[dumpfile_size] 297456
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
-[timestart] 15513800
+[dumpfile] "./vpi_usb_ulpi_tb.vcd"
+[dumpfile_mtime] "Fri Aug 16 22:40:32 2024"
+[dumpfile_size] 276980
+[savefile] "./vpi_usb_ulpi_tb.gtkw"
+[timestart] 22410500
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 16140000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 22690000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
 [sst_width] 233
 [signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 1035
+[sst_vpaned_height] 446
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -90,5 +90,19 @@ vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dir_q
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dbg_xsend[39:0]
 @1000200
 -Encoder
+@800201
+-Testbench
+@29
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_start_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_cycle_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_fetch_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_store_o
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_error_i
+@23
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_endpt_o[3:0]
+@29
+vpi_usb_ulpi_tb.tstart_q
+@1000201
+-Testbench
 [pattern_trace] 1
 [pattern_trace] 0

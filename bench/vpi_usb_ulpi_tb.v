@@ -13,7 +13,7 @@ module vpi_usb_ulpi_tb;
   // -- Globals -- //
 
   reg clock, clk25, arst_n;
-  wire usb_clock, usb_rst_n, dev_clock, dev_reset, reset;
+  wire usb_clock, usb_rst_n, dev_clock, dev_reset, reset, locked;
 
   initial begin
     clock <= 1'b1;
@@ -44,6 +44,9 @@ module vpi_usb_ulpi_tb;
 
   // -- Simulation Signals -- //
 
+  wire bulk_start_w, bulk_cycle_w, bulk_fetch_w, bulk_store_w;
+  wire [3:0] bulk_endpt_w;
+
   wire blki_tvalid_w, blki_tready_w, blki_tlast_w, blki_tkeep_w;
   wire blko_tvalid_w, blko_tready_w, blko_tlast_w, blko_tkeep_w;
   wire [7:0] blki_tdata_w, blko_tdata_w;
@@ -71,6 +74,41 @@ module vpi_usb_ulpi_tb;
       areset_n <= 4'h0;
     end else begin
       areset_n <= {areset_n[2:0], 1'b1};
+    end
+  end
+
+
+  //
+  //  Some Logics
+  ///
+
+  reg tvalid_q, tlast_q, tstart_q;
+  reg [7:0] tdata_q;
+
+  assign blki_tvalid_w = tvalid_q;
+  assign blki_tlast_w  = tlast_q;
+  assign blki_tkeep_w  = 1'b1;
+  assign blki_tdata_w  = tdata_q;
+
+  always @(posedge usb_clock) begin
+    if (!usb_rst_n) begin
+      tvalid_q <= 1'b0;
+      tstart_q <= 1'b0;
+      tlast_q  <= 1'b0;
+    end else begin
+      tstart_q <= bulk_start_w && (bulk_endpt_w == 4'h2);
+
+      if (tstart_q && bulk_fetch_w) begin
+        tvalid_q <= 1'b1;
+        tlast_q  <= 1'b0;
+        tdata_q  <= $random;
+      end else if (blki_tready_w && tvalid_q && !tlast_q) begin
+        tlast_q <= 1'b1;
+        tdata_q <= $random;
+      end else if (blki_tready_w && tvalid_q && tlast_q) begin
+        tvalid_q <= 1'b0;
+        tlast_q  <= 1'b0;
+      end
     end
   end
 
@@ -136,12 +174,13 @@ module vpi_usb_ulpi_tb;
 
       .blk_in_ready_i (bulk_in_ready_q), // USB BULK EP control-signals
       .blk_out_ready_i(bulk_out_ready_q),
+*/
+
       .blk_start_o    (bulk_start_w),
       .blk_cycle_o    (bulk_cycle_w),
       .blk_fetch_o    (bulk_fetch_w),
       .blk_store_o    (bulk_store_w),
       .blk_endpt_o    (bulk_endpt_w),
-*/
       .blk_error_i    (1'b0),
 
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path

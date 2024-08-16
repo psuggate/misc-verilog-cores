@@ -7,7 +7,7 @@
 #include <vpi_user.h>
 
 
-#define BULK_OUT_EP 2
+#define BULK_OUT_EP 1
 
 
 typedef enum __bulkout_state {

@@ -12,6 +12,7 @@ all:	build
 build:	$(VPI) $(OBJ) $(INC)
 
 clean:
+	make -C usb clean
 	rm -f $(OBJ) $(VPI) $(RUN)
 
 %.o: %.c

@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Sun Jun 30 04:56:06 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/packet_fifo_tb.vcd"
+[dumpfile] "./packet_fifo_tb.vcd"
 [dumpfile_mtime] "Sun Jun 30 04:55:21 2024"
 [dumpfile_size] 19186
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/packet_fifo_tb.gtkw"
+[savefile] "./packet_fifo_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1

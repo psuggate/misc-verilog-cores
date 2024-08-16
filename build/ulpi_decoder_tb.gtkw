@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
 [*] Fri Jul  5 06:08:50 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/ulpi_decoder_tb.vcd"
+[dumpfile] "./ulpi_decoder_tb.vcd"
 [dumpfile_mtime] "Thu Jul  4 05:45:49 2024"
 [dumpfile_size] 17465
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/ulpi_decoder_tb.gtkw"
+[savefile] "./ulpi_decoder_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
