@@ -14,10 +14,13 @@
 static int stdreq_start(usb_host_t* host, const usb_stdreq_t* req)
 {
     transfer_t* xfer = &(host->xfer);
+    const uint16_t tok = crc5_calc((uint16_t)host->addr & 0x7F);
     const uint16_t crc = crc16_calc((uint8_t*)req, 8);
 
     xfer->address = host->addr;
     xfer->endpoint = 0;
+    xfer->tok1 = tok & 0xFF;
+    xfer->tok2 = (tok >> 8) & 0xFF;
     xfer->type = SETUP;
     xfer->stage = NoXfer; // AssertDir;
 

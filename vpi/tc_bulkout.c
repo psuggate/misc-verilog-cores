@@ -15,7 +15,7 @@ typedef enum __bulkout_state {
 } bulkout_state_t;
 
 static const char tc_bulkout_name[] = "BULK OUT";
-static const char bulkout_strings[10][16] = {
+static const char bulkout_strings[4][16] = {
     {"BulkOUT0"},
     {"BulkOUT1"},
     {"BulkOUT2"},
@@ -27,14 +27,14 @@ static void tc_bulkout_xfer(usb_host_t* host, int n, uint8_t ep)
     transfer_t* xfer = &host->xfer;
 
     host->op = HostBulkOUT;
-    // host->step = 0;
 
     xfer->type = OUT;
     xfer->stage = NoXfer;
     xfer->address = host->addr;
     xfer->endpoint = ep;
 
-    uint16_t tok = crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(ep & 0x0F) << 7));
+    const uint16_t tok =
+        crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(ep & 0x0F) << 7));
     xfer->tok1 = tok & 0xFF;
     xfer->tok2 = (tok >> 8) & 0xFF;
 
@@ -83,7 +83,7 @@ static int tc_bulkout_step(usb_host_t* host, void* data)
     case BulkOUT1:
         // BulkOUT1 completed, so move to BulkOUT1
         transfer_ack(xfer);
-        tc_bulkout_xfer(host, 73, 2);
+        tc_bulkout_xfer(host, 0, 2);
         *st = BulkOUT2;
         return 0;
 

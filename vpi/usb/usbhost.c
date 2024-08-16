@@ -14,27 +14,6 @@
 #include <string.h>
 
 
-// #define __short_timers
-#ifdef  __short_timers
-
-#define RESET_TICKS        60
-#define SOF_N_TICKS        75
-
-#else   /* !__short_timers */
-#ifdef  __long_timers
-
-#define RESET_TICKS     60000
-#define SOF_N_TICKS      7500
-
-#else   /* !__long_timers */
-
-#define RESET_TICKS        60
-#define SOF_N_TICKS       750
-
-#endif  /* !__long_timers */
-#endif  /* !__short_timers */
-
-
 #define HOST_BUF_LEN    16384u
 
 
@@ -102,8 +81,8 @@ static int start_host_to_func(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t
  * Perform a single-step of a USB Bulk OUT transaction.
  * A 'Bulk OUT' transaction consists of:
  *  - 'OUT' token, with addr & EP;
- *  - 'DATA0/1' packet (link -> device); and
- *  - 'ACK/NAK' handshake (device -> link).
+ *  - 'DATA0/1' packet (host -> device); and
+ *  - 'ACK/NAK' handshake (device -> host).
  */
 static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
@@ -144,6 +123,61 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
 
     default:
         printf("[%s:%d] Unexpected 'Bulk OUT' transfer-type: %u (%s)\n",
+               __FILE__, __LINE__, xfer->type, transfer_type_string(xfer));
+        ulpi_bus_show(in);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+/**
+ * Perform a single-step of a USB Bulk IN transaction.
+ * A 'Bulk IN' transaction consists of:
+ *  - 'IN' token, with addr & EP;
+ *  - 'DATA0/1' packet (device -> host); and
+ *  - 'ACK' handshake (host -> device).
+ */
+static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    transfer_t* xfer = &host->xfer;
+    int result;
+
+    switch (xfer->type) {
+
+    case IN:
+        result = token_send_step(xfer, in, out);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            xfer->type = xfer->ep_seq[xfer->endpoint] == SIG0 ? UpDATA0 : UpDATA1;
+            xfer->stage = NoXfer;
+        }
+        break;
+
+    case UpDATA0:
+    case UpDATA1:
+        result = datax_recv_step(xfer, in, out);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            xfer->type = DnACK;
+            xfer->stage = NoXfer;
+        }
+        break;
+
+    case DnACK:
+        result = ack_send_step(xfer, in, out);
+        if (result > 0) {
+            transfer_ack(xfer);
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+        }
+        return result;
+
+    default:
+        printf("[%s:%d] Unexpected 'Bulk IN' transfer-type: %u (%s)\n",
                __FILE__, __LINE__, xfer->type, transfer_type_string(xfer));
         ulpi_bus_show(in);
         return -1;
@@ -311,6 +345,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case HostResume:
     case HostIdle:
         // Nothing to do ...
+        vpi_printf(".");
         host->step++;
         result = 0;
         break;
@@ -322,10 +357,6 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         }
         break;
 
-    case HostBulkOUT:
-        // printf("[%s:%d] potatoe\n", __FILE__, __LINE__);
-        return bulk_out_step(host, in, out);
-
     case HostSETUP:
         result = stdreq_step(host, in, out);
         if (result > 0) {
@@ -333,14 +364,15 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         }
         return result;
 
+    case HostBulkOUT:
+        return bulk_out_step(host, in, out);
+
     case HostBulkIN:
-        host->step++;
-        printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
-        break;
+        return bulk_in_step(host, in, out);
 
     default:
         host->step++;
-        printf("\nHOST\t#%8lu cyc =>\tERROR\n", cycle);
+        printf("\nHOST\t#%8lu cyc =>\tERROR [%s:%d]\n", cycle, __FILE__, __LINE__);
         break;
     }
 

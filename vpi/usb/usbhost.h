@@ -13,6 +13,27 @@
 #define MAX_PACKET_LEN 512
 #define MAX_CONFIG_LEN 64
 
+// #define __short_timers
+#ifdef  __short_timers
+
+#define RESET_TICKS        60
+#define SOF_N_TICKS        75
+
+#else   /* !__short_timers */
+#ifdef  __long_timers
+
+#define RESET_TICKS     60000
+#define SOF_N_TICKS      7500
+
+#else   /* !__long_timers */
+
+#define RESET_TICKS        60
+#define SOF_N_TICKS       750
+
+#endif  /* !__long_timers */
+#endif  /* !__short_timers */
+
+
 #define XACT_CONF_OUT 1
 #define XACT_CONF_IN  2
 #define XACT_BULK_OUT 3

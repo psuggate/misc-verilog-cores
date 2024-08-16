@@ -2,10 +2,14 @@
 #include "testcase.h"
 #include "tc_getdesc.h"
 #include "tc_bulkout.h"
+#include "tc_waitsof.h"
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+
+#define NUM_TESTCASES 64
 
 
 static const char op_strings[5][16] = {
@@ -125,27 +129,27 @@ static int ut_step_xfer(ut_state_t* state)
 //
 static int stim_step(ulpi_phy_t* phy, usb_host_t* host, const ulpi_bus_t* curr, ulpi_bus_t* next)
 {
+    int result;
     if (phy->state.speed < HighSpeed || phy->state.op != PhyIdle) {
         // Step-function for the ULPI PHY of the USB device/peripheral
-        int result = uphy_step(phy, curr, next);
+        result = uphy_step(phy, curr, next);
+        host->cycle++;
         if (result < 0) {
             return ut_error("ULPI PHY step failed\n");
         } else if (result > 0) {
             host->op = HostIdle;
         }
-        host->cycle++;
     } else {
         // Step-function for the USB host, if the PHY 
         vpi_printf(".");
-        int result = usbh_step(host, curr, next);
+        result = usbh_step(host, curr, next);
         if (result < 0) {
             vpi_printf("[%s:%d] USB host-step failed: host->op = %x\n\n",
                        __FILE__, __LINE__, host->op);
         }
-        return result;
     }
 
-    return 0;
+    return result;
 }
 
 //
@@ -278,8 +282,6 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         break;
 
     case UT_Test:
-        vpi_printf(".");
-
         // Step each test-case to resolution
         result = usbh_step(host, curr, next);
         if (result < 0) {
@@ -483,10 +485,15 @@ static int ut_compiletf(char* user_data)
     usbh_init(&state->host);
     state->test_curr = 0;
     state->test_step = 0;
-    state->test_num = 2;
-    state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * 2);
-    state->tests[0] = test_getdesc();
-    state->tests[1] = test_bulkout();
+    int i = 0;
+    state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
+    state->tests[i++] = test_getdesc();
+    // state->tests[i++] = test_setaddr();
+    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_bulkout();
+    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_bulkout();
+    state->test_num = i;
 
     // Todo: populate the set of tests ...
 
