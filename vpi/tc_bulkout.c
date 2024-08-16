@@ -7,6 +7,9 @@
 #include <vpi_user.h>
 
 
+#define BULK_OUT_EP 2
+
+
 typedef enum __bulkout_state {
     BulkOUT0,
     BulkOUT1,
@@ -25,7 +28,6 @@ static const char bulkout_strings[4][16] = {
 static void tc_bulkout_xfer(usb_host_t* host, int n, uint8_t ep)
 {
     transfer_t* xfer = &host->xfer;
-
     host->op = HostBulkOUT;
 
     xfer->type = OUT;
@@ -55,7 +57,7 @@ static int tc_bulkout_init(usb_host_t* host, void* data)
     bulkout_state_t* st = (bulkout_state_t*)data;
     *st = BulkOUT0;
 
-    tc_bulkout_xfer(host, 16, 2);
+    tc_bulkout_xfer(host, 16, BULK_OUT_EP);
     host->step = 0;
 
     return 0;
@@ -76,14 +78,14 @@ static int tc_bulkout_step(usb_host_t* host, void* data)
     case BulkOUT0:
         // BulkOUT0 completed, so move to BulkOUT1
         transfer_ack(xfer);
-        tc_bulkout_xfer(host, 37, 2);
+        tc_bulkout_xfer(host, 37, BULK_OUT_EP);
         *st = BulkOUT1;
         return 0;
 
     case BulkOUT1:
-        // BulkOUT1 completed, so move to BulkOUT1
+        // BulkOUT1 completed, so move to BulkOUT2
         transfer_ack(xfer);
-        tc_bulkout_xfer(host, 0, 2);
+        tc_bulkout_xfer(host, 0, BULK_OUT_EP);
         *st = BulkOUT2;
         return 0;
 
@@ -98,7 +100,8 @@ static int tc_bulkout_step(usb_host_t* host, void* data)
 
     case BulkDone:
         // Bulk OUT transaction tests completed
-        vpi_printf("[%s:%d] WARN => Invoked post-completion\n", __FILE__, __LINE__);
+        vpi_printf("[%s:%d] WARN => Invoked post-completion\n",
+                   __FILE__, __LINE__);
         return 1;
 
     default:

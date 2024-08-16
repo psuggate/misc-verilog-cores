@@ -2,6 +2,7 @@
 #include "testcase.h"
 #include "tc_getdesc.h"
 #include "tc_bulkout.h"
+#include "tc_bulkin.h"
 #include "tc_waitsof.h"
 
 #include <assert.h>
@@ -492,6 +493,7 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_waitsof();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_bulkin();
     state->tests[i++] = test_bulkout();
     state->test_num = i;
 
