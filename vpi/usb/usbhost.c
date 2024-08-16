@@ -345,7 +345,7 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case HostResume:
     case HostIdle:
         // Nothing to do ...
-        vpi_printf(".");
+        printf(".");
         host->step++;
         result = 0;
         break;

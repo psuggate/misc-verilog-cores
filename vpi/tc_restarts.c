@@ -1,4 +1,6 @@
 #include "tc_restarts.h"
+#include "usb/ulpi.h"
+
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -59,7 +61,7 @@ static inline int link_is_idle(ulpi_bus_t* bus)
 //  Simulation Routines
 ///
 
-int test_restarts_init(ulpi_phy_t* phy, void* data)
+static int tc_restarts_init(usb_host_t* host, void* data)
 {
     restart_t* por = (restart_t*)data;
     por->stage = PowerOff;
@@ -67,16 +69,17 @@ int test_restarts_init(ulpi_phy_t* phy, void* data)
     return 0;
 }
 
-int test_restarts_step(ulpi_phy_t* phy, void* data)
+static int tc_restarts_step(usb_host_t* host, void* data)
 {
     restart_t* por = (restart_t*)data;
+    ulpi_bus_t* bus = &host->prev;
 
     switch (por->stage) {
 
     case ErrReset: return -1;
 
     case PowerOff:
-        if (phy->bus.rst_n == vpi0) {
+        if (bus->rst_n == vpi0) {
             // Todo:
             //  - reset the PHY registers
             por->stage = RefClock;
@@ -84,15 +87,15 @@ int test_restarts_step(ulpi_phy_t* phy, void* data)
         break;
 
     case RefClock:
-        if (phy->bus.rst_n == vpi1) {
+        if (bus->rst_n == vpi1) {
             por->stage = TStart;
             por->ticks = 0;
             // Todo: correctly drive the bus to ULPI-idle
-            phy->bus.dir = vpi1;
-            phy->bus.nxt = vpi0;
-            phy->bus.data.a = 0x00;
-            phy->bus.data.b = 0x00;
-        } else if (phy->bus.rst_n != vpi0) {
+            bus->dir = vpi1;
+            bus->nxt = vpi0;
+            bus->data.a = 0x00;
+            bus->data.b = 0x00;
+        } else if (bus->rst_n != vpi0) {
             vpi_printf("ERROR: RESETB != 0 or 1\n");
             vpi_control(vpiFinish, 3);
             por->stage = ErrReset;
@@ -103,11 +106,11 @@ int test_restarts_step(ulpi_phy_t* phy, void* data)
         break;
 
     case TStart:
-        if (phy_is_driving(&phy->bus) && data_is_idle(&phy->bus)) {
-            if (++por->ticks >= TSTART_TICKS && phy->bus.stp == vpi0) {
+        if (phy_is_driving(bus) && data_is_idle(bus)) {
+            if (++por->ticks >= TSTART_TICKS && bus->stp == vpi0) {
                 por->stage = LinkIdle;
                 por->ticks = 0;
-                phy_bus_release(&phy->bus);
+                phy_bus_release(bus);
             }
         } else {
             vpi_printf("ERROR: Bad TStart bus state\n");
@@ -117,25 +120,25 @@ int test_restarts_step(ulpi_phy_t* phy, void* data)
         break;
 
     case LinkIdle:
-        if (link_is_idle(&phy->bus)) {
+        if (link_is_idle(bus)) {
             if (++por->ticks >= LINK_IDLE_TICKS) {
                 // Todo:
                 //  - assert 'dir'
                 por->stage = RXCMD;
                 por->ticks = 0;
-                phy->bus.dir = vpi1;
+                bus->dir = vpi1;
             }
         }
         break;
 
     case RXCMD:
-        phy_drive_rx_cmd(phy);
+        // phy_drive_rx_cmd(phy);
         por->stage = Restarted;
         por->ticks = 0;
         break;
 
     case Restarted:
-        phy_bus_release(&phy->bus);
+        phy_bus_release(bus);
         por->stage = Completed;
         por->ticks = 0;
         break;
@@ -160,8 +163,8 @@ testcase_t* test_restarts(void)
     restart_t* data = (restart_t*)malloc(sizeof(restart_t));
     testcase_t* test = tc_create(tc_restarts, data);
 
-    test->init = test_restarts_init;
-    test->step = test_restarts_step;
+    test->init = tc_restarts_init;
+    test->step = tc_restarts_step;
 
     return test;
 }
