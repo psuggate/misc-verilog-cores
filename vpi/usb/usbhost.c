@@ -253,7 +253,7 @@ int usbh_bulk_in(usb_host_t* host, uint8_t* data, uint16_t* len)
 int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     int result = -1;
-    uint64_t cycle = host->cycle;
+    uint64_t cycle = host->cycle++;
 
     memcpy(out, in, sizeof(ulpi_bus_t));
 
@@ -263,12 +263,12 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     //
     if (in->rst_n == SIG0) {
         if (host->prev.rst_n != SIG0) {
-            printf("\nHOST\t#%8lu cyc =>\tReset issued\n", cycle);
+            printf("\nHOST\t#%8lu cyc =>\tReset issued [%s:%d]\n", cycle, __FILE__, __LINE__);
             usbh_reset(host);
         }
         out->dir = SIG0;
         out->nxt = SIG0;
-    } else if ((host->cycle % SOF_N_TICKS) == 0ul) {
+    } else if ((cycle % SOF_N_TICKS) == 0ul) {
         if (host->op > HostIdle) {
             printf("\nHOST\t#%8lu cyc =>\tTransaction cancelled for SOF [%s:%d]\n",
                    cycle, __FILE__, __LINE__);
@@ -328,7 +328,10 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case HostSETUP:
         result = stdreq_step(host, in, out);
-        break;
+        if (result > 0) {
+            printf("\nHOST\t#%8lu cyc =>\tSUCCESS [%s:%d]\n", cycle, __FILE__, __LINE__);
+        }
+        return result;
 
     case HostBulkIN:
         host->step++;
@@ -341,7 +344,6 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
     }
 
-    host->cycle++;
     memcpy(&host->prev, in, sizeof(ulpi_bus_t));
 
     return result; 

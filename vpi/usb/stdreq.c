@@ -87,7 +87,8 @@ int stdreq_get_descriptor(usb_host_t* host, uint16_t num)
     desc->value.dat = host->buf;
 
     if (get_descriptor(&req, num, 0, MAX_CONFIG_SIZE, desc) < 0) {
-        printf("HOST\t#%8lu cyc =>\tUSBH GET DESCRIPTOR failed\n", host->cycle);
+        printf("HOST\t#%8lu cyc =>\tUSBH GET DESCRIPTOR failed [%s:%d]\n",
+               host->cycle, __FILE__, __LINE__);
         return -1;
     }
 
@@ -208,13 +209,14 @@ int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     default:
         // ERROR
-        printf("Invalid SETUP transaction step: %u\n", host->step);
+        printf("Invalid SETUP transaction step: %u [%s:%d]\n",
+               host->step, __FILE__, __LINE__);
         show_host(host);
         return -1;
     }
 
     if (result < 0) {
-        printf("SETUP transaction failed\n");
+        printf("SETUP transaction failed [%s:%d]\n", __FILE__, __LINE__);
         show_host(host);
         ulpi_bus_show(in);
     } else if (result > 1) {
@@ -249,7 +251,7 @@ void test_stdreq_get_desc(uint16_t num)
     ulpi_bus_t bus = {0};
     int result;
 
-    printf("Issuing 'GET DESCRIPTOR'");
+    printf("Issuing 'GET DESCRIPTOR' [%s:%d]", __FILE__, __LINE__);
 
     // -- Stage 1: SETUP -- //
 

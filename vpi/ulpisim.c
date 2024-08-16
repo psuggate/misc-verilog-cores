@@ -175,14 +175,17 @@ static int test_step(ut_state_t* state)
 
         if (result > 0) {
             // Test finished, advance to the next, if possible
-            vpi_printf("HOST\t#%8lu cyc =>\t%s completed\n", cycle, test->name);
+            vpi_printf("HOST\t#%8lu cyc =>\t%s completed [%s:%d]\n", cycle,
+                       test->name, __FILE__, __LINE__);
             state->test_step = 0;
             state->test_curr++;
+            return result;
         }
     } else {
         // No more tests remaining
-        vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed\n", cycle);
-        return 1;
+        vpi_printf("HOST\t#%8lu cyc =>\tAll testbenches completed [%s:%d]\n",
+                   cycle, __FILE__, __LINE__);
+        return 2;
     }
 
     return 0;
@@ -248,34 +251,35 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
                 "\t@%8lu ns  =>\tPHY/Host high-speed negotiation completed [%s:%d]\n",
                 state->tick_ns, __FILE__, __LINE__);
             state->op = UT_Idle;
-            // show_host(host);
         }
         break;
 
     case UT_Idle:
         if (!ulpi_bus_is_idle(curr)) {
             // Wait for the ULPI bus to become idle, first ...
-            // show_host(host);
             result = usbh_step(host, curr, next);
+            if (result < 0) {
+                return ut_failed("USB host-step", __LINE__, state);
+            }
         } else {
             // Initiate each of the various test-cases
-            // show_host(host);
+            host->cycle++;
             result = test_step(state);
-        }
-        if (result < 0) {
-            return ut_failed("", __LINE__, state);
-        } else if (result > 0) {
-            // Indicate that the test-cases completed successfully
-            vpi_printf("\t@%8lu ns  =>\tAll test-cases completed [%s:%d]\n",
-                       state->tick_ns, __FILE__, __LINE__);
-            // vpi_printf("\t@%8lu ns  =>\tAll test-cases completed\n", state->tick_ns);
-            state->op = UT_Done;
-        } else {
-            state->op = UT_Test;
+            if (result < 0) {
+                return ut_failed("test-step", __LINE__, state);
+            } else if (result > 0) {
+                if (result > 1) {
+                    state->op = UT_Done;
+                }
+            } else {
+                state->op = UT_Test;
+            }
         }
         break;
 
     case UT_Test:
+        vpi_printf(".");
+
         // Step each test-case to resolution
         result = usbh_step(host, curr, next);
         if (result < 0) {
@@ -290,8 +294,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
 
     case UT_Done:
         // Indicate that the test-cases completed successfully
-        // vpi_printf("\t@%8lu ns  =>\tAll test-cases completed [%s:%d]\n",
-        //         state->tick_ns, __FILE__, __LINE__);
+        vpi_printf("\t@%8lu ns  =>\tAll test-cases completed [%s:%d]\n",
+                   state->tick_ns, __FILE__, __LINE__);
         return 1;
 
     default:
@@ -329,9 +333,9 @@ static int cb_step_sync(p_cb_data cb_data)
 
     int result = ut_step(state, &next);
     if (result < 0) {
-        vpi_printf("Oh noes\n");
+        vpi_printf("Oh noes [%s:%d]\n", __FILE__, __LINE__);
     } else if (result > 0) {
-        vpi_printf("Done\n");
+        vpi_printf("Done [%s:%d]\n", __FILE__, __LINE__);
     }
 
     ut_update_bus_state(state, &next);
