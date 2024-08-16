@@ -1,8 +1,10 @@
 #include "ulpisim.h"
 #include "testcase.h"
-#include "tc_getdesc.h"
-#include "tc_bulkout.h"
+
 #include "tc_bulkin.h"
+#include "tc_bulkout.h"
+#include "tc_getdesc.h"
+#include "tc_setaddr.h"
 #include "tc_waitsof.h"
 
 #include <assert.h>
@@ -489,7 +491,7 @@ static int ut_compiletf(char* user_data)
     int i = 0;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
     state->tests[i++] = test_getdesc();
-    // state->tests[i++] = test_setaddr();
+    state->tests[i++] = test_setaddr(0x23);
     state->tests[i++] = test_waitsof();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_waitsof();

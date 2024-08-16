@@ -57,7 +57,6 @@ int usbh_set_config(transfer_t* xfer, uint8_t num)
     return -1;
 }
 
-
 int set_configuration(usb_stdreq_t* req, uint16_t wValue)
 {
     return -1;
@@ -94,6 +93,20 @@ int stdreq_get_descriptor(usb_host_t* host, uint16_t num)
                host->cycle, __FILE__, __LINE__);
         return -1;
     }
+
+    return stdreq_start(host, &req);
+}
+
+int stdreq_set_address(usb_host_t* host, uint8_t addr)
+{
+    usb_stdreq_t req;
+
+    req.bmRequestType = 0x00;
+    req.bRequest = STDREQ_SET_ADDRESS;
+    req.wValue = addr;
+    req.wIndex = 0;
+    req.wLength = 0;
+    req.data = NULL;
 
     return stdreq_start(host, &req);
 }
