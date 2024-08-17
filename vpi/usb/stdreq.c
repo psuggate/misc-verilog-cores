@@ -111,6 +111,20 @@ int stdreq_set_address(usb_host_t* host, uint8_t addr)
     return stdreq_start(host, &req);
 }
 
+int stdreq_set_config(usb_host_t* host, uint8_t conf)
+{
+    usb_stdreq_t req;
+
+    req.bmRequestType = 0x00;
+    req.bRequest = STDREQ_SET_CONFIGURATION;
+    req.wValue = conf;
+    req.wIndex = 0;
+    req.wLength = 0;
+    req.data = NULL;
+
+    return stdreq_start(host, &req);
+}
+
 void stdreq_show(usb_stdreq_t* req)
 {
     printf("STD_REQ = {\n");
