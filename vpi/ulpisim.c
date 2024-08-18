@@ -8,6 +8,9 @@
 #include "tc_setconf.h"
 #include "tc_waitsof.h"
 
+// Todo: create a top-level registry of simulation system-tasks
+#include "packet_tb.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -571,5 +574,6 @@ void ut_register(void)
 
 void (*vlog_startup_routines[])() = {
     ut_register,
+    pt_register,
     0,
 };

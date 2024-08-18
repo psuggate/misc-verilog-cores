@@ -140,11 +140,11 @@ end else begin : g_bulk_in
 
   always @(posedge clock) begin
     if (reset || ENABLED != 1) begin
-      state <= ST_HALT;
+      state   <= ST_HALT;
       enabled <= 1'b0;
-      pid_q <= STALL;
+      pid_q   <= STALL;
     end else begin
-      state <= snext;
+      state   <= snext;
 
       if (clr_conf_i) begin
         enabled <= 1'b0;
@@ -193,10 +193,12 @@ end else begin : g_bulk_in
    (
     .clock   (clock),
     .reset   (reset),
+
     .s_tvalid(tvalid_w),
     .s_tready(tready_w),
     .s_tlast (tlast_w),
     .s_tdata ({tkeep_w, s_tdata}),
+
     .m_tvalid(m_tvalid),
     .m_tready(m_tready),
     .m_tlast (m_tlast),

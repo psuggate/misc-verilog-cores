@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Jun 29 09:24:26 2024
+[*] Sat Aug 17 07:40:08 2024
 [*]
 [dumpfile] "./ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Sat Jun 29 06:30:56 2024"
+[dumpfile_mtime] "Sun Jun 30 04:24:39 2024"
 [dumpfile_size] 5553
 [savefile] "./ep_bulk_in_tb.gtkw"
 [timestart] 0
-[size] 2560 1376
-[pos] -1 -1
+[size] 1920 1043
+[pos] 2559 -28
 *-15.495940 120000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ep_bulk_in_tb.
 [sst_width] 233
 [signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 414
+[sst_vpaned_height] 298
 @28
 ep_bulk_in_tb.clock
 ep_bulk_in_tb.reset
