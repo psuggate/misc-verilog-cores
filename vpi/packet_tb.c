@@ -440,31 +440,28 @@ static int tc_waitrst_step(fifo_sigs_t* curr, void* data)
 {
     tc_state_t* st = (tc_state_t*)data;
     assert(curr->clock == SIG1 && st != NULL);
-
     switch (st->step) {
-
     case 0:
         if (curr->reset == SIG1) {
+            curr->drop = SIG0;
+            curr->save = SIG0;
+            curr->redo = SIG0;
+            curr->next = SIG0;
             curr->w_vld = SIG0;
             curr->r_rdy = SIG0;
             st->step = 1;
         }
         break;
-
     case 1:
         if (curr->reset == SIG0) {
-            curr->r_rdy = SIG1;
             st->step = 2;
         }
         break;
-
     case 2:
         return 1;
-
     default:
         return -1;
     }
-
     return 0;
 }
 
@@ -653,17 +650,20 @@ static int tc_wr_redo_step(fifo_sigs_t* curr, void* data)
     case 5:
         curr->redo = SIG0;
     case 6:
+        curr->next = SIG0;
         result = fetch_packet(curr, st);
         if (result < 0) {
             tc_state_show(st);
             pt_error("fetch packet 2");
         } else if (result > 0) {
+            curr->next = SIG1;
             st->step++;
             st->tail = 0;
         }
         break;
 
     case 7:
+        curr->next = SIG0;
         return 1;
 
     default:
@@ -684,6 +684,114 @@ testcase_t* test_wr_redo(uint8_t len)
     tc->data = st;
     tc->init = tc_wr_redo_init;
     tc->step = tc_wr_redo_step;
+
+    return tc;
+}
+
+// -- WRITE, DROP, WRITE, FETCH PACKET -- //
+
+static const char tc_wr_drop_name[] = "WRITE, DROP, WRITE, FETCH PACKET";
+
+static int tc_wr_drop_init(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    st->step = 0;
+    st->head = 0;
+    st->tail = 0;
+    assert(fill_fixed_len(st->buf, st->size) == st->size);
+    return 0;
+}
+
+static int tc_wr_drop_step(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    int result;
+    assert(curr->clock == SIG1 && curr->reset == SIG0 && st != NULL);
+
+    switch (st->step) {
+
+    case 0:
+        curr->r_rdy = SIG0;
+        if (curr->w_rdy == SIG1) {
+            st->step = 1;
+        }
+        break;
+
+    case 1:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("store packet 1");
+            return -1;
+        } else if (result > 0) {
+            curr->drop = SIG1;
+            st->head = 0;
+            st->step = 2;
+        }
+        break;
+
+    case 2:
+        curr->drop = SIG0;
+        result = store_packet(curr, st);
+        if (result != 0) {
+            tc_state_show(st);
+            pt_error("re-store packet 1");
+            return -1;
+        }
+        st->step = 3;
+        break;
+        
+    case 3:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("store/fetch packet");
+        } else if (result > 0) {
+            curr->save = SIG1;
+            st->step = 4;
+        }
+        result = fetch_packet(curr, st);
+        if (result != 0) {
+            tc_state_show(st);
+            pt_error("fetch/store packet");
+        }
+        break;
+
+    case 4:
+        curr->save = SIG0;
+        result = fetch_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("fetch packet 1");
+        } else if (result > 0) {
+            curr->next = SIG1;
+            st->step = 5;
+            st->tail = 0;
+        }
+        break;
+
+    case 5:
+        curr->next = SIG0;
+        return 1;
+
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+testcase_t* test_wr_drop(uint8_t len)
+{
+    testcase_t* tc = malloc(sizeof(testcase_t));
+    tc_state_t* st = malloc(sizeof(tc_state_t));
+
+    st->step = 0;
+    st->size = (uint32_t)len;
+    tc->name = tc_wr_drop_name;
+    tc->data = st;
+    tc->init = tc_wr_drop_init;
+    tc->step = tc_wr_drop_step;
 
     return tc;
 }
@@ -857,6 +965,8 @@ static int pt_compiletf(char* user_data)
     state->tests[i++] = test_wr_redo(8);
     state->tests[i++] = test_wrdata1(3);
     state->tests[i++] = test_wr_redo(3);
+    state->tests[i++] = test_wr_drop(8);
+    state->tests[i++] = test_wr_drop(1);
     state->test_num = i;
 
     vpi_put_userdata(systf_handle, (void*)state);
