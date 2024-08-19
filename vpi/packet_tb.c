@@ -38,14 +38,14 @@ typedef struct __fifo_sigs {
     bit_t save;
     bit_t redo;
     bit_t next;
-    bit_t vld_i;
-    bit_t rdy_o;
-    bit_t lst_i;
-    byte_t dat_i;
-    bit_t vld_o;
-    bit_t rdy_i;
-    bit_t lst_o;
-    byte_t dat_o;
+    bit_t w_vld;
+    bit_t w_rdy;
+    bit_t w_lst;
+    byte_t w_dat;
+    bit_t r_vld;
+    bit_t r_rdy;
+    bit_t r_lst;
+    byte_t r_dat;
 } fifo_sigs_t;
 
 /**
@@ -74,14 +74,14 @@ typedef struct __pt_state {
     vpiHandle save;
     vpiHandle redo;
     vpiHandle next;
-    vpiHandle vld_i;
-    vpiHandle rdy_o;
-    vpiHandle lst_i;
-    vpiHandle dat_i;
-    vpiHandle vld_o;
-    vpiHandle rdy_i;
-    vpiHandle lst_o;
-    vpiHandle dat_o;
+    vpiHandle w_vld;
+    vpiHandle w_rdy;
+    vpiHandle w_lst;
+    vpiHandle w_dat;
+    vpiHandle r_vld;
+    vpiHandle r_rdy;
+    vpiHandle r_lst;
+    vpiHandle r_dat;
     int sync_flag;
     int test_num;
     int test_curr;
@@ -91,6 +91,12 @@ typedef struct __pt_state {
     fifo_sigs_t sigs;
 } pt_state_t;
 
+typedef struct __test {
+    uint32_t (*fill)(uint8_t* buf, const uint32_t len);
+    uint32_t size;
+    uint32_t length;
+    uint8_t stage;
+} test_t;
 
 static char err_mesg[2048] = {0};
 
@@ -102,8 +108,22 @@ static void pt_fetch_values(pt_state_t* state);
 static void pt_update_values(pt_state_t* state, fifo_sigs_t* next);
 static int pt_step(pt_state_t* state, fifo_sigs_t* next);
 
-
 void show_pt_state(pt_state_t* state);
+
+
+uint32_t fill_fixed_len(uint8_t* buf, const uint32_t len)
+{
+    for (int i=len; i--;) {
+        buf[i] = rand();
+    }
+    return len;
+}
+
+uint32_t fill_len_masked(uint8_t* buf, const uint32_t len)
+{
+    uint32_t size = rand() & len;
+    return fill_fixed_len(buf, size);
+}
 
 
 /**
@@ -124,6 +144,21 @@ static int pt_failed(const char* mesg, const int line, pt_state_t* state)
     pt_error(err_mesg);
 
     return -1;
+}
+
+static uint32_t byte_to_hex(const byte_t* in)
+{
+    return (uint32_t)in->b << 8 | (uint32_t)in->a;
+}
+
+static void fifo_sigs_show(fifo_sigs_t* sigs)
+{
+    vpi_printf(
+        "reset: %u, level: 0x%04x, {v: %u, r: %u, l: %u, d: 0x%04x}, {v: %u, r: %u, l: %u, d: 0x%04x}\n",
+        sigs->reset, byte_to_hex(&sigs->level), sigs->r_vld, sigs->r_rdy,
+        sigs->r_lst, byte_to_hex(&sigs->r_dat), sigs->w_vld, sigs->w_rdy,
+        sigs->w_lst, byte_to_hex(&sigs->w_dat)
+        );
 }
 
 /**
@@ -159,35 +194,35 @@ static void pt_fetch_values(pt_state_t* state)
     state->sigs.next = (bit_t)curr_value.value.scalar;
 
     // Packet 'store' AXI4 stream input
-    vpi_get_value(state->vld_i, &curr_value);
-    state->sigs.vld_i = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->w_vld, &curr_value);
+    state->sigs.w_vld = (bit_t)curr_value.value.scalar;
 
-    vpi_get_value(state->rdy_o, &curr_value);
-    state->sigs.rdy_o = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->w_rdy, &curr_value);
+    state->sigs.w_rdy = (bit_t)curr_value.value.scalar;
 
-    vpi_get_value(state->lst_i, &curr_value);
-    state->sigs.lst_i = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->w_lst, &curr_value);
+    state->sigs.w_lst = (bit_t)curr_value.value.scalar;
 
     curr_value.format = vpiVectorVal;
-    vpi_get_value(state->dat_i, &curr_value);
-    state->sigs.dat_i.a = (uint8_t)curr_value.value.vector->aval;
-    state->sigs.dat_i.b = (uint8_t)curr_value.value.vector->bval;
+    vpi_get_value(state->w_dat, &curr_value);
+    state->sigs.w_dat.a = (uint8_t)curr_value.value.vector->aval;
+    state->sigs.w_dat.b = (uint8_t)curr_value.value.vector->bval;
 
     // Packet 'fetch' AXI4 stream output
     curr_value.format = vpiScalarVal;
-    vpi_get_value(state->vld_o, &curr_value);
-    state->sigs.vld_o = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->r_vld, &curr_value);
+    state->sigs.r_vld = (bit_t)curr_value.value.scalar;
 
-    vpi_get_value(state->rdy_i, &curr_value);
-    state->sigs.rdy_i = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->r_rdy, &curr_value);
+    state->sigs.r_rdy = (bit_t)curr_value.value.scalar;
 
-    vpi_get_value(state->lst_o, &curr_value);
-    state->sigs.lst_o = (bit_t)curr_value.value.scalar;
+    vpi_get_value(state->r_lst, &curr_value);
+    state->sigs.r_lst = (bit_t)curr_value.value.scalar;
 
     curr_value.format = vpiVectorVal;
-    vpi_get_value(state->dat_o, &curr_value);
-    state->sigs.dat_o.a = (uint8_t)curr_value.value.vector->aval;
-    state->sigs.dat_o.b = (uint8_t)curr_value.value.vector->bval;
+    vpi_get_value(state->r_dat, &curr_value);
+    state->sigs.r_dat.a = (uint8_t)curr_value.value.vector->aval;
+    state->sigs.r_dat.b = (uint8_t)curr_value.value.vector->bval;
 }
 
 static void pt_update_values(pt_state_t* state, fifo_sigs_t* next)
@@ -200,33 +235,46 @@ static void pt_update_values(pt_state_t* state, fifo_sigs_t* next)
     now.type = vpiSimTime;
     vpi_get_time(NULL, &now);
 
-    if (curr->rdy_o != next->rdy_o) {
-        sig.value.scalar = next->rdy_o;
-        vpi_put_value(state->rdy_o, &sig, NULL, vpiNoDelay);
+    if (curr->r_rdy != next->r_rdy) {
+        sig.value.scalar = next->r_rdy;
+        vpi_put_value(state->r_rdy, &sig, NULL, vpiNoDelay);
     }
 
-    if (curr->vld_o != next->vld_o) {
-        sig.value.scalar = next->vld_o;
-        vpi_put_value(state->vld_o, &sig, NULL, vpiNoDelay);
+    if (curr->w_vld != next->w_vld) {
+        sig.value.scalar = next->w_vld;
+        vpi_put_value(state->w_vld, &sig, NULL, vpiNoDelay);
     }
 
-    if (curr->lst_o != next->lst_o) {
-        sig.value.scalar = next->lst_o;
-        vpi_put_value(state->lst_o, &sig, NULL, vpiNoDelay);
+    if (curr->w_lst != next->w_lst) {
+        sig.value.scalar = next->w_lst;
+        vpi_put_value(state->w_lst, &sig, NULL, vpiNoDelay);
     }
 
-    if (curr->level.a != next->level.a || curr->level.b != next->level.b) {
-        s_vpi_vecval vec = {next->level.a, next->level.b};
+    if (curr->drop != next->drop) {
+        sig.value.scalar = next->drop;
+        vpi_put_value(state->drop, &sig, NULL, vpiNoDelay);
+    }
+
+    if (curr->save != next->save) {
+        sig.value.scalar = next->save;
+        vpi_put_value(state->save, &sig, NULL, vpiNoDelay);
+    }
+
+    if (curr->redo != next->redo) {
+        sig.value.scalar = next->redo;
+        vpi_put_value(state->redo, &sig, NULL, vpiNoDelay);
+    }
+
+    if (curr->next != next->next) {
+        sig.value.scalar = next->next;
+        vpi_put_value(state->next, &sig, NULL, vpiNoDelay);
+    }
+
+    if (curr->w_dat.a != next->w_dat.a || curr->w_dat.b != next->w_dat.b) {
+        s_vpi_vecval vec = {next->w_dat.a, next->w_dat.b};
         sig.format = vpiVectorVal;
         sig.value.vector = &vec;
-        vpi_put_value(state->level, &sig, NULL, vpiNoDelay);
-    }
-
-    if (curr->dat_o.a != next->dat_o.a || curr->dat_o.b != next->dat_o.b) {
-        s_vpi_vecval vec = {next->dat_o.a, next->dat_o.b};
-        sig.format = vpiVectorVal;
-        sig.value.vector = &vec;
-        vpi_put_value(state->dat_o, &sig, NULL, vpiNoDelay);
+        vpi_put_value(state->w_dat, &sig, NULL, vpiNoDelay);
     }
 
     memcpy(&state->sigs, next, sizeof(fifo_sigs_t));
@@ -245,7 +293,6 @@ static int pt_step(pt_state_t* state, fifo_sigs_t* next)
 
     if (state->test_curr < state->test_num) {
         testcase_t* test = state->tests[state->test_curr];
-        int result;
 
         if (state->test_step++ == 0) {
             result = test->init(next, test->data);
@@ -265,13 +312,12 @@ static int pt_step(pt_state_t* state, fifo_sigs_t* next)
                        test->name, __FILE__, __LINE__);
             state->test_step = 0;
             state->test_curr++;
-            return result;
         }
     } else {
         // No more tests remaining
         vpi_printf("PT\t#%8lu cyc =>\tAll testbenches completed [%s:%d]\n",
                    cycle, __FILE__, __LINE__);
-        return 2;
+        result = 2;
     }
 
     changed |=
@@ -280,10 +326,10 @@ static int pt_step(pt_state_t* state, fifo_sigs_t* next)
 
     if (changed) {
         vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
-        // fifo_sigs_show(next);
+        fifo_sigs_show(next);
     }
 
-    return 0;
+    return result;
 }
 
 void show_pt_state(pt_state_t* state)
@@ -297,6 +343,355 @@ void show_pt_state(pt_state_t* state)
     vpi_printf("  test_step: %d,\n", state->test_step);
     vpi_printf("  tests[%d]: <%p>\n};\n", state->test_num, state->tests);
 }
+
+
+//
+//  Test-cases of the Testbench
+///
+
+typedef struct __tc_state {
+    int step;
+    int size;
+    int head;
+    int tail;
+    uint8_t buf[256];
+} tc_state_t;
+
+static void tc_state_show(tc_state_t* st)
+{
+    char str[2048];
+    int p = 0;
+    for (int i=0; i<st->size; i++) {
+        p += sprintf(&str[p], "0x%02x, ", st->buf[i]);
+    }
+    vpi_printf("ST: {\n");
+    vpi_printf("  step: %d,\n", st->step);
+    vpi_printf("  size: %d,\n", st->size);
+    vpi_printf("  head: %d,\n", st->head);
+    vpi_printf("  tail: %d,\n", st->tail);
+    vpi_printf("  buf[256]: {\n    %s\n  }\n};\n", str);
+}
+
+static int store_packet(fifo_sigs_t* curr, tc_state_t* st)
+{
+    assert(st->size > 0 && st->head >= 0 && st->buf != NULL);
+
+    if (curr->w_vld == SIG1 && curr->w_rdy == SIG1) {
+        if (curr->w_lst == SIG1) {
+            curr->w_vld = SIG0;
+            curr->w_lst = SIG0;
+            curr->w_dat.a = 0x00;
+            curr->w_dat.b = 0xFF;
+
+            return 1;
+        }
+        if (curr->w_lst == SIG0) {
+            st->head++;
+        }
+    }
+    curr->w_lst = (st->head + 1) < st->size ? SIG0 : SIG1;
+
+    if (st->head < st->size) {
+        curr->w_vld = SIG1;
+        curr->w_dat.a = st->buf[st->head];
+        curr->w_dat.b = 0x00;
+    } else {
+        tc_state_show(st);
+        return pt_error("overflow, store");
+    }
+
+    return 0;
+}
+
+static int fetch_packet(fifo_sigs_t* curr, tc_state_t* st)
+{
+    assert(st->tail >= 0 && st->buf != NULL);
+
+    if (curr->r_vld == SIG1 && curr->r_rdy == SIG1) {
+        if (st->buf[st->tail++] != curr->r_dat.a || curr->r_dat.b != 0x00) {
+            tc_state_show(st);
+            fifo_sigs_show(curr);
+            pt_error("fetched-data check");
+        }
+        // assert(st->buf[st->tail++] == curr->r_dat.a && curr->r_dat.b == 0x00);
+
+        if (curr->r_lst == SIG1) {
+            curr->r_rdy = SIG0;
+            return 1;
+        }
+    }
+    curr->r_rdy = SIG1;
+
+    return 0;
+}
+
+// -- WAIT FOR RESET -- //
+
+static const char tc_waitrst_name[] = "WAIT FOR RESET";
+
+static int tc_waitrst_init(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    st->step = 0;
+    return 0;
+}
+
+static int tc_waitrst_step(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    assert(curr->clock == SIG1 && st != NULL);
+
+    switch (st->step) {
+
+    case 0:
+        if (curr->reset == SIG1) {
+            curr->w_vld = SIG0;
+            curr->r_rdy = SIG0;
+            st->step = 1;
+        }
+        break;
+
+    case 1:
+        if (curr->reset == SIG0) {
+            curr->r_rdy = SIG1;
+            st->step = 2;
+        }
+        break;
+
+    case 2:
+        return 1;
+
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+testcase_t* test_waitrst(void)
+{
+    testcase_t* tc = malloc(sizeof(testcase_t));
+    tc_state_t* st = malloc(sizeof(tc_state_t));
+
+    st->step = 0;
+    tc->name = tc_waitrst_name;
+    tc->data = st;
+    tc->init = tc_waitrst_init;
+    tc->step = tc_waitrst_step;
+
+    return tc;
+}
+
+// -- WRITE PACKET -- //
+
+static const char tc_wrdata1_name[] = "WRITE PACKET";
+
+static int tc_wrdata1_init(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    st->step = 0;
+    st->head = 0;
+    st->tail = 0;
+    assert(fill_fixed_len(st->buf, st->size) == st->size);
+    return 0;
+}
+
+static int tc_wrdata1_step(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    int result;
+    assert(curr->clock == SIG1 && curr->reset == SIG0 && st != NULL);
+
+    switch (st->step) {
+
+    case 0:
+        curr->r_rdy = SIG0;
+        if (curr->w_rdy == SIG1) {
+            st->step = 1;
+        }
+        break;
+
+    case 1:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            st->step = 2;
+        }
+        break;
+        
+    case 2:
+        curr->save = SIG1;
+        st->step = 3;
+        break;
+
+    case 3:
+        curr->save = SIG0;
+        if (curr->r_vld == SIG1) {
+            st->step = 4;
+        }
+        break;
+
+    case 4:
+        result = fetch_packet(curr, st);
+        if (result < 0) {
+            return result;
+        } else if (result > 0) {
+            st->step = 5;
+            curr->next = SIG1;
+        }
+        break;
+
+    case 5:
+        curr->next = SIG0;
+        return 1;
+
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+testcase_t* test_wrdata1(uint8_t len)
+{
+    testcase_t* tc = malloc(sizeof(testcase_t));
+    tc_state_t* st = malloc(sizeof(tc_state_t));
+
+    st->step = 0;
+    st->size = (uint32_t)len;
+    tc->name = tc_wrdata1_name;
+    tc->data = st;
+    tc->init = tc_wrdata1_init;
+    tc->step = tc_wrdata1_step;
+
+    return tc;
+}
+
+// -- WRITE, FETCH REDO PACKET -- //
+
+static const char tc_wr_redo_name[] = "WRITE, FETCH, REDO PACKET";
+
+static int tc_wr_redo_init(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    st->step = 0;
+    st->head = 0;
+    st->tail = 0;
+    assert(fill_fixed_len(st->buf, st->size) == st->size);
+    return 0;
+}
+
+static int tc_wr_redo_step(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    int result;
+    assert(curr->clock == SIG1 && curr->reset == SIG0 && st != NULL);
+
+    switch (st->step) {
+
+    case 0:
+        curr->r_rdy = SIG0;
+        if (curr->w_rdy == SIG1) {
+            st->step = 1;
+        }
+        break;
+
+    case 1:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("store packet 1");
+            return -1;
+        } else if (result > 0) {
+            curr->save = SIG1;
+            st->head = 0;
+            st->step = 2;
+        }
+        break;
+
+    case 2:
+        curr->save = SIG0;
+        result = store_packet(curr, st);
+        if (result != 0) {
+            tc_state_show(st);
+            pt_error("store packet 2");
+            return -1;
+        }
+        st->step = 3;
+        break;
+        
+    case 3:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("store/fetch packet");
+        } else if (result > 0) {
+            curr->save = SIG1;
+            st->step = 4;
+        }
+        result = fetch_packet(curr, st);
+        if (result != 0) {
+            tc_state_show(st);
+            pt_error("fetch/store packet");
+        }
+        break;
+
+    case 4:
+        curr->save = SIG0;
+        result = fetch_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("fetch packet 1");
+        } else if (result > 0) {
+            curr->redo = SIG1;
+            st->step = 5;
+            st->tail = 0;
+        }
+        break;
+
+    case 5:
+        curr->redo = SIG0;
+    case 6:
+        result = fetch_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("fetch packet 2");
+        } else if (result > 0) {
+            st->step++;
+            st->tail = 0;
+        }
+        break;
+
+    case 7:
+        return 1;
+
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+testcase_t* test_wr_redo(uint8_t len)
+{
+    testcase_t* tc = malloc(sizeof(testcase_t));
+    tc_state_t* st = malloc(sizeof(tc_state_t));
+
+    st->step = 0;
+    st->size = (uint32_t)len;
+    tc->name = tc_wr_redo_name;
+    tc->data = st;
+    tc->init = tc_wr_redo_init;
+    tc->step = tc_wr_redo_step;
+
+    return tc;
+}
+
+
+//
+//  VPI Callbacks
+///
 
 /**
  * Process the bus signal values, and update the state & signals, as required.
@@ -317,6 +712,9 @@ static int cb_step_sync(p_cb_data cb_data)
         vpi_printf("Oh noes [%s:%d]\n", __FILE__, __LINE__);
     } else if (result > 0) {
         vpi_printf("Done [%s:%d]\n", __FILE__, __LINE__);
+        if (result > 1) {
+            vpi_control(vpiFinish, 0);
+        }
     }
 
     pt_update_values(state, &next);
@@ -422,14 +820,14 @@ static int pt_compiletf(char* user_data)
         !pt_get_signal(&state->save , arg_iterator) ||
         !pt_get_signal(&state->redo , arg_iterator) ||
         !pt_get_signal(&state->next , arg_iterator) ||
-        !pt_get_signal(&state->vld_i, arg_iterator) ||
-        !pt_get_signal(&state->rdy_o, arg_iterator) ||
-        !pt_get_signal(&state->lst_i, arg_iterator) ||
-        !pt_get_signal(&state->dat_i, arg_iterator) ||
-        !pt_get_signal(&state->vld_o, arg_iterator) ||
-        !pt_get_signal(&state->rdy_i, arg_iterator) ||
-        !pt_get_signal(&state->lst_o, arg_iterator) ||
-        !pt_get_signal(&state->dat_o, arg_iterator)) {
+        !pt_get_signal(&state->w_vld, arg_iterator) ||
+        !pt_get_signal(&state->w_rdy, arg_iterator) ||
+        !pt_get_signal(&state->w_lst, arg_iterator) ||
+        !pt_get_signal(&state->w_dat, arg_iterator) ||
+        !pt_get_signal(&state->r_vld, arg_iterator) ||
+        !pt_get_signal(&state->r_rdy, arg_iterator) ||
+        !pt_get_signal(&state->r_lst, arg_iterator) ||
+        !pt_get_signal(&state->r_dat, arg_iterator)) {
         return 0;
     }
 
@@ -440,12 +838,12 @@ static int pt_compiletf(char* user_data)
         return pt_error("can only have 6 arguments");
     }
 
-    if (vpi_get(vpiSize, state->dat_i) != 8) {
-        return pt_error("FIFO 'dat_i' must be an 8-bit net");
+    if (vpi_get(vpiSize, state->w_dat) != 8) {
+        return pt_error("FIFO 'w_dat' must be an 8-bit net");
     }
 
-    if (vpi_get(vpiSize, state->dat_o) != 8) {
-        return pt_error("FIFO 'dat_o' must be an 8-bit net");
+    if (vpi_get(vpiSize, state->r_dat) != 8) {
+        return pt_error("FIFO 'r_dat' must be an 8-bit net");
     }
 
     state->cycle = 0;
@@ -454,9 +852,12 @@ static int pt_compiletf(char* user_data)
     state->test_step = 0;
     int i = 0;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
+    state->tests[i++] = test_waitrst();
+    state->tests[i++] = test_wrdata1(8);
+    state->tests[i++] = test_wr_redo(8);
+    state->tests[i++] = test_wrdata1(3);
+    state->tests[i++] = test_wr_redo(3);
     state->test_num = i;
-
-    // Todo: populate the set of tests ...
 
     vpi_put_userdata(systf_handle, (void*)state);
 

@@ -8,7 +8,7 @@ all:	vpi
 vpi:
 	@make -C vpi all
 
-sim:	vpi
+sim:	all vpi
 	@make -C bench sim
 	@make -C build sim
 

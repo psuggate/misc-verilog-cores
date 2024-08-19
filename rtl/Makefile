@@ -1,6 +1,4 @@
 .PHONY:	all sim build clean
-all:	build
-sim:	build
 
 #
 #  Icarus Verilog settings
@@ -15,6 +13,16 @@ LIB	:= $(wildcard misc/*.v) $(wildcard fifo/*.v) $(PHY) ../bench/ddr3.v
 RTL	:= $(filter-out %_tb.v, $(SRC))
 BENCH	:= $(filter %_tb.v, $(SRC))
 OUT	:= $(BENCH:%.v=../build/%.out)
+
+sim:	build
+	make -C axis sim
+	make -C fifo sim
+	make -C misc sim
+
+all:	build
+	make -C axis all
+	make -C fifo all
+	make -C misc all
 
 build:	$(OUT)
 	make -C axis build
