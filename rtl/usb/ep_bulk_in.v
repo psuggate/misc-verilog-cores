@@ -15,7 +15,6 @@ module ep_bulk_in
   )
   (
    input clock,
-   input reset,
 
    input set_conf_i, // From CONTROL PIPE0
    input clr_conf_i, // From CONTROL PIPE0
@@ -26,6 +25,7 @@ module ep_bulk_in
 
    output ep_ready_o,
    output stalled_o, // If invariants violated
+   output parity_o,
 
    // From bulk data source
    input s_tvalid,
@@ -41,131 +41,146 @@ module ep_bulk_in
    output [7:0] m_tdata
    );
 
-generate if (CONSTANT) begin : g_constant
+  // Counter parameters, for the number of bytes in the current packet
+  localparam CBITS = $clog2(USB_MAX_PACKET_SIZE);
+  localparam CSB   = CBITS - 1;
+  localparam CZERO = {CBITS{1'b0}};
+  localparam CMAX  = {CBITS{1'b1}};
+
+  // Address-/level- bits, for the FIFO
+  localparam ABITS = $clog2(PACKET_FIFO_DEPTH);
+  localparam ASB   = ABITS - 1;
 
   //
-  //  Just produce constant data
-  ///
+  // TODO
+  //  1. generate 'save' strobes when source-data > max packet size;
+  //  2. 'next' strobes on 'ACK' handshakes (from USB host);
+  //  3. 'redo' strobes on 'selected', when an 'ACK' has not been received;
+  //  4. counter for source-data (bytes of the current packet);
+  //  5. counter for transmit-data, to queue ZDP's at max-packet-sizes;
+  //
 
-  assign ep_ready_o = 1'b1;
-  assign stalled_o = 1'b0;
-  assign s_tready = 1'b0;
-  assign m_tkeep = 1'b1;
-  assign m_tdata = 8'ha5;
-
-  reg m_tvalid, m_tlast;
-  reg [5:0] count;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      m_tvalid <= 1'b0;
-      m_tlast  <= 1'b0;
-      count    <= 6'd0;
-    end else begin
-      if (selected_i && count < 6'd63) begin
-        m_tvalid <= 1'b1;
-        m_tlast  <= m_tready && count == 6'd62;
-        if (m_tready) begin
-          count <= count + 1;
-        end
-      end else if (m_tvalid && m_tready && m_tlast) begin
-        m_tvalid <= 1'b0;
-        m_tlast  <= 1'b0;
-      end else if (!selected_i) begin
-        m_tvalid <= 1'b0;
-        m_tlast  <= 1'b0;
-      end
-    end
-  end
-
-end else begin : g_bulk_in
-
-  localparam [4:0] RX_HALT = 5'b00001;
-  localparam [4:0] RX_FILL = 5'b00010;
+  localparam [2:0] RX_HALT = 3'b001;
+  localparam [2:0] RX_RECV = 3'b010;
+  localparam [2:0] RX_FULL = 3'b100;
 
   localparam [4:0] TX_IDLE = 5'b00001;
-  localparam [4:0] ST_SEND = 5'b00100;
-  localparam [4:0] ST_NONE = 5'b01000;
-  localparam [4:0] ST_WAIT = 5'b10000;
+  localparam [4:0] TX_SEND = 5'b00010;
+  localparam [4:0] TX_NONE = 5'b00100;
+  localparam [4:0] TX_WAIT = 5'b01000;
+  localparam [4:0] TX_REDO = 5'b10000;
 
-  reg [4:0] snext, state;
+  reg [2:0] recv, rnxt;
+  reg [4:0] send, snxt;
+
   wire tvalid_w, tready_w, tlast_w, tkeep_w;
-  reg parity, enabled;
-  reg [3:0] pid_q;
+  wire save_w, redo_w, next_w;
+  reg parity, set_q, zdp_q;
+  reg [CSB:0] rcount, scount;
+  wire [CBITS:0] rcnext, scnext;
+  wire [ASB:0] level_w;
 
 
-  assign stalled_o = ~enabled;
-
-  assign redo_w = state == ST_WAIT && timedout_i;
-  assign next_w = state == ST_WAIT && ack_recv_i;
-
-  assign tvalid_w = state == ST_SEND && s_tvalid || state == ST_NONE;
-  assign s_tready = tready_w && state == ST_SEND;
-  assign tkeep_w  = s_tkeep && state != ST_NONE;
-  assign tlast_w  = s_tlast || state == ST_NONE;
+  assign stalled_o = ~set_q;
+  assign parity_o  = parity;
 
 
   // -- FSM for Bulk IN Transfers -- //
 
+  // Receive (from upstream) state-machine logic
+  assign s_tready = tready_w && set_q && recv == RX_RECV;
+  assign save_w = s_tvalid && s_tready && recv == RX_RECV && rcount == CMAX;
+
   always @* begin
-    snext = state;
+    rnxt = recv;
 
-    if (state == ST_IDLE && selected_i) begin
-      snext = s_tvalid ? ST_SEND : ST_NONE;
+    if (recv == RX_HALT) begin
+      rnxt = set_conf_i ? RX_RECV : RX_HALT;
     end
-    // Transferring data from source to USB encoder.
-    if (state == ST_SEND && s_tvalid && s_tlast && tready_w) begin
-      snext = ST_WAIT;
-    end
-    // No data to send, so transmit a NAK (TODO: or ZDP)
-    if (state == ST_NONE && tready_w) begin
-      snext = enabled ? ST_IDLE : ST_HALT;
-    end
-    // After sending a packet, wait for an ACK/ERR response.
-    if (state == ST_WAIT && (ack_recv_i || err_recv_i)) begin
-      snext = ST_IDLE;
-    end
-
-    if (clr_conf_i) begin
-      snext = ST_HALT;
-    end else if (set_conf_i) begin
-      snext = ST_IDLE;
-    end
-
-    // Issue STALL if we get a requested prior to being configured
-    if (state == ST_HALT && selected_i) begin
-      snext = ST_NONE;
+    // Don't prefetch too far ahead, for latency reasons ??
+    // Todo:
+    //  - desirable ??
+    //  - use a register, 'full_q', to improve the circuit performance ??
+    if (recv == RX_RECV && save_w && level_w >= USB_MAX_PACKET_SIZE) begin
+      rnxt = RX_FULL;
     end
   end
 
-  always @(posedge clock) begin
-    if (reset || ENABLED != 1) begin
-      state   <= ST_HALT;
-      enabled <= 1'b0;
-      pid_q   <= STALL;
-    end else begin
-      state   <= snext;
+  // Transmit (downstream) to ULPI encoder, state-machine logic
+  assign redo_w = send == TX_WAIT && timedout_i;
+  assign next_w = send == TX_WAIT && ack_recv_i;
 
-      if (clr_conf_i) begin
-        enabled <= 1'b0;
-      end else if (set_conf_i) begin
-        enabled <= 1'b1;
+  assign tvalid_w = send == TX_SEND && s_tvalid || send == TX_NONE;
+  assign tkeep_w  = s_tkeep && send != TX_NONE;
+  assign tlast_w  = s_tlast || send == TX_NONE;
+
+  always @* begin
+    snxt = send;
+
+    if (send == TX_IDLE && selected_i) begin
+      snxt = s_tvalid ? TX_SEND : TX_NONE;
+    end
+    // Transferring data from source to USB encoder.
+    if (send == TX_SEND && s_tvalid && s_tlast && tready_w) begin
+      snxt = TX_WAIT;
+    end
+    // No data to send, so transmit a NAK (TODO: or ZDP)
+    if (send == TX_NONE && tready_w) begin
+      snxt = set_q ? TX_IDLE : TX_HALT;
+    end
+    // After sending a packet, wait for an ACK/ERR response.
+    if (send == TX_WAIT && (ack_recv_i || err_recv_i)) begin
+      snxt = TX_IDLE;
+    end
+
+    // Issue STALL if we get a requested prior to being configured
+    if (send == TX_HALT && selected_i) begin
+      snxt = TX_NONE;
+    end
+  end
+
+
+  assign rcnext = rcount + 1;
+  assign scnext = scount + 1;
+
+  always @(posedge clock) begin
+  end
+
+  always @(posedge clock) begin
+    if (clr_conf_i || ENABLED != 1) begin
+      recv   <= RX_HALT;
+      send   <= TX_IDLE;
+      set_q  <= 1'b0;
+      zdp_q  <= 1'b0;
+      rcount <= CZERO;
+      scount <= CZERO;
+    end else begin
+
+      // Rx update
+      recv   <= rnxt;
+      if (s_tvalid && tready_w) begin
+        // Todo: reset count on 'tlast'
+        rcount <= rcnext[CSB:0];
       end
 
-      case (state)
-        ST_HALT: pid_q <= STALL;
-        ST_IDLE: begin
-          // Issue NAK response unless 'Bulk IN' data is already waiting
-          if (s_tvalid) begin
-            pid_q <= parity ? DATA1 : DATA0;
-          end else begin
-            pid_q <= NAK;
-          end
+      // Tx update
+      if (set_conf_i) begin
+        send   <= TX_IDLE;
+        set_q  <= 1'b1;
+        scount <= CZERO;
+        zdp_q  <= 1'b0;
+      end else begin
+        send   <= snxt;
+        set_q  <= set_q;
+        if (m_tvalid && m_tready) begin
+          scount <= scnext[CSB:0];
         end
-        ST_NONE: pid_q <= pid_q;
-        ST_SEND: pid_q <= pid_q;
-        ST_WAIT: pid_q <= pid_q;
-      endcase
+        if (scount == CMAX && tlast_w && tvalid_w && tready_w) begin
+          // Todo:
+          zdp_q <= 1'b1;
+        end
+      end
+
     end
   end
 
@@ -173,10 +188,10 @@ end else begin : g_bulk_in
   // -- DATA0/1 Parity -- //
 
   always @(posedge clock) begin
-    if (reset || set_conf_i) begin
+    if (set_conf_i) begin
       parity <= 1'b0;
     end else begin
-      if (state == ST_WAIT && ack_recv_i) begin
+      if (send == TX_WAIT && ack_recv_i) begin
         parity <= ~parity;
       end
     end
@@ -185,32 +200,12 @@ end else begin : g_bulk_in
 
   // -- Output Registers -- //
 
-  axis_skid
- #(
-   .BYPASS(0),
-   .WIDTH(9)
-   ) SKID0
-   (
-    .clock   (clock),
-    .reset   (reset),
-
-    .s_tvalid(tvalid_w),
-    .s_tready(tready_w),
-    .s_tlast (tlast_w),
-    .s_tdata ({tkeep_w, s_tdata}),
-
-    .m_tvalid(m_tvalid),
-    .m_tready(m_tready),
-    .m_tlast (m_tlast),
-    .m_tdata ({m_tkeep, m_tdata})
-    );
-
-
   packet_fifo
     #( .WIDTH(8),
        .DEPTH(PACKET_FIFO_DEPTH),
        .STORE_LASTS(1),
        .SAVE_ON_LAST(1),
+       .SAVE_TO_LAST(1),
        .NEXT_ON_LAST(0),
        .USE_LENGTH(1),
        .MAX_LENGTH(USB_MAX_PACKET_SIZE),
@@ -218,16 +213,19 @@ end else begin : g_bulk_in
        )
   U_TX_FIFO1
     ( .clock  (clock),
-      .reset  (reset),
+      .reset  (recv == RX_HALT),
+
       .level_o(level_w),
       .drop_i (1'b0),
-      .save_i (1'b0),
+      .save_i (save_w),
       .redo_i (redo_w),
       .next_i (next_w),
+
       .valid_i(s_tvalid),
       .ready_o(tready_w),
       .last_i (s_tlast),
       .data_i (s_tdata),
+
       .valid_o(m_tvalid),
       .ready_i(m_tready),
       .last_o (tlast_w),
@@ -239,17 +237,27 @@ end else begin : g_bulk_in
 
 `ifdef __icarus
 
-  reg [39:0] dbg_state;
+  reg [39:0] dbg_recv;
+  reg [39:0] dbg_send;
   reg [47:0] dbg_pid;
 
   always @* begin
-    case (state)
-      ST_HALT: dbg_state = "HALT";
-      ST_IDLE: dbg_state = "IDLE";
-      ST_SEND: dbg_state = "SEND";
-      ST_NONE: dbg_state = "NONE";
-      ST_WAIT: dbg_state = "WAIT";
-      default: dbg_state = " ?? ";
+    case (recv)
+      RX_HALT: dbg_recv = "HALT";
+      RX_RECV: dbg_recv = "RECV";
+      RX_FULL: dbg_recv = "FULL";
+      default: dbg_recv = " ?? ";
+    endcase
+  end
+
+  always @* begin
+    case (send)
+      TX_HALT: dbg_send = "HALT";
+      TX_IDLE: dbg_send = "IDLE";
+      TX_SEND: dbg_send = "SEND";
+      TX_NONE: dbg_send = "NONE";
+      TX_WAIT: dbg_send = "WAIT";
+      default: dbg_send = " ?? ";
     endcase
   end
 
@@ -264,9 +272,6 @@ end else begin : g_bulk_in
   end
 
 `endif /* __icarus */
-
-end  /* g_bulk_in */
-endgenerate
 
 
 endmodule // ep_bulk_in

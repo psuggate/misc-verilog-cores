@@ -17,11 +17,11 @@ module packet_fifo
      localparam AZERO = {ABITS{1'b0}},
 
      // Generate save/next signals using 'tlast's?
-     parameter USE_LASTS = 1,
      parameter STORE_LASTS = 1,
 
-     parameter SAVE_ON_LAST = 1,
-     parameter NEXT_ON_LAST = 1,
+     parameter SAVE_ON_LAST = 1, // Generate a 'save' strobe on 'tlast'?
+     parameter SAVE_TO_LAST = 0, // Todo: Generate a 'tlast' strobe on 'save'?
+     parameter NEXT_ON_LAST = 1, // Advance to 'next' packet on 'tlast'?
 
      // Break up large packets into chunks of up to this length? If we reach the
      // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
@@ -53,7 +53,6 @@ module packet_fifo
   output last_o,
   output [MSB:0] data_o
 );
-
 
   // Store the 'last'-bits?
   localparam integer WSB = STORE_LASTS != 0 ? WIDTH : MSB;
@@ -119,6 +118,8 @@ module packet_fifo
 
   // -- Write Port -- //
 
+  wire last_w = last_i || (SAVE_TO_LAST && save_i);
+
   assign waddr_next = store_w ? waddr + 1 : waddr;
 
   always @(posedge clock) begin
@@ -132,7 +133,7 @@ module packet_fifo
         waddr <= paddr;
       end else begin
         if (store_w) begin
-          sram[waddr[ASB:0]] <= STORE_LASTS != 0 ? {last_i, data_i} : data_i;
+          sram[waddr[ASB:0]] <= STORE_LASTS != 0 ? {last_w, data_i} : data_i;
         end
         waddr <= waddr_next;
       end

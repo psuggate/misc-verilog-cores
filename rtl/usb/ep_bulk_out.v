@@ -10,7 +10,7 @@ module ep_bulk_out
     parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
-    parameter DUMPSTER = 0,
+    parameter DUMPSTER = 1,
     parameter USE_ZDP = 0 // TODO
   )
   (
@@ -37,6 +37,8 @@ module ep_bulk_out
    output m_tlast,
    output [7:0] m_tdata
    );
+
+`include "usb_defs.vh"
 
 generate if (DUMPSTER) begin : g_dumpster
   //

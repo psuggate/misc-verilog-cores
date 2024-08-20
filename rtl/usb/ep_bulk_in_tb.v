@@ -115,7 +115,7 @@ module ep_bulk_in_tb;
   //  Core Under New Tests
   ///
 
-  ep_bulk_in #(.ENABLED(1)) EP_IN0
+  ep_bulk_in #(.ENABLED(1), .CONSTANT(1)) EP_IN0
     (
      .clock(clock),
      .reset(reset),
