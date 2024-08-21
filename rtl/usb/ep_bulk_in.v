@@ -15,6 +15,7 @@ module ep_bulk_in
   )
   (
    input clock,
+   input reset,
 
    input set_conf_i, // From CONTROL PIPE0
    input clr_conf_i, // From CONTROL PIPE0
@@ -66,121 +67,41 @@ module ep_bulk_in
 
   localparam [4:0] TX_IDLE = 5'b00001;
   localparam [4:0] TX_SEND = 5'b00010;
-  localparam [4:0] TX_NONE = 5'b00100;
-  localparam [4:0] TX_WAIT = 5'b01000;
+  localparam [4:0] TX_WAIT = 5'b00100;
+  localparam [4:0] TX_NONE = 5'b01000;
   localparam [4:0] TX_REDO = 5'b10000;
 
   reg [2:0] recv, rnxt;
   reg [4:0] send, snxt;
 
-  wire tvalid_w, tready_w, tlast_w, tkeep_w;
+  wire tready_w;
+  wire tvalid_r, tready_r, tlast_r;
   wire save_w, redo_w, next_w;
-  reg parity, set_q, zdp_q;
+  reg rst_q, par_q, set_q, zdp_q;
   reg [CSB:0] rcount, scount;
   wire [CBITS:0] rcnext, scnext;
   wire [ASB:0] level_w;
 
 
   assign stalled_o = ~set_q;
-  assign parity_o  = parity;
+  assign parity_o  = par_q;
 
-
-  // -- FSM for Bulk IN Transfers -- //
-
-  // Receive (from upstream) state-machine logic
   assign s_tready = tready_w && set_q && recv == RX_RECV;
-  assign save_w = s_tvalid && s_tready && recv == RX_RECV && rcount == CMAX;
 
-  always @* begin
-    rnxt = recv;
-
-    if (recv == RX_HALT) begin
-      rnxt = set_conf_i ? RX_RECV : RX_HALT;
-    end
-    // Don't prefetch too far ahead, for latency reasons ??
-    // Todo:
-    //  - desirable ??
-    //  - use a register, 'full_q', to improve the circuit performance ??
-    if (recv == RX_RECV && save_w && level_w >= USB_MAX_PACKET_SIZE) begin
-      rnxt = RX_FULL;
-    end
-  end
-
-  // Transmit (downstream) to ULPI encoder, state-machine logic
-  assign redo_w = send == TX_WAIT && timedout_i;
-  assign next_w = send == TX_WAIT && ack_recv_i;
-
-  assign tvalid_w = send == TX_SEND && s_tvalid || send == TX_NONE;
-  assign tkeep_w  = s_tkeep && send != TX_NONE;
-  assign tlast_w  = s_tlast || send == TX_NONE;
-
-  always @* begin
-    snxt = send;
-
-    if (send == TX_IDLE && selected_i) begin
-      snxt = s_tvalid ? TX_SEND : TX_NONE;
-    end
-    // Transferring data from source to USB encoder.
-    if (send == TX_SEND && s_tvalid && s_tlast && tready_w) begin
-      snxt = TX_WAIT;
-    end
-    // No data to send, so transmit a NAK (TODO: or ZDP)
-    if (send == TX_NONE && tready_w) begin
-      snxt = set_q ? TX_IDLE : TX_HALT;
-    end
-    // After sending a packet, wait for an ACK/ERR response.
-    if (send == TX_WAIT && (ack_recv_i || err_recv_i)) begin
-      snxt = TX_IDLE;
-    end
-
-    // Issue STALL if we get a requested prior to being configured
-    if (send == TX_HALT && selected_i) begin
-      snxt = TX_NONE;
-    end
-  end
+  assign m_tvalid = send == TX_SEND && tvalid_r || send == TX_NONE;
+  assign tready_r = send == TX_SEND && m_tready;
+  assign m_tlast  = send == TX_SEND && tlast_r || send == TX_NONE;
+  assign m_tkeep  = send == TX_SEND;
 
 
-  assign rcnext = rcount + 1;
-  assign scnext = scount + 1;
+  // -- FIFO Reset/Clear -- //
 
   always @(posedge clock) begin
-  end
-
-  always @(posedge clock) begin
-    if (clr_conf_i || ENABLED != 1) begin
-      recv   <= RX_HALT;
-      send   <= TX_IDLE;
-      set_q  <= 1'b0;
-      zdp_q  <= 1'b0;
-      rcount <= CZERO;
-      scount <= CZERO;
-    end else begin
-
-      // Rx update
-      recv   <= rnxt;
-      if (s_tvalid && tready_w) begin
-        // Todo: reset count on 'tlast'
-        rcount <= rcnext[CSB:0];
-      end
-
-      // Tx update
-      if (set_conf_i) begin
-        send   <= TX_IDLE;
-        set_q  <= 1'b1;
-        scount <= CZERO;
-        zdp_q  <= 1'b0;
-      end else begin
-        send   <= snxt;
-        set_q  <= set_q;
-        if (m_tvalid && m_tready) begin
-          scount <= scnext[CSB:0];
-        end
-        if (scount == CMAX && tlast_w && tvalid_w && tready_w) begin
-          // Todo:
-          zdp_q <= 1'b1;
-        end
-      end
-
+    rst_q <= reset || set_conf_i || clr_conf_i;
+    if (reset || clr_conf_i) begin
+      set_q <= 1'b0;
+    end else if (set_conf_i) begin
+      set_q <= 1'b1;
     end
   end
 
@@ -189,11 +110,127 @@ module ep_bulk_in
 
   always @(posedge clock) begin
     if (set_conf_i) begin
-      parity <= 1'b0;
+      // As per the USB 2.0 spec, certain 'SET CONFIGURATION' events are
+      // required to reset the parity/sequence bit.
+      par_q <= 1'b0;
+    end else if (send == TX_WAIT && ack_recv_i) begin
+      par_q <= ~par_q;
+    end
+  end
+
+
+  // -- Receive Counter -- //
+
+  assign rcnext = s_tlast ? {1'b0, CZERO} : rcount + 1;
+
+  always @(posedge clock) begin
+    if (set_conf_i || ENABLED != 1) begin
+      rcount <= CZERO;
     end else begin
-      if (send == TX_WAIT && ack_recv_i) begin
-        parity <= ~parity;
+      if (s_tvalid && tready_w) begin
+        rcount <= rcnext[CSB:0];
       end
+    end
+  end
+
+
+  // -- Transmit (or, Send) Counter -- //
+
+  assign scnext = m_tlast ? {1'b0, CZERO} : scount + 1;
+
+  always @(posedge clock) begin
+    if (set_conf_i || ENABLED != 1) begin
+      scount <= CZERO;
+    end else begin
+      if (m_tvalid && m_tready) begin
+        scount <= scnext[CSB:0];
+      end
+    end
+  end
+
+
+  // -- FSM(s) for Bulk IN Transfers -- //
+
+  // Receive (from upstream) state-machine logic
+  assign save_w = s_tvalid && tready_w && (s_tlast || rcount == CMAX);
+
+  always @(posedge clock) begin
+    if (clr_conf_i) begin
+      recv <= RX_HALT;
+    end else if (set_conf_i) begin
+      recv <= RX_RECV;
+    end else begin
+      case (recv)
+        RX_HALT: begin
+          recv <= recv;
+        end
+
+        RX_RECV:
+          // Don't prefetch if we can not store a full-sized packet, or else we
+          // may stall the AXI4-Stream (which could be a problem if it is
+          // shared).
+          if (save_w && level_w >= USB_MAX_PACKET_SIZE) begin
+            recv <= RX_FULL;
+          end
+
+        RX_FULL:
+          // The only way for 'level' to fall is via 'ACK', so this condition is
+          // sufficient.
+          if (level_w < USB_MAX_PACKET_SIZE) begin
+            recv <= RX_RECV;
+          end
+      endcase
+    end
+  end
+
+  // Transmit (downstream) to ULPI encoder, state-machine logic
+  assign redo_w = send == TX_WAIT && timedout_i;
+  assign next_w = send == TX_WAIT && ack_recv_i;
+
+  always @* begin
+    snxt = send;
+
+    case (send)
+      TX_IDLE: if (selected_i) begin
+        snxt = s_tvalid ? TX_SEND : TX_NONE;
+      end
+
+      // Transferring data from source to USB encoder (via the packet FIFO).
+      TX_SEND: if (tvalid_r && m_tready && tlast_r) begin
+        snxt = TX_WAIT;
+      end
+
+      // After sending a packet, wait for an ACK/ERR response.
+      TX_WAIT: if (ack_recv_i) begin
+        snxt = zdp_q ? TX_NONE : TX_IDLE;
+      end else if (timedout_i) begin
+        snxt = TX_REDO;
+      end
+
+      // Rest of packet has already been sent, so transmit a ZDP
+      TX_NONE: if (m_tvalid && m_tready && m_tlast) begin
+        snxt = TX_WAIT;
+      end
+
+      // Repeat the previous packet(-chunk), as an 'ACK' was not received.
+      TX_REDO: if (selected_i) begin
+        snxt = TX_SEND;
+      end
+    endcase
+
+    if (set_q != 1'b1 || ENABLED != 1) begin
+      snxt = TX_IDLE;
+    end
+  end
+
+  always @(posedge clock) begin
+    send  <= snxt;
+
+    // Todo:
+    if (!set_q || send == TX_IDLE) begin
+      zdp_q <= 1'b0;
+    end else if (scount == CMAX && tvalid_r && tready_r && tlast_r) begin
+      zdp_q <= 1'b1;
     end
   end
 
@@ -213,7 +250,7 @@ module ep_bulk_in
        )
   U_TX_FIFO1
     ( .clock  (clock),
-      .reset  (recv == RX_HALT),
+      .reset  (rst_q),
 
       .level_o(level_w),
       .drop_i (1'b0),
@@ -226,9 +263,9 @@ module ep_bulk_in
       .last_i (s_tlast),
       .data_i (s_tdata),
 
-      .valid_o(m_tvalid),
-      .ready_i(m_tready),
-      .last_o (tlast_w),
+      .valid_o(tvalid_r),
+      .ready_i(tready_r),
+      .last_o (tlast_r),
       .data_o (m_tdata)
       );
 
@@ -239,7 +276,6 @@ module ep_bulk_in
 
   reg [39:0] dbg_recv;
   reg [39:0] dbg_send;
-  reg [47:0] dbg_pid;
 
   always @* begin
     case (recv)
@@ -252,22 +288,12 @@ module ep_bulk_in
 
   always @* begin
     case (send)
-      TX_HALT: dbg_send = "HALT";
       TX_IDLE: dbg_send = "IDLE";
       TX_SEND: dbg_send = "SEND";
-      TX_NONE: dbg_send = "NONE";
       TX_WAIT: dbg_send = "WAIT";
+      TX_NONE: dbg_send = "NONE";
+      TX_REDO: dbg_send = "REDO";
       default: dbg_send = " ?? ";
-    endcase
-  end
-
-  always @* begin
-    case (pid_q)
-      STALL:   dbg_pid = "STALL";
-      DATA0:   dbg_pid = "DATA0";
-      DATA1:   dbg_pid = "DATA1";
-      NAK:     dbg_pid = "NAK  ";
-      default: dbg_pid = " ??? ";
     endcase
   end
 

@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Aug 17 05:01:30 2024
+[*] Wed Aug 21 08:23:06 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sat Aug 17 04:54:05 2024"
-[dumpfile_size] 352494
+[dumpfile_mtime] "Wed Aug 21 08:22:32 2024"
+[dumpfile_size] 356588
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 9433800
+[timestart] 29563800
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 10060000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 30190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
 [sst_width] 233
 [signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 446
+[sst_vpaned_height] 620
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -107,7 +107,16 @@ vpi_usb_ulpi_tb.tstart_q
 @28
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.ep2_tvalid_w
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.ep2_tready_w
+[color] 3
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.set_conf_i
+[color] 1
 vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.clr_conf_i
+@29
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.set_q
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.dbg_recv[39:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.dbg_send[39:0]
 [pattern_trace] 1
 [pattern_trace] 0
