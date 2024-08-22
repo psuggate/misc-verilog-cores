@@ -4,12 +4,12 @@
  *
  * Responsible for:
  *  - selecting relevant endpoints;
+ *  - checking DATAx parity/sequence bits;
  *  - controlling the MUX that feeds the packet-encoder;
  *  - generating the timeouts, as required by the USB 2.0 spec;
- *  - halting/stalling endpoints, when necessary;
  * 
  * Todo:
- *  - 'STALL' on disabled or missing end-points;
+ *  - registered/pipelined EP-selects;
  *  - MUX-select for the end-points;
  */
 module protocol
@@ -37,7 +37,7 @@ module protocol
 
    // Signals from the USB packet decoder (upstream)
    input crc_error_i,
-   input crc_valid_i,
+   input crc_valid_i, // Unused ??
 
    input hsk_recv_i,
    input usb_recv_i,
@@ -59,39 +59,44 @@ module protocol
    output [3:0] usb_pid_o,
 
    // Control end-point
-   input ep0_halted_i, // Useful ??
+   input ep0_parity_i,
+   input ep0_halted_i,
+   input ep0_finish_i,
    output ep0_select_o,
-   output ep0_enable_o,
 
    // Bulk IN/OUT end-points
    input ep1_rx_rdy_i,
    input ep1_tx_rdy_i,
-   input ep1_halted_i, // Useful ??
-   output ep1_enable_o,
+   input ep1_parity_i,
+   input ep1_halted_i,
    output ep1_select_o,
 
    input ep2_rx_rdy_i,
    input ep2_tx_rdy_i,
-   input ep2_halted_i, // Useful ??
-   output ep2_enable_o,
+   input ep2_parity_i,
+   input ep2_halted_i,
    output ep2_select_o,
 
    input ep3_rx_rdy_i,
    input ep3_tx_rdy_i,
-   input ep3_halted_i, // Useful ??
-   output ep3_enable_o,
+   input ep3_parity_i,
+   input ep3_halted_i,
    output ep3_select_o,
 
    input ep4_rx_rdy_i,
    input ep4_tx_rdy_i,
-   input ep4_halted_i, // Useful ??
-   output ep4_enable_o,
+   input ep4_parity_i,
+   input ep4_halted_i,
    output ep4_select_o
    );
 
 `include "usb_defs.vh"
 
-`ifdef __potato_tomato
+  reg ep0_en, ep1_en, ep2_en, ep3_en, ep4_en;
+  reg [6:0] bus_timer, state, snext;
+  reg [3:0] pid_c, pid_q;
+  reg ctl_c, ctl_q;
+  wire timeout_w, par_w;
 
   // -- End-Point Control -- //
 
@@ -100,12 +105,10 @@ module protocol
   localparam EP3_EN = BULK_EP3 != 0 && (USE_EP3_IN || USE_EP3_OUT);
   localparam EP4_EN = BULK_EP4 != 0 && (USE_EP4_IN || USE_EP4_OUT);
 
-  reg ep0_en, ep1_en, ep2_en, ep3_en, ep4_en;
-
   always @(posedge clock) begin
     if (reset) begin
       ep0_en <= 1'b1;
-    end else if (ep0_halted_i) begin
+    end else if (ep0_halted_i || !enable) begin
       ep0_en <= 1'b0;
     end
 
@@ -134,35 +137,9 @@ module protocol
     end
   end
 
+  // -- End-Point Readies & Selects -- //
 
-  // -- DATA0/1/2/M Logic -- //
-
-  reg ep0_par_q, ep1_par_q, ep2_par_q, ep3_par_q, ep4_par_q;
-
-
-  // -- Bus Turnaround Timer -- //
-
-  //
-  //  If we have sent a packet, then we require a handshake within 816 clocks,
-  //  or else the packet failed to be transmitted, or the response failed to
-  //  (successfully) arrive.
-  //
-  reg [6:0] bus_timer;
-  wire timeout_w;
-
-  localparam [6:0] MAX_TIMER = (816 / 8) - 1;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      bus_timer = MAX_TIMER;
-    end else begin
-      // Todo ...
-    end
-  end
-
-
-  // -- End-Point Selects -- //
-
+`ifdef __potato_tomato
   //
   // Todo:
   //  - pipeline the end-point decoding ??
@@ -191,274 +168,223 @@ module protocol
     end
   end
 
-
-  // -- FSM -- //
-
+`else  /* !__potato_tomato */
   //
   // Todo:
-  //  - PING protocol;
-  //  - track whether we have been 'PING'ed, so that we can generate 'NYET'
-  //    responses, when required ??
-  //  - DATAx parity;
+  //  - NYET responses for PING protocol:
+  //     + generate when EP ready deasserts, during DATAx Tx/Rx;
+  //     + track whether we have been 'PING'ed, so that we can generate 'NYET'
+  //       responses, when required;
   //  - MUX-select for 'IN' transactions;
   //  - if a packet arrives that is not valid for the state we are in, then
-  //    terminate transaction and signal some kind of error ??
+  //    terminate transaction and signal/track some kind of error ??
   //
   // Note(s):
   //  - USB spec says to ignore transaction requests if not supported
   //
-
-  reg [7:0] state, snext;
-  reg [3:0] respo, pid_q;
-  reg setup, ctl_q;
-  wire sel_w, hlt_w, nak_w, out_w;
-  wire sel0_w, sel1_w, sel2_w, sel3_w, sel4_w;
-  wire rdy1_w, rdy2_w, rdy3_w, rdy4_w;
-
-
-  assign sel0_w = tok_endp_i == 4'h0 &&
-                  (usb_pid_i == `USBPID_SETUP ||
-                   (ep0_ctl && // Are we in a CONTROL transaction ??
-                    (usb_pid_i == `USBPID_IN || usb_pid_i == `USBPID_OUT)));
-
-  assign sel1_w = BULK_EP1 != 0 && tok_endp_i == BULK_EP1 &&
-                  (USE_EP1_IN && usb_pid_i == `USBPID_IN ||
-                   USE_EP1_OUT && usb_pid_i == `USBPID_OUT);
-  assign rdy1_w = BULK_EP1 != 0 && tok_endp_i == BULK_EP1 &&
-                  (USE_EP1_IN && usb_pid_i == `USBPID_IN && ep1_tx_rdy_i ||
-                   USE_EP1_OUT && usb_pid_i == `USBPID_OUT && ep1_rx_rdy_i);
-
-  assign sel2_w = BULK_EP2 != 0 && tok_endp_i == BULK_EP2 &&
-                  (USE_EP2_IN && usb_pid_i == `USBPID_IN ||
-                   USE_EP2_OUT && usb_pid_i == `USBPID_OUT);
-  assign rdy2_w = BULK_EP2 != 0 && tok_endp_i == BULK_EP2 &&
-                  (USE_EP2_IN && usb_pid_i == `USBPID_IN && ep2_tx_rdy_i ||
-                   USE_EP2_OUT && usb_pid_i == `USBPID_OUT && ep2_rx_rdy_i);
-
-  assign sel3_w = BULK_EP3 != 0 && tok_endp_i == BULK_EP3 &&
-                  (USE_EP3_IN && usb_pid_i == `USBPID_IN ||
-                   USE_EP3_OUT && usb_pid_i == `USBPID_OUT);
-  assign rdy3_w = BULK_EP3 != 0 && tok_endp_i == BULK_EP3 &&
-                  (USE_EP3_IN && usb_pid_i == `USBPID_IN && ep3_tx_rdy_i ||
-                   USE_EP3_OUT && usb_pid_i == `USBPID_OUT && ep3_rx_rdy_i);
-
-  assign sel4_w = BULK_EP4 != 0 && tok_endp_i == BULK_EP4 &&
-                  (USE_EP4_IN && usb_pid_i == `USBPID_IN ||
-                   USE_EP4_OUT && usb_pid_i == `USBPID_OUT);
-  assign rdy4_w = BULK_EP4 != 0 && tok_endp_i == BULK_EP4 &&
-                  (USE_EP4_IN && usb_pid_i == `USBPID_IN && ep4_tx_rdy_i ||
-                   USE_EP4_OUT && usb_pid_i == `USBPID_OUT && ep4_rx_rdy_i);
-
-  assign sel_w = sel0_w || sel1_w || sel2_w || sel3_w || sel4_w;
-  assign hlt_w = !ep0_en && sel0_w || !ep1_en && sel1_w || !ep2_en && sel2_w ||
-                 !ep3_en && sel3_w || !ep4_en && sel4_w;
-  assign nak_w = !(sel0_w || rdy1_w || rdy2_w || rdy3_w || rdy4_w);
-  assign out_w = usb_pid_i != `USBPID_IN;
-
-  localparam ST_HALT = 0;
-  localparam ST_IDLE = 1;
-  localparam ST_DPID = 2; // Wait for a DATAx PID
-  localparam ST_RECV = 4; // RX data from the ULPI
-  localparam ST_RESP = 8; // Send a handshake
-  localparam ST_FAIL = 0;
-  localparam ST_SEND = 0; // Route data from EP to ULPI
-  localparam ST_WAIT = 0; // Wait for USB host handshake
-
-  reg [4:0] sel_s, sel_q;
-
-  wire ep1_out_sel_w = BULK_EP1 != 0 && USE_EP1_OUT && tok_endp_i == BULK_EP1;
-  wire ep1_par_seq_w = ep1_out_sel_w && ep1_par_q != usb_pid_i[3];
+  wire ep1_out_sel_w = ep1_en && USE_EP1_OUT && tok_endp_i == BULK_EP1;
   wire ep1_out_rdy_w = ep1_out_sel_w && !ep1_halted_i && ep1_rx_rdy_i;
   wire ep1_in_sel_w = BULK_EP1 != 0 && USE_EP1_IN && tok_endp_i == BULK_EP1;
   wire ep1_in_rdy_w = ep1_in_sel_w && !ep1_halted_i && ep1_tx_rdy_i;
 
-  wire ep2_out_sel_w = BULK_EP2 != 0 && USE_EP2_OUT && tok_endp_i == BULK_EP2;
-  wire ep2_par_seq_w = ep2_out_sel_w && ep2_par_q != usb_pid_i[3];
-  wire ep2_out_rdy_w = ep2_out_sel_w && !ep2_halted_i && ep2_rx_rdy_i;
-  wire ep2_in_sel_w = BULK_EP2 != 0 && USE_EP2_IN && tok_endp_i == BULK_EP2;
-  wire ep2_in_rdy_w = ep2_in_sel_w && !ep2_halted_i && ep2_tx_rdy_i;
+  wire ep2_out_sel_w = ep2_en && USE_EP2_OUT && tok_endp_i == BULK_EP2;
+  wire ep2_out_rdy_w = ep2_out_sel_w && ep2_rx_rdy_i;
+  wire ep2_in_sel_w = ep2_en && USE_EP2_IN && tok_endp_i == BULK_EP2;
+  wire ep2_in_rdy_w = ep2_in_sel_w && ep2_tx_rdy_i;
 
-  wire ep3_out_sel_w = BULK_EP3 != 0 && USE_EP3_OUT && tok_endp_i == BULK_EP3;
-  wire ep3_par_seq_w = ep3_out_sel_w && ep3_par_q != usb_pid_i[3];
-  wire ep3_out_rdy_w = ep3_out_sel_w && !ep3_halted_i && ep3_rx_rdy_i;
-  wire ep3_in_sel_w = BULK_EP3 != 0 && USE_EP3_IN && tok_endp_i == BULK_EP3;
-  wire ep3_in_rdy_w = ep3_in_sel_w && !ep3_halted_i && ep3_tx_rdy_i;
+  wire ep3_out_sel_w = ep3_en && USE_EP3_OUT && tok_endp_i == BULK_EP3;
+  wire ep3_out_rdy_w = ep3_out_sel_w && ep3_rx_rdy_i;
+  wire ep3_in_sel_w = ep3_en && USE_EP3_IN && tok_endp_i == BULK_EP3;
+  wire ep3_in_rdy_w = ep3_in_sel_w && ep3_tx_rdy_i;
 
-  wire ep4_out_sel_w = BULK_EP4 != 0 && USE_EP4_OUT && tok_endp_i == BULK_EP4;
-  wire ep4_par_seq_w = ep4_out_sel_w && ep4_par_q != usb_pid_i[3];
-  wire ep4_out_rdy_w = ep4_out_sel_w && !ep4_halted_i && ep4_rx_rdy_i;
-  wire ep4_in_sel_w = BULK_EP4 != 0 && USE_EP4_IN && tok_endp_i == BULK_EP4;
-  wire ep4_in_rdy_w = ep4_in_sel_w && !ep4_halted_i && ep4_tx_rdy_i;
+  wire ep4_out_sel_w = ep4_en && USE_EP4_OUT && tok_endp_i == BULK_EP4;
+  wire ep4_out_rdy_w = ep4_out_sel_w && ep4_rx_rdy_i;
+  wire ep4_in_sel_w = ep4_en && USE_EP4_IN && tok_endp_i == BULK_EP4;
+  wire ep4_in_rdy_w = ep4_in_sel_w && ep4_tx_rdy_i;
 
+  wire out_sel_w = ep1_out_sel_w | ep2_out_sel_w | ep3_out_sel_w | ep4_out_sel_w;
+  wire out_rdy_w = ep1_out_rdy_w | ep2_out_rdy_w | ep3_out_rdy_w | ep4_out_rdy_w;
+  wire in_sel_w  = ep1_in_sel_w | ep2_in_sel_w | ep3_in_sel_w | ep4_in_sel_w;
+  wire in_rdy_w  = ep1_in_rdy_w | ep2_in_rdy_w | ep3_in_rdy_w | ep4_in_rdy_w;
+
+`endif /* !__potato_tomato */
+
+  // -- DATAx Parity-Checking for the Sequence Bits -- //
+
+  wire ep0_par_w = ep0_en && ctl_q && ep0_parity_i != usb_pid_i[3];
+  wire ep1_par_w = ep1_out_sel_w && ep1_parity_i != usb_pid_i[3];
+  wire ep2_par_w = ep2_out_sel_w && ep2_parity_i != usb_pid_i[3];
+  wire ep3_par_w = ep3_out_sel_w && ep3_parity_i != usb_pid_i[3];
+  wire ep4_par_w = ep4_out_sel_w && ep4_parity_i != usb_pid_i[3];
+
+  assign par_w = ep0_par_w | ep1_par_w | ep2_par_w | ep3_par_w | ep4_par_w;
+
+  // -- FSM -- //
+
+  localparam [6:0] ST_IDLE =  1;
+  localparam [6:0] ST_DPID =  2; // Wait for a DATAx PID
+  localparam [6:0] ST_RECV =  4; // RX data from the ULPI
+  localparam [6:0] ST_RESP =  8; // Send a handshake to USB host
+  localparam [6:0] ST_DROP = 16; // Wait for EOP, and then no response
+  localparam [6:0] ST_SEND = 32; // Route data from EP to ULPI
+  localparam [6:0] ST_WAIT = 64; // Wait for USB host handshake
 
   always @* begin
     snext = state;
-    respo = pid_q;
-    setup = ctl_q;
+    pid_c = pid_q;
+    ctl_c = ep0_finish_i ? 1'b0 : ctl_q;
 
     case (state)
 
       ST_IDLE: begin
         if (tok_recv_i && tok_addr_i == usb_addr_i) begin
+          // Todo:
+          //  - for any missing/other end-point, ignore; OR,
+          //  - issue 'STALL' for unsupported IN/OUT & EP pairing?
           case (usb_pid_i)
             `USBPID_SETUP: begin
-              // Todo:
-              //  - for any other end-point, ignore
               if (tok_endp_i == 4'h0) begin
                 snext = ST_DPID;
-                setup = 1'b1;
-              // end else begin
-              //   // Indicate that operation is unsupported
-              //   snext = ST_DROP;
-              //   respo = `USBPID_STALL;
+                ctl_c = 1'b1;
+              end else begin
+                // Indicate that operation is unsupported
+                snext = ST_DROP;
+                pid_c = `USBPID_STALL;
+                ctl_c = 1'b0; // Todo: redundant (see line 382, below)
               end
             end
 
-            `USBPID_OUT: begin
-              if (ep1_par_seq_w || ep2_par_seq_w || ep3_par_seq_w || ep4_par_seq_w) begin
-                // Parity-bits sequence error, so we ignore the DATAx, but ACK
-                // response
-                snext = ST_DROP;
-                respo = `USBPID_ACK;
-              if (ep1_out_rdy_w || ep2_out_rdy_w || ep3_out_rdy_w || ep4_out_rdy_w) begin
+            `USBPID_OUT: if (tok_endp_i == 4'h0 && ctl_q) begin
+              // EP0 CONTROL transfers always succeed
+              snext = ST_DPID;
+            end else if (out_sel_w) begin
+              ctl_c = 1'b0;
+              if (out_rdy_w) begin
                 // We have space, so RX some data
                 snext = ST_DPID;
-              end else if (ep1_out_sel_w || ep2_out_sel_w || ep3_out_sel_w || ep4_out_sel_w) begin
+              end else begin
                 // No space, so we NAK
                 snext = ST_DROP;
-                respo = `USBPID_NAK;
-              end else if (tok_endp_i == 4'h0 && ctl_q) begin
-                // EP0 CONTROL transfers always succeed
-                snext = ST_DPID;
+                pid_c = `USBPID_NAK;
               end
+            end else begin
+              snext = ST_DROP;
+              pid_c = `USBPID_STALL;
+              ctl_c = 1'b0;
             end
 
-            `USBPID_IN: begin
-              if (ep1_in_rdy_w || ep2_in_rdy_w || ep3_in_rdy_w || ep4_in_rdy_w) begin
+            `USBPID_IN: if (tok_endp_i == 4'h0 && ctl_q) begin
+              // Let EP0 sort out this CONTROL transfer
+              snext = ST_SEND;
+            end else if (in_sel_w) begin
+              ctl_c = 1'b0;
+              if (in_rdy_w) begin
                 // We have at least one packet ready to TX
                 snext = ST_SEND;
-              end else if (ep1_in_sel_w || ep2_in_sel_w || ep3_in_sel_w || ep4_in_sel_w) begin
+              end else begin
                 // Selected, but no packet is ready, so NAK
                 snext = ST_RESP;
-                respo = `USBPID_NAK;
-              end else if (tok_endp_i == 4'h0 && ctl_q) begin
-                // Let EP0 sort out this CONTROL transfer
-                snext = ST_SEND;
+                pid_c = `USBPID_NAK;
               end
+            end else begin
+              snext = ST_RESP;
+              pid_c = `USBPID_STALL;
+              ctl_c = 1'b0;
             end
 
             `USBPID_PING: begin
-              if (ep1_out_rdy_w || ep2_out_rdy_w || ep3_out_rdy_w || ep4_out_rdy_w) begin
-                snext = ST_RESP;
-                respo = `USBPID_ACK;
-              end else if (ep1_out_sel_w || ep2_out_sel_w || ep3_out_sel_w || ep4_out_sel_w) begin
-                snext = ST_RESP;
-                respo = `USBPID_NAK;
-              end else if (ep0_sel_w) begin
-                snext = ST_RESP;
-                respo = `USBPID_ACK;
+              snext = ST_RESP;
+              if (tok_endp_i == 4'h0 && ctl_q) begin
+                pid_c = `USBPID_ACK;
+              end else if (out_sel_w) begin
+                pid_c = out_rdy_w ? `USBPID_ACK : `USBPID_NAK;
+              end else begin
+                ctl_c = 1'b0;
+                pid_c = `USBPID_STALL;
               end
             end
 
             default: begin
               // Ignore, and impossible to reach here
+              // Todo: wait for idle ??
+              $fatal("%8t => Invalid PID: %x\n", $time, usb_pid_i);
             end
           endcase
 
           if (tok_endp_i != 4'h0) begin
-            setup = 1'b0;
+            ctl_c = 1'b0;
           end
         end
       end
 
       // -- OUT and SETUP -- //
 
-      ST_DPID: begin
+      ST_DPID: if (usb_recv_i) begin
         // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
-        // Todo:
-        //  - check the DATA0/1 parity
-        //  - if not RX-ready, respond with 'NAK'
-        //  - correct response if OUT to DATAx time exceeded ??
-        if (usb_recv_i) begin
-          snext = par_w ? ST_RECV : ST_DUMP;
-          respo = par_w ? `USBPID_ACK : (rx_rdy_w ? `USBPID_ACK : `USBPID_NAK);
-        end else if (timeout_w) begin
-          // OUT token to DATAx packet timeout
-          snext = ST_IDLE;
-        end
+        // If parity-bits sequence error, we ignore the DATAx, but ACK response,
+        // or else receive as usual.
+        snext = par_w ? ST_RECV : ST_DROP;
+        pid_c = `USBPID_ACK;
+      end else if (timeout_w) begin
+        // OUT token to DATAx packet timeout
+        snext = ST_IDLE;
+        ctl_c = 1'b0;
       end
 
-      ST_RECV: begin
-        // Wait for the packet to complete
-        // Todo:
-        //  - if we RX a packet that exceeds MAX_LENGTH, then we need to assert
-        //    'stp' !?
-        if (crc_error_i) begin
-          // Ignore on data corruption, and host will retry
-          snext = ST_FAIL;
-        end else if (eop_recv_i) begin
-          // Decoder asserts EOP only on success
-          snext = ST_RESP;
-          respo = `USBPID_ACK;
-        end else if (len_error_w) begin
-          // Don't need a separate state, because exceptional ??
-          snext = ST_STOP;
-        end
+      ST_RECV: if (crc_error_i || len_error_w) begin
+        // Ignore on data corruption, and host will retry
+        snext = ST_IDLE;
+      end else if (eop_recv_i) begin
+        // Decoder asserts EOP only on success
+        snext = ST_RESP;
+        pid_c = `USBPID_ACK;
       end
 
-      ST_RESP: begin
+      ST_RESP: if (hsk_sent_i || timeout_w) begin
         // Send 'ACK/NAK/NYET/STALL' in response to 'DATAx'
-        if (hsk_sent_i || timeout_w) begin
-          snext = ST_IDLE;
-        end
+        snext = ST_IDLE;
       end
 
       // -- IN -- //
 
-      ST_SEND: begin
+      ST_SEND: if (usb_sent_i) begin
         // Waiting for endpoint to send 'DATAx', after an 'IN'
         // Todo:
         //  - do we check to see if the TX begins, or timeout !?
         //  - 'NAK' on timeout !?
-        if (usb_sent_i) begin
-          snext = ST_WAIT;
-        end else if (timeout_w) begin
-          snext = ST_IDLE;
-        end
+        snext = ST_WAIT;
+      end else if (timeout_w) begin
+        // Internal error, as a device end-point timed-out, after it signalled
+        // that it was ready, so we 'HALT' the endpoint (after some number of
+        // attempts).
+        // Todo:
+        //  - halt failing end-points ??
+        // snext = ST_IDLE;
+        snext = ST_RESP;
+        pid_c = `USBPID_STALL;
       end
 
-      ST_WAIT: begin
+      ST_WAIT: if (hsk_recv_i || timeout_w) begin
         // Waiting for host to send 'ACK'
-        // On receipt of an 'ACK', we toggle a parity-bit, or else we leave
-        // them unchanged
-        if (hsk_recv_i || timeout_w) begin
-          snext = ST_IDLE;
-        end
+        snext = ST_IDLE;
       end
 
       // -- Error Handling -- //
 
-      ST_FAIL: begin
-        if (timeout_w) begin
-          snext = ST_IDLE;
-        end
+      ST_DROP: if (eop_recv_i) begin
+        // Todo: wait for timeout ??
+        snext = ST_IDLE;
       end
 
-      ST_HALT, default: begin
-        // We are inactive
-        // Who knows, right !?
-        if (enable && set_conf_i) begin
-          snext = ST_IDLE;
-        end
+      default: begin
+        // Todo: is this circuit okay?
+        snext = ST_IDLE;
+        // Todo: or use this, instead?
+        $fatal("%8t => Invalid USB protocol state: %x\n", $time, state);
       end
 
     endcase
-
-    if (reset || !enable || big_error) begin
-      snext = ST_HALT;
-    end
   end
-
 
   always @(posedge clock) begin
     if (reset) begin
@@ -467,43 +393,63 @@ module protocol
       ctl_q <= 1'b0;
     end else begin
       state <= snext;
-      pid_q <= respo;
-      ctl_q <= setup;
+      pid_q <= pid_c;
+      ctl_q <= ctl_c;
     end
   end
 
 
-  // -- Simulation Only -- //
+  //
+  //  USB Protocol Timers
+  ///
+
+  // -- Bus Turnaround Timer -- //
+
+  //
+  //  If we have sent a packet, then we require a handshake within 816 clocks,
+  //  or else the packet failed to be transmitted, or the response failed to
+  //  (successfully) arrive.
+  //
+  localparam [6:0] MAX_TIMER = (816 / 8) - 1;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      bus_timer = MAX_TIMER;
+    end else begin
+      // Todo ...
+    end
+  end
+
+  // -- End-Point Response Timer -- //
+
+  // Todo ...
+
+  // -- Token to DATAx Timer -- //
+  
+  // Todo ...
+
 
 `ifdef __icarus
+  //
+  //  Simulation Only
+  ///
 
-  reg [47:0] dbg_pid;
+  reg [39:0] dbg_state;
 
   always @* begin
-    case (usb_pid_i)
-      `USBPID_OUT:   dbg_pid = "OUT";
-      `USBPID_IN:    dbg_pid = "IN";
-      `USBPID_SOF:   dbg_pid = "SOF";
-      `USBPID_SETUP: dbg_pid = "SETUP";
-      `USBPID_DATA0: dbg_pid = "DATA0"; 
-      `USBPID_DATA1: dbg_pid = "DATA1"; 
-      `USBPID_DATA2: dbg_pid = "DATA2"; 
-      `USBPID_MDATA: dbg_pid = "MDATA"; 
-      `USBPID_ACK:   dbg_pid = "ACK";
-      `USBPID_NAK:   dbg_pid = "NAK";
-      `USBPID_STALL: dbg_pid = "STALL";
-      `USBPID_NYET:  dbg_pid = "NYET";
-      `USBPID_PRE:   dbg_pid = "PRE";
-      `USBPID_ERR:   dbg_pid = "ERR";
-      `USBPID_SPLIT: dbg_pid = "SPLIT";
-      `USBPID_PING:  dbg_pid = "PING";
-      default:       dbg_pid = " ??? ";
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_DPID: dbg_state = "DPID";
+      ST_RECV: dbg_state = "RECV";
+      ST_RESP: dbg_state = "RESP";
+      ST_DROP: dbg_state = "DROP";
+      ST_SEND: dbg_state = "SEND";
+      ST_WAIT: dbg_state = "WAIT";
+      default: dbg_state = " ?? ";
     endcase
   end
 
 `endif /* __icarus */
-
-`endif /* __potato_tomato */
 
 
 endmodule  /* protocol */
