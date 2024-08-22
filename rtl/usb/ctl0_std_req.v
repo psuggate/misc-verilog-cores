@@ -4,8 +4,7 @@
  * Todo:
  *  - read/write the status registers of other endpoints ??
  */
-module ctl0_std_req
- #(
+module ctl0_std_req #(
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
 
@@ -16,10 +15,9 @@ module ctl0_std_req
     parameter [15:0] PRODUCT_ID = 16'h0003,
     parameter integer PRODUCT_LENGTH = 8,
     parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
-)
-  (
-   input clock,
-   input reset,
+) (
+    input clock,
+    input reset,
 
     // Signals from the USB packet decoder (upstream)
     input tok_recv_i,
@@ -27,24 +25,24 @@ module ctl0_std_req
     input [6:0] tok_addr_i,
     input [3:0] tok_endp_i,
 
-   output enumerated_o,
-   output configured_o,
-   output [2:0] conf_num_o,
-   output [6:0] address_o,
-   output set_conf_o,
-   output clr_conf_o,
+    output enumerated_o,
+    output configured_o,
+    output [2:0] conf_num_o,
+    output [6:0] address_o,
+    output set_conf_o,
+    output clr_conf_o,
 
-   input std_req_select_i,
-   output std_req_done_o,
-   input std_req_timeout_i,
+    input  std_req_select_i,
+    output std_req_done_o,
+    input  std_req_timeout_i,
 
-   // From the packet decoder
-   input dec_tvalid_i,
-   // output dec_tready_o,
-   input dec_tkeep_i,
-   input dec_tlast_i,
-   input [3:0] dec_tuser_i,
-   input [7:0] dec_tdata_i,
+    // From the packet decoder
+    input dec_tvalid_i,
+    // output dec_tready_o,
+    input dec_tkeep_i,
+    input dec_tlast_i,
+    input [3:0] dec_tuser_i,
+    input [7:0] dec_tdata_i,
 
     input  hsk_recv_i,
     output hsk_send_o,
@@ -56,14 +54,14 @@ module ctl0_std_req
     input usb_busy_i,
     input usb_sent_i,
 
-   // To the packet encoder
-   output enc_tvalid_o,
-   input enc_tready_i,
-   output enc_tkeep_o,
-   output enc_tlast_o,
-   output [3:0] enc_tuser_o,
-   output [7:0] enc_tdata_o
-   );
+    // To the packet encoder
+    output enc_tvalid_o,
+    input enc_tready_i,
+    output enc_tkeep_o,
+    output enc_tlast_o,
+    output [3:0] enc_tuser_o,
+    output [7:0] enc_tdata_o
+);
 
 
   // -- Module State and Signals -- //
@@ -447,10 +445,10 @@ module ctl0_std_req
       .req_length_i({ctl_lenhi_q, ctl_lenlo_q}),
 
       // AXI4-Stream for device descriptors
-      .m_tvalid_o (ctl0_tvalid_w),
-      .m_tlast_o  (ctl0_tlast_w),
-      .m_tdata_o  (ctl0_tdata_w),
-      .m_tready_i (ctl0_tready_w)
+      .m_tvalid_o(ctl0_tvalid_w),
+      .m_tlast_o (ctl0_tlast_w),
+      .m_tdata_o (ctl0_tdata_w),
+      .m_tready_i(ctl0_tready_w)
   );
 
 
@@ -480,7 +478,7 @@ module ctl0_std_req
     endcase
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
-endmodule // ctl0_std_req
+endmodule  // ctl0_std_req
