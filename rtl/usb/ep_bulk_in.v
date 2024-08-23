@@ -83,6 +83,11 @@ module ep_bulk_in
   wire [ASB:0] level_w;
 
 
+  // Todo: packet ready when
+  //  - there is a packet(-chunk) in the FIFO; OR,
+  //  - a ZDP needs to be transmitted?
+  assign ep_ready_o = tvalid_r | zdp_q; // send == TX_NONE;
+
   assign stalled_o = ~set_q;
   assign parity_o  = par_q;
 
@@ -113,7 +118,7 @@ module ep_bulk_in
       // As per the USB 2.0 spec, certain 'SET CONFIGURATION' events are
       // required to reset the parity/sequence bit.
       par_q <= 1'b0;
-    end else if (send == TX_WAIT && ack_recv_i) begin
+    end else if (send == TX_WAIT && selected_i && ack_recv_i) begin
       par_q <= ~par_q;
     end
   end
@@ -184,15 +189,15 @@ module ep_bulk_in
   end
 
   // Transmit (downstream) to ULPI encoder, state-machine logic
-  assign redo_w = send == TX_WAIT && timedout_i;
-  assign next_w = send == TX_WAIT && ack_recv_i;
+  assign redo_w = send == TX_WAIT && selected_i && timedout_i;
+  assign next_w = send == TX_WAIT && selected_i && ack_recv_i;
 
   always @* begin
     snxt = send;
 
     case (send)
       TX_IDLE: if (selected_i) begin
-        snxt = s_tvalid ? TX_SEND : TX_NONE;
+        snxt = tvalid_r ? TX_SEND : TX_NONE;
       end
 
       // Transferring data from source to USB encoder (via the packet FIFO).
@@ -201,9 +206,9 @@ module ep_bulk_in
       end
 
       // After sending a packet, wait for an ACK/ERR response.
-      TX_WAIT: if (ack_recv_i) begin
+      TX_WAIT: if (selected_i && ack_recv_i) begin
         snxt = zdp_q ? TX_NONE : TX_IDLE;
-      end else if (timedout_i) begin
+      end else if (selected_i && timedout_i) begin
         snxt = TX_REDO;
       end
 

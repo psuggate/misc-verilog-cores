@@ -72,6 +72,7 @@ module transactor #(
     output blk_fetch_o,
     output blk_store_o,
     output blk_cycle_o,
+    output blk_error_o,
     output [3:0] blk_endpt_o,
     input blk_error_i,
 
@@ -219,6 +220,7 @@ module transactor #(
   assign blk_endpt_o = tok_endp_i;  // todo: ??
   assign blk_fetch_o = fetch_q;
   assign blk_store_o = store_q;
+  assign blk_error_o = terr_q && state == ST_BULK;
 
   assign ctl_cycle_o = ctl_cycle_q;
   assign ctl_start_o = ctl_start_q;

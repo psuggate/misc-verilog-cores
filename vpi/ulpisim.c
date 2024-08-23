@@ -42,7 +42,8 @@ static int ut_error(const char* reason)
 
 static int ut_failed(const char* mesg, const int line, ut_state_t* state)
 {
-    vpi_printf("\t@%8lu ns  =>\tTest-case: %s failed\n", state->tick_ns, mesg);
+    vpi_printf("\t@%8lu ns  =>\tTest-case: %s failed [%s:%d]\n",
+	       state->tick_ns, mesg, __FILE__, __LINE__);
     show_ut_state(state);
     sprintf(err_mesg, "[%s:%d] Test-case: %s failed\n", __FILE__, line, mesg);
     ut_error(err_mesg);

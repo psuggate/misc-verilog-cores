@@ -84,12 +84,14 @@ module vpi_usb_ulpi_tb;
 
   reg tvalid_q, tlast_q, tstart_q;
   reg [7:0] tdata_q;
+  wire [2:0] usb_config;
 
   assign blki_tvalid_w = tvalid_q;
   assign blki_tlast_w  = tlast_q;
   assign blki_tkeep_w  = 1'b1;
   assign blki_tdata_w  = tdata_q;
 
+/*
   always @(posedge usb_clock) begin
     if (!usb_rst_n) begin
       tvalid_q <= 1'b0;
@@ -108,6 +110,29 @@ module vpi_usb_ulpi_tb;
       end else if (blki_tready_w && tvalid_q && tlast_q) begin
         tvalid_q <= 1'b0;
         tlast_q  <= 1'b0;
+      end
+    end
+  end
+*/
+
+  always @(posedge usb_clock) begin
+    if (!usb_rst_n) begin
+      tvalid_q <= 1'b0;
+      tstart_q <= 1'b0;
+      tlast_q  <= 1'b0;
+    end else begin
+      tstart_q <= configured && usb_config != 3'd0;
+
+      if (blki_tready_w && tvalid_q && !tlast_q) begin
+        tlast_q <= 1'b1;
+        tdata_q <= $random;
+      end else if (blki_tready_w && tvalid_q && tlast_q) begin
+        tvalid_q <= 1'b0;
+        tlast_q  <= 1'b0;
+      end else if (tstart_q && blki_tready_w) begin
+        tvalid_q <= 1'b1;
+        tlast_q  <= 1'b0;
+        tdata_q  <= $random;
       end
     end
   end
@@ -152,10 +177,8 @@ module vpi_usb_ulpi_tb;
   usb_ulpi_top #(
       .USE_EP2_IN (1),
       .USE_EP1_OUT(1)
-  ) U_USB_ULPI_TOP1 (
-      // .areset_n       (arst_nw),
+  ) U_USB1 (
       .areset_n       (usb_rst_n),
-      // .reset_no       (usb_rst_n),
 
       .ulpi_clock_i   (usb_clock),
       .ulpi_dir_i     (ulpi_dir),
@@ -166,8 +189,9 @@ module vpi_usb_ulpi_tb;
       .usb_clock_o    (dev_clock),
       .usb_reset_o    (dev_reset),
 
-/*
       .configured_o   (configured),
+      .usb_conf_o     (usb_config),
+/*
       .usb_idle_o     (usb_idle_w),
       .usb_sof_o      (dev_usb_sof_w),
       .crc_err_o      (dev_crc_err_w),

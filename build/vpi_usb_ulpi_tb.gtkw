@@ -1,19 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Aug 21 08:23:06 2024
+[*] Fri Aug 23 04:41:02 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Wed Aug 21 08:22:32 2024"
-[dumpfile_size] 356588
+[dumpfile_mtime] "Fri Aug 23 04:39:35 2024"
+[dumpfile_size] 532565
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 29563800
+[timestart] 29791400
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 30190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 30420000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
-[treeopen] vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.
+[treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 158
 [sst_expanded] 1
 [sst_vpaned_height] 620
 @28
@@ -32,7 +32,7 @@ vpi_usb_ulpi_tb.ulpi_stp
 vpi_usb_ulpi_tb.ulpi_data[7:0]
 @1000200
 -ULPI
-@800200
+@c00200
 -OUT
 @28
 vpi_usb_ulpi_tb.blko_tvalid_w
@@ -41,82 +41,116 @@ vpi_usb_ulpi_tb.blko_tlast_w
 vpi_usb_ulpi_tb.blko_tkeep_w
 @22
 vpi_usb_ulpi_tb.blko_tdata_w[7:0]
-@1000200
+@1401200
 -OUT
 @800200
 -IN
-@28
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blki_tvalid_i
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blki_tready_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blki_tlast_i
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blki_tkeep_i
-@22
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blki_tdata_i[7:0]
-@1000200
--IN
-@28
-[color] 5
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.LineState[1:0]
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_LINESTATE1.dbg_state[95:0]
-[color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.dbg_pid[47:0]
+@c00200
+-Config
 @28
 [color] 3
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_valid_o
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.set_conf_i
 [color] 1
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_DECODER1.crc_error_o
-@800200
--Transact
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.clr_conf_i
+[color] 6
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.set_q
+[color] 1
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.rst_q
+@1401200
+-Config
 @28
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tvalid_i
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tready_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.usb_tlast_i
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.hsk_send_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.hsk_sent_i
+[color] 2
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.selected_i
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.ack_recv_i
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.ep_ready_o
 @820
 [color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_TRANSACT1.dbg_xctrl[119:0]
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.dbg_recv[39:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.dbg_send[39:0]
+@28
+[color] 2
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.zdp_q
+@800200
+-Slave
+@28
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.s_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.s_tready
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.s_tlast
+@22
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.s_tdata[7:0]
 @1000200
--Transact
+-Slave
+@800200
+-Master
+@28
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tready
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tkeep
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tlast
+@22
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tdata[7:0]
+@1000200
+-Master
+-IN
 @800200
 -Encoder
+@28
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tready
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tkeep
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tlast
+@22
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tuser[3:0]
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tdata[7:0]
 @28
 [color] 3
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dir_q
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_ENCODER1.dbg_xsend[39:0]
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.usb_done_o
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.usb_busy_o
 @1000200
 -Encoder
+@800200
+-Decoder
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.usb_recv_o
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.tok_recv_o
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.sof_recv_o
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_recv_o
+@1000200
+-Decoder
+@800200
+-Transact
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.blk_start_o
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.blk_cycle_o
+@22
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.blk_endpt_o[3:0]
+@28
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.parity2_o
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.dbg_pid[47:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.dbg_state[39:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.dbg_xbulk[119:0]
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_XACT1.dbg_xctrl[119:0]
+@1000200
+-Transact
 @800200
 -Testbench
 @28
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_start_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_cycle_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_fetch_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_store_o
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_error_i
-@22
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.blk_endpt_o[3:0]
-@28
+vpi_usb_ulpi_tb.configured
+vpi_usb_ulpi_tb.usb_config[2:0]
 vpi_usb_ulpi_tb.tstart_q
 @1000200
 -Testbench
-@28
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.ep2_tvalid_w
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.ep2_tready_w
-[color] 3
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.set_conf_i
-[color] 1
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.clr_conf_i
-@29
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.set_q
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.dbg_recv[39:0]
-[color] 7
-vpi_usb_ulpi_tb.U_USB_ULPI_TOP1.U_IN_EP2.dbg_send[39:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -192,9 +192,66 @@ module usb_ulpi_top
   //  Bulk IN & OUT End-Point selects and ACKs
   ///
 
-  reg ep1_sel_q, ep2_sel_q, ep2_ack_q;
-  wire ep2_err_w = 1'b0;
+  wire bulk_err_w, ack_recv_w;
+  assign ack_recv_w = blk_cycle_o && hsk_rx_recv_w && ulpi_rx_tuser_w == `USBPID_ACK;
 
+  reg ep1_sel_q, ep1_ack_q, ep1_err_q;
+  reg ep1_sel_c, ep1_ack_c, ep1_err_c;
+
+  always @* begin
+    ep1_sel_c = ep1_sel_q;
+    ep1_ack_c = 1'b0;
+    ep1_err_c = 1'b0;
+
+    if (USE_EP1_OUT && blk_endpt_o == ENDPOINT2) begin
+      if (blk_start_o) begin
+        ep1_sel_c = 1'b1;
+      end else if (bulk_err_w && ack_recv_w) begin
+        ep1_sel_c = 1'b0;
+      end
+      ep1_ack_c = ep1_sel_q & ack_recv_w;
+      ep1_err_c = ep1_sel_q & bulk_err_w;
+    end
+
+    if (reset) begin
+      {ep1_err_c, ep1_ack_c, ep1_sel_c} <= 3'd0;
+    end
+  end
+
+  reg ep2_sel_q, ep2_ack_q, ep2_err_q;
+  reg ep2_sel_c, ep2_ack_c, ep2_err_c;
+
+  always @* begin
+    ep2_sel_c = ep2_sel_q;
+    ep2_ack_c = 1'b0;
+    ep2_err_c = 1'b0;
+
+    if (USE_EP2_IN && blk_endpt_o == ENDPOINT2) begin
+      if (blk_start_o) begin
+        ep2_sel_c = 1'b1;
+      end else if (bulk_err_w && ack_recv_w) begin
+        ep2_sel_c = 1'b0;
+      end
+      ep2_ack_c = ep2_sel_q & ack_recv_w;
+      ep2_err_c = ep2_sel_q & bulk_err_w;
+    end
+
+    if (reset) begin
+      {ep2_err_c, ep2_ack_c, ep2_sel_c} <= 3'd0;
+    end
+  end
+
+  always @(posedge clock) begin
+    ep1_sel_q <= ep1_sel_c;
+    ep1_ack_q <= ep1_ack_c;
+    ep1_err_q <= ep1_err_c;
+
+    ep2_sel_q <= ep2_sel_c;
+    ep2_ack_q <= ep2_ack_c;
+    ep2_err_q <= ep2_err_c;
+  end
+
+/*
   always @(posedge clock) begin
     if (reset) begin
       ep1_sel_q <= 1'b0;
@@ -218,6 +275,7 @@ module usb_ulpi_top
       end
     end
   end
+*/
 
 
   //
@@ -227,7 +285,7 @@ module usb_ulpi_top
 
   line_state #(
       .HIGH_SPEED(1)
-  ) U_LINESTATE1 (
+  ) U_LS1 (
       .clock        (clock),
       .reset        (~areset_n),
 
@@ -265,7 +323,7 @@ module usb_ulpi_top
 
   // -- ULPI Decoder & Encoder -- //
 
-  ulpi_decoder U_DECODER1 (
+  ulpi_decoder U_DEC1 (
       .clock      (clock),
       .reset      (reset),
 
@@ -296,7 +354,7 @@ module usb_ulpi_top
       .m_tdata    (ulpi_rx_tdata_w)
   );
 
-  ulpi_encoder U_ENCODER1 (
+  ulpi_encoder U_ENC1 (
       .clock      (clock),
       .reset      (~areset_n),
 
@@ -340,7 +398,7 @@ module usb_ulpi_top
       .PIPELINED      (PIPELINED),
       .ENDPOINT1      (ENDPOINT1),
       .ENDPOINT2      (ENDPOINT2)
-  ) U_TRANSACT1 (
+  ) U_XACT1 (
       .clock          (clock),
       .reset          (reset),
 
@@ -396,6 +454,7 @@ module usb_ulpi_top
       .blk_cycle_o    (blk_cycle_o),
       .blk_fetch_o    (blk_fetch_o),
       .blk_store_o    (blk_store_o),
+      .blk_error_o    (bulk_err_w),
       .blk_endpt_o    (blk_endpt_o),
       .blk_error_i    (blk_error_i),
 
@@ -455,7 +514,7 @@ module usb_ulpi_top
       // Product info
       .VENDOR_ID (VENDOR_ID),
       .PRODUCT_ID(PRODUCT_ID)
-  ) U_CFG_PIPE0 (
+  ) U_CTL0 (
       .clock       (clock),
       .reset       (reset),
 
@@ -520,7 +579,7 @@ module usb_ulpi_top
       .clr_conf_i(ctl0_error_w),
       .selected_i(ep2_sel_q),
       .ack_recv_i(ep2_ack_q),
-      .timedout_i(ep2_err_w),
+      .timedout_i(ep2_err_q),
       .ep_ready_o(has_packet_w),
       .stalled_o (),
       .s_tvalid  (blki_tvalid_i),

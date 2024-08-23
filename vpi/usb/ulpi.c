@@ -527,9 +527,14 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxPID:
-            assert(in->dir == SIG0 && in->nxt == SIG1);
-            if (!check_pid(in) || !check_seq(xfer, in->data.a & 0x0F)) {
-                printf("[%s:%d] Invalid PID value: 0x%02x\n", __FILE__, __LINE__, in->data.a);
+            assert(in->dir == SIG0 && in->nxt == SIG1 && in->data.b == 0x00);
+            if (in->data.a != ULPITX_DATA0 && in->data.a != ULPITX_DATA1) {
+                printf("[%s:%d] Invalid PID value: 0x%02x\n",
+		       __FILE__, __LINE__, in->data.a);
+                return -1;
+	    } else if (!check_seq(xfer, in->data.a & 0x0F)) {
+                printf("[%s:%d] Invalid PID DATAx sequence bit: 0x%02x\n",
+		       __FILE__, __LINE__, in->data.a);
                 return -1;
             }
             out->nxt = SIG0;
@@ -589,8 +594,10 @@ int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         if (!ulpi_bus_is_idle(in)) {
             switch (in->data.a) {
             case ULPITX_ACK:
+		printf("[%s:%d] ACK received\n", __FILE__, __LINE__);
                 out->nxt = SIG1;
                 xfer->stage = HskPID;
+		transfer_ack(xfer);
                 break;
             default:
                 printf("[%s:%d] Unexpected TX CMD: 0x%02x\n",

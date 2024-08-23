@@ -65,7 +65,7 @@ static int fn_token_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 
     case InitRXCMD:
         if (in->nxt == SIG1 && check_pid(in)) {
-            switch (in->data.a & 0x0f) {
+            switch (in->data.a & 0x0F) {
             case USBPID_OUT:
             case USBPID_IN:
             case USBPID_SETUP:
@@ -160,7 +160,7 @@ static int fn_datax_recv_step(usb_func_t* func, const ulpi_bus_t* in, ulpi_bus_t
 
     case InitRXCMD:
         if (in->nxt == SIG1 && check_pid(in)) {
-            if (check_seq(&func->xfer, in->data.a & 0x0f)) {
+            if (check_seq(&func->xfer, in->data.a & 0x0F)) {
                 func->xfer.stage = DATAxPID;
                 func->xfer.rx_ptr = 0;
                 func->xfer.rx_len = 0;
