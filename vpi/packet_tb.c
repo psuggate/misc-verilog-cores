@@ -796,6 +796,101 @@ testcase_t* test_wr_drop(uint8_t len)
     return tc;
 }
 
+// -- TOGGLE TREADY TO STOP-GO-STOP-GO-... -- //
+
+static const char tc_stop_go_name[] = "STOP-GO-STOP-GO...";
+
+static int tc_stop_go_init(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    st->step = 0;
+    st->head = 0;
+    st->tail = 0;
+    assert(fill_fixed_len(st->buf, st->size) == st->size);
+    return 0;
+}
+
+static int fetch_stop_go(fifo_sigs_t* curr, tc_state_t* st)
+{
+    int result = fetch_packet(curr, st);
+    if (result != 0) {
+	return result;
+    }
+    if ((rand() & 0x01) == 1) {
+	curr->r_rdy = SIG1;
+    } else {
+	curr->r_rdy = SIG0;
+    }
+    return 0;
+}
+
+static int tc_stop_go_step(fifo_sigs_t* curr, void* data)
+{
+    tc_state_t* st = (tc_state_t*)data;
+    int result;
+    assert(curr->clock == SIG1 && curr->reset == SIG0 && st != NULL);
+
+    switch (st->step) {
+
+    case 0:
+        curr->r_rdy = SIG0;
+        if (curr->w_rdy == SIG1) {
+            st->step = 1;
+        }
+        break;
+
+    case 1:
+        result = store_packet(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("store packet");
+            return -1;
+        } else if (result > 0) {
+            curr->save = SIG1;
+            st->head = 0;
+            st->step = 2;
+        }
+        break;
+
+    case 2:
+        curr->save = SIG0;
+        result = fetch_stop_go(curr, st);
+        if (result < 0) {
+            tc_state_show(st);
+            pt_error("fetch stop-go");
+        } else if (result > 0) {
+            curr->next = SIG1;
+            st->step = 3;
+            st->tail = 0;
+        }
+        break;
+
+    case 3:
+        curr->next = SIG0;
+        return 1;
+
+    default:
+        return -1;
+    }
+
+    return 0;
+}
+
+testcase_t* test_stop_go(void)
+{
+    testcase_t* tc = malloc(sizeof(testcase_t));
+    tc_state_t* st = malloc(sizeof(tc_state_t));
+
+    st->step = 0;
+    st->size = 32;
+    tc->name = tc_stop_go_name;
+    tc->data = st;
+    tc->init = tc_stop_go_init;
+    tc->step = tc_stop_go_step;
+
+    return tc;
+}
+
 
 //
 //  VPI Callbacks
@@ -967,6 +1062,7 @@ static int pt_compiletf(char* user_data)
     state->tests[i++] = test_wr_redo(3);
     state->tests[i++] = test_wr_drop(8);
     state->tests[i++] = test_wr_drop(1);
+    state->tests[i++] = test_stop_go();
     state->test_num = i;
 
     vpi_put_userdata(systf_handle, (void*)state);

@@ -1,11 +1,11 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Aug 23 04:41:02 2024
+[*] Fri Aug 23 05:16:23 2024
 [*]
-[dumpfile] "./vpi_usb_ulpi_tb.vcd"
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
 [dumpfile_mtime] "Fri Aug 23 04:39:35 2024"
 [dumpfile_size] 532565
-[savefile] "./vpi_usb_ulpi_tb.gtkw"
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
 [timestart] 29791400
 [size] 2560 1376
 [pos] -1 -1
@@ -104,6 +104,12 @@ vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tlast
 @22
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tuser[3:0]
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tdata[7:0]
+@28
+[color] 2
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.hsk_send_i
+@29
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_ENC1.hsk_done_o
 @28
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.usb_done_o

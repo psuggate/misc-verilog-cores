@@ -413,7 +413,8 @@ module usb_ulpi_top
       .ctl_state_o    (ctl_state_w),
       .blk_state_o    (blk_state_w),
 
-      // Signals from the USB packet decoder (upstream)
+      // USB token signals from the USB packet decoder (upstream), and to the
+      // packet encoder
       .tok_recv_i     (tok_rx_recv_w),
       .tok_ping_i     (tok_rx_ping_w),
       .tok_addr_i     (tok_addr_w),
