@@ -134,7 +134,7 @@ module usb_ulpi_top
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
   wire parity1_w; // TODO: remove ...
-  wire space_avail_w, has_packet_w;
+  wire space_avail_w, has_packet_w, crc_error_w;
 
   wire usb_idle_w, usb_enum_w, locked, clock, reset;
   wire high_speed_w, encode_idle_w, decode_idle_w, usb_reset_w, timeout_w;
@@ -176,6 +176,10 @@ module usb_ulpi_top
   wire ep1_tvalid_w, ep1_tready_w, ep1_tlast_w;
   wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
   wire [7:0] ep1_tdata_w, ep2_tdata_w;
+
+  wire ep0_end_w;
+  wire ep0_par_w, ep1_par_w, ep2_par_w;
+  wire ep0_sel_w, ep1_sel_w, ep2_sel_w;
 
 
   assign clock = ulpi_clock_i;
@@ -333,8 +337,7 @@ module usb_ulpi_top
       .ulpi_nxt   (iob_nxt_w),
       .ulpi_data  (iob_dat_w),
 
-      // .crc_error_o(crc_err_o),
-      // .crc_valid_o(crc_vld_o),
+      .crc_error_o(crc_error_w),
       .sof_recv_o (sof_rx_recv_w),
       .eop_recv_o (eop_rx_recv_w),
       .dec_idle_o (decode_idle_w),
@@ -583,6 +586,7 @@ module usb_ulpi_top
       .timedout_i(ep2_err_q),
       .ep_ready_o(has_packet_w),
       .stalled_o (),
+      .parity_o  (ep2_par_w),
       .s_tvalid  (blki_tvalid_i),
       .s_tready  (blki_tready_o),
       .s_tlast   (blki_tlast_i),
@@ -592,6 +596,70 @@ module usb_ulpi_top
       .m_tkeep   (ep2_tkeep_w),
       .m_tlast   (ep2_tlast_w),
       .m_tdata   (ep2_tdata_w)
+      );
+
+  protocol
+    #( .BULK_EP1   (1),
+       .USE_EP1_IN (0),
+       .USE_EP1_OUT(1),
+       .BULK_EP2   (1),
+       .USE_EP2_IN (1),
+       .USE_EP2_OUT(0),
+       .BULK_EP3   (0),
+       .BULK_EP4   (0)
+       )
+  U_PROTO1
+    ( .clock(clock),
+      .reset(reset),
+
+      .set_conf_i  (ctl0_event_w),
+      .clr_conf_i  (ctl0_error_w),
+      .usb_addr_i  (usb_addr_w),
+      .stdreq_o    (stdreq_w),
+      .crc_error_i (crc_error_w),
+
+      .tok_recv_i  (tok_rx_recv_w),
+      .tok_ping_i  (tok_rx_ping_w),
+      .tok_addr_i  (tok_addr_w),
+      .tok_endp_i  (tok_endp_w),
+
+      .hsk_recv_i  (hsk_rx_recv_w),
+      .hsk_send_o  (),
+      .hsk_sent_i  (hsk_tx_done_w),
+
+      .usb_recv_i  (usb_rx_recv_w),
+      .eop_recv_i  (eop_rx_recv_w),
+      .usb_sent_i  (usb_tx_done_w),
+      .usb_pid_i   (ulpi_rx_tuser_w),
+
+      .ep0_select_o(ep0_sel_w),
+      .ep0_parity_i(ep0_par_w),
+      .ep0_halted_i(ep0_hlt_w),
+      .ep0_finish_i(ep0_end_w),
+
+      .ep1_select_o(ep1_sel_w),
+      .ep1_rx_rdy_i(space_avail_w),
+      .ep1_tx_rdy_i(),
+      .ep1_parity_i(ep1_par_w),
+      .ep1_halted_i(ep1_hlt_w),
+
+      .ep2_select_o(ep2_sel_w),
+      .ep2_rx_rdy_i(),
+      .ep2_tx_rdy_i(has_packet_w),
+      .ep2_parity_i(ep2_par_w),
+      .ep2_halted_i(ep2_hlt_w),
+
+      .ep3_rx_rdy_i(),
+      .ep3_tx_rdy_i(),
+      .ep3_parity_i(),
+      .ep3_halted_i(),
+      .ep3_select_o(),
+
+      .ep4_rx_rdy_i(),
+      .ep4_tx_rdy_i(),
+      .ep4_parity_i(),
+      .ep4_halted_i(),
+      .ep4_select_o()
       );
 
 

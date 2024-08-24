@@ -63,7 +63,6 @@ module ctl0_std_req #(
     output [7:0] enc_tdata_o
 );
 
-
   // -- Module State and Signals -- //
 
   reg ctl_start_q, ctl_cycle_q, ctl_error_q;

@@ -34,16 +34,15 @@ module protocol #(
     input clr_conf_i,
     input [6:0] usb_addr_i,
 
+   output stdreq_o,
+
     // Signals from the USB packet decoder (upstream)
     input crc_error_i,
-    input crc_valid_i,  // Unused ??
 
     input hsk_recv_i,
     input usb_recv_i,
     input [3:0] usb_pid_i,
-    input sof_recv_i,
     input eop_recv_i,
-    input dec_idle_i,
 
     input tok_recv_i,
     input tok_ping_i,
@@ -53,9 +52,7 @@ module protocol #(
     // ULPI encoder signals
     output hsk_send_o,
     input hsk_sent_i,
-    input usb_busy_i,
     input usb_sent_i,
-    output [3:0] usb_pid_o,
 
     // Control end-point
     input  ep0_parity_i,
@@ -89,13 +86,16 @@ module protocol #(
     output ep4_select_o
 );
 
-  `include "usb_defs.vh"
+`include "usb_defs.vh"
 
   reg ep0_en, ep1_en, ep2_en, ep3_en, ep4_en;
   reg [6:0] bus_timer, state, snext;
   reg [3:0] pid_c, pid_q;
   reg ctl_c, ctl_q;
-  wire timeout_w, par_w;
+  wire timeout_w, par_w, len_error_w;
+
+  assign stdreq_o = ctl_q;
+
 
   // -- End-Point Control -- //
 
@@ -181,6 +181,8 @@ module protocol #(
   // Note(s):
   //  - USB spec says to ignore transaction requests if not supported
   //
+  wire ep0_out_sel_w = ep0_en && tok_endp_i == 4'h0;
+
   wire ep1_out_sel_w = ep1_en && USE_EP1_OUT && tok_endp_i == BULK_EP1;
   wire ep1_out_rdy_w = ep1_out_sel_w && !ep1_halted_i && ep1_rx_rdy_i;
   wire ep1_in_sel_w = BULK_EP1 != 0 && USE_EP1_IN && tok_endp_i == BULK_EP1;
@@ -201,7 +203,7 @@ module protocol #(
   wire ep4_in_sel_w = ep4_en && USE_EP4_IN && tok_endp_i == BULK_EP4;
   wire ep4_in_rdy_w = ep4_in_sel_w && ep4_tx_rdy_i;
 
-  wire out_sel_w = ep1_out_sel_w | ep2_out_sel_w | ep3_out_sel_w | ep4_out_sel_w;
+  wire out_sel_w = ep0_out_sel_w | ep1_out_sel_w | ep2_out_sel_w | ep3_out_sel_w | ep4_out_sel_w;
   wire out_rdy_w = ep1_out_rdy_w | ep2_out_rdy_w | ep3_out_rdy_w | ep4_out_rdy_w;
   wire in_sel_w = ep1_in_sel_w | ep2_in_sel_w | ep3_in_sel_w | ep4_in_sel_w;
   wire in_rdy_w = ep1_in_rdy_w | ep2_in_rdy_w | ep3_in_rdy_w | ep4_in_rdy_w;
@@ -308,7 +310,7 @@ module protocol #(
             default: begin
               // Ignore, and impossible to reach here
               // Todo: wait for idle ??
-              $fatal("%8t => Invalid PID: %x\n", $time, usb_pid_i);
+              // $fatal("%8t => Invalid PID: %x\n", $time, usb_pid_i);
             end
           endcase
 
@@ -387,7 +389,7 @@ module protocol #(
         // Todo: is this circuit okay?
         snext = ST_IDLE;
         // Todo: or use this, instead?
-        $fatal("%8t => Invalid USB protocol state: %x\n", $time, state);
+        // $fatal("%8t => Invalid USB protocol state: %x\n", $time, state);
       end
 
     endcase
