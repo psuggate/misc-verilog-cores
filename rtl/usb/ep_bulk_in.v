@@ -53,14 +53,14 @@ module ep_bulk_in
   localparam ASB   = ABITS - 1;
 
   //
-  // TODO
+  //  TODO
+  // ======
   //  1. generate 'save' strobes when source-data > max packet size;
   //  2. 'next' strobes on 'ACK' handshakes (from USB host);
   //  3. 'redo' strobes on 'selected', when an 'ACK' has not been received;
   //  4. counter for source-data (bytes of the current packet);
   //  5. counter for transmit-data, to queue ZDP's at max-packet-sizes;
   //
-
   localparam [2:0] RX_HALT = 3'b001;
   localparam [2:0] RX_RECV = 3'b010;
   localparam [2:0] RX_FULL = 3'b100;
