@@ -34,8 +34,6 @@ module protocol #(
     input clr_conf_i,
     input [6:0] usb_addr_i,
 
-   output stdreq_o,
-
     // Signals from the USB packet decoder (upstream)
     input crc_error_i,
 
@@ -51,14 +49,13 @@ module protocol #(
 
     // ULPI encoder signals
     output hsk_send_o,
-    input hsk_sent_i,
-    input usb_sent_i,
+    input  hsk_sent_i,
+    input  usb_sent_i,
 
     // Control end-point
-    input  ep0_parity_i,
-    input  ep0_halted_i,
-    input  ep0_finish_i,
-    output ep0_select_o,
+    input ep0_select_i,
+    input ep0_parity_i,
+    input ep0_finish_i,
 
     // Bulk IN/OUT end-points
     input  ep1_rx_rdy_i,
@@ -86,16 +83,12 @@ module protocol #(
     output ep4_select_o
 );
 
-`include "usb_defs.vh"
+  `include "usb_defs.vh"
 
-  reg ep0_en, ep1_en, ep2_en, ep3_en, ep4_en;
+  reg ep1_en, ep2_en, ep3_en, ep4_en;
   reg [6:0] bus_timer, state, snext;
   reg [3:0] pid_c, pid_q;
-  reg ctl_c, ctl_q;
   wire timeout_w, par_w, len_error_w;
-
-  assign stdreq_o = ctl_q;
-
 
   // -- End-Point Control -- //
 
@@ -105,12 +98,6 @@ module protocol #(
   localparam EP4_EN = BULK_EP4 != 0 && (USE_EP4_IN || USE_EP4_OUT);
 
   always @(posedge clock) begin
-    if (reset) begin
-      ep0_en <= 1'b1;
-    end else if (ep0_halted_i || !enable) begin
-      ep0_en <= 1'b0;
-    end
-
     if (reset || clr_conf_i || ep1_halted_i) begin
       ep1_en <= 1'b0;
     end else if (set_conf_i) begin
@@ -181,7 +168,7 @@ module protocol #(
   // Note(s):
   //  - USB spec says to ignore transaction requests if not supported
   //
-  wire ep0_out_sel_w = ep0_en && tok_endp_i == 4'h0;
+  wire ep0_out_sel_w = tok_endp_i == 4'h0;
 
   wire ep1_out_sel_w = ep1_en && USE_EP1_OUT && tok_endp_i == BULK_EP1;
   wire ep1_out_rdy_w = ep1_out_sel_w && !ep1_halted_i && ep1_rx_rdy_i;
@@ -212,7 +199,7 @@ module protocol #(
 
   // -- DATAx Parity-Checking for the Sequence Bits -- //
 
-  wire ep0_par_w = ep0_en && ctl_q && ep0_parity_i != usb_pid_i[3];
+  wire ep0_par_w = ep0_select_i && ep0_parity_i != usb_pid_i[3];
   wire ep1_par_w = ep1_out_sel_w && ep1_parity_i != usb_pid_i[3];
   wire ep2_par_w = ep2_out_sel_w && ep2_parity_i != usb_pid_i[3];
   wire ep3_par_w = ep3_out_sel_w && ep3_parity_i != usb_pid_i[3];
@@ -233,7 +220,6 @@ module protocol #(
   always @* begin
     snext = state;
     pid_c = pid_q;
-    ctl_c = ep0_finish_i ? 1'b0 : ctl_q;
 
     case (state)
 
@@ -246,21 +232,18 @@ module protocol #(
             `USBPID_SETUP: begin
               if (tok_endp_i == 4'h0) begin
                 snext = ST_DPID;
-                ctl_c = 1'b1;
               end else begin
                 // Indicate that operation is unsupported
                 snext = ST_DROP;
                 pid_c = `USBPID_STALL;
-                ctl_c = 1'b0;  // Todo: redundant (see line 382, below)
               end
             end
 
             `USBPID_OUT:
-            if (tok_endp_i == 4'h0 && ctl_q) begin
+            if (ep0_select_i) begin
               // EP0 CONTROL transfers always succeed
               snext = ST_DPID;
             end else if (out_sel_w) begin
-              ctl_c = 1'b0;
               if (out_rdy_w) begin
                 // We have space, so RX some data
                 snext = ST_DPID;
@@ -272,15 +255,13 @@ module protocol #(
             end else begin
               snext = ST_DROP;
               pid_c = `USBPID_STALL;
-              ctl_c = 1'b0;
             end
 
             `USBPID_IN:
-            if (tok_endp_i == 4'h0 && ctl_q) begin
+            if (ep0_select_i) begin
               // Let EP0 sort out this CONTROL transfer
               snext = ST_SEND;
             end else if (in_sel_w) begin
-              ctl_c = 1'b0;
               if (in_rdy_w) begin
                 // We have at least one packet ready to TX
                 snext = ST_SEND;
@@ -292,17 +273,15 @@ module protocol #(
             end else begin
               snext = ST_RESP;
               pid_c = `USBPID_STALL;
-              ctl_c = 1'b0;
             end
 
             `USBPID_PING: begin
               snext = ST_RESP;
-              if (tok_endp_i == 4'h0 && ctl_q) begin
+              if (ep0_select_i) begin
                 pid_c = `USBPID_ACK;
               end else if (out_sel_w) begin
                 pid_c = out_rdy_w ? `USBPID_ACK : `USBPID_NAK;
               end else begin
-                ctl_c = 1'b0;
                 pid_c = `USBPID_STALL;
               end
             end
@@ -314,9 +293,6 @@ module protocol #(
             end
           endcase
 
-          if (tok_endp_i != 4'h0) begin
-            ctl_c = 1'b0;
-          end
         end
       end
 
@@ -332,7 +308,6 @@ module protocol #(
       end else if (timeout_w) begin
         // OUT token to DATAx packet timeout
         snext = ST_IDLE;
-        ctl_c = 1'b0;
       end
 
       ST_RECV:
@@ -399,11 +374,9 @@ module protocol #(
     if (reset) begin
       state <= ST_IDLE;
       pid_q <= 4'bx;
-      ctl_q <= 1'b0;
     end else begin
       state <= snext;
       pid_q <= pid_c;
-      ctl_q <= ctl_c;
     end
   end
 

@@ -569,20 +569,7 @@ module usb_ulpi_top #(
       .m_tdata   (ep2_tdata_w)
   );
 
-  reg ctl0_prev_q, ep0_end_q;
-  wire stdreq_select_w, stdreq_finish_w;
-
-  assign ep0_end_w = ep0_end_q;
-
-  always @(posedge clock) begin
-    ctl0_prev_q <= ctl0_cycle_w;
-
-    if (ctl0_prev_q && !ctl0_cycle_w) begin
-      ep0_end_q <= 1'b1;
-    end else begin
-      ep0_end_q <= 1'b0;
-    end
-  end
+  wire stdreq_select_w, stdreq_parity_w, stdreq_finish_w;
 
   protocol #(
       .BULK_EP1   (1),
@@ -600,7 +587,6 @@ module usb_ulpi_top #(
       .set_conf_i (ctl0_event_w),
       .clr_conf_i (ctl0_error_w),
       .usb_addr_i (usb_addr_w),
-      .stdreq_o   (stdreq_select_w),
       .crc_error_i(crc_error_w),
 
       .tok_recv_i(tok_rx_recv_w),
@@ -617,10 +603,9 @@ module usb_ulpi_top #(
       .usb_sent_i(usb_tx_done_w),
       .usb_pid_i (ulpi_rx_tuser_w),
 
-      .ep0_select_o(ep0_sel_w),
-      .ep0_parity_i(ep0_par_w),
-      .ep0_halted_i(ep0_hlt_w),
-      .ep0_finish_i(ep0_end_w),
+      .ep0_select_i(stdreq_select_w),
+      .ep0_parity_i(stdreq_parity_w),
+      .ep0_finish_i(stdreq_finish_w),
 
       .ep1_select_o(ep1_sel_w),
       .ep1_rx_rdy_i(space_avail_w),
@@ -647,14 +632,16 @@ module usb_ulpi_top #(
       .ep4_select_o()
   );
 
-  stdreq U_STDREQ1 (
+  stdreq #(
+      .EP0_ONLY(1)
+  ) U_STDREQ1 (
       .clock(clock),
       .reset(reset),
 
       // USB device current configuration
       .enumerated_i(usb_enum_w),
       .configured_i(configured_o),
-      .usb_addr_i(usb_addr_w),
+      .usb_addr_i  (usb_addr_w),
 
       // Signals from the USB packet decoder (upstream)
       .tok_recv_i(tok_rx_recv_w),
@@ -667,19 +654,30 @@ module usb_ulpi_top #(
       .eop_recv_i(eop_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
 
+      // To the device control pipe(s)
+      .req_start_o (),
+      .req_cycle_o (),
+      .req_event_i (),
+      .req_error_i (),
+      .req_rtype_o (),
+      .req_rargs_o (),
+      .req_value_o (),
+      .req_index_o (),
+      .req_length_o(),
+
       // From the USB protocol logic
-      .select_i (stdreq_select_w),
-      .start_i  (ctl0_start_w),
+      .select_o (stdreq_select_w),
+      .parity_o (stdreq_parity_w),
       .finish_o (stdreq_finish_w),
       .timeout_i(timeout_w),
 
       // From the packet decoder
       .s_tvalid(ulpi_rx_tvalid_w),
-      .s_tready(), // Todo ...
-      .s_tkeep (ulpi_rx_tkeep_w),
-      .s_tlast (ulpi_rx_tlast_w),
-      .s_tuser (ulpi_rx_tuser_w),
-      .s_tdata (ulpi_rx_tdata_w),
+      .s_tready(),  // Todo ...
+      .s_tkeep(ulpi_rx_tkeep_w),
+      .s_tlast(ulpi_rx_tlast_w),
+      .s_tuser(ulpi_rx_tuser_w),
+      .s_tdata(ulpi_rx_tdata_w),
 
       // To the packet encoder
       .m_tvalid(),
