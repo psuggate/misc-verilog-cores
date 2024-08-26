@@ -296,8 +296,8 @@ module protocol #(
 
             default: begin
               // Ignore, and impossible to reach here
-              // Todo: wait for idle ??
-              // $fatal("%8t => Invalid PID: %x\n", $time, usb_pid_i);
+              snext = 'bx;
+              pid_c = 'bx;
             end
           endcase
 
@@ -352,7 +352,6 @@ module protocol #(
         // attempts).
         // Todo:
         //  - halt failing end-points ??
-        // snext = ST_IDLE;
         snext = ST_RESP;
         pid_c = `USBPID_STALL;
       end
@@ -373,9 +372,7 @@ module protocol #(
 
       default: begin
         // Todo: is this circuit okay?
-        snext = ST_IDLE;
-        // Todo: or use this, instead?
-        // $fatal("%8t => Invalid USB protocol state: %x\n", $time, state);
+        snext = 'bx; // ST_IDLE;
       end
 
     endcase

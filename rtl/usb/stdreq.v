@@ -178,6 +178,34 @@ module stdreq #(
 
   // -- Control Pipe SETUP Request FSM -- //
 
+  // Todo: checks that the 'IN' corresponds to sending an 'ACK', and 'OUT' is
+  //   followed by receiving an 'ACK'.
+  wire data_ack_w = (req_rtype_q[7] & hsk_recv_i) | (~req_rtype_q[7] & hsk_sent_i);
+
+  //
+  // These transfers have a predefined structure (see pp.225, USB 2.0 Spec), and
+  // the initial 'DATA0' packet (after the 'SETUP' token) contains data laid-out
+  // in the following format:
+  //  - BYTE[0]   -- Request Type
+  //  - BYTE[1]   -- Request
+  //  - BYTE[3:2] -- Value
+  //  - BYTE[5:4] -- Index
+  //  - BYTE[7:6] -- Buffer length (can be zero)
+  //  - BYTE[8..] -- Buffer contents (optional)
+  // After receiving the packets: 'SETUP' & 'DATA0', a USB device must respond
+  // with an 'ACK' handshake, before the "Data Stage" of the Control Transfer
+  // begins.
+  //
+  // Post-'ACK', the host issues an 'IN' (or 'OUT') token, and the device (or
+  // host, respectively) then follows with zero or more DATA1, DATA0, ... tokens
+  // and packets (and with the receiver replying with 'ACK' handshakes).
+  //
+  // Finally, the "Status Stage" of the Control Transfer requires that a status
+  // packet (in the opposite bus direction to the 'DATA0/1' packets) be sent
+  // (after the host issues the appropriate 'IN'/'OUT' token, folowed by an 'ACK'
+  // handshake) to terminate the Control Transfer. This final packet is always a
+  // 'DATA1' packet.
+  //
   always @* begin
     snext = state;
 
@@ -195,7 +223,8 @@ module stdreq #(
         end
       end
       ST_DATA:
-      if (hsk_sent_i || hsk_recv_i) begin
+      if (data_ack_w) begin
+      // if (hsk_sent_i || hsk_recv_i) begin
         snext = ST_STATUS;
       end else if (timeout_i) begin
         snext = ST_IDLE;

@@ -174,6 +174,7 @@ module usb_ulpi_top #(
 
   wire ep1_tvalid_w, ep1_tready_w, ep1_tlast_w;
   wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
+  wire [3:0] ep2_tuser_w;
   wire [7:0] ep1_tdata_w, ep2_tdata_w;
 
   wire ep0_end_w;
@@ -557,6 +558,8 @@ module usb_ulpi_top #(
       .m_tlast   (blko_tlast_o),
       .m_tdata   (blko_tdata_o)
   );
+
+  assign ep2_tuser_w = ep2_par_w ? `USBPID_DATA1 : `USBPID_DATA0;
 
   ep_bulk_in #(
       .ENABLED(USE_EP2_IN),
