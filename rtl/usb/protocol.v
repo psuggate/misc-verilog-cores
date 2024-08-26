@@ -52,6 +52,8 @@ module protocol #(
     input  usb_sent_i,
 
     output mux_enable_o,
+    output [2:0] mux_select_o,
+    output [3:0] ulpi_tuser_o,
 
     // Control end-point
     input ep0_select_i,
@@ -87,13 +89,19 @@ module protocol #(
   `include "usb_defs.vh"
 
   reg ep1_en, ep2_en, ep3_en, ep4_en;
-  reg [6:0] bus_timer, state, snext;
   reg [3:0] pid_c, pid_q;
+  reg [5:0] state, snext;
+  reg [6:0] bus_timer;
   wire timeout_w, par_w, len_error_w;
 
   reg mux_q;
+  reg [2:0] sel_q;
+  wire seq_w;
+  wire [3:0] pid_w;
 
   assign mux_enable_o = mux_q;
+  assign mux_select_o = sel_q;
+  assign ulpi_tuser_o = pid_q;
 
   // -- End-Point Control -- //
 
@@ -211,16 +219,22 @@ module protocol #(
   wire ep4_par_w = ep4_out_sel_w && ep4_parity_i == usb_pid_i[3];
 
   assign par_w = ep0_par_w | ep1_par_w | ep2_par_w | ep3_par_w | ep4_par_w;
+  assign seq_w = tok_endp_i == 0 ? ep0_parity_i :
+                 tok_endp_i == BULK_EP1 ? ep1_parity_i :
+                 tok_endp_i == BULK_EP2 ? ep2_parity_i :
+                 tok_endp_i == BULK_EP3 ? ep3_parity_i :
+                 tok_endp_i == BULK_EP4 ? ep4_parity_i : 1'bx ;
+  assign pid_w = seq_w ? `USBPID_DATA1 : `USBPID_DATA0;
+
 
   // -- FSM -- //
 
-  localparam [6:0] ST_IDLE = 1;
-  localparam [6:0] ST_DPID = 2;  // Wait for a DATAx PID
-  localparam [6:0] ST_RECV = 4;  // RX data from the ULPI
-  localparam [6:0] ST_RESP = 8;  // Send a handshake to USB host
-  localparam [6:0] ST_DROP = 16;  // Wait for EOP, and then no response
-  localparam [6:0] ST_SEND = 32;  // Route data from EP to ULPI
-  localparam [6:0] ST_WAIT = 64;  // Wait for USB host handshake
+  localparam [5:0] ST_IDLE = 1;
+  localparam [5:0] ST_RECV = 2;  // RX data from the ULPI
+  localparam [5:0] ST_RESP = 4;  // Send a handshake to USB host
+  localparam [5:0] ST_DROP = 8;  // Wait for EOP, and then no response
+  localparam [5:0] ST_SEND = 16;  // Route data from EP to ULPI
+  localparam [5:0] ST_WAIT = 32;  // Wait for USB host handshake
 
   always @* begin
     snext = state;
@@ -265,22 +279,24 @@ module protocol #(
               pid_c = `USBPID_STALL;
             end
 
-            `USBPID_IN:
-            if (ep0_select_i) begin
-              // Let EP0 sort out this CONTROL transfer
-              snext = ST_SEND;
-            end else if (in_sel_w) begin
-              if (in_rdy_w) begin
-                // We have at least one packet ready to TX
+            `USBPID_IN: begin
+              pid_c = pid_w;
+              if (ep0_select_i) begin
+                // Let EP0 sort out this CONTROL transfer
                 snext = ST_SEND;
+              end else if (in_sel_w) begin
+                if (in_rdy_w) begin
+                  // We have at least one packet ready to TX
+                  snext = ST_SEND;
+                end else begin
+                  // Selected, but no packet is ready, so NAK
+                  snext = ST_RESP;
+                  pid_c = `USBPID_NAK;
+                end
               end else begin
-                // Selected, but no packet is ready, so NAK
                 snext = ST_RESP;
-                pid_c = `USBPID_NAK;
+                pid_c = `USBPID_STALL;
               end
-            end else begin
-              snext = ST_RESP;
-              pid_c = `USBPID_STALL;
             end
 
             `USBPID_PING: begin
@@ -305,18 +321,6 @@ module protocol #(
       end
 
       // -- OUT and SETUP -- //
-
-      ST_DPID:
-      if (usb_recv_i) begin
-        // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
-        // If parity-bits sequence error, we ignore the DATAx, but ACK response,
-        // or else receive as usual.
-        snext = par_w ? ST_RECV : ST_DROP;
-        pid_c = `USBPID_ACK;
-      end else if (timeout_w) begin
-        // OUT token to DATAx packet timeout
-        snext = ST_IDLE;
-      end
 
       ST_RECV:
       if (usb_recv_i) begin
@@ -372,7 +376,7 @@ module protocol #(
 
       default: begin
         // Todo: is this circuit okay?
-        snext = 'bx; // ST_IDLE;
+        snext = 'bx;  // ST_IDLE;
       end
 
     endcase
@@ -386,7 +390,16 @@ module protocol #(
     end else begin
       state <= snext;
       pid_q <= pid_c;
+
       mux_q <= state == ST_SEND || state == ST_WAIT;
+      case (tok_endp_i)
+        4'h0:     sel_q <= 3'h0;
+        BULK_EP1: sel_q <= 3'h1;
+        BULK_EP2: sel_q <= 3'h2;
+        BULK_EP3: sel_q <= 3'h3;
+        BULK_EP4: sel_q <= 3'h4;
+        default:  sel_q <= 3'h7;
+      endcase
     end
   end
 
@@ -432,7 +445,6 @@ module protocol #(
   always @* begin
     case (state)
       ST_IDLE: dbg_state = "IDLE";
-      ST_DPID: dbg_state = "DPID";
       ST_RECV: dbg_state = "RECV";
       ST_RESP: dbg_state = "RESP";
       ST_DROP: dbg_state = "DROP";

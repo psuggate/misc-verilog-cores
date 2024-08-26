@@ -27,7 +27,7 @@ module stdreq #(
     input usb_sent_i,
 
     // From the USB protocol logic
-    input  select_o,
+    output select_o,
     output parity_o,
     output start_o,
     output finish_o,
@@ -224,7 +224,7 @@ module stdreq #(
       end
       ST_DATA:
       if (data_ack_w) begin
-      // if (hsk_sent_i || hsk_recv_i) begin
+        // if (hsk_sent_i || hsk_recv_i) begin
         snext = ST_STATUS;
       end else if (timeout_i) begin
         snext = ST_IDLE;

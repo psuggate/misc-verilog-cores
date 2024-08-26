@@ -21,8 +21,12 @@ module ep_bulk_out
    input clr_conf_i, // From CONTROL PIPE0
 
    input selected_i, // From USB controller
+   input ack_recv_i,
+   input timedout_i,
+
    output ep_ready_o,
    output stalled_o, // If invariants violated
+   output parity_o,
 
    // From USB/ULPI packet decoder
    input s_tvalid,
