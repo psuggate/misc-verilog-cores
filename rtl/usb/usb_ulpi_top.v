@@ -632,6 +632,16 @@ module usb_ulpi_top #(
       .ep4_select_o()
   );
 
+  wire req_start_w, req_cycle_w, req_event_w, req_error_w;
+  wire [7:0] req_rtype_w, req_rargs_w;
+  wire [15:0] req_value_w, req_index_w, req_length_w;
+
+  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tlast_w;
+  wire [7:0] stdreq_tdata_w;
+
+  wire [3:0] req_endpt_w = tok_endp_w;  // Todo ...
+  assign stdreq_tready_w = 1'b1; // Todo ...
+
   stdreq #(
       .EP0_ONLY(1)
   ) U_STDREQ1 (
@@ -655,15 +665,15 @@ module usb_ulpi_top #(
       .usb_sent_i(usb_tx_done_w),
 
       // To the device control pipe(s)
-      .req_start_o (),
-      .req_cycle_o (),
-      .req_event_i (),
-      .req_error_i (),
-      .req_rtype_o (),
-      .req_rargs_o (),
-      .req_value_o (),
-      .req_index_o (),
-      .req_length_o(),
+      .req_start_o (req_start_w),
+      .req_cycle_o (req_cycle_w),
+      .req_event_i (req_event_w),
+      .req_error_i (req_error_w),
+      .req_rtype_o (req_rtype_w),
+      .req_rargs_o (req_rargs_w),
+      .req_value_o (req_value_w),
+      .req_index_o (req_index_w),
+      .req_length_o(req_length_w),
 
       // From the USB protocol logic
       .select_o (stdreq_select_w),
@@ -686,6 +696,50 @@ module usb_ulpi_top #(
       .m_tlast (),
       .m_tuser (),
       .m_tdata ()
+  );
+
+  ctl_pipe0 #(
+      // Device string descriptors [Optional]
+      .MANUFACTURER_LEN(VENDOR_LENGTH),
+      .MANUFACTURER(VENDOR_STRING),
+      .PRODUCT_LEN(PRODUCT_LENGTH),
+      .PRODUCT(PRODUCT_STRING),
+      .SERIAL_LEN(SERIAL_LENGTH),
+      .SERIAL(SERIAL_STRING),
+
+      // Configuration for the device endpoints
+      .CONFIG_DESC_LEN(CONF_DESC_SIZE),
+      .CONFIG_DESC(CONF_DESC_VALS),
+
+      // Product info
+      .VENDOR_ID (VENDOR_ID),
+      .PRODUCT_ID(PRODUCT_ID)
+  ) U_CTL1 (
+      .clock(clock),
+      .reset(reset),
+
+      // .configured_o(configured_o),
+      // .usb_conf_o  (usb_conf_o),
+      // .usb_enum_o  (usb_enum_w),
+      // .usb_addr_o  (usb_addr_w),
+
+      .start_i (req_start_w),
+      .select_i(req_cycle_w),
+      .error_o (req_error_w),
+      .event_o (req_event_w),
+
+      .req_endpt_i (req_endpt_w),
+      .req_type_i  (req_rtype_w),
+      .req_args_i  (req_rargs_w),
+      .req_value_i (req_value_w),
+      .req_index_i (req_index_w),
+      .req_length_i(req_length_w),
+
+      // AXI4-Stream for device descriptors, to ULPI encoder
+      .m_tvalid_o(stdreq_tvalid_w),
+      .m_tlast_o (stdreq_tlast_w),
+      .m_tdata_o (stdreq_tdata_w),
+      .m_tready_i(stdreq_tready_w)
   );
 
 

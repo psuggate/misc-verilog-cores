@@ -52,7 +52,8 @@ module stdreq #(
     input [3:0] s_tuser,
     input [7:0] s_tdata,
 
-    // To the packet encoder
+    // To the end-point, when 'OUT' std requests include extra data
+   // Todo: not implemented, but should it be?
     output m_tvalid,
     input m_tready,
     output m_tkeep,
@@ -187,7 +188,11 @@ module stdreq #(
       end
       ST_SETUP:
       if (hsk_sent_i) begin
-        snext = ST_DATA;
+        if (req_lenhi_q == 0 && req_lenlo_q == 0) begin
+          snext = ST_STATUS;
+        end else begin
+          snext = ST_DATA;
+        end
       end
       ST_DATA:
       if (hsk_sent_i || hsk_recv_i) begin
