@@ -28,7 +28,6 @@ module protocol #(
 ) (
     input clock,
     input reset,
-    input enable,
 
     input set_conf_i,
     input clr_conf_i,
@@ -51,6 +50,8 @@ module protocol #(
     output hsk_send_o,
     input  hsk_sent_i,
     input  usb_sent_i,
+
+    output mux_enable_o,
 
     // Control end-point
     input ep0_select_i,
@@ -89,6 +90,10 @@ module protocol #(
   reg [6:0] bus_timer, state, snext;
   reg [3:0] pid_c, pid_q;
   wire timeout_w, par_w, len_error_w;
+
+  reg mux_q;
+
+  assign mux_enable_o = mux_q;
 
   // -- End-Point Control -- //
 
@@ -199,11 +204,11 @@ module protocol #(
 
   // -- DATAx Parity-Checking for the Sequence Bits -- //
 
-  wire ep0_par_w = ep0_select_i && ep0_parity_i != usb_pid_i[3];
-  wire ep1_par_w = ep1_out_sel_w && ep1_parity_i != usb_pid_i[3];
-  wire ep2_par_w = ep2_out_sel_w && ep2_parity_i != usb_pid_i[3];
-  wire ep3_par_w = ep3_out_sel_w && ep3_parity_i != usb_pid_i[3];
-  wire ep4_par_w = ep4_out_sel_w && ep4_parity_i != usb_pid_i[3];
+  wire ep0_par_w = ep0_select_i && ep0_parity_i == usb_pid_i[3];
+  wire ep1_par_w = ep1_out_sel_w && ep1_parity_i == usb_pid_i[3];
+  wire ep2_par_w = ep2_out_sel_w && ep2_parity_i == usb_pid_i[3];
+  wire ep3_par_w = ep3_out_sel_w && ep3_parity_i == usb_pid_i[3];
+  wire ep4_par_w = ep4_out_sel_w && ep4_parity_i == usb_pid_i[3];
 
   assign par_w = ep0_par_w | ep1_par_w | ep2_par_w | ep3_par_w | ep4_par_w;
 
@@ -231,7 +236,8 @@ module protocol #(
           case (usb_pid_i)
             `USBPID_SETUP: begin
               if (tok_endp_i == 4'h0) begin
-                snext = ST_DPID;
+                // snext = ST_DPID;
+                snext = ST_RECV;
               end else begin
                 // Indicate that operation is unsupported
                 snext = ST_DROP;
@@ -242,11 +248,13 @@ module protocol #(
             `USBPID_OUT:
             if (ep0_select_i) begin
               // EP0 CONTROL transfers always succeed
-              snext = ST_DPID;
+              // snext = ST_DPID;
+              snext = ST_RECV;
             end else if (out_sel_w) begin
               if (out_rdy_w) begin
                 // We have space, so RX some data
-                snext = ST_DPID;
+                // snext = ST_DPID;
+                snext = ST_RECV;
               end else begin
                 // No space, so we NAK
                 snext = ST_DROP;
@@ -311,13 +319,16 @@ module protocol #(
       end
 
       ST_RECV:
-      if (crc_error_i || len_error_w) begin
+      if (usb_recv_i) begin
+        // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
+        // If parity-bits sequence error, we ignore the DATAx, but ACK response,
+        // or else receive as usual.
+        snext = par_w ? ST_RESP : ST_IDLE;
+        pid_c = `USBPID_ACK;
+      end else if (timeout_w || crc_error_i || len_error_w) begin
+        // OUT token to DATAx packet timeout
         // Ignore on data corruption, and host will retry
         snext = ST_IDLE;
-      end else if (eop_recv_i) begin
-        // Decoder asserts EOP only on success
-        snext = ST_RESP;
-        pid_c = `USBPID_ACK;
       end
 
       ST_RESP:
@@ -374,9 +385,11 @@ module protocol #(
     if (reset) begin
       state <= ST_IDLE;
       pid_q <= 4'bx;
+      mux_q <= 1'b0;
     end else begin
       state <= snext;
       pid_q <= pid_c;
+      mux_q <= state == ST_SEND || state == ST_WAIT;
     end
   end
 
@@ -417,6 +430,7 @@ module protocol #(
   ///
 
   reg [39:0] dbg_state;
+  reg [47:0] dbg_pid;
 
   always @* begin
     case (state)
@@ -428,6 +442,28 @@ module protocol #(
       ST_SEND: dbg_state = "SEND";
       ST_WAIT: dbg_state = "WAIT";
       default: dbg_state = " ?? ";
+    endcase
+  end
+
+  always @* begin
+    case (pid_q)
+      `USBPID_OUT:   dbg_pid = "OUT";
+      `USBPID_IN:    dbg_pid = "IN";
+      `USBPID_SOF:   dbg_pid = "SOF";
+      `USBPID_SETUP: dbg_pid = "SETUP";
+      `USBPID_DATA0: dbg_pid = "DATA0";
+      `USBPID_DATA1: dbg_pid = "DATA1";
+      `USBPID_DATA2: dbg_pid = "DATA2";
+      `USBPID_MDATA: dbg_pid = "MDATA";
+      `USBPID_ACK:   dbg_pid = "ACK";
+      `USBPID_NAK:   dbg_pid = "NAK";
+      `USBPID_STALL: dbg_pid = "STALL";
+      `USBPID_NYET:  dbg_pid = "NYET";
+      `USBPID_PRE:   dbg_pid = "PRE";
+      `USBPID_ERR:   dbg_pid = "ERR";
+      `USBPID_SPLIT: dbg_pid = "SPLIT";
+      `USBPID_PING:  dbg_pid = "PING";
+      default:       dbg_pid = " ??? ";
     endcase
   end
 

@@ -522,6 +522,20 @@ module usb_ulpi_top #(
 
   // -- USB Bulk IN & OUT End-Points -- //
 
+  reg ep1_par_q;
+
+  assign ep1_par_w = ep1_par_q;
+
+  always @(posedge clock) begin
+    if (reset || ctl0_event_w) begin
+      ep1_par_q <= 1'b0;
+    end else begin
+      if (hsk_tx_done_w && tok_endp_w == 4'd1) begin
+        ep1_par_q <= ~ep1_par_q;
+      end
+    end
+  end
+
   ep_bulk_out #(
       .ENABLED(USE_EP1_OUT),
       .DUMPSTER(1)  // TODO
@@ -532,7 +546,7 @@ module usb_ulpi_top #(
       .clr_conf_i(ctl0_error_w),
       .selected_i(ep1_sel_q),
       .ep_ready_o(space_avail_w),
-      .stalled_o (),
+      .stalled_o (ep1_hlt_w),
       .s_tvalid  (ep1_tvalid_w),
       .s_tready  (ep1_tready_w),
       .s_tlast   (ep1_tlast_w),
@@ -570,12 +584,13 @@ module usb_ulpi_top #(
   );
 
   wire stdreq_select_w, stdreq_parity_w, stdreq_finish_w;
+  wire mux_enable_w;
 
   protocol #(
       .BULK_EP1   (1),
       .USE_EP1_IN (0),
       .USE_EP1_OUT(1),
-      .BULK_EP2   (1),
+      .BULK_EP2   (2),
       .USE_EP2_IN (1),
       .USE_EP2_OUT(0),
       .BULK_EP3   (0),
@@ -602,6 +617,8 @@ module usb_ulpi_top #(
       .eop_recv_i(eop_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .usb_pid_i (ulpi_rx_tuser_w),
+
+      .mux_enable_o(mux_enable_w),
 
       .ep0_select_i(stdreq_select_w),
       .ep0_parity_i(stdreq_parity_w),
@@ -632,15 +649,26 @@ module usb_ulpi_top #(
       .ep4_select_o()
   );
 
+  wire unused_tready_w;
+  wire dec_tvalid_w, dec_tready_w, dec_tkeep_w, dec_tlast_w;
+  wire [3:0] dec_tuser_w;
+  wire [7:0] dec_tdata_w;
+
   wire req_start_w, req_cycle_w, req_event_w, req_error_w;
   wire [7:0] req_rtype_w, req_rargs_w;
   wire [15:0] req_value_w, req_index_w, req_length_w;
 
-  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tlast_w;
+  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
+  wire [3:0] stdreq_tuser_w;
   wire [7:0] stdreq_tdata_w;
 
   wire [3:0] req_endpt_w = tok_endp_w;  // Todo ...
-  assign stdreq_tready_w = 1'b1; // Todo ...
+
+  assign dec_tready_w   = 1'b1;  // Todo ...
+
+  // assign stdreq_tready_w = 1'b1; // Todo ...
+  assign stdreq_tkeep_w = stdreq_tvalid_w;
+  assign stdreq_tuser_w = stdreq_parity_w ? `USBPID_DATA1 : `USBPID_DATA0;
 
   stdreq #(
       .EP0_ONLY(1)
@@ -740,6 +768,44 @@ module usb_ulpi_top #(
       .m_tlast_o (stdreq_tlast_w),
       .m_tdata_o (stdreq_tdata_w),
       .m_tready_i(stdreq_tready_w)
+  );
+
+  axis_mux #(
+      .S_COUNT(3),
+      .DATA_WIDTH(8),
+      .KEEP_ENABLE(1),
+      .KEEP_WIDTH(1),
+      .ID_ENABLE(0),
+      .ID_WIDTH(1),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(1),
+      .USER_WIDTH(4)
+  ) U_MUX1 (
+      .clk(clock),
+      .rst(reset),
+
+      .enable(mux_enable_w),
+      .select(tok_endp_w),
+
+      .s_axis_tvalid({ep2_tvalid_w, 1'd0, stdreq_tvalid_w}),
+      // .s_axis_tready({ep2_tready_w, unused_tready_w, stdreq_tready_w}),
+      .s_axis_tready({unused_tready_w, unused_tready_w, stdreq_tready_w}),
+      .s_axis_tkeep ({ep2_tkeep_w, 1'd0, stdreq_tkeep_w}),
+      .s_axis_tlast ({ep2_tlast_w, 1'd0, stdreq_tlast_w}),
+      .s_axis_tuser ({ep2_tuser_w, 4'd0, stdreq_tuser_w}),
+      .s_axis_tid   ('bx),
+      .s_axis_tdest ('bx),
+      .s_axis_tdata ({ep2_tdata_w, 8'd0, stdreq_tdata_w}),
+
+      .m_axis_tvalid(dec_tvalid_w),
+      .m_axis_tready(dec_tready_w),
+      .m_axis_tkeep (dec_tkeep_w),
+      .m_axis_tlast (dec_tlast_w),
+      .m_axis_tuser (dec_tuser_w),
+      .m_axis_tid   (),
+      .m_axis_tdest (),
+      .m_axis_tdata (dec_tdata_w)
   );
 
 

@@ -53,7 +53,7 @@ module stdreq #(
     input [7:0] s_tdata,
 
     // To the end-point, when 'OUT' std requests include extra data
-   // Todo: not implemented, but should it be?
+    // Todo: not implemented, but should it be?
     output m_tvalid,
     input m_tready,
     output m_tkeep,
