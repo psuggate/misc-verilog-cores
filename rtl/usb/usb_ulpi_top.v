@@ -210,7 +210,7 @@ module usb_ulpi_top #(
     ep1_ack_c = 1'b0;
     ep1_err_c = 1'b0;
 
-    if (USE_EP1_OUT && blk_endpt_o == ENDPOINT2) begin
+    if (USE_EP1_OUT && blk_endpt_o == ENDPOINT1) begin
       if (blk_start_o) begin
         ep1_sel_c = 1'b1;
       end else if (bulk_err_w && ack_recv_w) begin
@@ -525,21 +525,6 @@ module usb_ulpi_top #(
 
 
   // -- USB Bulk IN & OUT End-Points -- //
-  /*
-  reg ep1_par_q;
-
-  assign ep1_par_w = ep1_par_q;
-
-  always @(posedge clock) begin
-    if (reset || ctl0_event_w) begin
-      ep1_par_q <= 1'b0;
-    end else begin
-      if (hsk_tx_done_w && tok_endp_w == 4'd1) begin
-        ep1_par_q <= ~ep1_par_q;
-      end
-    end
-  end
-*/
 
   ep_bulk_out #(
       .ENABLED(USE_EP1_OUT),
@@ -549,7 +534,8 @@ module usb_ulpi_top #(
       .reset     (reset),
       .set_conf_i(ctl0_event_w),
       .clr_conf_i(ctl0_error_w),
-      .selected_i(ep1_sel_q),
+      // .selected_i(ep1_sel_q),
+      .selected_i(ep1_sel_w),
       .ack_sent_i(ep1_ack_q),      // Todo ...
       .rx_error_i(ep1_err_q),
       .ep_ready_o(space_avail_w),
@@ -578,11 +564,12 @@ module usb_ulpi_top #(
       .reset     (reset),
       .set_conf_i(ctl0_event_w),
       .clr_conf_i(ctl0_error_w),
-      .selected_i(ep2_sel_q),
+      // .selected_i(ep2_sel_q),
+      .selected_i(ep2_sel_w),
       .ack_recv_i(ep2_ack_q),
       .timedout_i(ep2_err_q),
       .ep_ready_o(has_packet_w),
-      .stalled_o (),
+      .stalled_o (ep2_hlt_w),
       .parity_o  (ep2_par_w),
       .s_tvalid  (blki_tvalid_i),
       .s_tready  (blki_tready_o),
@@ -654,12 +641,12 @@ module usb_ulpi_top #(
 
       .ep1_select_o(ep1_sel_w),
       .ep1_rx_rdy_i(space_avail_w),
-      .ep1_tx_rdy_i(),
+      .ep1_tx_rdy_i(1'b0),
       .ep1_parity_i(ep1_par_w),
       .ep1_halted_i(ep1_hlt_w),
 
       .ep2_select_o(ep2_sel_w),
-      .ep2_rx_rdy_i(),
+      .ep2_rx_rdy_i(1'b0),
       .ep2_tx_rdy_i(has_packet_w),
       .ep2_parity_i(ep2_par_w),
       .ep2_halted_i(ep2_hlt_w),

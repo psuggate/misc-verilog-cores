@@ -93,30 +93,6 @@ module vpi_usb_ulpi_tb;
 
   assign blko_tready_w = 1'b1; // Todo ...
 
-/*
-  always @(posedge usb_clock) begin
-    if (!usb_rst_n) begin
-      tvalid_q <= 1'b0;
-      tstart_q <= 1'b0;
-      tlast_q  <= 1'b0;
-    end else begin
-      tstart_q <= bulk_start_w && (bulk_endpt_w == 4'h2);
-
-      if (tstart_q && bulk_fetch_w) begin
-        tvalid_q <= 1'b1;
-        tlast_q  <= 1'b0;
-        tdata_q  <= $random;
-      end else if (blki_tready_w && tvalid_q && !tlast_q) begin
-        tlast_q <= 1'b1;
-        tdata_q <= $random;
-      end else if (blki_tready_w && tvalid_q && tlast_q) begin
-        tvalid_q <= 1'b0;
-        tlast_q  <= 1'b0;
-      end
-    end
-  end
-*/
-
   always @(posedge usb_clock) begin
     if (!usb_rst_n) begin
       tvalid_q <= 1'b0;

@@ -138,36 +138,53 @@ module protocol #(
 
   // -- End-Point Readies & Selects -- //
 
-`ifdef __potato_tomato
-  //
-  // Todo:
-  //  - pipeline the end-point decoding ??
-  //
   reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
+  reg end_q;
+
+  assign ep1_select_o = ep1_sel_q;
+  assign ep2_select_o = ep2_sel_q;
+  assign ep3_select_o = ep3_sel_q;
+  assign ep4_select_o = ep4_sel_q;
 
   always @(posedge clock) begin
-    if (reset) begin
-      {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
-    end else if (tok_addr_i == usb_addr_i && tok_recv_i) begin
-      if (tok_endp_i == 4'h0) begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00001;
-      end else if (EP1_EN && tok_endp_i == BULK_EP1) begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00010;
-      end else if (EP2_EN && tok_recv_i && tok_endp_i == BULK_EP2) begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00100;
-      end else if (EP3_EN && tok_recv_i && tok_endp_i == BULK_EP3) begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b01000;
-      end else if (EP4_EN && tok_recv_i && tok_endp_i == BULK_EP4) begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b10000;
-      end else begin
-        {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
-      end
-    end else if (tok_recv_i) begin
-      {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
+    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_w) begin
+      end_q <= 1'b1;
+    end else begin
+      end_q <= 1'b0;
     end
   end
 
-`else  /* !__potato_tomato */
+  always @(posedge clock) begin
+    // if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_w) begin
+    if (end_q) begin
+      {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
+    end else if (tok_addr_i == usb_addr_i && tok_recv_i) begin
+      case (tok_endp_i)
+        4'h0: {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00001;
+
+        BULK_EP1: begin
+          {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= {3'b000, ep1_en, 1'b0};
+        end
+
+        BULK_EP2: begin
+          {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= {2'b00, ep2_en, 2'b00};
+        end
+
+        BULK_EP3: begin
+          {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= {1'b0, ep3_en, 3'b000};
+        end
+
+        BULK_EP4: begin
+          {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= {ep4_en, 4'b0000};
+        end
+
+        default: begin
+          {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
+        end
+      endcase
+    end
+  end
+
   //
   // Todo:
   //  - NYET responses for PING protocol:
@@ -207,8 +224,6 @@ module protocol #(
   wire out_rdy_w = ep1_out_rdy_w | ep2_out_rdy_w | ep3_out_rdy_w | ep4_out_rdy_w;
   wire in_sel_w = ep1_in_sel_w | ep2_in_sel_w | ep3_in_sel_w | ep4_in_sel_w;
   wire in_rdy_w = ep1_in_rdy_w | ep2_in_rdy_w | ep3_in_rdy_w | ep4_in_rdy_w;
-
-`endif  /* !__potato_tomato */
 
   // -- DATAx Parity-Checking for the Sequence Bits -- //
 
@@ -250,7 +265,6 @@ module protocol #(
           case (usb_pid_i)
             `USBPID_SETUP: begin
               if (tok_endp_i == 4'h0) begin
-                // snext = ST_DPID;
                 snext = ST_RECV;
               end else begin
                 // Indicate that operation is unsupported
@@ -262,12 +276,10 @@ module protocol #(
             `USBPID_OUT:
             if (ep0_select_i) begin
               // EP0 CONTROL transfers always succeed
-              // snext = ST_DPID;
               snext = ST_RECV;
             end else if (out_sel_w) begin
               if (out_rdy_w) begin
                 // We have space, so RX some data
-                // snext = ST_DPID;
                 snext = ST_RECV;
               end else begin
                 // No space, so we NAK

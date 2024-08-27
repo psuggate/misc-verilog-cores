@@ -58,7 +58,7 @@ module ep_bulk_out #(
   localparam [4:0] ST_FULL = 5'b10000;
 
   reg [4:0] snext, state;
-  reg par_q, rst_q;
+  reg par_q, rst_q, rdy_q;
   reg save_q, drop_q, full_q, zero_q;
   wire [  ASB:0] level_w;
   wire [ABITS:0] space_w;
@@ -66,7 +66,7 @@ module ep_bulk_out #(
 
   assign stalled_o = state == ST_HALT;
   assign parity_o = par_q;
-  assign ep_ready_o = state == ST_IDLE;
+  assign ep_ready_o = rdy_q;
   assign tvalid_w = state == ST_RECV && s_tvalid && s_tkeep;
   assign s_tready = tready_w && state == ST_RECV;
   assign m_tkeep = m_tvalid;
@@ -81,10 +81,18 @@ module ep_bulk_out #(
     if (reset || set_conf_i) begin
       rst_q <= 1'b1;
       par_q <= 1'b0;
+      rdy_q <= 1'b0;
     end else begin
       rst_q <= 1'b0;
+
       if (save_q) begin
         par_q <= ~par_q;
+      end
+
+      if (state == ST_IDLE) begin
+        rdy_q <= 1'b1;
+      end else if (state == ST_HALT || state == ST_FULL) begin
+        rdy_q <= 1'b0;
       end
     end
   end
@@ -98,7 +106,7 @@ module ep_bulk_out #(
       full_q <= 1'b0;
       zero_q <= 1'b1;  // Todo: not required !?
     end else begin
-      save_q <= state == ST_SAVE && ack_sent_i && !zero_q;
+      save_q <= state == ST_SAVE && ack_sent_i && (IGNORE_ZDP || !zero_q);
       drop_q <= state == ST_RECV && rx_error_i;
       full_q <= space_w[ABITS];
 
@@ -134,9 +142,7 @@ module ep_bulk_out #(
         snext = ST_IDLE;
       end
       ST_SAVE:
-      if (!selected_i) begin
-        snext = ST_HALT;
-      end else if (ack_sent_i) begin
+      if (ack_sent_i) begin
         snext = full_q ? ST_FULL : ST_IDLE;
       end
       ST_FULL:
