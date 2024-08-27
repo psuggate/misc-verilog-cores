@@ -29,6 +29,9 @@ module protocol #(
     input clock,
     input reset,
 
+    input [1:0] RxEvent,
+    output timedout_o,
+
     input set_conf_i,
     input clr_conf_i,
     input [6:0] usb_addr_i,
@@ -49,6 +52,7 @@ module protocol #(
     // ULPI encoder signals
     output hsk_send_o,
     input  hsk_sent_i,
+    input  usb_busy_i,
     input  usb_sent_i,
 
     output mux_enable_o,
@@ -66,42 +70,64 @@ module protocol #(
     input  ep1_parity_i,
     input  ep1_halted_i,
     output ep1_select_o,
+    output ep1_finish_o,
 
     input  ep2_rx_rdy_i,
     input  ep2_tx_rdy_i,
     input  ep2_parity_i,
     input  ep2_halted_i,
     output ep2_select_o,
+    output ep2_finish_o,
 
     input  ep3_rx_rdy_i,
     input  ep3_tx_rdy_i,
     input  ep3_parity_i,
     input  ep3_halted_i,
     output ep3_select_o,
+    output ep3_finish_o,
 
     input  ep4_rx_rdy_i,
     input  ep4_tx_rdy_i,
     input  ep4_parity_i,
     input  ep4_halted_i,
-    output ep4_select_o
+    output ep4_select_o,
+    output ep4_finish_o
 );
 
   `include "usb_defs.vh"
 
   reg ep1_en, ep2_en, ep3_en, ep4_en;
+  reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
+  reg ep0_ack_q, ep1_ack_q, ep2_ack_q, ep3_ack_q, ep4_ack_q;
+  reg end_q, hsk_q;
   reg [3:0] pid_c, pid_q;
   reg [5:0] state, snext;
   reg [6:0] bus_timer;
-  wire timeout_w, par_w, len_error_w;
+  reg timeout_q = 1'b0;
+  wire par_w, len_error_w;
 
   reg mux_q;
   reg [2:0] sel_q;
   wire seq_w;
   wire [3:0] pid_w;
 
+  assign timedout_o   = timeout_q;
+
   assign mux_enable_o = mux_q;
   assign mux_select_o = sel_q;
   assign ulpi_tuser_o = pid_q;
+
+  assign hsk_send_o   = hsk_q;
+
+  assign ep1_select_o = ep1_sel_q;
+  assign ep2_select_o = ep2_sel_q;
+  assign ep3_select_o = ep3_sel_q;
+  assign ep4_select_o = ep4_sel_q;
+
+  assign ep1_finish_o = ep1_ack_q;
+  assign ep2_finish_o = ep2_ack_q;
+  assign ep3_finish_o = ep3_ack_q;
+  assign ep4_finish_o = ep4_ack_q;
 
   // -- End-Point Control -- //
 
@@ -138,24 +164,19 @@ module protocol #(
 
   // -- End-Point Readies & Selects -- //
 
-  reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
-  reg end_q;
-
-  assign ep1_select_o = ep1_sel_q;
-  assign ep2_select_o = ep2_sel_q;
-  assign ep3_select_o = ep3_sel_q;
-  assign ep4_select_o = ep4_sel_q;
-
+  // Deselect all of the end-points at the end of each transaction, due to a
+  // configuration event, on reset, or on error.
   always @(posedge clock) begin
-    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_w) begin
+    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_q) begin
       end_q <= 1'b1;
     end else begin
       end_q <= 1'b0;
     end
   end
 
+  // An end-point remains selected from when an appropriate token is received,
+  // until the of the transaction.
   always @(posedge clock) begin
-    // if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_w) begin
     if (end_q) begin
       {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
     end else if (tok_addr_i == usb_addr_i && tok_recv_i) begin
@@ -182,6 +203,17 @@ module protocol #(
           {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
         end
       endcase
+    end
+  end
+
+  always @(posedge clock) begin
+    if (end_q) begin
+      {ep4_ack_q, ep3_ack_q, ep2_ack_q, ep1_ack_q} <= 4'b0000;
+    end else begin
+      ep1_ack_q <= ep1_sel_q && ((USE_EP1_OUT && hsk_sent_i) || (USE_EP1_IN && hsk_recv_i));
+      ep2_ack_q <= ep2_sel_q && ((USE_EP2_OUT && hsk_sent_i) || (USE_EP2_IN && hsk_recv_i));
+      ep3_ack_q <= ep3_sel_q && ((USE_EP3_OUT && hsk_sent_i) || (USE_EP3_IN && hsk_recv_i));
+      ep4_ack_q <= ep4_sel_q && ((USE_EP4_OUT && hsk_sent_i) || (USE_EP4_IN && hsk_recv_i));
     end
   end
 
@@ -306,8 +338,7 @@ module protocol #(
                   pid_c = `USBPID_NAK;
                 end
               end else begin
-                snext = ST_RESP;
-                pid_c = `USBPID_STALL;
+                snext = ST_WAIT;
               end
             end
 
@@ -341,14 +372,14 @@ module protocol #(
         // or else receive as usual.
         snext = par_w ? ST_RESP : ST_IDLE;
         pid_c = `USBPID_ACK;
-      end else if (timeout_w || crc_error_i || len_error_w) begin
+      end else if (timeout_q || crc_error_i || len_error_w) begin
         // OUT token to DATAx packet timeout
         // Ignore on data corruption, and host will retry
         snext = ST_IDLE;
       end
 
       ST_RESP:
-      if (hsk_sent_i || timeout_w) begin
+      if (hsk_sent_i || timeout_q) begin
         // Send 'ACK/NAK/NYET/STALL' in response to 'DATAx'
         snext = ST_IDLE;
       end
@@ -362,19 +393,21 @@ module protocol #(
         //  - do we check to see if the TX begins, or timeout !?
         //  - 'NAK' on timeout !?
         snext = ST_WAIT;
-      end else if (timeout_w) begin
+      end else if (timeout_q) begin
         // Internal error, as a device end-point timed-out, after it signalled
         // that it was ready, so we 'HALT' the endpoint (after some number of
         // attempts).
         // Todo:
         //  - halt failing end-points ??
-        snext = ST_RESP;
-        pid_c = `USBPID_STALL;
+        snext = ST_IDLE;
+        // snext = ST_RESP;
+        // pid_c = `USBPID_STALL;
       end
 
       ST_WAIT:
-      if (hsk_recv_i || timeout_w) begin
-        // Waiting for host to send 'ACK'
+      if (hsk_recv_i || timeout_q) begin
+        // Waiting for host to send 'ACK', or waiting for bus turnaround timer
+        // to elapse, for an unsupported request.
         snext = ST_IDLE;
       end
 
@@ -415,6 +448,34 @@ module protocol #(
     end
   end
 
+  // Send a handshake packet, and after either a token, or a DATAx packet has
+  // been received
+  always @(posedge clock) begin
+    if (reset) begin
+      hsk_q <= 1'b0;
+    end else begin
+      case (state)
+        ST_IDLE: begin
+          hsk_q <= tok_recv_i && tok_addr_i == usb_addr_i && usb_pid_i == `USBPID_PING;
+        end
+
+        ST_RECV:
+        if (usb_recv_i && par_w) begin
+          hsk_q <= 1'b1;
+        end
+
+        ST_RESP:
+        if (hsk_sent_i) begin
+          hsk_q <= 1'b0;
+        end
+
+        default: begin
+          hsk_q <= 1'b0;
+        end
+      endcase
+    end
+  end
+
 
   //
   //  USB Protocol Timers
@@ -427,23 +488,107 @@ module protocol #(
   //  or else the packet failed to be transmitted, or the response failed to
   //  (successfully) arrive.
   //
-  localparam [6:0] MAX_TIMER = (816 / 8) - 1;
+  localparam [6:0] MAX_TA_TIMER = (816 / 8) - 1;
+
+  reg ta_run_q, ta_err_q;
+  reg  [6:0] ta_count;
+  wire [7:0] ta_cnext;
+
+  assign ta_cnext = ta_count - 1;
 
   always @(posedge clock) begin
-    if (reset) begin
-      bus_timer = MAX_TIMER;
+    if (state == ST_SEND && usb_sent_i) begin
+      // Turn-around timer for 'ACK' after sending 'DATAx'
+      ta_run_q <= 1'b1;
+      ta_err_q <= 1'b0;
+      ta_count <= MAX_TA_TIMER;
+    end else if (ta_run_q && (ta_cnext[7] || hsk_recv_i)) begin
+      // Timer has elapsed, or handshake packet has been received
+      ta_run_q <= 1'b0;
+      ta_err_q <= ~hsk_recv_i;
+      ta_count <= MAX_TA_TIMER;
+    end else if (ta_run_q) begin
+      // Still waiting ...
+      ta_count <= ta_cnext;
     end else begin
-      // Todo ...
+      ta_run_q <= 1'b0;
+      ta_err_q <= 1'b0;
+      ta_count <= MAX_TA_TIMER;
     end
   end
 
   // -- End-Point Response Timer -- //
 
-  // Todo ...
+  localparam [4:0] MAX_EP_TIMER = (192 / 8) - 1;
+
+  reg ep_run_q, ep_err_q;
+  reg  [4:0] ep_count;
+  wire [5:0] ep_cnext;
+
+  assign ep_cnext = ep_count - 1;
+
+  always @(posedge clock) begin
+    if (state == ST_IDLE && tok_recv_i && tok_addr_i == usb_addr_i) begin
+      // End-point-to-DATAx timer for 'DATAx' after receiving 'IN'
+      ep_run_q <= usb_pid_i == `USBPID_IN;
+      ep_err_q <= 1'b0;
+      ep_count <= MAX_EP_TIMER;
+    end else if (ep_run_q && (ep_cnext[5] || usb_busy_i)) begin
+      // Timer has elapsed, or start-of-packet has been received
+      ep_run_q <= 1'b0;
+      ep_err_q <= ~usb_busy_i;
+      ep_count <= MAX_EP_TIMER;
+    end else if (ep_run_q) begin
+      // Still waiting ...
+      ep_count <= ep_cnext;
+    end else begin
+      ep_run_q <= 1'b0;
+      ep_err_q <= 1'b0;
+      ep_count <= MAX_EP_TIMER;
+    end
+  end
 
   // -- Token to DATAx Timer -- //
 
-  // Todo ...
+  localparam [4:0] MAX_TD_TIMER = (192 / 8) - 1;
+
+  reg td_run_q, td_err_q;
+  reg  [4:0] td_count;
+  wire [5:0] td_cnext;
+
+  assign td_cnext = td_count - 1;
+
+  always @(posedge clock) begin
+    if (state == ST_IDLE && tok_recv_i && tok_addr_i == usb_addr_i) begin
+      // Token-to-DATAx timer for 'DATAx' after receiving 'OUT' or 'SETUP'
+      td_run_q <= usb_pid_i == `USBPID_OUT || usb_pid_i == `USBPID_SETUP;
+      td_err_q <= 1'b0;
+      td_count <= MAX_TD_TIMER;
+    end else if (td_run_q && (td_cnext[5] || RxEvent == 2'b01)) begin
+      // Timer has elapsed, or start-of-packet has been received
+      td_run_q <= 1'b0;
+      td_err_q <= RxEvent != 2'b01;
+      td_count <= MAX_TD_TIMER;
+    end else if (td_run_q) begin
+      // Still waiting ...
+      td_count <= td_cnext;
+    end else begin
+      td_run_q <= 1'b0;
+      td_err_q <= 1'b0;
+      td_count <= MAX_TD_TIMER;
+    end
+  end
+
+  // -- Time-Out register -- //
+
+  always @(posedge clock) begin
+    if (reset) begin
+      timeout_q <= 1'b0;
+    end else begin
+      // timeout_q <= td_err_q | ta_err_q | ep_err_q;
+      timeout_q <= 1'b0;
+    end
+  end
 
 
 `ifdef __icarus

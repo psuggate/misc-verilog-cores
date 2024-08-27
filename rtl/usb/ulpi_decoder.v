@@ -148,13 +148,19 @@ module ulpi_decoder
     end else if (pid_vld_w) begin
       cyc_q <= 1'b1;
 
-      if (rx_pid_w[1:0] == PID_HANDSHAKE) begin
+      if (!cyc_q) begin
+        hsk_q <= rx_pid_w[1:0] == PID_HANDSHAKE;
+        tok_q <= istoken_w;
+      end
+      /*
+      if (rx_pid_w[1:0] == PID_HANDSHAKE && !cyc_q) begin
         hsk_q <= 1'b1;
       end
 
       if (istoken_w && !cyc_q) begin
         tok_q <= 1'b1;
       end
+       */
     end
 
   end

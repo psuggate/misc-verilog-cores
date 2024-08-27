@@ -9,7 +9,6 @@ module ep_bulk_out #(
     parameter USB_MAX_PACKET_SIZE = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
-    parameter DUMPSTER = 1,
     parameter IGNORE_ZDP = 1  // TODO
 ) (
     input clock,
