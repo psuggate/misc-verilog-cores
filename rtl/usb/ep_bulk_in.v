@@ -5,52 +5,50 @@
  * Emits frames with size >512B in multiple chunks, issuing a ZDP if the frame-
  * size is a multiple of 512.
  */
-module ep_bulk_in
-  #(
-    parameter USB_MAX_PACKET_SIZE = 512, // For HS-mode
+module ep_bulk_in #(
+    parameter USB_MAX_PACKET_SIZE = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
     parameter CONSTANT = 0,
-    parameter USE_ZDP = 0 // TODO
-  )
-  (
-   input clock,
-   input reset,
+    parameter USE_ZDP = 0  // TODO
+) (
+    input clock,
+    input reset,
 
-   input set_conf_i, // From CONTROL PIPE0
-   input clr_conf_i, // From CONTROL PIPE0
+    input set_conf_i,  // From CONTROL PIPE0
+    input clr_conf_i,  // From CONTROL PIPE0
 
-   input selected_i, // From USB controller
-   input ack_recv_i, // From USB controller
-   input timedout_i, // From USB controller
+    input selected_i,  // From USB controller
+    input ack_recv_i,  // From USB controller
+    input timedout_i,  // From USB controller
 
-   output ep_ready_o,
-   output stalled_o, // If invariants violated
-   output parity_o,
+    output ep_ready_o,
+    output stalled_o,   // If invariants violated
+    output parity_o,
 
-   // From bulk data source
-   input s_tvalid,
-   output s_tready,
-   input s_tlast,
-   input [7:0] s_tdata,
+    // From bulk data source
+    input s_tvalid,
+    output s_tready,
+    input s_tlast,
+    input [7:0] s_tdata,
 
-   // To USB/ULPI packet encoder MUX
-   output m_tvalid,
-   input m_tready,
-   output m_tkeep,
-   output m_tlast,
-   output [7:0] m_tdata
-   );
+    // To USB/ULPI packet encoder MUX
+    output m_tvalid,
+    input m_tready,
+    output m_tkeep,
+    output m_tlast,
+    output [7:0] m_tdata
+);
 
   // Counter parameters, for the number of bytes in the current packet
   localparam CBITS = $clog2(USB_MAX_PACKET_SIZE);
-  localparam CSB   = CBITS - 1;
+  localparam CSB = CBITS - 1;
   localparam CZERO = {CBITS{1'b0}};
-  localparam CMAX  = {CBITS{1'b1}};
+  localparam CMAX = {CBITS{1'b1}};
 
   // Address-/level- bits, for the FIFO
   localparam ABITS = $clog2(PACKET_FIFO_DEPTH);
-  localparam ASB   = ABITS - 1;
+  localparam ASB = ABITS - 1;
 
   //
   //  TODO
@@ -86,17 +84,17 @@ module ep_bulk_in
   // Todo: packet ready when
   //  - there is a packet(-chunk) in the FIFO; OR,
   //  - a ZDP needs to be transmitted?
-  assign ep_ready_o = tvalid_r | zdp_q; // send == TX_NONE;
+  assign ep_ready_o = tvalid_r | zdp_q;  // send == TX_NONE;
 
   assign stalled_o = ~set_q;
-  assign parity_o  = par_q;
+  assign parity_o = par_q;
 
   assign s_tready = tready_w && set_q && recv == RX_RECV;
 
   assign m_tvalid = send == TX_SEND && tvalid_r || send == TX_NONE;
   assign tready_r = send == TX_SEND && m_tready;
-  assign m_tlast  = send == TX_SEND && tlast_r || send == TX_NONE;
-  assign m_tkeep  = send == TX_SEND;
+  assign m_tlast = send == TX_SEND && tlast_r || send == TX_NONE;
+  assign m_tkeep = send == TX_SEND;
 
 
   // -- FIFO Reset/Clear -- //
@@ -171,19 +169,19 @@ module ep_bulk_in
         end
 
         RX_RECV:
-          // Don't prefetch if we can not store a full-sized packet, or else we
-          // may stall the AXI4-Stream (which could be a problem if it is
-          // shared).
-          if (save_w && level_w >= USB_MAX_PACKET_SIZE) begin
-            recv <= RX_FULL;
-          end
+        // Don't prefetch if we can not store a full-sized packet, or else we
+        // may stall the AXI4-Stream (which could be a problem if it is
+        // shared).
+        if (save_w && level_w >= USB_MAX_PACKET_SIZE) begin
+          recv <= RX_FULL;
+        end
 
         RX_FULL:
-          // The only way for 'level' to fall is via 'ACK', so this condition is
-          // sufficient.
-          if (level_w < USB_MAX_PACKET_SIZE) begin
-            recv <= RX_RECV;
-          end
+        // The only way for 'level' to fall is via 'ACK', so this condition is
+        // sufficient.
+        if (level_w < USB_MAX_PACKET_SIZE) begin
+          recv <= RX_RECV;
+        end
       endcase
     end
   end
@@ -196,29 +194,34 @@ module ep_bulk_in
     snxt = send;
 
     case (send)
-      TX_IDLE: if (selected_i) begin
+      TX_IDLE:
+      if (selected_i) begin
         snxt = tvalid_r ? TX_SEND : TX_NONE;
       end
 
       // Transferring data from source to USB encoder (via the packet FIFO).
-      TX_SEND: if (tvalid_r && m_tready && tlast_r) begin
+      TX_SEND:
+      if (tvalid_r && m_tready && tlast_r) begin
         snxt = TX_WAIT;
       end
 
       // After sending a packet, wait for an ACK/ERR response.
-      TX_WAIT: if (selected_i && ack_recv_i) begin
+      TX_WAIT:
+      if (selected_i && ack_recv_i) begin
         snxt = zdp_q ? TX_NONE : TX_IDLE;
       end else if (selected_i && timedout_i) begin
         snxt = TX_REDO;
       end
 
       // Rest of packet has already been sent, so transmit a ZDP
-      TX_NONE: if (m_tvalid && m_tready && m_tlast) begin
+      TX_NONE:
+      if (m_tvalid && m_tready && m_tlast) begin
         snxt = TX_WAIT;
       end
 
       // Repeat the previous packet(-chunk), as an 'ACK' was not received.
-      TX_REDO: if (selected_i) begin
+      TX_REDO:
+      if (selected_i) begin
         snxt = TX_SEND;
       end
     endcase
@@ -229,7 +232,7 @@ module ep_bulk_in
   end
 
   always @(posedge clock) begin
-    send  <= snxt;
+    send <= snxt;
 
     // Todo:
     if (!set_q || send == TX_IDLE) begin
@@ -240,22 +243,21 @@ module ep_bulk_in
   end
 
 
-  // -- Output Registers -- //
+  // -- Packet FIFO with Repeat-Last Packet -- //
 
-  packet_fifo
-    #( .WIDTH(8),
-       .DEPTH(PACKET_FIFO_DEPTH),
-       .STORE_LASTS(1),
-       .SAVE_ON_LAST(1),
-       .SAVE_TO_LAST(1),
-       .NEXT_ON_LAST(0),
-       .USE_LENGTH(1),
-       .MAX_LENGTH(USB_MAX_PACKET_SIZE),
-       .OUTREG(2)
-       )
-  U_TX_FIFO1
-    ( .clock  (clock),
-      .reset  (rst_q),
+  packet_fifo #(
+      .WIDTH(8),
+      .DEPTH(PACKET_FIFO_DEPTH),
+      .STORE_LASTS(1),
+      .SAVE_ON_LAST(1),
+      .SAVE_TO_LAST(1),
+      .NEXT_ON_LAST(0),
+      .USE_LENGTH(1),
+      .MAX_LENGTH(USB_MAX_PACKET_SIZE),
+      .OUTREG(2)
+  ) U_TX_FIFO1 (
+      .clock(clock),
+      .reset(rst_q),
 
       .level_o(level_w),
       .drop_i (1'b0),
@@ -272,7 +274,7 @@ module ep_bulk_in
       .ready_i(tready_r),
       .last_o (tlast_r),
       .data_o (m_tdata)
-      );
+  );
 
 
   // -- Simulation Only -- //
@@ -302,7 +304,7 @@ module ep_bulk_in
     endcase
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
-endmodule // ep_bulk_in
+endmodule  // ep_bulk_in

@@ -172,7 +172,7 @@ module usb_ulpi_top #(
   wire [7:0] ctl_rtype_w, ctl_rargs_w;
   wire [15:0] ctl_index_w, ctl_value_w, ctl_length_w;
 
-  wire ep1_tvalid_w, ep1_tready_w, ep1_tlast_w;
+  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
   wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
   wire [3:0] ep2_tuser_w;
   wire [7:0] ep1_tdata_w, ep2_tdata_w;
@@ -196,8 +196,11 @@ module usb_ulpi_top #(
   //  Bulk IN & OUT End-Point selects and ACKs
   ///
 
-  wire bulk_err_w, ack_recv_w;
+  wire ep1_hlt_w, ep2_hlt_w;
+  wire bulk_err_w, ack_recv_w, ack_sent_w;
+
   assign ack_recv_w = blk_cycle_o && hsk_rx_recv_w && ulpi_rx_tuser_w == `USBPID_ACK;
+  assign ack_sent_w = blk_cycle_o && hsk_tx_done_w && ulpi_tx_tuser_w == `USBPID_ACK;
 
   reg ep1_sel_q, ep1_ack_q, ep1_err_q;
   reg ep1_sel_c, ep1_ack_c, ep1_err_c;
@@ -213,12 +216,12 @@ module usb_ulpi_top #(
       end else if (bulk_err_w && ack_recv_w) begin
         ep1_sel_c = 1'b0;
       end
-      ep1_ack_c = ep1_sel_q & ack_recv_w;
+      ep1_ack_c = ep1_sel_q & ack_sent_w;
       ep1_err_c = ep1_sel_q & bulk_err_w;
     end
 
     if (reset) begin
-      {ep1_err_c, ep1_ack_c, ep1_sel_c} <= 3'd0;
+      {ep1_err_c, ep1_ack_c, ep1_sel_c} = 3'd0;
     end
   end
 
@@ -241,7 +244,7 @@ module usb_ulpi_top #(
     end
 
     if (reset) begin
-      {ep2_err_c, ep2_ack_c, ep2_sel_c} <= 3'd0;
+      {ep2_err_c, ep2_ack_c, ep2_sel_c} = 3'd0;
     end
   end
 
@@ -445,7 +448,7 @@ module usb_ulpi_top #(
       .blk_tvalid_o(ep1_tvalid_w),
       .blk_tready_i(ep1_tready_w),
       .blk_tlast_o (ep1_tlast_w),
-      .blk_tkeep_o (),
+      .blk_tkeep_o (ep1_tkeep_w),
       .blk_tdata_o (ep1_tdata_w),
 
       // To/from USB control transfer endpoints
@@ -522,7 +525,7 @@ module usb_ulpi_top #(
 
 
   // -- USB Bulk IN & OUT End-Points -- //
-
+  /*
   reg ep1_par_q;
 
   assign ep1_par_w = ep1_par_q;
@@ -536,6 +539,7 @@ module usb_ulpi_top #(
       end
     end
   end
+*/
 
   ep_bulk_out #(
       .ENABLED(USE_EP1_OUT),
@@ -546,10 +550,14 @@ module usb_ulpi_top #(
       .set_conf_i(ctl0_event_w),
       .clr_conf_i(ctl0_error_w),
       .selected_i(ep1_sel_q),
+      .ack_sent_i(ep1_ack_q),      // Todo ...
+      .rx_error_i(ep1_err_q),
       .ep_ready_o(space_avail_w),
       .stalled_o (ep1_hlt_w),
+      .parity_o  (ep1_par_w),
       .s_tvalid  (ep1_tvalid_w),
       .s_tready  (ep1_tready_w),
+      .s_tkeep   (ep1_tkeep_w),
       .s_tlast   (ep1_tlast_w),
       .s_tdata   (ep1_tdata_w),
       .m_tvalid  (blko_tvalid_o),

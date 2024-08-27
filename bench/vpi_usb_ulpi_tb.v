@@ -91,6 +91,8 @@ module vpi_usb_ulpi_tb;
   assign blki_tkeep_w  = 1'b1;
   assign blki_tdata_w  = tdata_q;
 
+  assign blko_tready_w = 1'b1; // Todo ...
+
 /*
   always @(posedge usb_clock) begin
     if (!usb_rst_n) begin
