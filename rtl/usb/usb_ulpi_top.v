@@ -32,16 +32,6 @@ module usb_ulpi_top #(
     output configured_o,
     output [2:0] usb_conf_o,
 
-    // input bulk_in_packet_i,
-    // input bulk_out_space_i,
-
-    output blk_start_o,
-    output blk_cycle_o,
-    output blk_fetch_o,
-    output blk_store_o,
-    output [3:0] blk_endpt_o,
-    input blk_error_i,
-
     input blki_tvalid_i,
     output blki_tready_o,
     input blki_tlast_i,
@@ -160,24 +150,6 @@ module usb_ulpi_top #(
   wire phy_write_w, phy_chirp_w, phy_stop_w, phy_busy_w, phy_done_w;
   wire [7:0] phy_addr_w, phy_data_w;
 
-  wire blko_tvalid_w, blko_tready_w, blko_tlast_w, blko_tkeep_w;
-  wire blki_tvalid_w, blki_tready_w, blki_tlast_w, blki_tkeep_w;
-  wire [7:0] blko_tdata_w, blki_tdata_w;
-
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
-  wire [7:0] ctl0_tdata_w;
-  wire [3:0] ctl_endpt_w;
-  wire [7:0] ctl_rtype_w, ctl_rargs_w;
-  wire [15:0] ctl_index_w, ctl_value_w, ctl_length_w;
-
-  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
-  wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
-  wire [7:0] ep1_tdata_w, ep2_tdata_w;
-
-  wire ep0_end_w;
-  wire ep0_par_w, ep1_par_w, ep2_par_w;
-  wire ep0_sel_w, ep1_sel_w, ep2_sel_w;
-
 
   assign clock = ulpi_clock_i;
   assign reset = usb_reset_w;
@@ -192,27 +164,10 @@ module usb_ulpi_top #(
 
 
   //
-  //  Bulk IN & OUT End-Point selects and ACKs
+  //  USB PHY, Encoder, Decoder, and Protocol Logic Components
   ///
 
-  wire ep1_hlt_w, ep2_hlt_w;
-  wire bulk_err_w, ack_recv_w, ack_sent_w;
-
-  assign ack_recv_w = blk_cycle_o && hsk_rx_recv_w && ulpi_rx_tuser_w == `USBPID_ACK;
-  assign ack_sent_w = blk_cycle_o && hsk_tx_done_w && ulpi_tx_tuser_w == `USBPID_ACK;
-
-  reg ep1_err_q, ep2_err_q;
-
-  always @(posedge clock) begin
-    ep1_err_q <= 1'b0;
-    ep2_err_q <= 1'b0;
-  end
-
-
-  //
-  //  Monitors USB 'LineState', and coordinates the high-speed negotiation on
-  //  start-up.
-  ///
+  // -- USB Line-State and Speed-Negotiation Logic -- //
 
   line_state #(
       .HIGH_SPEED(1)
@@ -237,7 +192,7 @@ module usb_ulpi_top #(
       .high_speed_o (high_speed_w),
       .usb_reset_o  (usb_reset_w),
       .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
-      .phy_state_o  (phy_state_w),
+      .phy_state_o  (),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
@@ -250,7 +205,6 @@ module usb_ulpi_top #(
       .pulse_2_5us_o(pulse_2_5us_w),
       .pulse_1_0ms_o(pulse_1_0ms_w)
   );
-
 
   // -- ULPI Decoder & Encoder -- //
 
@@ -325,212 +279,30 @@ module usb_ulpi_top #(
       .ulpi_data(ulpi_data_ow)
   );
 
-
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  /*
-  transactor #(
-      .PIPELINED(PIPELINED),
-      .ENDPOINT1(ENDPOINT1),
-      .ENDPOINT2(ENDPOINT2)
-  ) U_XACT1 (
-      .clock(clock),
-      .reset(reset),
-
-      .usb_addr_i       (usb_addr_q),
-      .usb_device_idle_o(),
-
-      .parity1_o(),
-
-      .usb_state_o(),
-      .ctl_state_o(),
-      .blk_state_o(),
-
-      // USB token signals from the USB packet decoder (upstream), and to the
-      // packet encoder
-      .tok_recv_i(tok_rx_recv_w),
-      .tok_ping_i(tok_rx_ping_w),
-      .tok_addr_i(tok_addr_w),
-      .tok_endp_i(tok_endp_w),
-
-      .hsk_recv_i(hsk_rx_recv_w),
-      .hsk_send_o(),
-      .hsk_sent_i(hsk_tx_done_w),
-
-      // DATA0/1 info from the decoder, and to the encoder
-      .usb_recv_i(usb_rx_recv_w),
-      .eop_recv_i(eop_rx_recv_w),
-      .usb_busy_i(usb_tx_busy_w),
-      .usb_sent_i(usb_tx_done_w),
-
-      // USB control & bulk data received from host (via decoder)
-      .usb_tvalid_i(ulpi_rx_tvalid_w),
-      .usb_tready_o(),
-      .usb_tkeep_i (ulpi_rx_tkeep_w),
-      .usb_tlast_i (ulpi_rx_tlast_w),
-      .usb_tuser_i (ulpi_rx_tuser_w),
-      .usb_tdata_i (ulpi_rx_tdata_w),
-
-      .usb_tvalid_o(),
-      .usb_tready_i(1'b1),
-      .usb_tkeep_o (),
-      .usb_tlast_o (),
-      .usb_tdata_o (),
-
-      // USB bulk endpoint data-paths
-      .blk_in_ready_i (has_packet_w),
-      .blk_out_ready_i(space_avail_w),
-      // .blk_in_ready_i (bulk_in_packet_i),
-      // .blk_out_ready_i(bulk_out_space_i),
-
-      .blk_start_o(blk_start_o),
-      .blk_cycle_o(blk_cycle_o),
-      .blk_fetch_o(blk_fetch_o),
-      .blk_store_o(blk_store_o),
-      .blk_error_o(bulk_err_w),
-      .blk_endpt_o(blk_endpt_o),
-      .blk_error_i(blk_error_i),
-
-      .blk_tvalid_i(ep2_tvalid_w),
-      // .blk_tready_o(ep2_tready_w),
-      .blk_tlast_i (ep2_tlast_w),
-      .blk_tkeep_i (ep2_tkeep_w),
-      .blk_tdata_i (ep2_tdata_w),
-
-      .blk_tvalid_o(),
-      .blk_tready_i(ep1_tready_w),
-      .blk_tlast_o (),
-      .blk_tkeep_o (),
-      .blk_tdata_o (),
-
-      // To/from USB control transfer endpoints
-      .ctl_start_o(),
-      .ctl_cycle_o(),
-      .ctl_event_i(req_event_w),
-      .ctl_error_i(req_error_w),
-
-      .ctl_endpt_o (ctl_endpt_w),
-      .ctl_rtype_o (ctl_rtype_w),
-      .ctl_rargs_o (ctl_rargs_w),
-      .ctl_value_o (ctl_value_w),
-      .ctl_index_o (ctl_index_w),
-      .ctl_length_o(ctl_length_w),
-
-      .ctl_tvalid_o(),
-      .ctl_tready_i(1'b1),
-      .ctl_tlast_o (),
-      .ctl_tdata_o (),
-
-      .ctl_tvalid_i(ctl0_tvalid_w),
-      .ctl_tready_o(ctl0_tready_w),
-      .ctl_tlast_i (ctl0_tlast_w),
-      .ctl_tkeep_i (ctl0_tvalid_w),
-      .ctl_tdata_i (ctl0_tdata_w)
-  );
-
-  // -- USB Default (PIPE0) Configuration Endpoint -- //
-
-  ctl_pipe0 #(
-      // Device string descriptors [Optional]
-      .MANUFACTURER_LEN(VENDOR_LENGTH),
-      .MANUFACTURER(VENDOR_STRING),
-      .PRODUCT_LEN(PRODUCT_LENGTH),
-      .PRODUCT(PRODUCT_STRING),
-      .SERIAL_LEN(SERIAL_LENGTH),
-      .SERIAL(SERIAL_STRING),
-
-      // Configuration for the device endpoints
-      .CONFIG_DESC_LEN(CONF_DESC_SIZE),
-      .CONFIG_DESC(CONF_DESC_VALS),
-
-      // Product info
-      .VENDOR_ID (VENDOR_ID),
-      .PRODUCT_ID(PRODUCT_ID)
-  ) U_CTL0 (
-      .clock(clock),
-      .reset(reset),
-
-      .start_i (ctl0_start_w),
-      .select_i(ctl0_cycle_w),
-      .error_o (),
-      .event_o (),
-
-      .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o),
-      .usb_enum_o  (usb_enum_w),
-      .usb_addr_o  (usb_addr_w),
-
-      .req_endpt_i (ctl_endpt_w),
-      .req_type_i  (ctl_rtype_w),
-      .req_args_i  (ctl_rargs_w),
-      .req_value_i (ctl_value_w),
-      .req_index_i (ctl_index_w),
-      .req_length_i(ctl_length_w),
-
-      // AXI4-Stream for device descriptors
-      .m_tvalid_o(ctl0_tvalid_w),
-      .m_tlast_o (ctl0_tlast_w),
-      .m_tdata_o (ctl0_tdata_w),
-      .m_tready_i(ctl0_tready_w)
-  );
-*/
-
-  // -- USB Bulk IN & OUT End-Points -- //
-
-  ep_bulk_out #(
-      .ENABLED(USE_EP1_OUT)
-  ) U_OUT_EP1 (
-      .clock(clock),
-      .reset(reset),
-
-      .set_conf_i(req_event_w),
-      .clr_conf_i(req_error_w),
-
-      .selected_i(ep1_sel_w),
-      .ack_sent_i(ep1_ack_w),      // Todo ...
-      .rx_error_i(ep1_err_q),
-      .ep_ready_o(space_avail_w),
-      .stalled_o (ep1_hlt_w),
-      .parity_o  (ep1_par_w),
-
-      .s_tvalid(ulpi_rx_tvalid_w),
-      .s_tready(ep1_tready_w),
-      .s_tkeep (ulpi_rx_tkeep_w),
-      .s_tlast (ulpi_rx_tlast_w),
-      .s_tdata (ulpi_rx_tdata_w),
-
-      .m_tvalid(blko_tvalid_o),
-      .m_tready(blko_tready_i),
-      .m_tkeep (blko_tkeep_o),
-      .m_tlast (blko_tlast_o),
-      .m_tdata (blko_tdata_o)
-  );
-
-  ep_bulk_in #(
-      .ENABLED(USE_EP2_IN)
-  ) U_IN_EP2 (
-      .clock     (clock),
-      .reset     (reset),
-      .set_conf_i(req_event_w),
-      .clr_conf_i(req_error_w),
-      .selected_i(ep2_sel_w),
-      .ack_recv_i(ep2_ack_w),
-      .timedout_i(ep2_err_q),
-      .ep_ready_o(has_packet_w),
-      .stalled_o (ep2_hlt_w),
-      .parity_o  (ep2_par_w),
-      .s_tvalid  (blki_tvalid_i),
-      .s_tready  (blki_tready_o),
-      .s_tlast   (blki_tlast_i),
-      .s_tdata   (blki_tdata_i),
-      .m_tvalid  (ep2_tvalid_w),
-      .m_tready  (ep2_tready_w),
-      .m_tkeep   (ep2_tkeep_w),
-      .m_tlast   (ep2_tlast_w),
-      .m_tdata   (ep2_tdata_w)
-  );
+  wire unused_tready_w;
 
   wire stdreq_select_w, stdreq_status_w, stdreq_parity_w, stdreq_finish_w;
+  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
+  wire [7:0] stdreq_tdata_w;
+
+  wire req_start_w, req_status_w, req_cycle_w, req_event_w, req_error_w;
+  wire [7:0] req_rtype_w, req_rargs_w;
+  wire [15:0] req_value_w, req_index_w, req_length_w;
+  wire [3:0] req_endpt_w = 4'h0;
+
+  wire ep0_end_w;
+  wire ep0_par_w, ep1_par_w, ep2_par_w;
+  wire ep0_sel_w, ep1_sel_w, ep2_sel_w;
+
+  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
+  wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
+  wire [7:0] ep1_tdata_w, ep2_tdata_w;
+
+  reg ep1_err_q, ep2_err_q;
+  wire ep1_ack_w, ep2_ack_w, ep1_hlt_w, ep2_hlt_w;
+
   wire mux_enable_w;
   wire [2:0] mux_select_w;
 
@@ -604,32 +376,62 @@ module usb_ulpi_top #(
       .ep2_finish_o(ep2_ack_w),
       .ep2_halted_i(ep2_hlt_w),
 
-      .ep3_rx_rdy_i(),
-      .ep3_tx_rdy_i(),
-      .ep3_parity_i(),
-      .ep3_halted_i(),
+      .ep3_rx_rdy_i(1'b0),
+      .ep3_tx_rdy_i(1'b0),
+      .ep3_parity_i(1'b0),
+      .ep3_halted_i(1'b1),
       .ep3_select_o(),
 
-      .ep4_rx_rdy_i(),
-      .ep4_tx_rdy_i(),
-      .ep4_parity_i(),
-      .ep4_halted_i(),
+      .ep4_rx_rdy_i(1'b0),
+      .ep4_tx_rdy_i(1'b0),
+      .ep4_parity_i(1'b0),
+      .ep4_halted_i(1'b1),
       .ep4_select_o()
   );
 
-  wire unused_tready_w;
 
-  wire req_start_w, req_status_w, req_cycle_w, req_event_w, req_error_w;
-  wire [7:0] req_rtype_w, req_rargs_w;
-  wire [15:0] req_value_w, req_index_w, req_length_w;
+  //
+  //  USB End-Points and Datapath
+  ///
 
-  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
-  wire [7:0] stdreq_tdata_w;
+  axis_mux #(
+      .S_COUNT(3),
+      .DATA_WIDTH(8),
+      .KEEP_ENABLE(1),
+      .KEEP_WIDTH(1),
+      .ID_ENABLE(0),
+      .ID_WIDTH(1),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(0),
+      .USER_WIDTH(1)
+  ) U_MUX1 (
+      .clk(clock),
+      .rst(reset),
 
-  wire [3:0] req_endpt_w = 4'h0;  // tok_endp_w;  // Todo ...
+      .enable(mux_enable_w),
+      .select(mux_select_w[1:0]),
 
-  // assign enc_tready_w   = 1'b1;  // Todo ...
-  // assign stdreq_tkeep_w = stdreq_tvalid_w;
+      .s_axis_tvalid({ep2_tvalid_w, 1'd0, stdreq_tvalid_w}),
+      .s_axis_tready({ep2_tready_w, unused_tready_w, stdreq_tready_w}),
+      .s_axis_tkeep ({ep2_tkeep_w, 1'd0, stdreq_tkeep_w}),
+      .s_axis_tlast ({ep2_tlast_w, 1'd0, stdreq_tlast_w}),
+      .s_axis_tuser (3'bx),
+      .s_axis_tid   (3'bx),
+      .s_axis_tdest (3'bx),
+      .s_axis_tdata ({ep2_tdata_w, 8'd0, stdreq_tdata_w}),
+
+      .m_axis_tvalid(enc_tvalid_w),
+      .m_axis_tready(enc_tready_w),
+      .m_axis_tkeep (enc_tkeep_w),
+      .m_axis_tlast (enc_tlast_w),
+      .m_axis_tuser (),
+      .m_axis_tid   (),
+      .m_axis_tdest (),
+      .m_axis_tdata (enc_tdata_w)
+  );
+
+  // -- USB Default (PIPE0) Configuration Endpoint -- //
 
   stdreq #(
       .EP0_ONLY(1)
@@ -734,42 +536,64 @@ module usb_ulpi_top #(
       .m_tdata_o (stdreq_tdata_w)
   );
 
-  axis_mux #(
-      .S_COUNT(3),
-      .DATA_WIDTH(8),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(1),
-      .ID_ENABLE(0),
-      .ID_WIDTH(1),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1)
-  ) U_MUX1 (
-      .clk(clock),
-      .rst(reset),
+  // -- USB Bulk IN & OUT End-Points -- //
 
-      .enable(mux_enable_w),
-      .select(mux_select_w),
+  always @(posedge clock) begin
+    ep1_err_q <= 1'b0;  // Todo ...
+    ep2_err_q <= 1'b0;  // Todo ...
+  end
 
-      .s_axis_tvalid({ep2_tvalid_w, 1'd0, stdreq_tvalid_w}),
-      .s_axis_tready({ep2_tready_w, unused_tready_w, stdreq_tready_w}),
-      // .s_axis_tready({unused_tready_w, unused_tready_w, stdreq_tready_w}),
-      .s_axis_tkeep ({ep2_tkeep_w, 1'd0, stdreq_tkeep_w}),
-      .s_axis_tlast ({ep2_tlast_w, 1'd0, stdreq_tlast_w}),
-      .s_axis_tuser ('bx),
-      .s_axis_tid   ('bx),
-      .s_axis_tdest ('bx),
-      .s_axis_tdata ({ep2_tdata_w, 8'd0, stdreq_tdata_w}),
+  ep_bulk_out #(
+      .ENABLED(USE_EP1_OUT)
+  ) U_OUT_EP1 (
+      .clock(clock),
+      .reset(reset),
 
-      .m_axis_tvalid(enc_tvalid_w),
-      .m_axis_tready(enc_tready_w),
-      .m_axis_tkeep (enc_tkeep_w),
-      .m_axis_tlast (enc_tlast_w),
-      .m_axis_tuser (),
-      .m_axis_tid   (),
-      .m_axis_tdest (),
-      .m_axis_tdata (enc_tdata_w)
+      .set_conf_i(req_event_w),
+      .clr_conf_i(req_error_w),
+
+      .selected_i(ep1_sel_w),
+      .ack_sent_i(ep1_ack_w),      // Todo ...
+      .rx_error_i(ep1_err_q),
+      .ep_ready_o(space_avail_w),
+      .stalled_o (ep1_hlt_w),
+      .parity_o  (ep1_par_w),
+
+      .s_tvalid(ulpi_rx_tvalid_w),
+      .s_tready(ep1_tready_w),  // Todo: route to protocol, for error-handling
+      .s_tkeep(ulpi_rx_tkeep_w),
+      .s_tlast(ulpi_rx_tlast_w),
+      .s_tdata(ulpi_rx_tdata_w),
+
+      .m_tvalid(blko_tvalid_o),
+      .m_tready(blko_tready_i),
+      .m_tkeep (blko_tkeep_o),
+      .m_tlast (blko_tlast_o),
+      .m_tdata (blko_tdata_o)
+  );
+
+  ep_bulk_in #(
+      .ENABLED(USE_EP2_IN)
+  ) U_IN_EP2 (
+      .clock     (clock),
+      .reset     (reset),
+      .set_conf_i(req_event_w),
+      .clr_conf_i(req_error_w),
+      .selected_i(ep2_sel_w),
+      .ack_recv_i(ep2_ack_w),
+      .timedout_i(ep2_err_q),
+      .ep_ready_o(has_packet_w),
+      .stalled_o (ep2_hlt_w),
+      .parity_o  (ep2_par_w),
+      .s_tvalid  (blki_tvalid_i),
+      .s_tready  (blki_tready_o),
+      .s_tlast   (blki_tlast_i),
+      .s_tdata   (blki_tdata_i),
+      .m_tvalid  (ep2_tvalid_w),
+      .m_tready  (ep2_tready_w),
+      .m_tkeep   (ep2_tkeep_w),
+      .m_tlast   (ep2_tlast_w),
+      .m_tdata   (ep2_tdata_w)
   );
 
   // initial #10340 $finish;

@@ -89,7 +89,7 @@ module ulpi_axis_bridge #(
     output [7:0] m_axis_tdata_o
 );
 
-`include "usb_defs.vh"
+  `include "usb_defs.vh"
 
   // -- Constants -- //
 
@@ -140,11 +140,11 @@ module ulpi_axis_bridge #(
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
     8'h00,  // bInterfaceClass
-    EP_NUM, // bNumEndpoints = 2
+    EP_NUM,  // bNumEndpoints = 2
     8'h00,  // bAlternateSetting
     8'h00,  // bInterfaceNumber = 0
     8'h04,  // bDescriptorType = Interface Descriptor
-    8'h09   // bLength = 9
+    8'h09  // bLength = 9
   };
 
   localparam [55:0] EP1_IN_DESC = {
@@ -166,57 +166,57 @@ module ulpi_axis_bridge #(
   };
 
   localparam [55:0] EP2_IN_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h82,    // bEndpointAddress = IN2
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h82,  // bEndpointAddress = IN2
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam [55:0] EP2_OUT_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h02,    // bEndpointAddress = OUT2
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h02,  // bEndpointAddress = OUT2
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam [55:0] EP3_IN_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h83,    // bEndpointAddress = IN3
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h83,  // bEndpointAddress = IN3
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam [55:0] EP3_OUT_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h03,    // bEndpointAddress = OUT3
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h03,  // bEndpointAddress = OUT3
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam [55:0] EP4_IN_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h84,    // bEndpointAddress = IN4
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h84,  // bEndpointAddress = IN4
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam [55:0] EP4_OUT_DESC = {
-    8'h00,    // bInterval
-    16'h0200, // wMaxPacketSize = 512 bytes
-    8'h02,    // bmAttributes = Bulk
-    8'h04,    // bEndpointAddress = OUT4
-    8'h05,    // bDescriptorType = Endpoint Descriptor
-    8'h07     // bLength = 7
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    8'h04,  // bEndpointAddress = OUT4
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
   };
 
   localparam integer EP1_UPPER = EP1_BULK_IN ? 56 : 0;
@@ -309,7 +309,7 @@ module ulpi_axis_bridge #(
   wire clock, reset;
 
   reg blk_in_ready_q, tele_sel_q, usb_idle_q;
-  wire [9:0] tele_level_w;
+  wire [10:0] tele_level_w;
   wire sof_rx_recv_w;
 
   // ULPI signals
@@ -805,6 +805,7 @@ module ulpi_axis_bridge #(
 
       .start_i (ctl0_start_w),
       .select_i(ctl0_cycle_w),
+      .status_i(1'b0),
       .error_o (ctl0_error_w),
       .event_o (ctl0_event_w),
 

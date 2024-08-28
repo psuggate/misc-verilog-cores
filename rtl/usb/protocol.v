@@ -91,13 +91,7 @@ module protocol #(
     input  ep4_parity_i,
     input  ep4_halted_i,
     output ep4_select_o,
-    output ep4_finish_o,
-
-    output m_tvalid,
-    input m_tready,
-    output m_tlast,
-    output m_tkeep,
-    output [7:0] m_tdata
+    output ep4_finish_o
 );
 
   `include "usb_defs.vh"

@@ -18,10 +18,10 @@
 module transactor #(
     parameter ENDPOINT1 = 1,
     parameter ENDPOINT2 = 0,  // todo: ...
-                    // parameter [3:0] BULK_IN_EP1 = 1, // toods
-                    // parameter [3:0] BULK_IN_EP2 = 3, // toods
-                    // parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
-                    // parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
+    // parameter [3:0] BULK_IN_EP1 = 1, // toods
+    // parameter [3:0] BULK_IN_EP2 = 3, // toods
+    // parameter [3:0] BULK_OUT_EP1 = 2, // sdoot
+    // parameter [3:0] BULK_OUT_EP2 = 4, // sdoot
     parameter PIPELINED = 0,
     parameter USE_ULPI_TX_FIFO = 0
 ) (
@@ -288,7 +288,7 @@ module transactor #(
 
   // -- DATA0/1/2/M Logic -- //
 
-/*
+  /*
   localparam [1:0] PID_TOK = 2'b00;
   localparam [1:0] PID_DAT = 2'b01;
   localparam [1:0] PID_HSK = 2'b10;
@@ -345,9 +345,9 @@ module transactor #(
   assign parityx_w = tok_endp_i == 0 ? parity0_q :
                      tok_endp_i == ENDPOINT1[3:0] ? parity1_q :
                      tok_endp_i == ENDPOINT2[3:0] ? parity2_q :
-                     // tok_endp_i == BULK_IN_EP1[3:0] ? parity1_q :
-                     // tok_endp_i == BULK_OUT_EP1[3:0] ? parity2_q :
-                     parity0_q;
+      // tok_endp_i == BULK_IN_EP1[3:0] ? parity1_q :
+      // tok_endp_i == BULK_OUT_EP1[3:0] ? parity2_q :
+      parity0_q;
 
   always @* begin
     //
@@ -395,9 +395,9 @@ module transactor #(
           clr_parity0 = 1'b1;
         end else if (usb_tuser_i[3:2] == TOK_OUT && xctrl == CTL_DATI_TOK ||
                      usb_tuser_i[3:2] == TOK_IN  && xctrl == CTL_DATO_TOK
-        // end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
-        //              usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
-                     ) begin
+            // end else if (usb_tuser_i == {TOK_OUT, 2'b01} && xctrl == CTL_DATI_TOK ||
+            //              usb_tuser_i == {TOK_IN , 2'b01} && xctrl == CTL_DATO_TOK
+            ) begin
           set_parity0 = 1'b1;
           clr_parity0 = 1'b0;
         end
@@ -479,7 +479,7 @@ module transactor #(
   // -- End-of-Packet Timer -- //
 
   reg [2:0] eop_rcnt, eop_tcnt;
-  reg eop_tx_q;
+  reg  eop_tx_q;
   wire eop_rx_w = eop_rcnt == 3'd0;
   wire eop_tx_w = eop_tcnt == 3'd0;
 
@@ -1080,10 +1080,10 @@ module transactor #(
       `USBPID_IN:    dbg_pid = "IN";
       `USBPID_SOF:   dbg_pid = "SOF";
       `USBPID_SETUP: dbg_pid = "SETUP";
-      `USBPID_DATA0: dbg_pid = "DATA0"; 
-      `USBPID_DATA1: dbg_pid = "DATA1"; 
-      `USBPID_DATA2: dbg_pid = "DATA2"; 
-      `USBPID_MDATA: dbg_pid = "MDATA"; 
+      `USBPID_DATA0: dbg_pid = "DATA0";
+      `USBPID_DATA1: dbg_pid = "DATA1";
+      `USBPID_DATA2: dbg_pid = "DATA2";
+      `USBPID_MDATA: dbg_pid = "MDATA";
       `USBPID_ACK:   dbg_pid = "ACK";
       `USBPID_NAK:   dbg_pid = "NAK";
       `USBPID_STALL: dbg_pid = "STALL";
@@ -1096,7 +1096,7 @@ module transactor #(
     endcase
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
 endmodule  // transactor
