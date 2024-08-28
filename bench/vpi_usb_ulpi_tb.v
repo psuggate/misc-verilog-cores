@@ -37,7 +37,6 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    // #2500 $finish;
     #35000 $finish;
   end
 
@@ -169,21 +168,6 @@ module vpi_usb_ulpi_tb;
 
       .configured_o   (configured),
       .usb_conf_o     (usb_config),
-/*
-      .usb_idle_o     (usb_idle_w),
-      .usb_sof_o      (dev_usb_sof_w),
-      .crc_err_o      (dev_crc_err_w),
-
-      .blk_in_ready_i (bulk_in_ready_q), // USB BULK EP control-signals
-      .blk_out_ready_i(bulk_out_ready_q),
-
-      .blk_start_o    (bulk_start_w),
-      .blk_cycle_o    (bulk_cycle_w),
-      .blk_fetch_o    (bulk_fetch_w),
-      .blk_store_o    (bulk_store_w),
-      .blk_endpt_o    (bulk_endpt_w),
-      .blk_error_i    (1'b0),
-*/
 
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
       .blki_tready_o  (blki_tready_w),

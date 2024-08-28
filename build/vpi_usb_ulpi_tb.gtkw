@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Aug 28 04:06:50 2024
+[*] Wed Aug 28 06:45:41 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Wed Aug 28 04:05:17 2024"
-[dumpfile_size] 582309
+[dumpfile_mtime] "Wed Aug 28 06:45:04 2024"
+[dumpfile_size] 681666
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 29629000
+[timestart] 8539000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 30260000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 9170000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_CTL1.
@@ -204,14 +204,13 @@ vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_q
 -Transact
 @1401200
 -Transact
-@800200
--Protocol
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.dbg_state[39:0]
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.dbg_pid[47:0]
-@c00201
+@c00200
+-Protocol
 -EndPoints
 @28
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep0_select_i
@@ -230,7 +229,7 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_tx_rdy_i
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_parity_i
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_halted_i
-@1401201
+@1401200
 -EndPoints
 @c00200
 -Internal
@@ -250,8 +249,10 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.td_err_q
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.td_cnext[5:0]
 @1401200
 -Internal
-@1000200
 -Protocol
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.dbg_state[55:0]
 @c00200
 -StdReq
 @28
@@ -261,9 +262,6 @@ vpi_usb_ulpi_tb.U_USB1.stdreq_parity_w
 vpi_usb_ulpi_tb.U_USB1.stdreq_finish_w
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.timeout_i
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.dbg_state[55:0]
 @c00200
 -Internal
 @28
@@ -290,7 +288,7 @@ vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.req_length_o[15:0]
 vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.req_index_o[15:0]
 @1401200
 -Request
-@800200
+@c00200
 -Slave
 @28
 vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.s_tvalid
@@ -300,11 +298,10 @@ vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.s_tkeep
 @22
 vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.s_tuser[3:0]
 vpi_usb_ulpi_tb.U_USB1.U_STDREQ1.s_tdata[7:0]
-@1000200
--Slave
 @1401200
+-Slave
 -StdReq
-@c00200
+@800200
 -CTL1
 @28
 [color] 3
@@ -324,19 +321,26 @@ vpi_usb_ulpi_tb.U_USB1.U_CTL1.usb_addr_o[6:0]
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.event_o
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.error_o
+@24
+vpi_usb_ulpi_tb.U_USB1.U_CTL1.mem_addr[7:0]
+@28
+vpi_usb_ulpi_tb.U_USB1.U_CTL1.get_desc_q
+@420
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.count[6:0]
+[color] 2
+vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.cnext[6:0]
+@800200
+-AXI-S
+@28
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tvalid_o
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tready_i
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tkeep_o
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tlast_o
 @22
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tdata_o[7:0]
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.mem_addr[7:0]
-@28
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.get_desc_q
-@24
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.count[6:0]
-@22
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.cnext[7:0]
+@1000200
+-AXI-S
 @c00200
 -AXI-S Chop
 @28
@@ -348,6 +352,7 @@ vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_last_w
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_data_w[7:0]
 @1401200
 -AXI-S Chop
+@1000200
 -CTL1
 @c00200
 -MUX1

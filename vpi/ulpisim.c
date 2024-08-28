@@ -4,6 +4,7 @@
 #include "tc_bulkin.h"
 #include "tc_bulkout.h"
 #include "tc_getdesc.h"
+#include "tc_getconf.h"
 #include "tc_setaddr.h"
 #include "tc_setconf.h"
 #include "tc_waitsof.h"
@@ -495,6 +496,7 @@ static int ut_compiletf(char* user_data)
     state->test_step = 0;
     int i = 0;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
+    state->tests[i++] = test_getconf();
     state->tests[i++] = test_getdesc();
     state->tests[i++] = test_setaddr(0x23);
     state->tests[i++] = test_waitsof();

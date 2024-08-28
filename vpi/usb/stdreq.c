@@ -97,6 +97,60 @@ int stdreq_get_descriptor(usb_host_t* host, uint16_t num)
     return stdreq_start(host, &req);
 }
 
+int stdreq_get_status(usb_host_t* host)
+{
+    if (host->op != HostIdle) {
+        return -1;
+    }
+
+    usb_stdreq_t req;
+
+    req.bmRequestType = 0xA3; // Todo: from WireShark, but should be 0x80 ?!
+    req.bRequest = STDREQ_GET_STATUS;
+    req.wValue = 0;
+    req.wIndex = 8;
+    req.wLength = 4;
+    req.data = NULL;
+
+    return stdreq_start(host, &req);
+}
+
+int stdreq_get_desc_device(usb_host_t* host, uint8_t* buf)
+{
+    if (host->op != HostIdle) {
+        return -1;
+    }
+
+    usb_stdreq_t req;
+
+    req.bmRequestType = 0x80;
+    req.bRequest = STDREQ_GET_DESCRIPTOR;
+    req.wValue = DESC_DEVICE << 8;
+    req.wIndex = 0;
+    req.wLength = 64;
+    req.data = buf;
+
+    return stdreq_start(host, &req);
+}
+
+int stdreq_get_desc_config(usb_host_t* host, uint8_t* buf)
+{
+    if (host->op != HostIdle) {
+        return -1;
+    }
+
+    usb_stdreq_t req;
+
+    req.bmRequestType = 0x80;
+    req.bRequest = STDREQ_GET_DESCRIPTOR;
+    req.wValue = DESC_CONFIGURATION << 8;
+    req.wIndex = 0;
+    req.wLength = 64;
+    req.data = buf;
+
+    return stdreq_start(host, &req);
+}
+
 int stdreq_set_address(usb_host_t* host, uint8_t addr)
 {
     usb_stdreq_t req;

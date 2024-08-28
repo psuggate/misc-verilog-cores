@@ -52,7 +52,7 @@ typedef struct {
     } value;
 } usb_desc_t;
 
-
+#if 0
 typedef struct {
     /*
     int (*setup)(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
@@ -65,6 +65,7 @@ typedef struct {
     step_fn_t data1;
     step_fn_t status;
 } stdreq_steps_t;
+#endif /* 0 */
 
 
 // -- Helper Procedures -- //
@@ -74,12 +75,17 @@ int get_descriptor(usb_stdreq_t* req, uint16_t type, uint16_t lang, uint16_t len
 
 // -- Main API Routines -- //
 
-void stdreq_init(stdreq_steps_t* steps);
+// void stdreq_init(stdreq_steps_t* steps);
 void stdreq_show(usb_stdreq_t* req);
 int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 int stdreq_get_descriptor(usb_host_t* host, uint16_t num);
+int stdreq_get_desc_device(usb_host_t* host, uint8_t* buf);
+int stdreq_get_desc_config(usb_host_t* host, uint8_t* buf);
+
+int stdreq_get_status(usb_host_t* host);
 int stdreq_set_address(usb_host_t* host, uint8_t addr);
+int stdreq_set_config(usb_host_t* host, uint8_t conf);
 
 // -- Unit Tests -- //
 

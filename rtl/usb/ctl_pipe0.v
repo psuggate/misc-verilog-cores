@@ -9,6 +9,8 @@
 //  Copyright (c) 2023 Patrick Suggate
 //
 module ctl_pipe0 #(
+    parameter CHOP = 1,
+
     parameter [15:0] VENDOR_ID = 16'hFACE,
     parameter [15:0] PRODUCT_ID = 16'h0BDE,
     parameter MANUFACTURER_LEN = 0,
@@ -226,29 +228,30 @@ module ctl_pipe0 #(
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
 
-
-  //
-  // Burst-Chopper for Descriptor Data
-  ///
   localparam MAXLEN = 64;
   localparam MBITS = $clog2(MAXLEN + 1);
   localparam MSB = MBITS - 1;
   localparam MZERO = {MBITS{1'b0}};
   localparam MUNIT = {{MSB{1'b0}}, 1'b1};
 
-  localparam CHOP = 0;
-
-  reg act_q;
-  reg [MSB:0] len_q;
   wire chop_valid_w, chop_ready_w, chop_stop_w, chop_last_w;
   wire [7:0] chop_data_w;
 
   generate
     if (CHOP == 1) begin : g_chop
 
+      //
+      // Burst-Chopper for Descriptor Data
+      ///
+
+      reg act_q;
+      reg [MSB:0] len_q;
+
       assign chop_valid_w = get_desc_q;
       assign chop_last_w  = desc_tlast[mem_addr];
       assign chop_data_w  = descriptor[mem_addr];
+
+      assign m_tkeep_o = m_tvalid_o;
 
       always @(posedge clock) begin
         if (reset) begin
@@ -292,16 +295,16 @@ module ctl_pipe0 #(
     end else begin : g_skid
 
       reg  [6:0] count;
-      wire [7:0] cnext;
+      wire [6:0] cnext;
 
       wire tvalid_w, tready_w, tkeep_w, tlast_w;
       wire [7:0] tdata_w;
 
       assign cnext = count - 1;
 
-      assign tvalid_w = get_desc_q && !cnext[7];
-      assign tkeep_w = 1'b1;
-      assign tlast_w = desc_tlast[mem_addr] || cnext[7];
+      assign tvalid_w = status_i | (get_desc_q & ~count[6]);
+      assign tkeep_w = ~status_i;
+      assign tlast_w = status_i | desc_tlast[mem_addr] | cnext[6];
       assign tdata_w = descriptor[mem_addr];
 
       assign chop_valid_w = tvalid_w;
@@ -312,7 +315,7 @@ module ctl_pipe0 #(
 
       always @(posedge clock) begin
         if (!select_i) begin
-          count <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
+          count <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0] - 1;
         end else if (tvalid_w && tready_w) begin
           count <= cnext[6:0];
         end
@@ -325,10 +328,10 @@ module ctl_pipe0 #(
           .clock(clock),
           .reset(reset),
 
-          .s_tvalid(status_i | tvalid_w),
+          .s_tvalid(tvalid_w),
           .s_tready(tready_w),
-          .s_tlast (status_i | tlast_w),
-          .s_tdata ({~status_i, tdata_w}),
+          .s_tlast (tlast_w),
+          .s_tdata ({tkeep_w, tdata_w}),
 
           .m_tvalid(m_tvalid_o),
           .m_tready(m_tready_i),

@@ -378,7 +378,7 @@ module ulpi_axis_bridge #(
   wire [6:0] usb_addr_w;
 
   wire ctl0_start_w, ctl0_cycle_w, ctl0_event_w, ctl0_error_w;
-  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tlast_w;
+  wire ctl0_tvalid_w, ctl0_tready_w, ctl0_tkeep_w, ctl0_tlast_w;
   wire [7:0] ctl0_tdata_w;
 
   wire [3:0] ctl_endpt_w;
@@ -677,7 +677,7 @@ module ulpi_axis_bridge #(
       .ctl_tvalid_i(ctl0_tvalid_w),
       .ctl_tready_o(ctl0_tready_w),
       .ctl_tlast_i (ctl0_tlast_w),
-      .ctl_tkeep_i (ctl0_tvalid_w),
+      .ctl_tkeep_i (ctl0_tkeep_w),
       .ctl_tdata_i (ctl0_tdata_w)
   );
 
@@ -783,7 +783,11 @@ module ulpi_axis_bridge #(
 
   // -- USB Default (PIPE0) Configuration Endpoint -- //
 
+  // wire fb_tready_w = ctl0_tready_w | (ctl0_tvalid_w & ~ctl0_tkeep_w);
+
   ctl_pipe0 #(
+      .CHOP(1),
+
       // Device string descriptors [Optional]
       .MANUFACTURER_LEN(VENDOR_LENGTH),
       .MANUFACTURER(VENDOR_STRING),
@@ -823,9 +827,11 @@ module ulpi_axis_bridge #(
 
       // AXI4-Stream for device descriptors
       .m_tvalid_o(ctl0_tvalid_w),
+      .m_tkeep_o (ctl0_tkeep_w),
       .m_tlast_o (ctl0_tlast_w),
       .m_tdata_o (ctl0_tdata_w),
       .m_tready_i(ctl0_tready_w)
+      // .m_tready_i(fb_tready_w)
   );
 
 

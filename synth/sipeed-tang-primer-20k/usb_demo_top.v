@@ -114,6 +114,7 @@ module usb_demo_top (
   //
   // Core Under New Tests
   ///
+
   usb_ulpi_wrapper #(
       .DEBUG(1)
   ) U_USB1 (

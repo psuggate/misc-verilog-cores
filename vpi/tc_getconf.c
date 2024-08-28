@@ -1,4 +1,4 @@
-#include "tc_getdesc.h"
+#include "tc_getconf.h"
 #include "usb/stdreq.h"
 #include "usb/descriptor.h"
 
@@ -7,7 +7,7 @@
 #include <vpi_user.h>
 
 
-typedef enum __getdesc_state {
+typedef enum __getconf_step {
     SendSETUP,
     SendDATA0,
     RecvACK0,
@@ -17,11 +17,19 @@ typedef enum __getdesc_state {
     SendOUT,
     SendZDP,
     RecvACK1,
-    DescDone,
-} getdesc_state_t;
+    DoneSETUP,
+} getconf_step_t;
 
-static const char tc_getdesc_name[] = "GET DESCRIPTOR";
-static const char getdesc_strings[10][16] = {
+typedef struct {
+    uint8_t* buf;
+    uint32_t len;
+    uint8_t step;
+    uint8_t stage;
+} getconf_state_t;
+
+
+static const char tc_getconf_name[] = "GET CONFIG DESCRIPTOR";
+static const char getconf_strings[10][16] = {
     {"SendSETUP"},
     {"SendDATA0"},
     {"RecvACK0"},
@@ -31,25 +39,45 @@ static const char getdesc_strings[10][16] = {
     {"SendOUT"},
     {"SendZDP"},
     {"RecvACK1"},
-    {"DescDone"},
+    {"DoneSETUP"},
 };
 
 
-static int tc_getdesc_init(usb_host_t* host, void* data)
+static int tc_getconf_init(usb_host_t* host, void* data)
 {
-    getdesc_state_t* st = (getdesc_state_t*)data;
+    getconf_state_t* st = (getconf_state_t*)data;
     transfer_t* xfer = &host->xfer;
-    *st = SendSETUP;
-    int result = stdreq_get_descriptor(host, 0x0301);
+    int result;
+
+    st->buf = NULL;
+    st->len = 0;
+    st->step = SendSETUP;
+
+    switch (st->stage) {
+    case 0:
+	result = stdreq_get_status(host);
+	break;
+    case 1:
+	result = stdreq_get_desc_device(host, st->buf);
+	break;
+    case 2:
+	result = stdreq_get_desc_config(host, st->buf);
+	break;
+    case 3:
+	return 1;
+    }
+
     vpi_printf("HOST\t#%8lu cyc =>\t%s INIT result = %d\n",
-               host->cycle, tc_getdesc_name, result);
+               host->cycle, tc_getconf_name, result);
+
     if (result < 0) {
-        vpi_printf("[%s:%d] GET DESCRIPTOR initialisation failed\n",
+        vpi_printf("[%s:%d] GET STATUS initialisation failed\n",
                    __FILE__, __LINE__);
         show_host(host);
         vpi_control(vpiFinish, 2);
-        return -1;
+	return result;
     }
+
     return 0;
 }
 
@@ -57,50 +85,49 @@ static int tc_getdesc_init(usb_host_t* host, void* data)
  * Step-function that is invoked as each packet of a SETUP transaction has been
  * sent/received.
  */
-static int tc_getdesc_step(usb_host_t* host, void* data)
+static int tc_getconf_step(usb_host_t* host, void* data)
 {
-    getdesc_state_t* st = (getdesc_state_t*)data;
+    getconf_state_t* st = (getconf_state_t*)data;
     transfer_t* xfer = &host->xfer;
-    const char* str = getdesc_strings[*st];
+    const char* str = getconf_strings[st->step];
     vpi_printf("\n[%s:%d] %s\n\n", __FILE__, __LINE__, str);
 
-    switch (*st) {
+    switch (st->step) {
     case SendSETUP:
         // SendSETUP completed, so now send DATA0
         host->step++;
-        vpi_printf("[%s:%d] WARN -- DATA0 not setup correctly\n", __FILE__, __LINE__);
-        *st = SendDATA0;
+        st->step = SendDATA0;
         return 0;
 
     case SendDATA0:
         host->step++;
-        *st = RecvACK0;
+        st->step = RecvACK0;
         return 0;
 
     case RecvACK0:
         host->step++;
         host->xfer.ep_seq[0] = SIG1;
-        *st = SendIN;
+        st->step = SendIN;
         return 0;
 
     case SendIN:
         host->step++;
-        *st = RecvDATA1;
+        st->step = RecvDATA1;
         return 0;
 
     case RecvDATA1:
         host->step++;
-        *st = SendACK;
+        st->step = SendACK;
         return 0;
 
     case SendACK:
         host->step++;
-        *st = SendOUT;
+        st->step = SendOUT;
         return 0;
 
     case SendOUT:
         host->step++;
-        *st = SendZDP;
+        st->step = SendZDP;
         host->xfer.tx_len = 0;
         host->xfer.type = DnDATA1;
         host->xfer.crc1 = 0x00;
@@ -109,39 +136,48 @@ static int tc_getdesc_step(usb_host_t* host, void* data)
 
     case SendZDP:
         host->step++;
-        *st = RecvACK1;
+        st->step = RecvACK1;
         return 0;
 
     case RecvACK1:
         host->step++;
         host->op = HostIdle;
         show_desc(xfer);
-        *st = DescDone;
-        return 1;
+	if (++st->stage < 3) {
+	    tc_getconf_init(host, data);
+	    return 0;
+	} else {
+	    st->step = DoneSETUP;
+	    return 1;
+	}
 
-    case DescDone:
+    case DoneSETUP:
         vpi_printf("[%s:%d] WARN => Invoked post-completion\n", __FILE__, __LINE__);
         return 1;
 
     default:
-        vpi_printf("[%s:%d] Invalid GET DESCRIPTOR state: 0x%x\n",
-                   __FILE__, __LINE__, *st);
+        vpi_printf("[%s:%d] Invalid GET STATUS state: 0x%x\n",
+                   __FILE__, __LINE__, st->step);
         vpi_control(vpiFinish, 1);
     }
 
     return -1;
 }
 
-testcase_t* test_getdesc(void)
+testcase_t* test_getconf(void)
 {
     testcase_t* tc = malloc(sizeof(testcase_t));
-    getdesc_state_t* st = malloc(sizeof(getdesc_state_t));
-    *st = SendSETUP;
+    getconf_state_t* st = malloc(sizeof(getconf_state_t));
 
-    tc->name = tc_getdesc_name;
+    st->step = SendSETUP;
+    st->stage = 0;
+    st->len = 0;
+    st->buf = malloc(512);
+
+    tc->name = tc_getconf_name;
     tc->data = (void*)st;
-    tc->init = tc_getdesc_init;
-    tc->step = tc_getdesc_step;
+    tc->init = tc_getconf_init;
+    tc->step = tc_getconf_step;
 
     return tc;
 }

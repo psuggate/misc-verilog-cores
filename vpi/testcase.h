@@ -23,19 +23,6 @@ typedef struct {
 } testcase_t;
 
 
-#if 0
-typedef struct {
-    const char* name;
-    void* data;
-    ulpi_phy_t* phy;
-    int (*init)(ulpi_phy_t* phy, void* data);
-    int (*step)(ulpi_phy_t* phy, void* data);
-} testcase_t;
-#endif /* 0 */
-
-//     int (*step)(ulpi_bus_t* curr, void* data);
-
-
 //
 //  Test Setup-/Stop- Phase Routines
 ///
@@ -47,6 +34,7 @@ void tc_finish(testcase_t* test);
 //
 //  Test Run-Phase Routines
 ///
+
 int tc_init(testcase_t* test, ulpi_phy_t* phy);
 int tc_step(testcase_t* test);
 
