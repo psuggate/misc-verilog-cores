@@ -10,54 +10,34 @@
  *    explicit-load port to be disabled;
  *  - more general-purpose than just for AXI-S; e.g., used for the USB core;
  */
-module skid_loader (
-    clock,
-    reset,
+module skid_loader #(
+    parameter BYPASS = 0,
+    parameter LOADER = 1,
 
-    s_tvalid,
-    s_tready,
-    s_tlast,
-    s_tdata,
+    parameter  WIDTH = 8,
+    localparam MSB   = WIDTH - 1,
 
-    t_tvalid,
-    t_tready,
-    t_tlast,
-    t_tdata,
+    parameter RESET_TDATA = 0,
+    parameter RESET_VALUE = 'bx
+) (
+    input clock,
+    input reset,
 
-    m_tvalid,
-    m_tready,
-    m_tlast,
-    m_tdata
+    input s_tvalid,
+    output s_tready,
+    input s_tlast,
+    input [MSB:0] s_tdata,
+
+    input t_tvalid,
+    output t_tready,
+    input t_tlast,
+    input [MSB:0] t_tdata,
+
+    output m_tvalid,
+    input m_tready,
+    output m_tlast,
+    output [MSB:0] m_tdata
 );
-
-  parameter BYPASS = 0;
-  parameter LOADER = 1;
-
-  parameter WIDTH = 8;
-  localparam MSB = WIDTH - 1;
-
-  parameter RESET_TDATA = 0;
-  parameter RESET_VALUE = 'bx;
-
-
-  input clock;
-  input reset;
-
-  input s_tvalid;
-  output s_tready;
-  input s_tlast;
-  input [MSB:0] s_tdata;
-
-  input t_tvalid;
-  output t_tready;
-  input t_tlast;
-  input [MSB:0] t_tdata;
-
-  output m_tvalid;
-  input m_tready;
-  output m_tlast;
-  output [MSB:0] m_tdata;
-
 
   generate
     if (BYPASS == 1) begin : g_bypass

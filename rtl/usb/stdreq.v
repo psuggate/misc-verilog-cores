@@ -28,6 +28,7 @@ module stdreq #(
 
     // From the USB protocol logic
     output select_o,
+    output status_o,
     output parity_o,
     output start_o,
     output finish_o,
@@ -76,6 +77,7 @@ module stdreq #(
   reg [3:0] state, snext;
   reg cyc_q, end_q, par_q, req_q, sel_q;
   reg [2:0] xcptr;
+  reg zdp_c, zdp_q;
   wire end_w, req_w, sel_w;
 
   reg req_start_q, req_cycle_q;
@@ -87,6 +89,7 @@ module stdreq #(
 
   assign start_o = sel_q;
   assign select_o = cyc_q;
+  assign status_o = zdp_q;
   assign parity_o = par_q;
   assign finish_o = end_q;
 
@@ -208,6 +211,7 @@ module stdreq #(
   //
   always @* begin
     snext = state;
+    zdp_c = 1'b0;
 
     case (state)
       ST_IDLE:
@@ -218,14 +222,15 @@ module stdreq #(
       if (hsk_sent_i) begin
         if (req_lenhi_q == 0 && req_lenlo_q == 0) begin
           snext = ST_STATUS;
+          zdp_c = 1'b1;
         end else begin
           snext = ST_DATA;
         end
       end
       ST_DATA:
       if (data_ack_w) begin
-        // if (hsk_sent_i || hsk_recv_i) begin
         snext = ST_STATUS;
+        zdp_c = hsk_sent_i;
       end else if (timeout_i) begin
         snext = ST_IDLE;
       end
@@ -244,8 +249,10 @@ module stdreq #(
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
+      zdp_q <= 1'b0;
     end else begin
       state <= snext;
+      zdp_q <= zdp_c;
     end
   end
 

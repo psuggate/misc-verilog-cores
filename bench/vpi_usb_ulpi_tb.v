@@ -176,7 +176,6 @@ module vpi_usb_ulpi_tb;
 
       .blk_in_ready_i (bulk_in_ready_q), // USB BULK EP control-signals
       .blk_out_ready_i(bulk_out_ready_q),
-*/
 
       .blk_start_o    (bulk_start_w),
       .blk_cycle_o    (bulk_cycle_w),
@@ -184,6 +183,7 @@ module vpi_usb_ulpi_tb;
       .blk_store_o    (bulk_store_w),
       .blk_endpt_o    (bulk_endpt_w),
       .blk_error_i    (1'b0),
+*/
 
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
       .blki_tready_o  (blki_tready_w),

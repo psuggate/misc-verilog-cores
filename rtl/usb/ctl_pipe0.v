@@ -63,6 +63,7 @@ module ctl_pipe0 #(
     input clock,
 
     input  select_i,
+    input  status_i,
     input  start_i,
     output error_o,
     output event_o,
@@ -82,6 +83,7 @@ module ctl_pipe0 #(
     // AXI4-Stream for device descriptors
     output m_tvalid_o,
     input m_tready_i,
+    output m_tkeep_o,
     output m_tlast_o,
     output [7:0] m_tdata_o
 );
@@ -232,56 +234,110 @@ module ctl_pipe0 #(
   localparam MBITS = $clog2(MAXLEN + 1);
   localparam MSB = MBITS - 1;
   localparam MZERO = {MBITS{1'b0}};
+  localparam MUNIT = {{MSB{1'b0}}, 1'b1};
+
+  localparam CHOP = 0;
 
   reg act_q;
   reg [MSB:0] len_q;
   wire chop_valid_w, chop_ready_w, chop_stop_w, chop_last_w;
   wire [7:0] chop_data_w;
 
-  assign chop_valid_w = get_desc_q;
-  assign chop_last_w  = desc_tlast[mem_addr];
-  assign chop_data_w  = descriptor[mem_addr];
+  generate
+    if (CHOP == 1) begin : g_chop
 
-  always @(posedge clock) begin
-    if (reset) begin
-      act_q <= 1'b0;
-    end else begin
-      if (select_i && start_i && req_endpt_i == 4'h0) begin
-        act_q <= 1'b1;
-      end else if (m_tready_i && m_tvalid_o && m_tlast_o || !select_i) begin
-        act_q <= 1'b0;
+      assign chop_valid_w = get_desc_q;
+      assign chop_last_w  = desc_tlast[mem_addr];
+      assign chop_data_w  = descriptor[mem_addr];
+
+      always @(posedge clock) begin
+        if (reset) begin
+          act_q <= 1'b0;
+        end else begin
+          if (select_i && start_i && req_endpt_i == 4'h0) begin
+            act_q <= 1'b1;
+          end else if (m_tready_i && m_tvalid_o && m_tlast_o || !select_i) begin
+            act_q <= 1'b0;
+          end
+        end
+
+        if (!select_i) begin
+          len_q <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
+        end
       end
+
+      axis_chop #(
+          .WIDTH (8),
+          .MAXLEN(MAXLEN),
+          .BYPASS(0)
+      ) U_AXIS_CHOP0 (
+          .clock(clock),
+          .reset(reset),
+
+          .active_i(act_q),
+          .length_i(len_q),
+          .final_o (chop_stop_w),
+
+          .s_tvalid(chop_valid_w),
+          .s_tready(chop_ready_w),
+          .s_tlast (chop_last_w),
+          .s_tdata (chop_data_w),
+
+          .m_tvalid(m_tvalid_o),
+          .m_tready(m_tready_i),
+          .m_tlast (m_tlast_o),
+          .m_tdata (m_tdata_o)
+      );
+
+    end else begin : g_skid
+
+      reg  [6:0] count;
+      wire [7:0] cnext;
+
+      wire tvalid_w, tready_w, tkeep_w, tlast_w;
+      wire [7:0] tdata_w;
+
+      assign cnext = count - 1;
+
+      assign tvalid_w = get_desc_q && !cnext[7];
+      assign tkeep_w = 1'b1;
+      assign tlast_w = desc_tlast[mem_addr] || cnext[7];
+      assign tdata_w = descriptor[mem_addr];
+
+      assign chop_valid_w = tvalid_w;
+      assign chop_ready_w = tready_w;
+      assign chop_last_w = tlast_w;
+      assign chop_stop_w = tlast_w;
+      assign chop_data_w = tdata_w;
+
+      always @(posedge clock) begin
+        if (!select_i) begin
+          count <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
+        end else if (tvalid_w && tready_w) begin
+          count <= cnext[6:0];
+        end
+      end
+
+      axis_skid #(
+          .WIDTH (9),
+          .BYPASS(0)
+      ) U_SKID1 (
+          .clock(clock),
+          .reset(reset),
+
+          .s_tvalid(status_i | tvalid_w),
+          .s_tready(tready_w),
+          .s_tlast (status_i | tlast_w),
+          .s_tdata ({~status_i, tdata_w}),
+
+          .m_tvalid(m_tvalid_o),
+          .m_tready(m_tready_i),
+          .m_tlast (m_tlast_o),
+          .m_tdata ({m_tkeep_o, m_tdata_o})
+      );
+
     end
-
-    if (!select_i) begin
-      len_q <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0];
-      // len_q <= {req_length_i[15:6] != 0, req_length_i[5:0]};
-    end
-  end
-
-  axis_chop #(
-      .WIDTH (8),
-      .MAXLEN(MAXLEN),
-      .BYPASS(0)
-  ) U_AXIS_CHOP0 (
-      .clock(clock),
-      .reset(reset),
-
-      .active_i(act_q),
-      .length_i(len_q),
-      .final_o (chop_stop_w),
-
-      .s_tvalid(chop_valid_w),
-      .s_tready(chop_ready_w),
-      .s_tlast (chop_last_w),
-      .s_tdata (chop_data_w),
-
-      .m_tvalid(m_tvalid_o),
-      .m_tready(m_tready_i),
-      .m_tlast (m_tlast_o),
-      .m_tdata (m_tdata_o)
-  );
-
+  endgenerate
 
   // -- Pipelined Configuration-Request Decoder -- //
 
@@ -382,6 +438,9 @@ module ctl_pipe0 #(
 
       if (select_i && (set_addr_q || set_conf_q || set_face_q)) begin
         ctl_done_q <= 1'b1;
+      end else
+      if (select_i && status_i) begin
+
       end else begin
         ctl_done_q <= 1'b0;
       end

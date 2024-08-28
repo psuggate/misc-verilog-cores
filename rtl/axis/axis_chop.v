@@ -1,21 +1,33 @@
 `timescale 1ns / 100ps
-module axis_chop (
-    clock,
-    reset,
+module axis_chop #(
+    parameter BYPASS = 0,  // Disable the chopper, and pass all signals through
 
-    active_i,
-    length_i,
-    final_o,
+    parameter MAXLEN = 64,
+    localparam LBITS = $clog2(MAXLEN + 1),
+    localparam LZERO = {LBITS{1'b0}},
+    localparam LSB = LBITS - 1,
 
-    s_tvalid,
-    s_tready,
-    s_tlast,
-    s_tdata,
+    parameter  WIDTH = 8,
+    localparam MSB   = WIDTH - 1
+) (
+    input clock,
+    input reset,
 
-    m_tvalid,
-    m_tready,
-    m_tlast,
-    m_tdata
+    input active_i,
+    input [LSB:0] length_i,
+    output final_o,
+
+    input s_tvalid,
+    output s_tready,
+    input s_tkeep,
+    input s_tlast,
+    input [MSB:0] s_tdata,
+
+    output m_tvalid,
+    input m_tready,
+    output m_tkeep,
+    output m_tlast,
+    output [MSB:0] m_tdata
 );
 
   //
@@ -25,45 +37,17 @@ module axis_chop (
   //   'length_i' at least one cycle before asserting 'm_tready' & 's_tvalid'.
   ///
 
-  parameter BYPASS = 0;  // Disable the chopper, and pass all signals through
-
-  parameter MAXLEN = 64;
-  localparam LBITS = $clog2(MAXLEN + 1);
-  localparam LZERO = {LBITS{1'b0}};
-  localparam LSB = LBITS - 1;
-
-  parameter WIDTH = 8;
-  localparam MSB = WIDTH - 1;
-
-
-  input clock;
-  input reset;
-
-  input active_i;
-  input [LSB:0] length_i;
-  output final_o;
-
-  input s_tvalid;
-  output s_tready;
-  input s_tlast;
-  input [MSB:0] s_tdata;
-
-  output m_tvalid;
-  input m_tready;
-  output m_tlast;
-  output [MSB:0] m_tdata;
-
-
   generate
     if (BYPASS == 1) begin : g_bypass
 
       // No registers
       assign m_tvalid = s_tvalid;
       assign s_tready = m_tready;
+      assign m_tkeep  = s_tkeep;
       assign m_tlast  = s_tlast;
       assign m_tdata  = s_tdata;
 
-      assign final_o = m_tvalid && m_tready && m_tlast;
+      assign final_o  = m_tvalid && m_tready && m_tlast;
 
       initial begin
         $display("=> Bypassing AXI-S chop-register");
@@ -72,12 +56,13 @@ module axis_chop (
     end // g_bypass
   else begin : g_chop
 
-      reg sready, mvalid, mlast, tvalid, tlast;
+      reg sready, mvalid, mkeep, mlast, tvalid, tlast;
       reg [MSB:0] mdata, tdata;
       wire sready_next, tvalid_next, mvalid_next;
 
       assign s_tready = sready;
       assign m_tvalid = mvalid;
+      assign m_tkeep  = mkeep;
       assign m_tlast  = mlast;
       assign m_tdata  = mdata;
 

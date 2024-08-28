@@ -12,6 +12,11 @@ sim:	all vpi
 	@make -C bench sim
 	@make -C build sim
 
+usbsim:	vpi
+	@make -C bench usbsim
+	@make -C rtl sim
+	@make -C build usbsim
+
 simall:	sim vpi
 	@make -C rtl sim
 	@make -C rtl/fifo sim

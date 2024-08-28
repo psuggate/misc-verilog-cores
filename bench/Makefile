@@ -27,7 +27,12 @@ LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(SRC)
 TOP	?= $(wildcard *_tb.v)
 OUT	?= $(TOP:%.v=../build/%.out)
 
+USB_T	:= $(wildcard *usb*_tb.v)
+USB_O	?= $(USB_T:%.v=../build/%.out)
+
 sim:	build
+
+usbsim:	$(USB_O)
 
 build:	$(OUT)
 

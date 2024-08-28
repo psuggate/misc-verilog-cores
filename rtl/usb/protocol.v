@@ -91,7 +91,13 @@ module protocol #(
     input  ep4_parity_i,
     input  ep4_halted_i,
     output ep4_select_o,
-    output ep4_finish_o
+    output ep4_finish_o,
+
+    output m_tvalid,
+    input m_tready,
+    output m_tlast,
+    output m_tkeep,
+    output [7:0] m_tdata
 );
 
   `include "usb_defs.vh"
@@ -104,7 +110,7 @@ module protocol #(
   reg [5:0] state, snext;
   reg [6:0] bus_timer;
   reg timeout_q = 1'b0;
-  wire par_w, len_error_w;
+  wire par_w, len_error_w, ping_w;
 
   reg mux_q;
   reg [2:0] sel_q;
@@ -430,12 +436,26 @@ module protocol #(
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
-      pid_q <= 4'bx;
-      mux_q <= 1'b0;
     end else begin
       state <= snext;
-      pid_q <= pid_c;
+    end
+  end
 
+  //
+  // Todo:
+  //  - generate ZDP's
+  //  - send NAK & STALL handshake packets
+  //  - use a 'function' for MUX select-values, for better "packing"
+  //
+  assign ping_w = tok_recv_i && tok_addr_i == usb_addr_i && usb_pid_i == `USBPID_PING;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      mux_q <= 1'b0;
+      sel_q <= 8'd0;
+      hsk_q <= 1'b0;
+      pid_q <= 4'bx;
+    end else begin
       mux_q <= state == ST_SEND || state == ST_WAIT;
       case (tok_endp_i)
         4'h0:     sel_q <= 3'h0;
@@ -445,34 +465,16 @@ module protocol #(
         BULK_EP4: sel_q <= 3'h4;
         default:  sel_q <= 3'h7;
       endcase
-    end
-  end
 
-  // Send a handshake packet, and after either a token, or a DATAx packet has
-  // been received
-  always @(posedge clock) begin
-    if (reset) begin
-      hsk_q <= 1'b0;
-    end else begin
+      // Send a handshake packet, and after either a token, or a DATAx packet
+      // has been received
       case (state)
-        ST_IDLE: begin
-          hsk_q <= tok_recv_i && tok_addr_i == usb_addr_i && usb_pid_i == `USBPID_PING;
-        end
-
-        ST_RECV:
-        if (usb_recv_i && par_w) begin
-          hsk_q <= 1'b1;
-        end
-
-        ST_RESP:
-        if (hsk_sent_i) begin
-          hsk_q <= 1'b0;
-        end
-
-        default: begin
-          hsk_q <= 1'b0;
-        end
+        ST_IDLE: hsk_q <= ping_w;
+        ST_RECV: if (usb_recv_i && par_w) hsk_q <= 1'b1;
+        ST_RESP: if (hsk_sent_i) hsk_q <= 1'b0;
+        default: hsk_q <= 1'b0;
       endcase
+      pid_q <= pid_c;
     end
   end
 

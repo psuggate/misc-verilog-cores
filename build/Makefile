@@ -2,9 +2,13 @@
 all:	vpi sim
 
 OUT	:= $(wildcard *_tb.out)
+USB	:= $(wildcard *usb*.out)
 VCD	:= $(OUT:%.out=%.vcd)
+USBVCD	:= $(USB:%.out=%.vcd)
 
 sim:	vpi $(VCD)
+
+usbsim:	vpi $(USBVCD)
 
 vpi:
 	@make -C ../vpi all
