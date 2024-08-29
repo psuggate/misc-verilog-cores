@@ -19,6 +19,7 @@ static int stdreq_start(usb_host_t* host, const usb_stdreq_t* req)
 
     xfer->address = host->addr;
     xfer->endpoint = 0;
+    xfer->ep_seq[0] = SIG0;
     xfer->tok1 = tok & 0xFF;
     xfer->tok2 = (tok >> 8) & 0xFF;
     xfer->type = SETUP;
@@ -105,17 +106,17 @@ int stdreq_get_status(usb_host_t* host)
 
     usb_stdreq_t req;
 
-    req.bmRequestType = 0xA3; // Todo: from WireShark, but should be 0x80 ?!
+    req.bmRequestType = 0x80; // Todo: from WireShark, but should be 0x80 ?!
     req.bRequest = STDREQ_GET_STATUS;
     req.wValue = 0;
-    req.wIndex = 8;
-    req.wLength = 4;
+    req.wIndex = 0;
+    req.wLength = 2;
     req.data = NULL;
 
     return stdreq_start(host, &req);
 }
 
-int stdreq_get_desc_device(usb_host_t* host, uint8_t* buf)
+int stdreq_get_desc_device(usb_host_t* host)
 {
     if (host->op != HostIdle) {
         return -1;
@@ -127,26 +128,30 @@ int stdreq_get_desc_device(usb_host_t* host, uint8_t* buf)
     req.bRequest = STDREQ_GET_DESCRIPTOR;
     req.wValue = DESC_DEVICE << 8;
     req.wIndex = 0;
-    req.wLength = 64;
-    req.data = buf;
+    req.wLength = MAX_CONFIG_SIZE;
+    req.data = NULL;
 
     return stdreq_start(host, &req);
 }
 
-int stdreq_get_desc_config(usb_host_t* host, uint8_t* buf)
+int stdreq_get_desc_config(usb_host_t* host, uint16_t len)
 {
+    usb_stdreq_t req;
+
     if (host->op != HostIdle) {
         return -1;
     }
 
-    usb_stdreq_t req;
+    if (len > MAX_CONFIG_SIZE || len == 0) {
+	len = MAX_CONFIG_SIZE;
+    }
 
     req.bmRequestType = 0x80;
     req.bRequest = STDREQ_GET_DESCRIPTOR;
     req.wValue = DESC_CONFIGURATION << 8;
     req.wIndex = 0;
-    req.wLength = 64;
-    req.data = buf;
+    req.wLength = len;
+    req.data = NULL;
 
     return stdreq_start(host, &req);
 }

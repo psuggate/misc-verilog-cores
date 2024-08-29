@@ -1,4 +1,4 @@
-#include "tc_getconf.h"
+#include "tc_getstrs.h"
 #include "usb/stdreq.h"
 #include "usb/descriptor.h"
 
@@ -7,7 +7,7 @@
 #include <vpi_user.h>
 
 
-typedef enum __getconf_step {
+typedef enum __getstrs_step {
     SendSETUP,
     SendDATA0,
     RecvACK0,
@@ -18,18 +18,18 @@ typedef enum __getconf_step {
     SendZDP,
     RecvACK1,
     DoneSETUP,
-} getconf_step_t;
+} getstrs_step_t;
 
 typedef struct {
     uint8_t* buf;
     uint32_t len;
     uint8_t step;
     uint8_t stage;
-} getconf_state_t;
+} getstrs_state_t;
 
 
-static const char tc_getconf_name[] = "GET CONFIG DESCRIPTOR";
-static const char getconf_strings[10][16] = {
+static const char tc_getstrs_name[] = "GET STRING DESCRIPTOR";
+static const char getstrs_strings[10][16] = {
     {"SendSETUP"},
     {"SendDATA0"},
     {"RecvACK0"},
@@ -43,9 +43,9 @@ static const char getconf_strings[10][16] = {
 };
 
 
-static int tc_getconf_init(usb_host_t* host, void* data)
+static int tc_getstrs_init(usb_host_t* host, void* data)
 {
-    getconf_state_t* st = (getconf_state_t*)data;
+    getstrs_state_t* st = (getstrs_state_t*)data;
     transfer_t* xfer = &host->xfer;
     int result;
 
@@ -55,23 +55,29 @@ static int tc_getconf_init(usb_host_t* host, void* data)
 
     switch (st->stage) {
     case 0:
-	result = stdreq_get_desc_device(host);
+	result = stdreq_get_descriptor(host, 0x0300);
 	break;
     case 1:
-	result = stdreq_get_desc_config(host, 9);
+	result = stdreq_get_descriptor(host, 0x0301);
 	break;
     case 2:
-	result = stdreq_get_desc_config(host, 39);
+	result = stdreq_get_descriptor(host, 0x0302);
 	break;
     case 3:
+	result = stdreq_get_descriptor(host, 0x0303);
+	break;
+    case 4:
+	result = stdreq_get_status(host);
+	break;
+    case 5:
 	return 1;
     }
 
     vpi_printf("HOST\t#%8lu cyc =>\t%s INIT result = %d\n",
-               host->cycle, tc_getconf_name, result);
+               host->cycle, tc_getstrs_name, result);
 
     if (result < 0) {
-        vpi_printf("[%s:%d] GET STATUS initialisation failed\n",
+        vpi_printf("[%s:%d] GET STRINGS initialisation failed\n",
                    __FILE__, __LINE__);
         show_host(host);
         vpi_control(vpiFinish, 2);
@@ -85,11 +91,11 @@ static int tc_getconf_init(usb_host_t* host, void* data)
  * Step-function that is invoked as each packet of a SETUP transaction has been
  * sent/received.
  */
-static int tc_getconf_step(usb_host_t* host, void* data)
+static int tc_getstrs_step(usb_host_t* host, void* data)
 {
-    getconf_state_t* st = (getconf_state_t*)data;
+    getstrs_state_t* st = (getstrs_state_t*)data;
     transfer_t* xfer = &host->xfer;
-    const char* str = getconf_strings[st->step];
+    const char* str = getstrs_strings[st->step];
     vpi_printf("[%s:%d] %s\n", __FILE__, __LINE__, str);
 
     switch (st->step) {
@@ -143,8 +149,8 @@ static int tc_getconf_step(usb_host_t* host, void* data)
         host->step++;
         host->op = HostIdle;
         show_desc(xfer);
-	if (++st->stage < 3) {
-	    tc_getconf_init(host, data);
+	if (++st->stage < 5) {
+	    tc_getstrs_init(host, data);
 	    return 0;
 	} else {
 	    st->step = DoneSETUP;
@@ -156,7 +162,7 @@ static int tc_getconf_step(usb_host_t* host, void* data)
         return 1;
 
     default:
-        vpi_printf("[%s:%d] Invalid GET STATUS state: 0x%x\n",
+        vpi_printf("[%s:%d] Invalid GET STRINGS state: 0x%x\n",
                    __FILE__, __LINE__, st->step);
         vpi_control(vpiFinish, 1);
     }
@@ -164,20 +170,20 @@ static int tc_getconf_step(usb_host_t* host, void* data)
     return -1;
 }
 
-testcase_t* test_getconf(void)
+testcase_t* test_getstrs(void)
 {
     testcase_t* tc = malloc(sizeof(testcase_t));
-    getconf_state_t* st = malloc(sizeof(getconf_state_t));
+    getstrs_state_t* st = malloc(sizeof(getstrs_state_t));
 
     st->step = SendSETUP;
     st->stage = 0;
     st->len = 0;
     st->buf = malloc(512);
 
-    tc->name = tc_getconf_name;
+    tc->name = tc_getstrs_name;
     tc->data = (void*)st;
-    tc->init = tc_getconf_init;
-    tc->step = tc_getconf_step;
+    tc->init = tc_getstrs_init;
+    tc->step = tc_getstrs_step;
 
     return tc;
 }

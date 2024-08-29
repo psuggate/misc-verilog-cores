@@ -5,6 +5,7 @@
 #include "tc_bulkout.h"
 #include "tc_getdesc.h"
 #include "tc_getconf.h"
+#include "tc_getstrs.h"
 #include "tc_setaddr.h"
 #include "tc_setconf.h"
 #include "tc_waitsof.h"
@@ -313,6 +314,8 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         return ut_failed("test-operation invalid,", __LINE__, state);
     }
 
+#define __show_all_ulpi_signal_changes
+#ifdef  __show_all_ulpi_signal_changes
     changed |=
         memcmp(curr, next, sizeof(ulpi_bus_t)) != 0 ||
         memcmp(prev, next, sizeof(ulpi_bus_t)) != 0;
@@ -321,6 +324,7 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         vpi_printf("\t@%8lu ns  =>\t", state->tick_ns);
         ulpi_bus_show(next);
     }
+#endif  /* __show_all_ulpi_signal_changes */
 
     return 0;
 }
@@ -496,16 +500,23 @@ static int ut_compiletf(char* user_data)
     state->test_step = 0;
     int i = 0;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
-    state->tests[i++] = test_getconf();
+
     state->tests[i++] = test_getdesc();
     state->tests[i++] = test_setaddr(0x23);
-    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_getconf();
     state->tests[i++] = test_setconf(0x01);
     state->tests[i++] = test_waitsof();
+
+    state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_waitsof();
+
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_bulkout();
+    state->tests[i++] = test_waitsof();
+
+    state->tests[i++] = test_bulkin();
+
     state->test_num = i;
 
     // Todo: populate the set of tests ...

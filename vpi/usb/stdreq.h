@@ -80,8 +80,8 @@ void stdreq_show(usb_stdreq_t* req);
 int stdreq_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 int stdreq_get_descriptor(usb_host_t* host, uint16_t num);
-int stdreq_get_desc_device(usb_host_t* host, uint8_t* buf);
-int stdreq_get_desc_config(usb_host_t* host, uint8_t* buf);
+int stdreq_get_desc_device(usb_host_t* host);
+int stdreq_get_desc_config(usb_host_t* host, uint16_t len);
 
 int stdreq_get_status(usb_host_t* host);
 int stdreq_set_address(usb_host_t* host, uint8_t addr);

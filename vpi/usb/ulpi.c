@@ -424,7 +424,7 @@ int datax_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
     uint8_t pid = xfer->type == DnDATA0 ? 0xC3 : 0x4B;
 
     if (!check_seq(xfer, pid & 0x0f)) {
-        printf("[%s:%d] Invalid send DATAx operation: %u\n", __FILE__, __LINE__, pid);
+        printf("[%s:%d] Invalid send DATAx parity: 0x%02x\n", __FILE__, __LINE__, pid);
         return -1;
     }
     memcpy(out, in, sizeof(ulpi_bus_t));
