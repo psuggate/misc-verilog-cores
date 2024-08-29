@@ -3,6 +3,13 @@ module usb_ulpi_top #(
     parameter USE_EP2_IN  = 1,
     parameter USE_EP1_OUT = 1,
 
+    parameter [3:0] ENDPOINT1 = 4'd1,
+    parameter [3:0] ENDPOINT2 = 4'd2,
+
+    parameter integer PACKET_FIFO_DEPTH = 2048,
+    parameter integer MAX_PACKET_LENGTH = 512,   // For HS-mode
+    parameter integer MAX_CONFIG_LENGTH = 64,    // For HS- & FS- modes
+
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
 
@@ -30,7 +37,8 @@ module usb_ulpi_top #(
     output usb_reset_o,  // USB core is in reset state
 
     output configured_o,
-    output [2:0] usb_conf_o,
+    output conf_event_o,
+    output [2:0] conf_value_o,
 
     input blki_tvalid_i,
     output blki_tready_o,
@@ -48,9 +56,6 @@ module usb_ulpi_top #(
   `include "usb_defs.vh"
 
   localparam integer PIPELINED = 1;
-  localparam [3:0] ENDPOINT1 = 4'd1;
-  localparam [3:0] ENDPOINT2 = 4'd2;
-
   localparam [7:0] EP_NUM = USE_EP1_OUT + USE_EP2_IN;
 
   localparam integer CONFIG_DESC_LEN = 9;
@@ -125,6 +130,8 @@ module usb_ulpi_top #(
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
   wire space_avail_w, has_packet_w, crc_error_w;
+  wire conf_event_w, conf_error_w;
+  wire [2:0] conf_value_w;
 
   wire usb_enum_w, locked, clock, reset;
   wire high_speed_w, encode_idle_w, decode_idle_w, usb_reset_w, timeout_w;
@@ -142,14 +149,16 @@ module usb_ulpi_top #(
 
   wire hsk_tx_send_w, hsk_tx_done_w, usb_tx_busy_w, usb_tx_done_w;
   wire hsk_rx_recv_w, usb_rx_recv_w;
-  wire ulpi_rx_tvalid_w, ulpi_rx_tready_w, ulpi_rx_tkeep_w, ulpi_rx_tlast_w;
-  wire [3:0] ulpi_tx_tuser_w, ulpi_rx_tuser_w;
-  wire [7:0] ulpi_rx_tdata_w;
+  wire dec_tvalid_w, dec_tready_w, dec_tkeep_w, dec_tlast_w;
+  wire [3:0] ulpi_tx_tuser_w, dec_tuser_w;
+  wire [7:0] dec_tdata_w;
 
-  wire pulse_2_5us_w, pulse_1_0ms_w;
   wire phy_write_w, phy_chirp_w, phy_stop_w, phy_busy_w, phy_done_w;
   wire [7:0] phy_addr_w, phy_data_w;
 
+  wire enc_tvalid_w, enc_tready_w, enc_tkeep_w, enc_tlast_w;
+  wire [3:0] enc_tuser_w;
+  wire [7:0] enc_tdata_w;
 
   assign clock = ulpi_clock_i;
   assign reset = usb_reset_w;
@@ -160,7 +169,10 @@ module usb_ulpi_top #(
   assign ulpi_data_io = ulpi_dir_i ? {8{1'bz}} : ulpi_data_ow;
   assign ulpi_data_iw = ulpi_data_io;
 
-  assign ulpi_rx_tready_w = 1'b1;
+  assign dec_tready_w = 1'b1;
+
+  assign conf_event_o = conf_event_w;
+  assign conf_value_o = conf_value_w;
 
 
   //
@@ -202,8 +214,8 @@ module usb_ulpi_top #(
       .phy_addr_o (phy_addr_w),
       .phy_data_o (phy_data_w),
 
-      .pulse_2_5us_o(pulse_2_5us_w),
-      .pulse_1_0ms_o(pulse_1_0ms_w)
+      .pulse_2_5us_o(),
+      .pulse_1_0ms_o()
   );
 
   // -- ULPI Decoder & Encoder -- //
@@ -230,17 +242,13 @@ module usb_ulpi_top #(
       .hsk_recv_o(hsk_rx_recv_w),
       .usb_recv_o(usb_rx_recv_w),
 
-      .m_tvalid(ulpi_rx_tvalid_w),
-      .m_tready(ulpi_rx_tready_w),
-      .m_tkeep (ulpi_rx_tkeep_w),
-      .m_tlast (ulpi_rx_tlast_w),
-      .m_tuser (ulpi_rx_tuser_w),
-      .m_tdata (ulpi_rx_tdata_w)
+      .m_tvalid(dec_tvalid_w),
+      .m_tready(dec_tready_w),
+      .m_tkeep (dec_tkeep_w),
+      .m_tlast (dec_tlast_w),
+      .m_tuser (dec_tuser_w),
+      .m_tdata (dec_tdata_w)
   );
-
-  wire enc_tvalid_w, enc_tready_w, enc_tkeep_w, enc_tlast_w;
-  wire [3:0] enc_tuser_w;
-  wire [7:0] enc_tdata_w;
 
   ulpi_encoder U_ENC1 (
       .clock(clock),
@@ -287,7 +295,7 @@ module usb_ulpi_top #(
   wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
   wire [7:0] stdreq_tdata_w;
 
-  wire req_start_w, req_status_w, req_cycle_w, req_event_w, req_error_w;
+  wire req_start_w, req_status_w, req_cycle_w;
   wire [7:0] req_rtype_w, req_rargs_w;
   wire [15:0] req_value_w, req_index_w, req_length_w;
   wire [3:0] req_endpt_w = 4'h0;
@@ -318,11 +326,16 @@ module usb_ulpi_top #(
     end
   end
 
+  always @(posedge clock) begin
+    ep1_err_q <= timeout_w & ep1_sel_w;  // Todo ...
+    ep2_err_q <= timeout_w & ep2_sel_w;  // Todo ...
+  end
+
   protocol #(
-      .BULK_EP1   (1),
+      .BULK_EP1   (ENDPOINT1),
       .USE_EP1_IN (0),
       .USE_EP1_OUT(1),
-      .BULK_EP2   (2),
+      .BULK_EP2   (ENDPOINT2),
       .USE_EP2_IN (1),
       .USE_EP2_OUT(0),
       .BULK_EP3   (0),
@@ -334,8 +347,8 @@ module usb_ulpi_top #(
       .RxEvent(RxEvent),
       .timedout_o(timeout_w),
 
-      .set_conf_i (req_event_w),
-      .clr_conf_i (req_error_w),
+      .set_conf_i (conf_event_w),
+      .clr_conf_i (conf_error_w),
       .usb_addr_i (usb_addr_q),
       .crc_error_i(crc_error_w),
 
@@ -352,7 +365,7 @@ module usb_ulpi_top #(
       .eop_recv_i(eop_rx_recv_w),
       .usb_sent_i(usb_tx_done_w),
       .usb_busy_i(usb_tx_busy_w),
-      .usb_pid_i (ulpi_rx_tuser_w),
+      .usb_pid_i (dec_tuser_w),
 
       .mux_enable_o(mux_enable_w),
       .mux_select_o(mux_select_w),
@@ -458,8 +471,8 @@ module usb_ulpi_top #(
       // To the device control pipe(s)
       .req_start_o (req_start_w),
       .req_cycle_o (req_cycle_w),
-      .req_event_i (req_event_w),
-      .req_error_i (req_error_w),
+      .req_event_i (conf_event_w),
+      .req_error_i (conf_error_w),
       .req_rtype_o (req_rtype_w),
       .req_rargs_o (req_rargs_w),
       .req_value_o (req_value_w),
@@ -474,12 +487,12 @@ module usb_ulpi_top #(
       .timeout_i(timeout_w),
 
       // From the packet decoder
-      .s_tvalid(ulpi_rx_tvalid_w),
+      .s_tvalid(dec_tvalid_w),
       .s_tready(),  // Todo ...
-      .s_tkeep(ulpi_rx_tkeep_w),
-      .s_tlast(ulpi_rx_tlast_w),
-      .s_tuser(ulpi_rx_tuser_w),
-      .s_tdata(ulpi_rx_tdata_w),
+      .s_tkeep(dec_tkeep_w),
+      .s_tlast(dec_tlast_w),
+      .s_tuser(dec_tuser_w),
+      .s_tdata(dec_tdata_w),
 
       // To the packet encoder
       .m_tvalid(),
@@ -511,15 +524,15 @@ module usb_ulpi_top #(
       .reset(reset),
 
       .configured_o(configured_o),
-      .usb_conf_o  (usb_conf_o),
+      .usb_conf_o  (conf_value_w),
       .usb_enum_o  (usb_enum_w),
       .usb_addr_o  (ctl_addr_w),
 
       .start_i (req_start_w),
       .select_i(req_cycle_w),
       .status_i(stdreq_status_w),
-      .error_o (req_error_w),
-      .event_o (req_event_w),
+      .error_o (conf_error_w),
+      .event_o (conf_event_w),
 
       .req_endpt_i (req_endpt_w),
       .req_type_i  (req_rtype_w),
@@ -538,19 +551,16 @@ module usb_ulpi_top #(
 
   // -- USB Bulk IN & OUT End-Points -- //
 
-  always @(posedge clock) begin
-    ep1_err_q <= 1'b0;  // Todo ...
-    ep2_err_q <= 1'b0;  // Todo ...
-  end
-
   ep_bulk_out #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
       .ENABLED(USE_EP1_OUT)
   ) U_OUT_EP1 (
       .clock(clock),
       .reset(reset),
 
-      .set_conf_i(req_event_w),
-      .clr_conf_i(req_error_w),
+      .set_conf_i(conf_event_w),
+      .clr_conf_i(conf_error_w),
 
       .selected_i(ep1_sel_w),
       .ack_sent_i(ep1_ack_w),      // Todo ...
@@ -559,11 +569,11 @@ module usb_ulpi_top #(
       .stalled_o (ep1_hlt_w),
       .parity_o  (ep1_par_w),
 
-      .s_tvalid(ulpi_rx_tvalid_w),
+      .s_tvalid(dec_tvalid_w),
       .s_tready(ep1_tready_w),  // Todo: route to protocol, for error-handling
-      .s_tkeep(ulpi_rx_tkeep_w),
-      .s_tlast(ulpi_rx_tlast_w),
-      .s_tdata(ulpi_rx_tdata_w),
+      .s_tkeep (dec_tkeep_w),
+      .s_tlast (dec_tlast_w),
+      .s_tdata (dec_tdata_w),
 
       .m_tvalid(blko_tvalid_o),
       .m_tready(blko_tready_i),
@@ -573,12 +583,14 @@ module usb_ulpi_top #(
   );
 
   ep_bulk_in #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
       .ENABLED(USE_EP2_IN)
   ) U_IN_EP2 (
       .clock     (clock),
       .reset     (reset),
-      .set_conf_i(req_event_w),
-      .clr_conf_i(req_error_w),
+      .set_conf_i(conf_event_w),
+      .clr_conf_i(conf_error_w),
       .selected_i(ep2_sel_w),
       .ack_recv_i(ep2_ack_w),
       .timedout_i(ep2_err_q),

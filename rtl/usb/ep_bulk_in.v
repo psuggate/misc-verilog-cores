@@ -6,7 +6,7 @@
  * size is a multiple of 512.
  */
 module ep_bulk_in #(
-    parameter USB_MAX_PACKET_SIZE = 512,  // For HS-mode
+    parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
     parameter USE_ZDP = 0  // TODO
@@ -40,7 +40,7 @@ module ep_bulk_in #(
 );
 
   // Counter parameters, for the number of bytes in the current packet
-  localparam CBITS = $clog2(USB_MAX_PACKET_SIZE);
+  localparam CBITS = $clog2(MAX_PACKET_LENGTH);
   localparam CSB = CBITS - 1;
   localparam CZERO = {CBITS{1'b0}};
   localparam CMAX = {CBITS{1'b1}};
@@ -171,14 +171,14 @@ module ep_bulk_in #(
         // Don't prefetch if we can not store a full-sized packet, or else we
         // may stall the AXI4-Stream (which could be a problem if it is
         // shared).
-        if (save_w && level_w >= USB_MAX_PACKET_SIZE) begin
+        if (save_w && level_w >= MAX_PACKET_LENGTH) begin
           recv <= RX_FULL;
         end
 
         RX_FULL:
         // The only way for 'level' to fall is via 'ACK', so this condition is
         // sufficient.
-        if (level_w < USB_MAX_PACKET_SIZE) begin
+        if (level_w < MAX_PACKET_LENGTH) begin
           recv <= RX_RECV;
         end
       endcase
@@ -252,7 +252,7 @@ module ep_bulk_in #(
       .SAVE_TO_LAST(1),
       .NEXT_ON_LAST(0),
       .USE_LENGTH(1),
-      .MAX_LENGTH(USB_MAX_PACKET_SIZE),
+      .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
   ) U_TX_FIFO1 (
       .clock(clock),

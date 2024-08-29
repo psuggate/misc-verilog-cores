@@ -56,11 +56,14 @@ module usb_demo_top (
   localparam integer PIPELINED = 1;
   localparam integer HIGH_SPEED = 1;  // Note: USB FS (Full-Speed) not supported
   localparam integer ULPI_DDR_MODE = 0;  // todo: '1' is fiddly to implement ...
-  localparam integer ENDPOINT1 = 1;
-  localparam integer ENDPOINT2 = 2;
+  // localparam integer ENDPOINT1 = 1;
+  // localparam integer ENDPOINT2 = 2;
+
+  localparam integer MAX_PACKET_LENGTH = 512;
+  localparam integer MAX_CONFIG_LENGTH = 64;
 
   // USB BULK IN/OUT SRAM parameters
-  parameter USE_SYNC_FIFO = 0;
+  parameter USE_SYNC_FIFO = 1;
   localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
   localparam integer FSB = FIFO_LEVEL_BITS - 1;
   localparam integer BULK_FIFO_SIZE = 2048;
@@ -99,6 +102,9 @@ module usb_demo_top (
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
   assign s_tkeep = s_tvalid;
+
+// `define __use_legacy_usb_core
+`ifdef  __use_legacy_usb_core
 
   always @(posedge clock) begin
     if (reset) begin
@@ -174,6 +180,65 @@ module usb_demo_top (
       .s2_tdata (8'bx)
   );
 
+`else  /* !__use_legacy_usb_core */
+
+  localparam ENDPOINT1 = 4'd2;
+  localparam ENDPOINT2 = 4'd1;
+
+  wire conf_event;
+  wire [2:0] usb_config;
+
+  assign cbits = {conf_event, usb_config};
+
+  usb_ulpi_core #(
+      .VENDOR_ID(VENDOR_ID),
+      .VENDOR_LENGTH(VENDOR_LENGTH),
+      .VENDOR_STRING(VENDOR_STRING),
+      .PRODUCT_ID(PRODUCT_ID),
+      .PRODUCT_LENGTH(PRODUCT_LENGTH),
+      .PRODUCT_STRING(PRODUCT_STRING),
+      .SERIAL_LENGTH(SERIAL_LENGTH),
+      .SERIAL_STRING(SERIAL_STRING),
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2)
+  ) U_USB1 (
+      .clk_26(clk_26),
+      .arst_n(rst_n),
+
+      .ulpi_clk (ulpi_clk),
+      .ulpi_rst (ulpi_rst),
+      .ulpi_dir (ulpi_dir),
+      .ulpi_nxt (ulpi_nxt),
+      .ulpi_stp (ulpi_stp),
+      .ulpi_data(ulpi_data),
+
+      // Todo: debug UART signals ...
+      .send_ni  (send_n),
+      .uart_rx_i(uart_rx),
+      .uart_tx_o(uart_tx),
+
+      .usb_clock_o(clock),
+      .usb_reset_o(reset),
+
+      .configured_o(configured),
+      .conf_event_o(conf_event),
+      .conf_value_o(usb_config),
+
+      .blki_tvalid_i(s_tvalid),  // USB 'BULK IN' EP data-path
+      .blki_tready_o(s_tready),
+      .blki_tlast_i (s_tlast),
+      .blki_tkeep_i (s_tkeep),
+      .blki_tdata_i (s_tdata),
+
+      .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(m_tready),
+      .blko_tlast_o (m_tlast),
+      .blko_tkeep_o (m_tkeep),
+      .blko_tdata_o (m_tdata)
+  );
+
+`endif  /* !__use_legacy_usb_core */
+
 
   //
   //  DDR3 Cores Under Next-generation Tests
@@ -244,6 +309,8 @@ module usb_demo_top (
   generate
     if (USE_SYNC_FIFO) begin : g_sync_fifo
 
+`ifdef __do_not_use_packet_fifo
+
       sync_fifo #(
           .WIDTH (9),
           .ABITS (FIFO_LEVEL_BITS),
@@ -262,6 +329,43 @@ module usb_demo_top (
           .ready_i(s_tready),
           .data_o ({s_tlast, s_tdata})
       );
+
+`else  /* !__do_not_use_packet_fifo */
+
+      // -- Packet FIFO to Echo OUT -> IN -- //
+
+      packet_fifo #(
+          .WIDTH(8),
+          .DEPTH(BULK_FIFO_SIZE),
+          .STORE_LASTS(1),
+          .SAVE_ON_LAST(1),
+          // .SAVE_TO_LAST(1),
+          .NEXT_ON_LAST(1),
+          .USE_LENGTH(1),
+          .MAX_LENGTH(MAX_PACKET_LENGTH),
+          .OUTREG(2)
+      ) U_FIFO1 (
+          .clock(clock),
+          .reset(reset),
+
+          .level_o(level_w),
+          .drop_i (1'b0),
+          .save_i (1'b0),
+          .redo_i (1'b0),
+          .next_i (1'b0),
+
+          .valid_i(m_tvalid),
+          .ready_o(m_tready),
+          .last_i (m_tlast),
+          .data_i (m_tdata),
+
+          .valid_o(s_tvalid),
+          .ready_i(s_tready),
+          .last_o (s_tlast),
+          .data_o (s_tdata)
+      );
+
+`endif  /* !__do_not_use_packet_fifo */
 
     end else begin : g_axis_fifo
 

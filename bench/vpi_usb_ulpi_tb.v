@@ -59,7 +59,8 @@ module vpi_usb_ulpi_tb;
   wire [7:0] ulpi_data;
 
   reg enumerate;
-  wire enum_done, configured, usb_idle_w;
+  wire enum_done, configured, conf_event, usb_idle_w;
+  wire [2:0] usb_config;
 
   wire host_usb_sof_w, host_crc_err_w;
   wire dev_usb_sof_w, dev_crc_err_w;
@@ -83,7 +84,6 @@ module vpi_usb_ulpi_tb;
 
   reg tvalid_q, tlast_q, tstart_q;
   reg [7:0] tdata_q;
-  wire [2:0] usb_config;
 
   assign blki_tvalid_w = tvalid_q;
   assign blki_tlast_w  = tlast_q;
@@ -151,7 +151,17 @@ module vpi_usb_ulpi_tb;
   // Cores Under New Tests
   ///
 
+`ifdef __swap_endpoint_directions
+  localparam ENDPOINT1 = 4'd2;
+  localparam ENDPOINT2 = 4'd1;
+`else  /* !__swap_endpoint_directions */
+  localparam ENDPOINT1 = 4'd1;
+  localparam ENDPOINT2 = 4'd2;
+`endif /* !__swap_endpoint_directions */
+
   usb_ulpi_top #(
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2),
       .USE_EP2_IN (1),
       .USE_EP1_OUT(1)
   ) U_USB1 (
@@ -167,7 +177,8 @@ module vpi_usb_ulpi_tb;
       .usb_reset_o    (dev_reset),
 
       .configured_o   (configured),
-      .usb_conf_o     (usb_config),
+      .conf_event_o   (conf_event),
+      .conf_value_o   (usb_config),
 
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
       .blki_tready_o  (blki_tready_w),

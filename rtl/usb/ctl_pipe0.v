@@ -9,6 +9,8 @@
 //  Copyright (c) 2023 Patrick Suggate
 //
 module ctl_pipe0 #(
+    parameter integer MAX_CONFIG_LENGTH = 64,  // For HS- & FS- modes
+
     parameter [15:0] VENDOR_ID = 16'hFACE,
     parameter [15:0] PRODUCT_ID = 16'h0BDE,
     parameter MANUFACTURER_LEN = 0,
@@ -226,7 +228,7 @@ module ctl_pipe0 #(
   assign usb_conf_o = cfg_q;
   assign configured_o = set_q;
 
-  localparam MAXLEN = 64;
+  localparam MAXLEN = MAX_CONFIG_LENGTH;
   localparam MBITS = $clog2(MAXLEN + 1);
   localparam MSB = MBITS - 1;
   localparam MZERO = {MBITS{1'b0}};
@@ -236,8 +238,8 @@ module ctl_pipe0 #(
   // Burst-Chopper for Descriptor Data
   ///
 
-  reg  [6:0] count;
-  wire [6:0] cnext;
+  reg  [MSB:0] count;
+  wire [MSB:0] cnext;
 
   wire tvalid_w, tready_w, tkeep_w, tlast_w;
   wire [7:0] tdata_w;
@@ -249,7 +251,7 @@ module ctl_pipe0 #(
   assign tlast_w = status_i | desc_tlast[mem_addr] | cnext[6];
   assign tdata_w = descriptor[mem_addr];
 
-  wire [7:0] maxlen_w = (req_length_i > MAXLEN ? MAXLEN : req_length_i) - 1;
+  wire [MBITS:0] maxlen_w = (req_length_i > MAXLEN ? MAXLEN : req_length_i) - 1;
 
   always @(posedge clock) begin
     if (!select_i) begin

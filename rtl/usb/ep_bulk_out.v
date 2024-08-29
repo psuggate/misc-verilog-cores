@@ -6,7 +6,7 @@
  * ZDP indicates that the frame-size is a multiple of 512, generating a 'tlast'.
  */
 module ep_bulk_out #(
-    parameter USB_MAX_PACKET_SIZE = 512,  // For HS-mode
+    parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
     parameter ENABLED = 1,
     parameter IGNORE_ZDP = 1  // TODO
@@ -41,7 +41,7 @@ module ep_bulk_out #(
 );
 
   // Counter parameters, for the number of bytes in the current packet
-  localparam CBITS = $clog2(USB_MAX_PACKET_SIZE);
+  localparam CBITS = $clog2(MAX_PACKET_LENGTH);
   localparam CSB = CBITS - 1;
   localparam CZERO = {CBITS{1'b0}};
   localparam CMAX = {CBITS{1'b1}};
@@ -70,9 +70,9 @@ module ep_bulk_out #(
   assign s_tready = tready_w && state == ST_RECV;
   assign m_tkeep = m_tvalid;
 
-  // Goes negative when there is no longer space for 'USB_MAX_PACKET_SIZE' to be
+  // Goes negative when there is no longer space for 'MAX_PACKET_LENGTH' to be
   // received.
-  assign space_w = PACKET_FIFO_DEPTH - level_w - USB_MAX_PACKET_SIZE - 1;
+  assign space_w = PACKET_FIFO_DEPTH - level_w - MAX_PACKET_LENGTH - 1;
 
   // -- End-Point Reset & Parity Flags -- //
 
@@ -172,7 +172,7 @@ module ep_bulk_out #(
       .SAVE_ON_LAST(0),  // save on CRC16-valid
       .NEXT_ON_LAST(1),
       .USE_LENGTH(0),
-      .MAX_LENGTH(USB_MAX_PACKET_SIZE),
+      .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
   ) U_TX_FIFO1 (
       .clock(clock),

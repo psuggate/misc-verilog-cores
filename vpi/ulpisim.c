@@ -314,7 +314,7 @@ static int ut_step(ut_state_t* state, ulpi_bus_t* next)
         return ut_failed("test-operation invalid,", __LINE__, state);
     }
 
-#define __show_all_ulpi_signal_changes
+// #define __show_all_ulpi_signal_changes
 #ifdef  __show_all_ulpi_signal_changes
     changed |=
         memcmp(curr, next, sizeof(ulpi_bus_t)) != 0 ||
