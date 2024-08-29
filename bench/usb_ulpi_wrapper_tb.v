@@ -133,22 +133,6 @@ module usb_ulpi_wrapper_tb;
       .ulpi_data (ulpi_data)
   );
 
-
-  // Check the output from the Control PIPE0 //
-  wire ctl0_tvalid_w = U_USB1.U_ULPI_USB1.U_CFG_PIPE0.get_desc_q;
-  wire ctl0_tready_w = U_USB1.U_ULPI_USB1.U_CFG_PIPE0.chop_ready_w;
-  wire ctl0_tlast_w = U_USB1.U_ULPI_USB1.U_CFG_PIPE0.chop_last_w;
-  wire [7:0] ctl0_tdata_w = U_USB1.U_ULPI_USB1.U_CFG_PIPE0.chop_data_w;
-
-  axis_flow_check U_AXIS_FLOW0 (
-      .clock(usb_clock),
-      .reset(reset),
-      .axis_tvalid(ctl0_tvalid_w),
-      .axis_tready(ctl0_tready_w),
-      .axis_tlast(ctl0_tlast_w),
-      .axis_tdata(ctl0_tdata_w)
-  );
-
   // Check the output from the AXI4-Stream burst-chopper //
   wire ask_tvalid_w = U_USB1.U_ULPI_USB1.ctl0_tvalid_w;
   wire ask_tready_w = U_USB1.U_ULPI_USB1.ctl0_tready_w;

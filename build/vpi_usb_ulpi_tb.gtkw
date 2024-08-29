@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Aug 29 00:13:25 2024
+[*] Thu Aug 29 01:59:32 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Aug 29 00:13:05 2024"
-[dumpfile_size] 865616
+[dumpfile_mtime] "Thu Aug 29 01:59:27 2024"
+[dumpfile_size] 863761
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
 [timestart] 10508500
 [size] 2560 1376
@@ -13,7 +13,6 @@
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_CTL1.
-[treeopen] vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.
 [sst_width] 233
 [signals_width] 182
 [sst_expanded] 1
@@ -328,11 +327,6 @@ vpi_usb_ulpi_tb.U_USB1.U_CTL1.error_o
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.mem_addr[7:0]
 @28
 vpi_usb_ulpi_tb.U_USB1.U_CTL1.get_desc_q
-@420
-[color] 7
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.count[6:0]
-[color] 2
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.g_skid.cnext[6:0]
 @800200
 -AXI-S
 @28
@@ -346,13 +340,6 @@ vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tdata_o[7:0]
 -AXI-S
 @c00200
 -AXI-S Chop
-@28
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_stop_w
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_valid_w
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_ready_w
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_last_w
-@22
-vpi_usb_ulpi_tb.U_USB1.U_CTL1.chop_data_w[7:0]
 @1401200
 -AXI-S Chop
 @1000200

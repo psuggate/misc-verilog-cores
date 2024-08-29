@@ -491,8 +491,6 @@ module usb_ulpi_top #(
   );
 
   ctl_pipe0 #(
-      .CHOP(0),
-
       // Device string descriptors [Optional]
       .MANUFACTURER_LEN(VENDOR_LENGTH),
       .MANUFACTURER(VENDOR_STRING),

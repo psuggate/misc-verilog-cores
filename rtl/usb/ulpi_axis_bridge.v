@@ -783,11 +783,7 @@ module ulpi_axis_bridge #(
 
   // -- USB Default (PIPE0) Configuration Endpoint -- //
 
-  // wire fb_tready_w = ctl0_tready_w | (ctl0_tvalid_w & ~ctl0_tkeep_w);
-
   ctl_pipe0 #(
-      .CHOP(0),
-
       // Device string descriptors [Optional]
       .MANUFACTURER_LEN(VENDOR_LENGTH),
       .MANUFACTURER(VENDOR_STRING),
@@ -831,7 +827,6 @@ module ulpi_axis_bridge #(
       .m_tlast_o (ctl0_tlast_w),
       .m_tdata_o (ctl0_tdata_w),
       .m_tready_i(ctl0_tready_w)
-      // .m_tready_i(fb_tready_w)
   );
 
 
