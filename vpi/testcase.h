@@ -7,6 +7,13 @@
 #include <stdint.h>
 
 
+#define BULK_IN_EP 1
+// #define BULK_IN_EP 2
+
+#define BULK_OUT_EP 2
+// #define BULK_OUT_EP 1
+
+
 /**
  * Represents a single test-case, where a sequence of packets is sent to the
  * USB (ULPI, peripheral) device.

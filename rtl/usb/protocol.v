@@ -477,6 +477,35 @@ module protocol #(
   //  USB Protocol Timers
   ///
 
+`ifdef __icarus
+  localparam [6:0] MAX_TA_TIMER = (816 / 32) - 1;
+  localparam [4:0] MAX_EP_TIMER = (192 / 32) - 1;
+  localparam [4:0] MAX_TD_TIMER = (192 / 32) - 1;
+`else  /* !__icarus */
+  localparam [6:0] MAX_TA_TIMER = (816 / 8) - 1;
+  localparam [4:0] MAX_EP_TIMER = (192 / 8) - 1;
+  localparam [4:0] MAX_TD_TIMER = (192 / 8) - 1;
+`endif /* !__icarus */
+
+  reg ta_run_q, ta_err_q;
+  reg ep_run_q, ep_err_q;
+  reg td_run_q, td_err_q;
+
+  // -- Time-Out register -- //
+
+  always @(posedge clock) begin
+    if (reset) begin
+      timeout_q <= 1'b0;
+    end else begin
+`ifdef __icarus
+      timeout_q <= td_err_q | ta_err_q | ep_err_q;
+`else  /* !__icarus */
+      timeout_q <= 1'b0;
+      $error("FIX TIME-OUTS\n");
+`endif /* !__icarus */
+    end
+  end
+
   // -- Bus Turnaround Timer -- //
 
   //
@@ -484,9 +513,6 @@ module protocol #(
   //  or else the packet failed to be transmitted, or the response failed to
   //  (successfully) arrive.
   //
-  localparam [6:0] MAX_TA_TIMER = (816 / 8) - 1;
-
-  reg ta_run_q, ta_err_q;
   reg  [6:0] ta_count;
   wire [7:0] ta_cnext;
 
@@ -515,9 +541,6 @@ module protocol #(
 
   // -- End-Point Response Timer -- //
 
-  localparam [4:0] MAX_EP_TIMER = (192 / 8) - 1;
-
-  reg ep_run_q, ep_err_q;
   reg  [4:0] ep_count;
   wire [5:0] ep_cnext;
 
@@ -546,9 +569,6 @@ module protocol #(
 
   // -- Token to DATAx Timer -- //
 
-  localparam [4:0] MAX_TD_TIMER = (192 / 8) - 1;
-
-  reg td_run_q, td_err_q;
   reg  [4:0] td_count;
   wire [5:0] td_cnext;
 
@@ -572,17 +592,6 @@ module protocol #(
       td_run_q <= 1'b0;
       td_err_q <= 1'b0;
       td_count <= MAX_TD_TIMER;
-    end
-  end
-
-  // -- Time-Out register -- //
-
-  always @(posedge clock) begin
-    if (reset) begin
-      timeout_q <= 1'b0;
-    end else begin
-      // timeout_q <= td_err_q | ta_err_q | ep_err_q;
-      timeout_q <= 1'b0;
     end
   end
 

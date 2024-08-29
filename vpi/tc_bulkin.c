@@ -7,10 +7,6 @@
 #include <vpi_user.h>
 
 
-#define BULK_IN_EP 1
-// #define BULK_IN_EP 2
-
-
 typedef enum __bulkin_state {
     BulkIN0,
     BulkIN1,
@@ -41,7 +37,6 @@ static void tc_bulkin_xfer(usb_host_t* host, const uint8_t ep)
     xfer->tok1 = tok & 0xFF;
     xfer->tok2 = (tok >> 8) & 0xFF;
 
-    // xfer->rx_len = 16384;
     xfer->rx_ptr = 0;
 }
 
@@ -72,24 +67,18 @@ static int tc_bulkin_step(usb_host_t* host, void* data)
     switch (*st) {
     case BulkIN0:
         // BulkIN0 completed, so move to BulkIN1
-	// assert(xfer->ep_seq[BULK_IN_EP] == SIG1);
-        // transfer_ack(xfer);
         tc_bulkin_xfer(host, BULK_IN_EP);
         *st = BulkIN1;
         return 0;
 
     case BulkIN1:
         // BulkIN1 completed, so move to BulkIN2
-	// assert(xfer->ep_seq[BULK_IN_EP] == SIG0);
-        // transfer_ack(xfer);
         tc_bulkin_xfer(host, BULK_IN_EP);
         *st = BulkIN2;
         return 0;
 
     case BulkIN2:
         // BulkIN2 completed, so move to BINDone
-	// assert(xfer->ep_seq[BULK_IN_EP] == SIG1);
-        // transfer_ack(xfer);
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;

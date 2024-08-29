@@ -126,6 +126,7 @@ typedef enum {
     UpSTALL,
     UpDATA0,
     UpDATA1,
+    TimeOut,
 } xfer_type_t;
 
 typedef enum {
@@ -207,6 +208,9 @@ static inline bool check_seq(const transfer_t* xfer, const uint8_t pid)
         pid == USBPID_DATA1 && xfer->ep_seq[xfer->endpoint & 0x0f] == 1;
     return seq;
 }
+
+int check_rx_crc16(transfer_t* xfer);
+int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 void ulpi_bus_idle(ulpi_bus_t* bus);
 void ulpi_bus_show(const ulpi_bus_t* bus);

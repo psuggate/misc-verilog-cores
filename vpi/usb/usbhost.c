@@ -15,6 +15,7 @@
 
 
 #define HOST_BUF_LEN    16384u
+#define TURNAROUND_TIMER 40
 
 
 static const char host_op_strings[9][16] = {
@@ -109,10 +110,18 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
         } else if (result > 0) {
             xfer->type = UpACK;
             xfer->stage = NoXfer;
+            xfer->cycle = host->cycle + TURNAROUND_TIMER;
         }
         break;
 
     case UpACK:
+        if (host->cycle >= xfer->cycle) {
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+            vpi_printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
+                       host->cycle, __FILE__, __LINE__);
+            return 1;
+        }
         result = ack_recv_step(xfer, in, out);
         if (result > 0) {
             transfer_ack(xfer);
@@ -159,7 +168,13 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case UpDATA0:
     case UpDATA1:
         result = datax_recv_step(xfer, in, out);
-        if (result < 0) {
+        if (result < -2) {
+            // Sequence parity error, so withhold 'ACK'
+            xfer->type = TimeOut;
+            // xfer->stage = NoXfer;
+            xfer->cycle = host->cycle + TURNAROUND_TIMER;
+            return 0;
+        } else if (result < 0) {
             return result;
         } else if (result > 0) {
             xfer->type = DnACK;
@@ -175,6 +190,41 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
             xfer->stage = NoXfer;
         }
         return result;
+
+    case TimeOut:
+        if (host->cycle >= xfer->cycle) {
+            xfer->type = XferIdle;
+            xfer->stage = NoXfer;
+            vpi_printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
+                       host->cycle, __FILE__, __LINE__);
+            return 1;
+        }
+        if (xfer->stage == DATAxBody) {
+            assert(in->dir == SIG0 && in->data.b == 0x00);
+            if (in->stp == SIG1) {
+                // Turn around the ULPI bus, so that we can send an RX CMD
+                out->dir = SIG1;
+                out->nxt = SIG0;
+                out->data.a = 0x00;
+                out->data.b = 0xFF;
+                xfer->stage = DATAxStop;
+                xfer->rx_len = xfer->rx_ptr - 2;
+                if (check_rx_crc16(xfer) < 1) {
+                    return -1;
+                }
+            } else if (in->nxt == SIG1) {
+                xfer->rx[xfer->rx_ptr++] = in->data.a;
+            } else {
+                out->nxt = SIG1;
+            }
+        } else if (drive_eop(xfer, in, out) < 0) {
+            return -1;
+        }
+        xfer->type = TimeOut;
+        break;
+
+    case XferIdle:
+        return 1;
 
     default:
         printf("[%s:%d] Unexpected 'Bulk IN' transfer-type: %u (%s)\n",

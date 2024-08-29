@@ -6,6 +6,7 @@
 #include "tc_getdesc.h"
 #include "tc_getconf.h"
 #include "tc_getstrs.h"
+#include "tc_parity.h"
 #include "tc_setaddr.h"
 #include "tc_setconf.h"
 #include "tc_waitsof.h"
@@ -45,7 +46,7 @@ static int ut_error(const char* reason)
 static int ut_failed(const char* mesg, const int line, ut_state_t* state)
 {
     vpi_printf("\t@%8lu ns  =>\tTest-case: %s failed [%s:%d]\n",
-	       state->tick_ns, mesg, __FILE__, __LINE__);
+               state->tick_ns, mesg, __FILE__, __LINE__);
     show_ut_state(state);
     sprintf(err_mesg, "[%s:%d] Test-case: %s failed\n", __FILE__, line, mesg);
     ut_error(err_mesg);
@@ -517,8 +518,9 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_waitsof(); // 30 us
 
-    state->tests[i++] = test_bulkin();
     state->tests[i++] = test_getstrs();
+    state->tests[i++] = test_parity();
+    state->tests[i++] = test_waitsof(); // 37.5 us
 
     state->test_num = i;
 

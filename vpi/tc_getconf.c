@@ -55,16 +55,16 @@ static int tc_getconf_init(usb_host_t* host, void* data)
 
     switch (st->stage) {
     case 0:
-	result = stdreq_get_desc_device(host);
-	break;
+        result = stdreq_get_desc_device(host);
+        break;
     case 1:
-	result = stdreq_get_desc_config(host, 9);
-	break;
+        result = stdreq_get_desc_config(host, 9);
+        break;
     case 2:
-	result = stdreq_get_desc_config(host, 39);
-	break;
+        result = stdreq_get_desc_config(host, 39);
+        break;
     case 3:
-	return 1;
+        return 1;
     }
 
     vpi_printf("HOST\t#%8lu cyc =>\t%s INIT result = %d\n",
@@ -75,7 +75,7 @@ static int tc_getconf_init(usb_host_t* host, void* data)
                    __FILE__, __LINE__);
         show_host(host);
         vpi_control(vpiFinish, 2);
-	return result;
+        return result;
     }
 
     return 0;
@@ -143,13 +143,13 @@ static int tc_getconf_step(usb_host_t* host, void* data)
         host->step++;
         host->op = HostIdle;
         show_desc(xfer);
-	if (++st->stage < 3) {
-	    tc_getconf_init(host, data);
-	    return 0;
-	} else {
-	    st->step = DoneSETUP;
-	    return 1;
-	}
+        if (++st->stage < 3) {
+            tc_getconf_init(host, data);
+            return 0;
+        } else {
+            st->step = DoneSETUP;
+            return 1;
+        }
 
     case DoneSETUP:
         vpi_printf("[%s:%d] WARN => Invoked post-completion\n", __FILE__, __LINE__);

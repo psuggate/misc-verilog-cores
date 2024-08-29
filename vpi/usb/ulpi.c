@@ -18,7 +18,7 @@
 #define ZDP_CRC16_BYTE2 0x00u
 
 
-static const char type_strings[18][16] = {
+static const char type_strings[19][16] = {
     {"XferIdle"},
     {"NOPID"},
     {"RegWrite"},
@@ -36,7 +36,8 @@ static const char type_strings[18][16] = {
     {"UpNAK"},
     {"UpSTALL"},
     {"UpDATA0"},
-    {"UpDATA1"}
+    {"UpDATA1"},
+    {"TimeOut"}
 };
 
 static const char stage_strings[19][16] = {
@@ -60,9 +61,6 @@ static const char stage_strings[19][16] = {
     {"REGD"},
     {"LineIdle"},
 };
-
-
-static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out);
 
 
 //
@@ -202,7 +200,7 @@ void sof_frame(transfer_t* xfer, uint16_t frame)
 //  Transaction Step-Functions
 ///
 
-static int check_rx_crc16(transfer_t* xfer)
+int check_rx_crc16(transfer_t* xfer)
 {
     int len = xfer->rx_len;
     if (len > 0) {
@@ -218,9 +216,12 @@ static int check_rx_crc16(transfer_t* xfer)
     }
 }
 
-static int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     switch (xfer->stage) {
+
+    case XferIdle:
+        return 1;
 
     case Token2:
     case DATAxCRC2:
@@ -528,18 +529,18 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case DATAxPID:
             assert(in->dir == SIG0 && in->nxt == SIG1 && in->data.b == 0x00);
-            if (in->data.a != ULPITX_DATA0 && in->data.a != ULPITX_DATA1) {
-                printf("[%s:%d] Invalid PID value: 0x%02x\n",
-		       __FILE__, __LINE__, in->data.a);
-                return -1;
-	    } else if (!check_seq(xfer, in->data.a & 0x0F)) {
-                printf("[%s:%d] Invalid PID DATAx sequence bit: 0x%02x\n",
-		       __FILE__, __LINE__, in->data.a);
-                return -1;
-            }
             out->nxt = SIG0;
             xfer->stage = DATAxBody;
             xfer->rx_ptr = 0;
+            if (in->data.a != ULPITX_DATA0 && in->data.a != ULPITX_DATA1) {
+                printf("[%s:%d] Invalid PID value: 0x%02x\n",
+                       __FILE__, __LINE__, in->data.a);
+                return -2;
+            } else if (!check_seq(xfer, in->data.a & 0x0F)) {
+                printf("[%s:%d] Invalid PID DATAx sequence bit: 0x%02x\n",
+                       __FILE__, __LINE__, in->data.a);
+                return -3;
+            }
             break;
 
         case DATAxBody:
@@ -594,10 +595,10 @@ int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         if (!ulpi_bus_is_idle(in)) {
             switch (in->data.a) {
             case ULPITX_ACK:
-		printf("[%s:%d] ACK received\n", __FILE__, __LINE__);
+                printf("[%s:%d] ACK received\n", __FILE__, __LINE__);
                 out->nxt = SIG1;
                 xfer->stage = HskPID;
-		transfer_ack(xfer);
+                transfer_ack(xfer);
                 break;
             default:
                 printf("[%s:%d] Unexpected TX CMD: 0x%02x\n",
