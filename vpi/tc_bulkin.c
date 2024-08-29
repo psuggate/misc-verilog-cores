@@ -7,7 +7,8 @@
 #include <vpi_user.h>
 
 
-#define BULK_IN_EP 2
+#define BULK_IN_EP 1
+// #define BULK_IN_EP 2
 
 
 typedef enum __bulkin_state {

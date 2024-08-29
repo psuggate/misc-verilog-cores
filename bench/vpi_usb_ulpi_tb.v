@@ -151,13 +151,14 @@ module vpi_usb_ulpi_tb;
   // Cores Under New Tests
   ///
 
-`ifdef __swap_endpoint_directions
+`define __swap_endpoint_directions
+`ifdef  __swap_endpoint_directions
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
-`else  /* !__swap_endpoint_directions */
+`else   /* !__swap_endpoint_directions */
   localparam ENDPOINT1 = 4'd1;
   localparam ENDPOINT2 = 4'd2;
-`endif /* !__swap_endpoint_directions */
+`endif  /* !__swap_endpoint_directions */
 
   usb_ulpi_top #(
       .ENDPOINT1(ENDPOINT1),

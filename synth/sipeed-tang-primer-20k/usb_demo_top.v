@@ -104,7 +104,7 @@ module usb_demo_top (
   assign s_tkeep = s_tvalid;
 
 // `define __use_legacy_usb_core
-`ifdef  __use_legacy_usb_core
+`ifdef __use_legacy_usb_core
 
   always @(posedge clock) begin
     if (reset) begin

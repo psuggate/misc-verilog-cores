@@ -93,20 +93,22 @@ module usb_ulpi_top #(
   localparam integer EP_DESC_LEN = EP1_DESC_LEN + EP2_DESC_LEN;
   localparam integer EP_DESC_BITS = EP1_DESC_BITS + EP2_DESC_BITS;
 
+  localparam [7:0] EP1_OUT_ADDR = 8'h00 | ENDPOINT1;
   localparam [55:0] EP1_OUT_DESC = {
     8'h00,  // bInterval
     16'h0200,  // wMaxPacketSize = 512 bytes
     8'h02,  // bmAttributes = Bulk
-    8'h01,  // bEndpointAddress = OUT1
+    EP1_OUT_ADDR,  // bEndpointAddress = OUT1
     8'h05,  // bDescriptorType = Endpoint Descriptor
     8'h07  // bLength = 7
   };
 
+  localparam [7:0] EP2_IN_ADDR = 8'h80 | ENDPOINT2;
   localparam [55:0] EP2_IN_DESC = {
     8'h00,  // bInterval
     16'h0200,  // wMaxPacketSize = 512 bytes
     8'h02,  // bmAttributes = Bulk
-    8'h82,  // bEndpointAddress = IN2
+    EP2_IN_ADDR,  // bEndpointAddress = IN2
     8'h05,  // bDescriptorType = Endpoint Descriptor
     8'h07  // bLength = 7
   };
@@ -134,8 +136,8 @@ module usb_ulpi_top #(
   wire [2:0] conf_value_w;
 
   wire usb_enum_w, locked, clock, reset;
-  wire high_speed_w, encode_idle_w, decode_idle_w, usb_reset_w, timeout_w;
-  wire sof_rx_recv_w, eop_rx_recv_w, ulpi_rx_cmd_w;
+  wire high_speed_w, usb_reset_w, timeout_w;
+  wire sof_rx_recv_w, eop_rx_recv_w;
   wire [7:0] ulpi_data_iw, ulpi_data_ow;
 
   wire [1:0] LineState, VbusState, RxEvent;
@@ -203,7 +205,7 @@ module usb_ulpi_top #(
       .usb_sof_i    (sof_rx_recv_w),
       .high_speed_o (high_speed_w),
       .usb_reset_o  (usb_reset_w),
-      .ulpi_rx_cmd_o(ulpi_rx_cmd_w),
+      .ulpi_rx_cmd_o(),
       .phy_state_o  (),
 
       .phy_write_o(phy_write_w),
@@ -233,7 +235,7 @@ module usb_ulpi_top #(
       .crc_error_o(crc_error_w),
       .sof_recv_o (sof_rx_recv_w),
       .eop_recv_o (eop_rx_recv_w),
-      .dec_idle_o (decode_idle_w),
+      .dec_idle_o (),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -255,7 +257,7 @@ module usb_ulpi_top #(
       .reset(~areset_n),
 
       .high_speed_i (high_speed_w),
-      .encode_idle_o(encode_idle_w),
+      .encode_idle_o(),
 
       .LineState(LineState),
       .VbusState(VbusState),
