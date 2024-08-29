@@ -786,7 +786,7 @@ module ulpi_axis_bridge #(
   // wire fb_tready_w = ctl0_tready_w | (ctl0_tvalid_w & ~ctl0_tkeep_w);
 
   ctl_pipe0 #(
-      .CHOP(1),
+      .CHOP(0),
 
       // Device string descriptors [Optional]
       .MANUFACTURER_LEN(VENDOR_LENGTH),

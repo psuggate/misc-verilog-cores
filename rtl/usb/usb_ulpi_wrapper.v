@@ -14,6 +14,7 @@ module usb_ulpi_wrapper #(
     localparam integer SSB = SERIAL_LENGTH * 8 - 1,
     parameter [SSB:0] SERIAL_STRING = "TART0001",
 
+    parameter USE_SYNC_FIFO = 0,
     parameter integer DEBUG = 1
 ) (
     input clk_26,
@@ -82,7 +83,6 @@ module usb_ulpi_wrapper #(
   localparam integer ENDPOINT2 = 2;
 
   // USB BULK IN/OUT SRAM parameters
-  parameter USE_SYNC_FIFO = 0;
   localparam integer FIFO_LEVEL_BITS = USE_SYNC_FIFO ? 11 : 12;
   localparam integer FSB = FIFO_LEVEL_BITS - 1;
   localparam integer BULK_FIFO_SIZE = 2048;

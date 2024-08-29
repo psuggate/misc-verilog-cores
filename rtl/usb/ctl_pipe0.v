@@ -248,8 +248,8 @@ module ctl_pipe0 #(
       reg [MSB:0] len_q;
 
       assign chop_valid_w = get_desc_q;
-      assign chop_last_w  = desc_tlast[mem_addr];
-      assign chop_data_w  = descriptor[mem_addr];
+      assign chop_last_w = desc_tlast[mem_addr];
+      assign chop_data_w = descriptor[mem_addr];
 
       assign m_tkeep_o = m_tvalid_o;
 
@@ -313,9 +313,11 @@ module ctl_pipe0 #(
       assign chop_stop_w = tlast_w;
       assign chop_data_w = tdata_w;
 
+      wire [7:0] maxlen_w = (req_length_i > MAXLEN ? MAXLEN : req_length_i) - 1;
+
       always @(posedge clock) begin
         if (!select_i) begin
-          count <= req_length_i > MAXLEN ? MAXLEN[MSB:0] : req_length_i[MSB:0] - 1;
+          count <= maxlen_w[6:0];
         end else if (tvalid_w && tready_w) begin
           count <= cnext[6:0];
         end
