@@ -2,9 +2,11 @@
 module usb_ulpi_top #(
     parameter USE_EP2_IN  = 1,
     parameter USE_EP1_OUT = 1,
+    parameter USE_EP3_IN  = 0,
 
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
+    parameter [3:0] ENDPOINT3 = 4'd3,
 
     parameter integer PACKET_FIFO_DEPTH = 2048,
     parameter integer MAX_PACKET_LENGTH = 512,   // For HS-mode
@@ -46,6 +48,12 @@ module usb_ulpi_top #(
     input blki_tkeep_i,
     input [7:0] blki_tdata_i,
 
+    input blkx_tvalid_i,  // Optional Bulk IN endpoint
+    output blkx_tready_o,
+    input blkx_tlast_i,
+    input blkx_tkeep_i,
+    input [7:0] blkx_tdata_i,
+
     output blko_tvalid_o,
     input blko_tready_i,
     output blko_tlast_o,
@@ -56,7 +64,7 @@ module usb_ulpi_top #(
   `include "usb_defs.vh"
 
   localparam integer PIPELINED = 1;
-  localparam [7:0] EP_NUM = USE_EP1_OUT + USE_EP2_IN;
+  localparam [7:0] EP_NUM = USE_EP1_OUT + USE_EP2_IN + USE_EP3_IN;
 
   localparam integer CONFIG_DESC_LEN = 9;
   localparam integer INTERFACE_DESC_LEN = 9;
@@ -79,7 +87,7 @@ module usb_ulpi_top #(
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
     8'h00,  // bInterfaceClass
-    EP_NUM,  // bNumEndpoints = 2
+    EP_NUM, // bNumEndpoints <= 3
     8'h00,  // bAlternateSetting
     8'h00,  // bInterfaceNumber = 0
     8'h04,  // bDescriptorType = Interface Descriptor
@@ -90,8 +98,10 @@ module usb_ulpi_top #(
   localparam integer EP1_DESC_BITS = EP1_DESC_LEN * 8;
   localparam integer EP2_DESC_LEN = USE_EP2_IN ? 7 : 0;
   localparam integer EP2_DESC_BITS = EP2_DESC_LEN * 8;
-  localparam integer EP_DESC_LEN = EP1_DESC_LEN + EP2_DESC_LEN;
-  localparam integer EP_DESC_BITS = EP1_DESC_BITS + EP2_DESC_BITS;
+  localparam integer EP3_DESC_LEN = USE_EP3_IN ? 7 : 0;
+  localparam integer EP3_DESC_BITS = EP3_DESC_LEN * 8;
+  localparam integer EP_DESC_LEN = EP1_DESC_LEN + EP2_DESC_LEN + EP3_DESC_LEN;
+  localparam integer EP_DESC_BITS = EP1_DESC_BITS + EP2_DESC_BITS + EP3_DESC_BITS;
 
   localparam [7:0] EP1_OUT_ADDR = 8'h00 | ENDPOINT1;
   localparam [55:0] EP1_OUT_DESC = {
@@ -113,6 +123,17 @@ module usb_ulpi_top #(
     8'h07  // bLength = 7
   };
 
+  localparam [7:0] EP3_IN_ADDR = 8'h80 | ENDPOINT3;
+  localparam [55:0] EP3_IN_DESC = {
+    8'h00,  // bInterval
+    16'h0200,  // wMaxPacketSize = 512 bytes
+    8'h02,  // bmAttributes = Bulk
+    EP3_IN_ADDR,  // bEndpointAddress = IN3
+    8'h05,  // bDescriptorType = Endpoint Descriptor
+    8'h07  // bLength = 7
+  };
+  localparam integer EP3_DESC_START = EP1_DESC_BITS+EP2_DESC_BITS;
+
   function [EP_DESC_BITS-1:0] ep_descriptors;
     begin
       if (EP1_DESC_BITS != 0) begin
@@ -120,6 +141,9 @@ module usb_ulpi_top #(
       end
       if (EP2_DESC_BITS != 0) begin
         ep_descriptors[EP1_DESC_BITS+EP2_DESC_BITS-1:EP1_DESC_BITS] = EP2_IN_DESC[55:0];
+      end
+      if (EP3_DESC_BITS != 0) begin
+        ep_descriptors[EP3_DESC_START+EP3_DESC_BITS-1:EP3_DESC_START] = EP3_IN_DESC[55:0];
       end
     end
   endfunction
@@ -131,7 +155,7 @@ module usb_ulpi_top #(
 
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
-  wire space_avail_w, has_packet_w, crc_error_w;
+  wire space_avail_w, ep2_packet_w, ep3_packet_w, crc_error_w;
   wire conf_event_w, conf_error_w;
   wire [2:0] conf_value_w;
 
@@ -303,15 +327,16 @@ module usb_ulpi_top #(
   wire [3:0] req_endpt_w = 4'h0;
 
   wire ep0_end_w;
-  wire ep0_par_w, ep1_par_w, ep2_par_w;
-  wire ep0_sel_w, ep1_sel_w, ep2_sel_w;
+  wire ep0_par_w, ep1_par_w, ep2_par_w, ep3_par_w;
+  wire ep0_sel_w, ep1_sel_w, ep2_sel_w, ep3_sel_w;
 
   wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
   wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
-  wire [7:0] ep1_tdata_w, ep2_tdata_w;
+  wire ep3_tvalid_w, ep3_tready_w, ep3_tkeep_w, ep3_tlast_w;
+  wire [7:0] ep1_tdata_w, ep2_tdata_w, ep3_tdata_w;
 
-  reg ep1_err_q, ep2_err_q;
-  wire ep1_ack_w, ep2_ack_w, ep1_hlt_w, ep2_hlt_w;
+  reg ep1_err_q, ep2_err_q, ep3_err_q;
+  wire ep1_ack_w, ep2_ack_w, ep3_ack_w, ep1_hlt_w, ep2_hlt_w, ep3_hlt_w;
 
   wire mux_enable_w;
   wire [2:0] mux_select_w;
@@ -331,16 +356,19 @@ module usb_ulpi_top #(
   always @(posedge clock) begin
     ep1_err_q <= timeout_w & ep1_sel_w;  // Todo ...
     ep2_err_q <= timeout_w & ep2_sel_w;  // Todo ...
+    ep3_err_q <= timeout_w & ep3_sel_w;  // Todo ...
   end
 
   protocol #(
       .BULK_EP1   (ENDPOINT1),
       .USE_EP1_IN (0),
-      .USE_EP1_OUT(1),
+      .USE_EP1_OUT(USE_EP1_OUT),
       .BULK_EP2   (ENDPOINT2),
-      .USE_EP2_IN (1),
+      .USE_EP2_IN (USE_EP2_IN),
       .USE_EP2_OUT(0),
-      .BULK_EP3   (0),
+      .BULK_EP3   (ENDPOINT3),
+      .USE_EP3_IN (USE_EP3_IN),
+      .USE_EP3_OUT(0),
       .BULK_EP4   (0)
   ) U_PROTO1 (
       .clock(clock),
@@ -386,16 +414,17 @@ module usb_ulpi_top #(
 
       .ep2_select_o(ep2_sel_w),
       .ep2_rx_rdy_i(1'b0),
-      .ep2_tx_rdy_i(has_packet_w),
+      .ep2_tx_rdy_i(ep2_packet_w),
       .ep2_parity_i(ep2_par_w),
       .ep2_finish_o(ep2_ack_w),
       .ep2_halted_i(ep2_hlt_w),
 
+      .ep3_select_o(ep3_sel_w),
       .ep3_rx_rdy_i(1'b0),
-      .ep3_tx_rdy_i(1'b0),
-      .ep3_parity_i(1'b0),
-      .ep3_halted_i(1'b1),
-      .ep3_select_o(),
+      .ep3_tx_rdy_i(ep3_packet_w),
+      .ep3_parity_i(ep3_par_w),
+      .ep3_finish_o(ep3_ack_w),
+      .ep3_halted_i(ep3_hlt_w),
 
       .ep4_rx_rdy_i(1'b0),
       .ep4_tx_rdy_i(1'b0),
@@ -410,7 +439,7 @@ module usb_ulpi_top #(
   ///
 
   axis_mux #(
-      .S_COUNT(3),
+      .S_COUNT(4),
       .DATA_WIDTH(8),
       .KEEP_ENABLE(1),
       .KEEP_WIDTH(1),
@@ -427,14 +456,14 @@ module usb_ulpi_top #(
       .enable(mux_enable_w),
       .select(mux_select_w[1:0]),
 
-      .s_axis_tvalid({ep2_tvalid_w, 1'd0, stdreq_tvalid_w}),
-      .s_axis_tready({ep2_tready_w, unused_tready_w, stdreq_tready_w}),
-      .s_axis_tkeep ({ep2_tkeep_w, 1'd0, stdreq_tkeep_w}),
-      .s_axis_tlast ({ep2_tlast_w, 1'd0, stdreq_tlast_w}),
-      .s_axis_tuser (3'bx),
-      .s_axis_tid   (3'bx),
-      .s_axis_tdest (3'bx),
-      .s_axis_tdata ({ep2_tdata_w, 8'd0, stdreq_tdata_w}),
+      .s_axis_tvalid({ep3_tvalid_w, ep2_tvalid_w, 1'd0, stdreq_tvalid_w}),
+      .s_axis_tready({ep3_tready_w, ep2_tready_w, unused_tready_w, stdreq_tready_w}),
+      .s_axis_tkeep ({ep3_tkeep_w, ep2_tkeep_w, 1'd0, stdreq_tkeep_w}),
+      .s_axis_tlast ({ep3_tlast_w, ep2_tlast_w, 1'd0, stdreq_tlast_w}),
+      .s_axis_tuser (4'bx),
+      .s_axis_tid   (4'bx),
+      .s_axis_tdest (4'bx),
+      .s_axis_tdata ({ep3_tdata_w, ep2_tdata_w, 8'd0, stdreq_tdata_w}),
 
       .m_axis_tvalid(enc_tvalid_w),
       .m_axis_tready(enc_tready_w),
@@ -494,15 +523,7 @@ module usb_ulpi_top #(
       .s_tkeep(dec_tkeep_w),
       .s_tlast(dec_tlast_w),
       .s_tuser(dec_tuser_w),
-      .s_tdata(dec_tdata_w),
-
-      // To the packet encoder
-      .m_tvalid(),
-      .m_tready(1'b0),  // Todo ...
-      .m_tkeep (),
-      .m_tlast (),
-      .m_tuser (),
-      .m_tdata ()
+      .s_tdata(dec_tdata_w)
   );
 
   ctl_pipe0 #(
@@ -596,7 +617,7 @@ module usb_ulpi_top #(
       .selected_i(ep2_sel_w),
       .ack_recv_i(ep2_ack_w),
       .timedout_i(ep2_err_q),
-      .ep_ready_o(has_packet_w),
+      .ep_ready_o(ep2_packet_w),
       .stalled_o (ep2_hlt_w),
       .parity_o  (ep2_par_w),
       .s_tvalid  (blki_tvalid_i),
@@ -608,6 +629,32 @@ module usb_ulpi_top #(
       .m_tkeep   (ep2_tkeep_w),
       .m_tlast   (ep2_tlast_w),
       .m_tdata   (ep2_tdata_w)
+  );
+
+  ep_bulk_in #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
+      .ENABLED(USE_EP3_IN)
+  ) U_IN_EP3 (
+      .clock     (clock),
+      .reset     (reset),
+      .set_conf_i(conf_event_w),
+      .clr_conf_i(conf_error_w),
+      .selected_i(ep3_sel_w),
+      .ack_recv_i(ep3_ack_w),
+      .timedout_i(ep3_err_q),
+      .ep_ready_o(ep3_packet_w),
+      .stalled_o (ep3_hlt_w),
+      .parity_o  (ep3_par_w),
+      .s_tvalid  (blkx_tvalid_i),
+      .s_tready  (blkx_tready_o),
+      .s_tlast   (blkx_tlast_i),
+      .s_tdata   (blkx_tdata_i),
+      .m_tvalid  (ep3_tvalid_w),
+      .m_tready  (ep3_tready_w),
+      .m_tkeep   (ep3_tkeep_w),
+      .m_tlast   (ep3_tlast_w),
+      .m_tdata   (ep3_tdata_w)
   );
 
   // initial #10340 $finish;

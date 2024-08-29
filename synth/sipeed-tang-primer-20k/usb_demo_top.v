@@ -85,8 +85,9 @@ module usb_demo_top (
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
+  wire x_tvalid, x_tready, x_tlast, x_tkeep;
   wire m_tvalid, m_tready, m_tlast, m_tkeep;
-  wire [7:0] s_tdata, m_tdata;
+  wire [7:0] s_tdata, x_tdata, m_tdata;
 
   // FIFO state //
   wire [FSB:0] level_w;
@@ -190,6 +191,11 @@ module usb_demo_top (
 
   assign cbits = {conf_event, usb_config};
 
+  assign x_tvalid = 1'b0;
+  assign x_tkeep  = 1'b0;
+  assign x_tlast  = 1'b0;
+  assign x_tdata  = 8'hA7;
+
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
@@ -229,6 +235,12 @@ module usb_demo_top (
       .blki_tlast_i (s_tlast),
       .blki_tkeep_i (s_tkeep),
       .blki_tdata_i (s_tdata),
+
+      .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
+      .blkx_tready_o(x_tready),
+      .blkx_tlast_i (x_tlast),
+      .blkx_tkeep_i (x_tkeep),
+      .blkx_tdata_i (x_tdata),
 
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(m_tready),

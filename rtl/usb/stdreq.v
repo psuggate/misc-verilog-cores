@@ -51,16 +51,7 @@ module stdreq #(
     input s_tkeep,
     input s_tlast,
     input [3:0] s_tuser,
-    input [7:0] s_tdata,
-
-    // To the end-point, when 'OUT' std requests include extra data
-    // Todo: not implemented, but should it be?
-    output m_tvalid,
-    input m_tready,
-    output m_tkeep,
-    output m_tlast,
-    output [3:0] m_tuser,
-    output [7:0] m_tdata
+    input [7:0] s_tdata
 );
 
   `include "usb_defs.vh"

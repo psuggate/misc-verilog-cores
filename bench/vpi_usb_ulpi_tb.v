@@ -37,7 +37,7 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    #35000 $finish;
+    #38000 $finish;
   end
 
 
@@ -164,6 +164,7 @@ module vpi_usb_ulpi_tb;
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
       .USE_EP2_IN (1),
+      .USE_EP3_IN (1),
       .USE_EP1_OUT(1)
   ) U_USB1 (
       .areset_n       (usb_rst_n),

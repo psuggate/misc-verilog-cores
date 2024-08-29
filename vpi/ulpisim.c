@@ -505,17 +505,20 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_setaddr(0x23);
     state->tests[i++] = test_getconf();
     state->tests[i++] = test_setconf(0x01);
-    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_waitsof(); // 15 us
 
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
-    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_waitsof(); // 22.5 us
 
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_bulkout();
-    state->tests[i++] = test_waitsof();
+    state->tests[i++] = test_getconf();
+    state->tests[i++] = test_bulkin();
+    state->tests[i++] = test_waitsof(); // 30 us
 
     state->tests[i++] = test_bulkin();
+    state->tests[i++] = test_getstrs();
 
     state->test_num = i;
 
