@@ -178,6 +178,15 @@ void transfer_ack(transfer_t* xfer)
     }
 }
 
+void transfer_tok(transfer_t* xfer)
+{
+    uint16_t ad = (uint16_t)(xfer->address & 0x7F);
+    uint16_t ep = (uint16_t)(xfer->endpoint & 0x0F) << 7;
+    uint16_t tok = crc5_calc(ad | ep);
+    xfer->tok1 = tok & 0xFF;
+    xfer->tok2 = tok >> 8;
+}
+
 /**
  * Sets up for the start of a new (micro-)frame, canceling any ongoing
  * transactions.

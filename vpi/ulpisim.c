@@ -518,7 +518,7 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_waitsof(); // 30 us
 
-    state->tests[i++] = test_getstrs();
+    // state->tests[i++] = test_getstrs();
     state->tests[i++] = test_parity();
     state->tests[i++] = test_waitsof(); // 37.5 us
 

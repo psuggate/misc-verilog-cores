@@ -17,6 +17,7 @@ typedef enum __parity_step {
 } parity_step_t;
 
 typedef struct {
+    void (*adjust)(transfer_t* xfer);
     uint8_t step;
     uint8_t stage;
 } parity_state_t;
@@ -31,10 +32,32 @@ static const char parity_strings[5][16] = {
 };
 
 
+static void adjust_seq(transfer_t* xfer)
+{
+    transfer_ack(xfer);
+}
+
+static void adjust_crc(transfer_t* xfer)
+{
+    if (xfer->endpoint == BULK_IN_EP) {
+	// Corrupted token, so the request must be ignored
+	xfer->tok2 ^= 0x80;
+    } else {
+	// Corrupted data, so the request must be repeated
+	xfer->crc1 ^= 0xFF;
+    }
+}
+
+static void adjust_ept(transfer_t* xfer)
+{
+    xfer->endpoint ^= 0xF;
+    transfer_tok(xfer);
+}
+
 /**
  * Construct a Bulk IN transfer, with correct or inverted parity-bit.
  */
-static void tc_parity_xfer(usb_host_t* host, const uint8_t ep, bool flip)
+static void tc_parity_xfer(usb_host_t* host, const uint8_t ep)
 {
     transfer_t* xfer = &host->xfer;
 
@@ -69,34 +92,34 @@ static void tc_parity_xfer(usb_host_t* host, const uint8_t ep, bool flip)
         crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(ep & 0x0F) << 7));
     xfer->tok1 = tok & 0xFF;
     xfer->tok2 = (tok >> 8) & 0xFF;
-
-    if (flip) {
-        transfer_ack(xfer);
-    }
 }
 
 static int tc_parity_init(usb_host_t* host, void* data)
 {
     parity_state_t* st = (parity_state_t*)data;
 
-    vpi_printf("[%s:%d] %s INIT (cycle = %lu, stage = %u, step = %u)\n",
-               __FILE__, __LINE__, tc_parity_name, host->cycle, st->stage, st->step);
-
-    st->step = BulkIN0;
-    tc_parity_xfer(host, BULK_IN_EP, true);
-
-#if 0
     switch (st->stage) {
     case 0:
-        host->step = 0;
+        // host->step = 0;
+	st->adjust = adjust_seq;
         break;
     case 1:
-        tc_parity_xfer(host, BULK_OUT_EP, true);
+	st->adjust = adjust_crc;
         break;
     case 2:
+	st->adjust = adjust_ept;
+        break;
+    case 3:
         return 1;
     }
-#endif /* 0 */
+
+    tc_parity_xfer(host, BULK_IN_EP);
+    st->step = BulkIN0;
+    st->adjust(&host->xfer);
+
+    vpi_printf("[%s:%d] %s INIT (cycle = %lu, stage = %u, step = %u, EP = %u)\n",
+               __FILE__, __LINE__, tc_parity_name, host->cycle, st->stage,
+	       st->step, host->xfer.endpoint);
 
     return 0;
 }
@@ -115,21 +138,22 @@ static int tc_parity_step(usb_host_t* host, void* data)
     switch (st->step) {
     case BulkIN0:
         // BulkIN0 should have failed parity-checking, so move to BulkIN1
-        tc_parity_xfer(host, BULK_IN_EP, false);
-        transfer_ack(&host->xfer);
+        st->adjust(&host->xfer);
+        tc_parity_xfer(host, BULK_IN_EP);
         st->step = BulkIN1;
         return 0;
 
     case BulkIN1:
         // BulkIN1 completed, so move to BulkIN2
-        tc_parity_xfer(host, BULK_OUT_EP, true);
+        tc_parity_xfer(host, BULK_OUT_EP);
+        st->adjust(&host->xfer);
         st->step = BulkOUT0;
         return 0;
 
     case BulkOUT0:
         // BulkOUT0 should have failed parity-checking, so move to BulkOUT1
-        tc_parity_xfer(host, BULK_OUT_EP, false);
-        transfer_ack(&host->xfer);
+        st->adjust(&host->xfer);
+        tc_parity_xfer(host, BULK_OUT_EP);
         st->step = BulkOUT1;
         return 0;
 
@@ -137,8 +161,13 @@ static int tc_parity_step(usb_host_t* host, void* data)
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
-        st->step = DonePar;
-        return 1;
+	if (++st->stage < 3) {
+	    tc_parity_init(host, data);
+	    return 0;
+	} else {
+	    st->step = DonePar;
+	    return 1;
+	}
 
     case DonePar:
         // Bulk IN/OUT parity tests completed
@@ -161,6 +190,7 @@ testcase_t* test_parity(void)
 
     st->stage = 0;
     st->step = BulkIN0;
+    st->adjust = adjust_seq;
 
     tc->name = tc_parity_name;
     tc->data = (void*)st;

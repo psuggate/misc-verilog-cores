@@ -71,6 +71,7 @@ module protocol #(
     input  ep1_halted_i,
     output ep1_select_o,
     output ep1_finish_o,
+    output ep1_cancel_o,
 
     input  ep2_rx_rdy_i,
     input  ep2_tx_rdy_i,
@@ -78,6 +79,7 @@ module protocol #(
     input  ep2_halted_i,
     output ep2_select_o,
     output ep2_finish_o,
+    output ep2_cancel_o,
 
     input  ep3_rx_rdy_i,
     input  ep3_tx_rdy_i,
@@ -85,13 +87,15 @@ module protocol #(
     input  ep3_halted_i,
     output ep3_select_o,
     output ep3_finish_o,
+    output ep3_cancel_o,
 
     input  ep4_rx_rdy_i,
     input  ep4_tx_rdy_i,
     input  ep4_parity_i,
     input  ep4_halted_i,
     output ep4_select_o,
-    output ep4_finish_o
+    output ep4_finish_o,
+    output ep4_cancel_o
 );
 
   `include "usb_defs.vh"
@@ -99,6 +103,7 @@ module protocol #(
   reg ep1_en, ep2_en, ep3_en, ep4_en;
   reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
   reg ep0_ack_q, ep1_ack_q, ep2_ack_q, ep3_ack_q, ep4_ack_q;
+  reg ep0_err_q, ep1_err_q, ep2_err_q, ep3_err_q, ep4_err_q;
   reg end_q, hsk_q;
   reg [3:0] pid_c, pid_q;
   reg [5:0] state, snext;
@@ -128,6 +133,11 @@ module protocol #(
   assign ep2_finish_o = ep2_ack_q;
   assign ep3_finish_o = ep3_ack_q;
   assign ep4_finish_o = ep4_ack_q;
+
+  assign ep1_cancel_o = ep1_err_q;
+  assign ep2_cancel_o = ep2_err_q;
+  assign ep3_cancel_o = ep3_err_q;
+  assign ep4_cancel_o = ep4_err_q;
 
   // -- End-Point Control -- //
 
@@ -162,12 +172,31 @@ module protocol #(
     end
   end
 
+  // -- CRC-Error One-Shot -- //
+
+  reg crc_err_q, crc_ack_q;
+
+  always @(posedge clock) begin
+    if (reset || !crc_error_i) begin
+      crc_err_q <= 1'b0;
+      crc_ack_q <= 1'b0;
+    end else begin
+      if (!crc_ack_q && crc_error_i) begin
+        crc_err_q <= 1'b1;
+        crc_ack_q <= 1'b1;
+      end else begin
+        crc_err_q <= 1'b0;
+        crc_ack_q <= crc_ack_q;
+      end
+    end
+  end
+
   // -- End-Point Readies & Selects -- //
 
   // Deselect all of the end-points at the end of each transaction, due to a
   // configuration event, on reset, or on error.
   always @(posedge clock) begin
-    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_q) begin
+    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_q || crc_err_q) begin
       end_q <= 1'b1;
     end else begin
       end_q <= 1'b0;
@@ -175,7 +204,7 @@ module protocol #(
   end
 
   // An end-point remains selected from when an appropriate token is received,
-  // until the of the transaction.
+  // until the end of the transaction.
   always @(posedge clock) begin
     if (end_q) begin
       {ep4_sel_q, ep3_sel_q, ep2_sel_q, ep1_sel_q, ep0_sel_q} <= 5'b00000;
@@ -209,11 +238,17 @@ module protocol #(
   always @(posedge clock) begin
     if (end_q) begin
       {ep4_ack_q, ep3_ack_q, ep2_ack_q, ep1_ack_q} <= 4'b0000;
+      {ep4_err_q, ep3_err_q, ep2_err_q, ep1_err_q} <= 4'b0000;
     end else begin
       ep1_ack_q <= ep1_sel_q && ((USE_EP1_OUT && hsk_sent_i) || (USE_EP1_IN && hsk_recv_i));
       ep2_ack_q <= ep2_sel_q && ((USE_EP2_OUT && hsk_sent_i) || (USE_EP2_IN && hsk_recv_i));
       ep3_ack_q <= ep3_sel_q && ((USE_EP3_OUT && hsk_sent_i) || (USE_EP3_IN && hsk_recv_i));
       ep4_ack_q <= ep4_sel_q && ((USE_EP4_OUT && hsk_sent_i) || (USE_EP4_IN && hsk_recv_i));
+
+      ep1_err_q <= ep1_sel_q && (crc_err_q || timeout_q);
+      ep2_err_q <= ep2_sel_q && (crc_err_q || timeout_q);
+      ep3_err_q <= ep3_sel_q && (crc_err_q || timeout_q);
+      ep4_err_q <= ep4_sel_q && (crc_err_q || timeout_q);
     end
   end
 
