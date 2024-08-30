@@ -46,6 +46,7 @@ module ulpi_decoder
     output sof_recv_o,
     output eop_recv_o,
     output dec_idle_o,
+    output dec_actv_o,
 
     output tok_recv_o,
     output tok_ping_o,
@@ -86,7 +87,7 @@ module ulpi_decoder
   // -- Signals & State -- //
 
   // USB packet-receive signals
-  reg tok_recv_q, tok_ping_q, hsk_recv_q, usb_recv_q, sof_recv_q;
+  reg tok_recv_q, tok_ping_q, hsk_recv_q, usb_recv_q, sof_recv_q, dec_actv_q;
   reg tvalid, tlast, tkeep;
   reg [3:0] tuser;
   reg [7:0] tdata;
@@ -107,6 +108,7 @@ module ulpi_decoder
   assign sof_recv_o = sof_recv_q;
   assign eop_recv_o = eop_q;
   assign dec_idle_o = ~cyc_q;
+  assign dec_actv_o = dec_actv_q;
 
   assign tok_recv_o = tok_recv_q;
   assign tok_ping_o = tok_ping_q;
@@ -173,6 +175,8 @@ module ulpi_decoder
     end else if (!cyc_q && pid_vld_w) begin
       tuser <= rx_pid_w;
     end
+
+    dec_actv_q <= ~cyc_q & pid_vld_w;
   end
 
 

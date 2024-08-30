@@ -174,7 +174,7 @@ module usb_ulpi_top #(
   wire [6:0] tok_addr_w, usb_addr_w;
 
   wire hsk_tx_send_w, hsk_tx_done_w, usb_tx_busy_w, usb_tx_done_w;
-  wire hsk_rx_recv_w, usb_rx_recv_w;
+  wire dec_actv_w, hsk_rx_recv_w, usb_rx_recv_w;
   wire dec_tvalid_w, dec_tready_w, dec_tkeep_w, dec_tlast_w;
   wire [3:0] ulpi_tx_tuser_w, dec_tuser_w;
   wire [7:0] dec_tdata_w;
@@ -259,7 +259,7 @@ module usb_ulpi_top #(
       .crc_error_o(crc_error_w),
       .sof_recv_o (sof_rx_recv_w),
       .eop_recv_o (eop_rx_recv_w),
-      .dec_idle_o (),
+      .dec_actv_o (dec_actv_w),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -376,6 +376,7 @@ module usb_ulpi_top #(
       .usb_addr_i (usb_addr_q),
       .crc_error_i(crc_error_w),
 
+              .dec_actv_i(dec_actv_w),
       .tok_recv_i(tok_rx_recv_w),
       .tok_ping_i(tok_rx_ping_w),
       .tok_addr_i(tok_addr_w),

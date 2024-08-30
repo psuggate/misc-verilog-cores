@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Aug 30 03:24:24 2024
+[*] Fri Aug 30 06:02:47 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Aug 30 03:22:33 2024"
-[dumpfile_size] 1067345
+[dumpfile_mtime] "Fri Aug 30 06:01:43 2024"
+[dumpfile_size] 1076097
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 33549000
+[timestart] 8209000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 34180000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 8840000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -35,7 +35,7 @@ vpi_usb_ulpi_tb.ulpi_data[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.configured
-@c00201
+@c00200
 -OUT
 @28
 [color] 3
@@ -88,7 +88,6 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.space_w[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.tvalid_w
 @1401200
 -Internal
-@1401201
 -OUT
 @c00200
 -IN
@@ -190,9 +189,13 @@ vpi_usb_ulpi_tb.U_USB1.U_DEC1.sof_recv_o
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_recv_o
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.crc_error_o
-@c00200
+@800200
 -Internal
+@29
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.dec_actv_o
 @28
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.dec_idle_o
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.crc_valid_o
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.m_tvalid
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.m_tkeep
@@ -203,9 +206,8 @@ vpi_usb_ulpi_tb.U_USB1.U_DEC1.m_tuser[3:0]
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.pid_vld_w
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_q
-@1401200
--Internal
 @1000200
+-Internal
 -Decoder
 @820
 [color] 7
@@ -252,6 +254,7 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_out_sel_w
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_par_w
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_err_q
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.par_q
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.par_w
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ta_run_q
 [color] 1

@@ -37,6 +37,7 @@ module protocol #(
     input [6:0] usb_addr_i,
 
     // Signals from the USB packet decoder (upstream)
+   input dec_actv_i,
     input crc_error_i,
 
     input hsk_recv_i,
@@ -98,31 +99,51 @@ module protocol #(
     output ep4_cancel_o
 );
 
+  // -- Constants -- //
+
   `include "usb_defs.vh"
 
+  localparam [5:0] ST_IDLE = 1;
+  localparam [5:0] ST_RECV = 2;  // RX data from the ULPI
+  localparam [5:0] ST_RESP = 4;  // Send a handshake to USB host
+  localparam [5:0] ST_DROP = 8;  // Wait for EOP, and then no response
+  localparam [5:0] ST_SEND = 16;  // Route data from EP to ULPI
+  localparam [5:0] ST_WAIT = 32;  // Wait for USB host handshake
+
+  localparam EP1_EN = BULK_EP1 != 0 && (USE_EP1_IN || USE_EP1_OUT);
+  localparam EP2_EN = BULK_EP2 != 0 && (USE_EP2_IN || USE_EP2_OUT);
+  localparam EP3_EN = BULK_EP3 != 0 && (USE_EP3_IN || USE_EP3_OUT);
+  localparam EP4_EN = BULK_EP4 != 0 && (USE_EP4_IN || USE_EP4_OUT);
+
+  // -- Module Signals & Registers -- //
+
+  // End-point control registers
   reg ep1_en, ep2_en, ep3_en, ep4_en;
   reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
   reg ep0_ack_q, ep1_ack_q, ep2_ack_q, ep3_ack_q, ep4_ack_q;
   reg ep0_err_q, ep1_err_q, ep2_err_q, ep3_err_q, ep4_err_q;
-  reg end_q, hsk_q;
-  reg [3:0] pid_c, pid_q;
-  reg [5:0] state, snext;
-  reg [6:0] bus_timer;
-  reg timeout_q = 1'b0;
-  wire par_w, len_error_w, ping_w;
 
+  // Transaction control registers & signals
+  reg ping_q, nyet_q, par_q, seq_q, end_q;
+  reg [3:0] pid_q;
+  reg [5:0] state, snext;
+  reg timeout_q = 1'b0;
+  wire seq_w, par_w;
+
+  reg out_rdy_q;
+
+  // Multiplexor Signals, for DATAx -> Host
   reg mux_q;
   reg [2:0] sel_q;
-  wire seq_w;
-  wire [3:0] pid_w;
+
+  // -- Output Signal Assignments -- //
 
   assign timedout_o   = timeout_q;
+  assign hsk_send_o   = state == ST_RESP;
 
   assign mux_enable_o = mux_q;
   assign mux_select_o = sel_q;
   assign ulpi_tuser_o = pid_q;
-
-  assign hsk_send_o   = hsk_q;
 
   assign ep1_select_o = ep1_sel_q;
   assign ep2_select_o = ep2_sel_q;
@@ -139,12 +160,42 @@ module protocol #(
   assign ep3_cancel_o = ep3_err_q;
   assign ep4_cancel_o = ep4_err_q;
 
-  // -- End-Point Control -- //
+  // -- CRC-Error One-Shot -- //
 
-  localparam EP1_EN = BULK_EP1 != 0 && (USE_EP1_IN || USE_EP1_OUT);
-  localparam EP2_EN = BULK_EP2 != 0 && (USE_EP2_IN || USE_EP2_OUT);
-  localparam EP3_EN = BULK_EP3 != 0 && (USE_EP3_IN || USE_EP3_OUT);
-  localparam EP4_EN = BULK_EP4 != 0 && (USE_EP4_IN || USE_EP4_OUT);
+  reg crc_err_q, crc_ack_q;
+
+  always @(posedge clock) begin
+    if (reset || !crc_error_i) begin
+      crc_err_q <= 1'b0;
+      crc_ack_q <= 1'b0;
+    end else begin
+      if (!crc_ack_q && crc_error_i) begin
+        crc_err_q <= 1'b1;
+        crc_ack_q <= 1'b1;
+      end else begin
+        crc_err_q <= 1'b0;
+        crc_ack_q <= crc_ack_q;
+      end
+    end
+  end
+
+  // -- USB Transaction Framing Signals -- //
+
+  // Deselect all of the end-points at the end of each transaction, due to a
+  // configuration event, on reset, or on error.
+  always @(posedge clock) begin
+    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_q || crc_err_q) begin
+      end_q <= 1'b1;
+    end else begin
+      end_q <= 1'b0;
+    end
+  end
+
+  //
+  //  End-Point Control
+  ///
+
+  // -- End-Point Enabled/Stalled Registers -- //
 
   always @(posedge clock) begin
     if (reset || clr_conf_i || ep1_halted_i) begin
@@ -172,36 +223,7 @@ module protocol #(
     end
   end
 
-  // -- CRC-Error One-Shot -- //
-
-  reg crc_err_q, crc_ack_q;
-
-  always @(posedge clock) begin
-    if (reset || !crc_error_i) begin
-      crc_err_q <= 1'b0;
-      crc_ack_q <= 1'b0;
-    end else begin
-      if (!crc_ack_q && crc_error_i) begin
-        crc_err_q <= 1'b1;
-        crc_ack_q <= 1'b1;
-      end else begin
-        crc_err_q <= 1'b0;
-        crc_ack_q <= crc_ack_q;
-      end
-    end
-  end
-
   // -- End-Point Readies & Selects -- //
-
-  // Deselect all of the end-points at the end of each transaction, due to a
-  // configuration event, on reset, or on error.
-  always @(posedge clock) begin
-    if (reset || clr_conf_i || hsk_recv_i || hsk_sent_i || timeout_q || crc_err_q) begin
-      end_q <= 1'b1;
-    end else begin
-      end_q <= 1'b0;
-    end
-  end
 
   // An end-point remains selected from when an appropriate token is received,
   // until the end of the transaction.
@@ -235,22 +257,7 @@ module protocol #(
     end
   end
 
-  always @(posedge clock) begin
-    if (end_q) begin
-      {ep4_ack_q, ep3_ack_q, ep2_ack_q, ep1_ack_q} <= 4'b0000;
-      {ep4_err_q, ep3_err_q, ep2_err_q, ep1_err_q} <= 4'b0000;
-    end else begin
-      ep1_ack_q <= ep1_sel_q && ((USE_EP1_OUT && hsk_sent_i) || (USE_EP1_IN && hsk_recv_i));
-      ep2_ack_q <= ep2_sel_q && ((USE_EP2_OUT && hsk_sent_i) || (USE_EP2_IN && hsk_recv_i));
-      ep3_ack_q <= ep3_sel_q && ((USE_EP3_OUT && hsk_sent_i) || (USE_EP3_IN && hsk_recv_i));
-      ep4_ack_q <= ep4_sel_q && ((USE_EP4_OUT && hsk_sent_i) || (USE_EP4_IN && hsk_recv_i));
-
-      ep1_err_q <= ep1_sel_q && (crc_err_q || timeout_q);
-      ep2_err_q <= ep2_sel_q && (crc_err_q || timeout_q);
-      ep3_err_q <= ep3_sel_q && (crc_err_q || timeout_q);
-      ep4_err_q <= ep4_sel_q && (crc_err_q || timeout_q);
-    end
-  end
+  // -- End-point State Signals & Response Registers -- //
 
   //
   // Todo:
@@ -292,6 +299,26 @@ module protocol #(
   wire in_sel_w = ep1_in_sel_w | ep2_in_sel_w | ep3_in_sel_w | ep4_in_sel_w;
   wire in_rdy_w = ep1_in_rdy_w | ep2_in_rdy_w | ep3_in_rdy_w | ep4_in_rdy_w;
 
+  always @(posedge clock) begin
+    if (end_q) begin
+      {ep4_ack_q, ep3_ack_q, ep2_ack_q, ep1_ack_q} <= 4'b0000;
+      {ep4_err_q, ep3_err_q, ep2_err_q, ep1_err_q} <= 4'b0000;
+    end else begin
+      ep1_ack_q <= ep1_sel_q && ((USE_EP1_OUT && hsk_sent_i) || (USE_EP1_IN && hsk_recv_i));
+      ep2_ack_q <= ep2_sel_q && ((USE_EP2_OUT && hsk_sent_i) || (USE_EP2_IN && hsk_recv_i));
+      ep3_ack_q <= ep3_sel_q && ((USE_EP3_OUT && hsk_sent_i) || (USE_EP3_IN && hsk_recv_i));
+      ep4_ack_q <= ep4_sel_q && ((USE_EP4_OUT && hsk_sent_i) || (USE_EP4_IN && hsk_recv_i));
+
+      ep1_err_q <= ep1_sel_q && (crc_err_q || timeout_q);
+      ep2_err_q <= ep2_sel_q && (crc_err_q || timeout_q);
+      ep3_err_q <= ep3_sel_q && (crc_err_q || timeout_q);
+      ep4_err_q <= ep4_sel_q && (crc_err_q || timeout_q);
+    end
+
+    // Pipeline for Fmax
+    out_rdy_q <= out_rdy_w;
+  end
+
   // -- DATAx Parity-Checking for the Sequence Bits -- //
 
   wire ep0_par_w = ep0_select_i && ep0_parity_i == usb_pid_i[3];
@@ -301,26 +328,91 @@ module protocol #(
   wire ep4_par_w = ep4_out_sel_w && ep4_parity_i == usb_pid_i[3];
 
   assign par_w = ep0_par_w | ep1_par_w | ep2_par_w | ep3_par_w | ep4_par_w;
-  assign seq_w = tok_endp_i == 0 ? ep0_parity_i :
-                 tok_endp_i == BULK_EP1 ? ep1_parity_i :
-                 tok_endp_i == BULK_EP2 ? ep2_parity_i :
-                 tok_endp_i == BULK_EP3 ? ep3_parity_i :
-                 tok_endp_i == BULK_EP4 ? ep4_parity_i : 1'bx ;
-  assign pid_w = seq_w ? `USBPID_DATA1 : `USBPID_DATA0;
+  assign seq_w = ep0_sel_q ? ep0_parity_i :
+                 ep1_sel_q ? ep1_parity_i :
+                 ep2_sel_q ? ep2_parity_i :
+                 ep3_sel_q ? ep3_parity_i :
+                 ep4_sel_q ? ep4_parity_i : 1'b0 ;
 
+  always @(posedge clock) begin
+    if (dec_actv_i) begin
+      par_q <= par_w;
+    end
+
+    if (!usb_busy_i) begin
+      seq_q <= seq_w;
+      /*
+      seq_q <= (ep0_sel_q & ep0_parity_i) |
+               (ep1_sel_q & ep1_parity_i) |
+               (ep2_sel_q & ep2_parity_i) |
+               (ep3_sel_q & ep3_parity_i) |
+               (ep4_sel_q & ep4_parity_i) ;
+       */
+    end
+  end
+
+  // -- Transaction-Response (Handshake) PID Calculation -- //
+
+  always @(posedge clock) begin
+    case (state)
+      ST_IDLE: begin
+        if (tok_recv_i && tok_addr_i == usb_addr_i) begin
+          case (usb_pid_i)
+            `USBPID_IN: pid_q <= `USBPID_NAK;
+            `USBPID_PING: begin
+              pid_q <= ep0_select_i || out_rdy_q ? `USBPID_ACK : `USBPID_NAK;
+            end
+            default: pid_q <= 'bx;
+          endcase
+        end else begin
+          pid_q <= 'bx;
+        end
+      end
+      ST_SEND: pid_q <= seq_q ? `USBPID_DATA1 : `USBPID_DATA0;
+      ST_RECV: pid_q <= ping_q && !out_rdy_q ? `USBPID_NYET : `USBPID_ACK;
+      ST_DROP: pid_q <= `USBPID_NAK;
+      ST_RESP: pid_q <= pid_q;
+      default: pid_q <= 'bx;
+    endcase
+  end
+
+  // -- PING Protocol Logic -- //
+
+  //
+  // Todo: if we complete a 'PING'-initiated transaction we need to be able to
+  //   send a 'NYET' !?
+  //
+  always @(posedge clock) begin
+    if (set_conf_i) begin
+      ping_q <= 1'b0;
+      nyet_q <= 1'b0;
+    end else begin
+      case (state)
+        ST_IDLE:
+          if (tok_recv_i && tok_addr_i == usb_addr_i) begin
+            if (usb_pid_i == `USBPID_PING && out_rdy_q) begin
+              ping_q <= 1'b1;
+              nyet_q <= 1'b0;
+            end else if (usb_pid_i != `USBPID_OUT) begin
+              ping_q <= 1'b0;
+              nyet_q <= 1'b0;
+            end
+          end
+        ST_RESP:
+          if (nyet_q && hsk_sent_i) begin
+            ping_q <= 1'b0;
+            nyet_q <= 1'b0;
+          end
+        ST_RECV: {ping_q, nyet_q} <= {ping_q, ~out_rdy_q};
+        default: {ping_q, nyet_q} <= 2'h0;
+      endcase
+    end
+  end
 
   // -- FSM -- //
 
-  localparam [5:0] ST_IDLE = 1;
-  localparam [5:0] ST_RECV = 2;  // RX data from the ULPI
-  localparam [5:0] ST_RESP = 4;  // Send a handshake to USB host
-  localparam [5:0] ST_DROP = 8;  // Wait for EOP, and then no response
-  localparam [5:0] ST_SEND = 16;  // Route data from EP to ULPI
-  localparam [5:0] ST_WAIT = 32;  // Wait for USB host handshake
-
   always @* begin
     snext = state;
-    pid_c = pid_q;
 
     case (state)
 
@@ -330,69 +422,43 @@ module protocol #(
           //  - for any missing/other end-point, ignore; OR,
           //  - issue 'STALL' for unsupported IN/OUT & EP pairing?
           case (usb_pid_i)
-            `USBPID_SETUP: begin
+            `USBPID_SETUP:
               if (tok_endp_i == 4'h0) begin
                 snext = ST_RECV;
               end else begin
-                // Indicate that operation is unsupported
-                snext = ST_DROP;
-                pid_c = `USBPID_STALL;
+                // Indicate that operation is unsupported (by timing-out)
+                snext = ST_WAIT;
               end
-            end
 
             `USBPID_OUT:
-            if (ep0_select_i) begin
-              // EP0 CONTROL transfers always succeed
-              snext = ST_RECV;
-            end else if (out_sel_w) begin
-              if (out_rdy_w) begin
+              if (ep0_select_i || out_rdy_q) begin
+                // EP0 CONTROL transfers always succeed; OR,
                 // We have space, so RX some data
                 snext = ST_RECV;
-              end else begin
-                // No space, so we NAK
+              end else if (out_sel_w) begin
+                // No space, so we drop then 'NAK'
                 snext = ST_DROP;
-                pid_c = `USBPID_NAK;
-              end
-            end else begin
-              snext = ST_DROP;
-              pid_c = `USBPID_STALL;
-            end
-
-            `USBPID_IN: begin
-              pid_c = pid_w;
-              if (ep0_select_i) begin
-                // Let EP0 sort out this CONTROL transfer
-                snext = ST_SEND;
-              end else if (in_sel_w) begin
-                if (in_rdy_w) begin
-                  // We have at least one packet ready to TX
-                  snext = ST_SEND;
-                end else begin
-                  // Selected, but no packet is ready, so NAK
-                  snext = ST_RESP;
-                  pid_c = `USBPID_NAK;
-                end
               end else begin
                 snext = ST_WAIT;
               end
-            end
 
-            `USBPID_PING: begin
-              snext = ST_RESP;
-              if (ep0_select_i) begin
-                pid_c = `USBPID_ACK;
-              end else if (out_sel_w) begin
-                pid_c = out_rdy_w ? `USBPID_ACK : `USBPID_NAK;
+            `USBPID_IN:
+              if (ep0_select_i || in_rdy_w) begin
+                // Let EP0 sort out this CONTROL transfer; OR,
+                // We have at least one packet ready to TX
+                snext = ST_SEND;
+              end else if (in_sel_w) begin
+                // Selected, but no packet is ready, so NAK
+                snext = ST_RESP;
               end else begin
-                pid_c = `USBPID_STALL;
+                // Invalid (or halted) end-point, so wait for timeout
+                snext = ST_WAIT;
               end
-            end
 
-            default: begin
-              // Ignore, and impossible to reach here
-              snext = 'bx;
-              pid_c = 'bx;
-            end
+            `USBPID_PING: snext = ST_RESP;
+
+            // Ignore, and impossible to reach here
+            default: snext = 'bx;
           endcase
 
         end
@@ -405,59 +471,52 @@ module protocol #(
         // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
         // If parity-bits sequence error, we ignore the DATAx, but ACK response,
         // or else receive as usual.
-        snext = par_w ? ST_RESP : ST_IDLE;
-        pid_c = `USBPID_ACK;
-      end else if (timeout_q || crc_error_i || len_error_w) begin
+        snext = par_q ? ST_RESP : ST_IDLE;
+      end else if (timeout_q || crc_error_i) begin
         // OUT token to DATAx packet timeout
         // Ignore on data corruption, and host will retry
         snext = ST_IDLE;
       end
 
-      ST_RESP:
-      if (hsk_sent_i || timeout_q) begin
-        // Send 'ACK/NAK/NYET/STALL' in response to 'DATAx'
-        snext = ST_IDLE;
-      end
-
       // -- IN -- //
 
-      ST_SEND:
-      if (usb_sent_i) begin
-        // Waiting for endpoint to send 'DATAx', after an 'IN'
-        // Todo:
-        //  - do we check to see if the TX begins, or timeout !?
-        //  - 'NAK' on timeout !?
-        snext = ST_WAIT;
-      end else if (timeout_q) begin
-        // Internal error, as a device end-point timed-out, after it signalled
-        // that it was ready, so we 'HALT' the endpoint (after some number of
-        // attempts).
-        // Todo:
-        //  - halt failing end-points ??
-        snext = ST_IDLE;
-        // snext = ST_RESP;
-        // pid_c = `USBPID_STALL;
+      ST_SEND: begin
+        if (usb_sent_i) begin
+          // Waiting for endpoint to send 'DATAx', after an 'IN'
+          snext = ST_WAIT;
+        end else if (timeout_q) begin
+          // Internal error, as a device end-point timed-out, after it signalled
+          // that it was ready, so we 'HALT' the endpoint (after some number of
+          // attempts).
+          // Todo:
+          //  - halt failing end-points ??
+          snext = ST_IDLE;
+        end
       end
 
-      ST_WAIT:
-      if (hsk_recv_i || timeout_q) begin
+      // -- End-of-Transaction & Error Handling -- //
+
+      ST_RESP:
+      if (hsk_sent_i || timeout_q) begin
+        // Sent 'ACK/NAK/NYET/STALL' in response to 'DATAx' & 'PING'
+        snext = ST_IDLE;
+      end
+
+      ST_WAIT: if (hsk_recv_i || timeout_q) begin
         // Waiting for host to send 'ACK', or waiting for bus turnaround timer
         // to elapse, for an unsupported request.
         snext = ST_IDLE;
       end
 
-      // -- Error Handling -- //
+      // ST_DROP: snext = eop_recv_i ? ST_RESP : (timeout_q ? ST_IDLE : ST_DROP);
 
-      ST_DROP:
-      if (eop_recv_i) begin
-        // Todo: wait for timeout ??
+      ST_DROP: if (eop_recv_i) begin
+        snext = ST_RESP;
+      end else if (timeout_q) begin
         snext = ST_IDLE;
       end
 
-      default: begin
-        // Todo: is this circuit okay?
-        snext = 'bx;  // ST_IDLE;
-      end
+      default: snext = 'bx;  // ST_IDLE;
 
     endcase
   end
@@ -476,14 +535,10 @@ module protocol #(
   //  - send NAK & STALL handshake packets
   //  - use a 'function' for MUX select-values, for better "packing"
   //
-  assign ping_w = tok_recv_i && tok_addr_i == usb_addr_i && usb_pid_i == `USBPID_PING;
-
   always @(posedge clock) begin
     if (reset) begin
       mux_q <= 1'b0;
       sel_q <= 8'd0;
-      hsk_q <= 1'b0;
-      pid_q <= 4'bx;
     end else begin
       mux_q <= state == ST_SEND || state == ST_WAIT;
       case (tok_endp_i)
@@ -494,16 +549,6 @@ module protocol #(
         BULK_EP4: sel_q <= 3'h4;
         default:  sel_q <= 3'h7;
       endcase
-
-      // Send a handshake packet, and after either a token, or a DATAx packet
-      // has been received
-      case (state)
-        ST_IDLE: hsk_q <= ping_w;
-        ST_RECV: if (usb_recv_i && par_w) hsk_q <= 1'b1;
-        ST_RESP: if (hsk_sent_i) hsk_q <= 1'b0;
-        default: hsk_q <= 1'b0;
-      endcase
-      pid_q <= pid_c;
     end
   end
 
