@@ -121,7 +121,7 @@ module protocol #(
   reg ep1_en, ep2_en, ep3_en, ep4_en;
   reg ep0_sel_q, ep1_sel_q, ep2_sel_q, ep3_sel_q, ep4_sel_q;
   reg ep0_ack_q, ep1_ack_q, ep2_ack_q, ep3_ack_q, ep4_ack_q;
-  reg ep0_err_q, ep1_err_q, ep2_err_q, ep3_err_q, ep4_err_q;
+  reg epx_err_q;
 
   // Transaction control registers & signals
   reg ping_q, nyet_q, par_q, seq_q, end_q;
@@ -154,10 +154,10 @@ module protocol #(
   assign ep3_finish_o = ep3_ack_q;
   assign ep4_finish_o = ep4_ack_q;
 
-  assign ep1_cancel_o = ep1_err_q;
-  assign ep2_cancel_o = ep2_err_q;
-  assign ep3_cancel_o = ep3_err_q;
-  assign ep4_cancel_o = ep4_err_q;
+  assign ep1_cancel_o = epx_err_q;
+  assign ep2_cancel_o = epx_err_q;
+  assign ep3_cancel_o = epx_err_q;
+  assign ep4_cancel_o = epx_err_q;
 
   // -- CRC-Error One-Shot -- //
 
@@ -301,17 +301,14 @@ module protocol #(
   always @(posedge clock) begin
     if (end_q) begin
       {ep4_ack_q, ep3_ack_q, ep2_ack_q, ep1_ack_q} <= 4'b0000;
-      {ep4_err_q, ep3_err_q, ep2_err_q, ep1_err_q} <= 4'b0000;
+      epx_err_q <= 1'b0;
     end else begin
       ep1_ack_q <= ep1_sel_q && ((USE_EP1_OUT && hsk_sent_i) || (USE_EP1_IN && hsk_recv_i));
       ep2_ack_q <= ep2_sel_q && ((USE_EP2_OUT && hsk_sent_i) || (USE_EP2_IN && hsk_recv_i));
       ep3_ack_q <= ep3_sel_q && ((USE_EP3_OUT && hsk_sent_i) || (USE_EP3_IN && hsk_recv_i));
       ep4_ack_q <= ep4_sel_q && ((USE_EP4_OUT && hsk_sent_i) || (USE_EP4_IN && hsk_recv_i));
 
-      ep1_err_q <= ep1_sel_q && (crc_err_q || timeout_q);
-      ep2_err_q <= ep2_sel_q && (crc_err_q || timeout_q);
-      ep3_err_q <= ep3_sel_q && (crc_err_q || timeout_q);
-      ep4_err_q <= ep4_sel_q && (crc_err_q || timeout_q);
+      epx_err_q <= crc_err_q || timeout_q; // || set_conf_i; // Todo: !?
     end
 
     // Pipeline for Fmax
@@ -408,9 +405,13 @@ module protocol #(
 
   // -- FSM -- //
 
+  reg tag_q, epg_q;
+
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
+      tag_q <= 1'b0;
+      epg_q <= 1'b0;
     end else begin
       case (state)
 
@@ -426,6 +427,7 @@ module protocol #(
             end else begin
               // Indicate that operation is unsupported (by timing-out)
               state <= ST_WAIT;
+              tag_q <= 1'b1;
             end
 
             `USBPID_OUT:
@@ -433,11 +435,13 @@ module protocol #(
               // EP0 CONTROL transfers always succeed; OR,
               // We have space, so RX some data
               state <= ST_RECV;
+              epg_q <= 1'b1;
             end else if (out_sel_w) begin
               // No space, so we drop then 'NAK'
               state <= ST_DROP;
             end else begin
               state <= ST_WAIT;
+              tag_q <= 1'b1;
             end
 
             `USBPID_IN:
@@ -445,15 +449,21 @@ module protocol #(
               // Let EP0 sort out this CONTROL transfer; OR,
               // We have at least one packet ready to TX
               state <= ST_SEND;
+              epg_q <= 1'b1;
             end else if (in_sel_w) begin
               // Selected, but no packet is ready, so NAK
               state <= ST_RESP;
+              epg_q <= 1'b1;
             end else begin
               // Invalid (or halted) end-point, so wait for timeout
               state <= ST_WAIT;
+              tag_q <= 1'b1;
             end
 
-            `USBPID_PING: state <= ST_RESP;
+            `USBPID_PING: begin
+              state <= ST_RESP;
+              epg_q <= 1'b1;
+            end
 
             // Ignore, and impossible to reach here
             default: state <= state;
@@ -468,6 +478,7 @@ module protocol #(
           // If parity-bits sequence error, we ignore the DATAx, but ACK response,
           // or else receive as usual.
           state <= par_q ? ST_RESP : ST_IDLE;
+          epg_q <= par_q;
         end else if (timeout_q || crc_error_i) begin
           // OUT token to DATAx packet timeout
           // Ignore on data corruption, and host will retry
@@ -476,10 +487,12 @@ module protocol #(
 
         // -- IN -- //
 
-        ST_SEND:
+        ST_SEND: begin
+          epg_q <= 1'b0;
         if (usb_sent_i) begin
           // Waiting for endpoint to send 'DATAx', after an 'IN'
           state <= ST_WAIT;
+          tag_q <= 1'b1;
         end else if (timeout_q) begin
           // Internal error, as a device end-point timed-out, after it signalled
           // that it was ready, so we 'HALT' the endpoint (after some number of
@@ -488,24 +501,28 @@ module protocol #(
           //  - halt failing end-points ??
           state <= ST_IDLE;
         end
+        end
 
         // -- End-of-Transaction & Error Handling -- //
 
-        ST_RESP:
+        ST_RESP: begin
+          epg_q <= 1'b0;
         if (hsk_sent_i || timeout_q) begin
           // Sent 'ACK/NAK/NYET/STALL' in response to 'DATAx' & 'PING'
           state <= ST_IDLE;
         end
+        end
 
-        ST_WAIT:
-        if (hsk_recv_i || timeout_q) begin
-          // Waiting for host to send 'ACK', or waiting for bus turnaround timer
-          // to elapse, for an unsupported request.
-          state <= ST_IDLE;
+        ST_WAIT: begin
+          tag_q <= 1'b0;
+          if (hsk_recv_i || timeout_q) begin
+            // Waiting for host to send 'ACK', or waiting for bus turnaround timer
+            // to elapse, for an unsupported request.
+            state <= ST_IDLE;
+          end
         end
 
         // ST_DROP: state <= eop_recv_i ? ST_RESP : (timeout_q ? ST_IDLE : ST_DROP);
-
         ST_DROP:
         if (eop_recv_i) begin
           state <= ST_RESP;
@@ -549,16 +566,13 @@ module protocol #(
 `ifdef __icarus
   localparam [6:0] MAX_TA_TIMER = (816 / 32) - 1;
   localparam [4:0] MAX_EP_TIMER = (192 / 32) - 1;
-  localparam [4:0] MAX_TD_TIMER = (192 / 32) - 1;
 `else  /* !__icarus */
   localparam [6:0] MAX_TA_TIMER = (816 / 8) - 1;
   localparam [4:0] MAX_EP_TIMER = (192 / 8) - 1;
-  localparam [4:0] MAX_TD_TIMER = (192 / 8) - 1;
 `endif  /* !__icarus */
 
   reg ta_run_q, ta_err_q;
   reg ep_run_q, ep_err_q;
-  reg td_run_q, td_err_q;
 
   // -- Time-Out register -- //
 
@@ -566,12 +580,7 @@ module protocol #(
     if (reset) begin
       timeout_q <= 1'b0;
     end else begin
-`ifdef __icarus
-      timeout_q <= td_err_q | ta_err_q | ep_err_q;
-`else  /* !__icarus */
-      timeout_q <= 1'b0;
-      $error("FIX TIME-OUTS\n");
-`endif  /* !__icarus */
+      timeout_q <= ta_err_q | ep_err_q;
     end
   end
 
@@ -588,7 +597,7 @@ module protocol #(
   assign ta_cnext = ta_count - 1;
 
   always @(posedge clock) begin
-    if (state == ST_SEND && usb_sent_i) begin
+    if (tag_q) begin
       // Turn-around timer for 'ACK' after sending 'DATAx'
       ta_run_q <= 1'b1;
       ta_err_q <= 1'b0;
@@ -616,15 +625,14 @@ module protocol #(
   assign ep_cnext = ep_count - 1;
 
   always @(posedge clock) begin
-    if (state == ST_IDLE && tok_recv_i && tok_addr_i == usb_addr_i) begin
-      // End-point-to-DATAx timer for 'DATAx' after receiving 'IN'
-      ep_run_q <= usb_pid_i == `USBPID_IN;
+    if (epg_q) begin
+      ep_run_q <= 1'b1;
       ep_err_q <= 1'b0;
       ep_count <= MAX_EP_TIMER;
-    end else if (ep_run_q && (ep_cnext[5] || usb_busy_i)) begin
+    end else if (ep_run_q && (ep_cnext[5] || usb_busy_i || RxEvent == 2'b01)) begin
       // Timer has elapsed, or start-of-packet has been received
       ep_run_q <= 1'b0;
-      ep_err_q <= ~usb_busy_i;
+      ep_err_q <= !usb_busy_i && RxEvent != 2'b01;
       ep_count <= MAX_EP_TIMER;
     end else if (ep_run_q) begin
       // Still waiting ...
@@ -633,35 +641,6 @@ module protocol #(
       ep_run_q <= 1'b0;
       ep_err_q <= 1'b0;
       ep_count <= MAX_EP_TIMER;
-    end
-  end
-
-  // -- Token to DATAx Timer -- //
-
-  // Todo: combine with the above (end-point response) timer !?
-  reg  [4:0] td_count;
-  wire [5:0] td_cnext;
-
-  assign td_cnext = td_count - 1;
-
-  always @(posedge clock) begin
-    if (state == ST_IDLE && tok_recv_i && tok_addr_i == usb_addr_i) begin
-      // Token-to-DATAx timer for 'DATAx' after receiving 'OUT' or 'SETUP'
-      td_run_q <= usb_pid_i == `USBPID_OUT || usb_pid_i == `USBPID_SETUP;
-      td_err_q <= 1'b0;
-      td_count <= MAX_TD_TIMER;
-    end else if (td_run_q && (td_cnext[5] || RxEvent == 2'b01)) begin
-      // Timer has elapsed, or start-of-packet has been received
-      td_run_q <= 1'b0;
-      td_err_q <= RxEvent != 2'b01;
-      td_count <= MAX_TD_TIMER;
-    end else if (td_run_q) begin
-      // Still waiting ...
-      td_count <= td_cnext;
-    end else begin
-      td_run_q <= 1'b0;
-      td_err_q <= 1'b0;
-      td_count <= MAX_TD_TIMER;
     end
   end
 
