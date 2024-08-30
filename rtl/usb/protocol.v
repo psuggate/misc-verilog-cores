@@ -37,7 +37,7 @@ module protocol #(
     input [6:0] usb_addr_i,
 
     // Signals from the USB packet decoder (upstream)
-   input dec_actv_i,
+    input dec_actv_i,
     input crc_error_i,
 
     input hsk_recv_i,
@@ -125,12 +125,11 @@ module protocol #(
 
   // Transaction control registers & signals
   reg ping_q, nyet_q, par_q, seq_q, end_q;
+  reg out_rdy_q;
   reg [3:0] pid_q;
-  reg [5:0] state, snext;
+  reg [5:0] state;
   reg timeout_q = 1'b0;
   wire seq_w, par_w;
-
-  reg out_rdy_q;
 
   // Multiplexor Signals, for DATAx -> Host
   reg mux_q;
@@ -340,14 +339,12 @@ module protocol #(
     end
 
     if (!usb_busy_i) begin
-      seq_q <= seq_w;
-      /*
+      // seq_q <= seq_w;
       seq_q <= (ep0_sel_q & ep0_parity_i) |
                (ep1_sel_q & ep1_parity_i) |
                (ep2_sel_q & ep2_parity_i) |
                (ep3_sel_q & ep3_parity_i) |
                (ep4_sel_q & ep4_parity_i) ;
-       */
     end
   end
 
@@ -389,20 +386,20 @@ module protocol #(
     end else begin
       case (state)
         ST_IDLE:
-          if (tok_recv_i && tok_addr_i == usb_addr_i) begin
-            if (usb_pid_i == `USBPID_PING && out_rdy_q) begin
-              ping_q <= 1'b1;
-              nyet_q <= 1'b0;
-            end else if (usb_pid_i != `USBPID_OUT) begin
-              ping_q <= 1'b0;
-              nyet_q <= 1'b0;
-            end
-          end
-        ST_RESP:
-          if (nyet_q && hsk_sent_i) begin
+        if (tok_recv_i && tok_addr_i == usb_addr_i) begin
+          if (usb_pid_i == `USBPID_PING && out_rdy_q) begin
+            ping_q <= 1'b1;
+            nyet_q <= 1'b0;
+          end else if (usb_pid_i != `USBPID_OUT) begin
             ping_q <= 1'b0;
             nyet_q <= 1'b0;
           end
+        end
+        ST_RESP:
+        if (nyet_q && hsk_sent_i) begin
+          ping_q <= 1'b0;
+          nyet_q <= 1'b0;
+        end
         ST_RECV: {ping_q, nyet_q} <= {ping_q, ~out_rdy_q};
         default: {ping_q, nyet_q} <= 2'h0;
       endcase
@@ -411,128 +408,120 @@ module protocol #(
 
   // -- FSM -- //
 
-  always @* begin
-    snext = state;
+  always @(posedge clock) begin
+    if (reset) begin
+      state <= ST_IDLE;
+    end else begin
+      case (state)
 
-    case (state)
-
-      ST_IDLE: begin
+        ST_IDLE:
         if (tok_recv_i && tok_addr_i == usb_addr_i) begin
           // Todo:
           //  - for any missing/other end-point, ignore; OR,
           //  - issue 'STALL' for unsupported IN/OUT & EP pairing?
           case (usb_pid_i)
             `USBPID_SETUP:
-              if (tok_endp_i == 4'h0) begin
-                snext = ST_RECV;
-              end else begin
-                // Indicate that operation is unsupported (by timing-out)
-                snext = ST_WAIT;
-              end
+            if (tok_endp_i == 4'h0) begin
+              state <= ST_RECV;
+            end else begin
+              // Indicate that operation is unsupported (by timing-out)
+              state <= ST_WAIT;
+            end
 
             `USBPID_OUT:
-              if (ep0_select_i || out_rdy_q) begin
-                // EP0 CONTROL transfers always succeed; OR,
-                // We have space, so RX some data
-                snext = ST_RECV;
-              end else if (out_sel_w) begin
-                // No space, so we drop then 'NAK'
-                snext = ST_DROP;
-              end else begin
-                snext = ST_WAIT;
-              end
+            if (ep0_select_i || out_rdy_q) begin
+              // EP0 CONTROL transfers always succeed; OR,
+              // We have space, so RX some data
+              state <= ST_RECV;
+            end else if (out_sel_w) begin
+              // No space, so we drop then 'NAK'
+              state <= ST_DROP;
+            end else begin
+              state <= ST_WAIT;
+            end
 
             `USBPID_IN:
-              if (ep0_select_i || in_rdy_w) begin
-                // Let EP0 sort out this CONTROL transfer; OR,
-                // We have at least one packet ready to TX
-                snext = ST_SEND;
-              end else if (in_sel_w) begin
-                // Selected, but no packet is ready, so NAK
-                snext = ST_RESP;
-              end else begin
-                // Invalid (or halted) end-point, so wait for timeout
-                snext = ST_WAIT;
-              end
+            if (ep0_select_i || in_rdy_w) begin
+              // Let EP0 sort out this CONTROL transfer; OR,
+              // We have at least one packet ready to TX
+              state <= ST_SEND;
+            end else if (in_sel_w) begin
+              // Selected, but no packet is ready, so NAK
+              state <= ST_RESP;
+            end else begin
+              // Invalid (or halted) end-point, so wait for timeout
+              state <= ST_WAIT;
+            end
 
-            `USBPID_PING: snext = ST_RESP;
+            `USBPID_PING: state <= ST_RESP;
 
             // Ignore, and impossible to reach here
-            default: snext = 'bx;
+            default: state <= state;
           endcase
-
         end
-      end
 
-      // -- OUT and SETUP -- //
+        // -- OUT and SETUP -- //
 
-      ST_RECV:
-      if (usb_recv_i) begin
-        // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
-        // If parity-bits sequence error, we ignore the DATAx, but ACK response,
-        // or else receive as usual.
-        snext = par_q ? ST_RESP : ST_IDLE;
-      end else if (timeout_q || crc_error_i) begin
-        // OUT token to DATAx packet timeout
-        // Ignore on data corruption, and host will retry
-        snext = ST_IDLE;
-      end
+        ST_RECV:
+        if (usb_recv_i) begin
+          // Expecting 'DATAx' PID, after an 'OUT' or 'SETUP'
+          // If parity-bits sequence error, we ignore the DATAx, but ACK response,
+          // or else receive as usual.
+          state <= par_q ? ST_RESP : ST_IDLE;
+        end else if (timeout_q || crc_error_i) begin
+          // OUT token to DATAx packet timeout
+          // Ignore on data corruption, and host will retry
+          state <= ST_IDLE;
+        end
 
-      // -- IN -- //
+        // -- IN -- //
 
-      ST_SEND: begin
+        ST_SEND:
         if (usb_sent_i) begin
           // Waiting for endpoint to send 'DATAx', after an 'IN'
-          snext = ST_WAIT;
+          state <= ST_WAIT;
         end else if (timeout_q) begin
           // Internal error, as a device end-point timed-out, after it signalled
           // that it was ready, so we 'HALT' the endpoint (after some number of
           // attempts).
           // Todo:
           //  - halt failing end-points ??
-          snext = ST_IDLE;
+          state <= ST_IDLE;
         end
-      end
 
-      // -- End-of-Transaction & Error Handling -- //
+        // -- End-of-Transaction & Error Handling -- //
 
-      ST_RESP:
-      if (hsk_sent_i || timeout_q) begin
-        // Sent 'ACK/NAK/NYET/STALL' in response to 'DATAx' & 'PING'
-        snext = ST_IDLE;
-      end
+        ST_RESP:
+        if (hsk_sent_i || timeout_q) begin
+          // Sent 'ACK/NAK/NYET/STALL' in response to 'DATAx' & 'PING'
+          state <= ST_IDLE;
+        end
 
-      ST_WAIT: if (hsk_recv_i || timeout_q) begin
-        // Waiting for host to send 'ACK', or waiting for bus turnaround timer
-        // to elapse, for an unsupported request.
-        snext = ST_IDLE;
-      end
+        ST_WAIT:
+        if (hsk_recv_i || timeout_q) begin
+          // Waiting for host to send 'ACK', or waiting for bus turnaround timer
+          // to elapse, for an unsupported request.
+          state <= ST_IDLE;
+        end
 
-      // ST_DROP: snext = eop_recv_i ? ST_RESP : (timeout_q ? ST_IDLE : ST_DROP);
+        // ST_DROP: state <= eop_recv_i ? ST_RESP : (timeout_q ? ST_IDLE : ST_DROP);
 
-      ST_DROP: if (eop_recv_i) begin
-        snext = ST_RESP;
-      end else if (timeout_q) begin
-        snext = ST_IDLE;
-      end
+        ST_DROP:
+        if (eop_recv_i) begin
+          state <= ST_RESP;
+        end else if (timeout_q) begin
+          state <= ST_IDLE;
+        end
 
-      default: snext = 'bx;  // ST_IDLE;
+        default: state <= 'bx;
 
-    endcase
-  end
-
-  always @(posedge clock) begin
-    if (reset) begin
-      state <= ST_IDLE;
-    end else begin
-      state <= snext;
+      endcase
     end
   end
 
   //
   // Todo:
-  //  - generate ZDP's
-  //  - send NAK & STALL handshake packets
+  //  - send (& test) NAK & STALL handshake packets !?
   //  - use a 'function' for MUX select-values, for better "packing"
   //
   always @(posedge clock) begin
@@ -565,7 +554,7 @@ module protocol #(
   localparam [6:0] MAX_TA_TIMER = (816 / 8) - 1;
   localparam [4:0] MAX_EP_TIMER = (192 / 8) - 1;
   localparam [4:0] MAX_TD_TIMER = (192 / 8) - 1;
-`endif /* !__icarus */
+`endif  /* !__icarus */
 
   reg ta_run_q, ta_err_q;
   reg ep_run_q, ep_err_q;
@@ -582,7 +571,7 @@ module protocol #(
 `else  /* !__icarus */
       timeout_q <= 1'b0;
       $error("FIX TIME-OUTS\n");
-`endif /* !__icarus */
+`endif  /* !__icarus */
     end
   end
 
@@ -649,6 +638,7 @@ module protocol #(
 
   // -- Token to DATAx Timer -- //
 
+  // Todo: combine with the above (end-point response) timer !?
   reg  [4:0] td_count;
   wire [5:0] td_cnext;
 

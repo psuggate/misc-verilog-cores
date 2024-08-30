@@ -87,7 +87,7 @@ module usb_ulpi_top #(
     8'h00,  // bInterfaceProtocol
     8'h00,  // bInterfaceSubClass
     8'h00,  // bInterfaceClass
-    EP_NUM, // bNumEndpoints <= 3
+    EP_NUM,  // bNumEndpoints <= 3
     8'h00,  // bAlternateSetting
     8'h00,  // bInterfaceNumber = 0
     8'h04,  // bDescriptorType = Interface Descriptor
@@ -132,7 +132,7 @@ module usb_ulpi_top #(
     8'h05,  // bDescriptorType = Endpoint Descriptor
     8'h07  // bLength = 7
   };
-  localparam integer EP3_DESC_START = EP1_DESC_BITS+EP2_DESC_BITS;
+  localparam integer EP3_DESC_START = EP1_DESC_BITS + EP2_DESC_BITS;
 
   function [EP_DESC_BITS-1:0] ep_descriptors;
     begin
@@ -376,7 +376,7 @@ module usb_ulpi_top #(
       .usb_addr_i (usb_addr_q),
       .crc_error_i(crc_error_w),
 
-              .dec_actv_i(dec_actv_w),
+      .dec_actv_i(dec_actv_w),
       .tok_recv_i(tok_rx_recv_w),
       .tok_ping_i(tok_rx_ping_w),
       .tok_addr_i(tok_addr_w),
