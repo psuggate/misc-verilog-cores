@@ -32,11 +32,20 @@ static const char parity_strings[5][16] = {
 };
 
 
+/**
+ * Step-function to toggle the end-point sequence bit, to force sequence parity
+ * errors, and recovery.
+ */
 static void adjust_seq(transfer_t* xfer)
 {
     transfer_ack(xfer);
 }
 
+/**
+ * Invert one field of the CRC values, to force CRC5 TOKEN errors, or CRC16 DATA
+ * errors -- and because the operation is invertible, recovery can be easily
+ * tested.
+ */
 static void adjust_crc(transfer_t* xfer)
 {
     if (xfer->endpoint == BULK_IN_EP) {
@@ -48,6 +57,11 @@ static void adjust_crc(transfer_t* xfer)
     }
 }
 
+/**
+ * Invertible step-function to toggle the end-point number to an invalid end-
+ * point, and toggling again reverts to the correct end-point, to ensure that
+ * the USB device recovers.
+ */
 static void adjust_ept(transfer_t* xfer)
 {
     xfer->endpoint ^= 0xF;

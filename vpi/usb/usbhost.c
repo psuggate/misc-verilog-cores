@@ -124,7 +124,9 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
         }
         result = ack_recv_step(xfer, in, out);
         if (result > 0) {
-            transfer_ack(xfer);
+            vpi_printf("HOST\t#%8lu cyc =>\tBulk OUT ACK [%s:%d]\n",
+                       host->cycle, __FILE__, __LINE__);
+            // transfer_ack(xfer);
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
         }

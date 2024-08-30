@@ -22,6 +22,10 @@ static const char bulkout_strings[4][16] = {
     {"BulkDone"},
 };
 
+
+/**
+ * Bulk OUT transaction-initialisation routine.
+ */
 static void tc_bulkout_xfer(usb_host_t* host, int n, uint8_t ep)
 {
     transfer_t* xfer = &host->xfer;
@@ -74,21 +78,18 @@ static int tc_bulkout_step(usb_host_t* host, void* data)
     switch (*st) {
     case BulkOUT0:
         // BulkOUT0 completed, so move to BulkOUT1
-        transfer_ack(xfer);
         tc_bulkout_xfer(host, 37, BULK_OUT_EP);
         *st = BulkOUT1;
         return 0;
 
     case BulkOUT1:
         // BulkOUT1 completed, so move to BulkOUT2
-        transfer_ack(xfer);
         tc_bulkout_xfer(host, 0, BULK_OUT_EP);
         *st = BulkOUT2;
         return 0;
 
     case BulkOUT2:
         // BulkOUT2 completed, so move to BulkDone
-        transfer_ack(xfer);
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;

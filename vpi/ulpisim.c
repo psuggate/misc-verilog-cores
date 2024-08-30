@@ -502,29 +502,30 @@ static int ut_compiletf(char* user_data)
     int i = 0;
     state->tests = (testcase_t**)malloc(sizeof(testcase_t*) * NUM_TESTCASES);
 
+    // -- USB device start-up and enumeration -- //
     state->tests[i++] = test_getdesc();
     state->tests[i++] = test_setaddr(0x23);
     state->tests[i++] = test_getconf();
     state->tests[i++] = test_setconf(0x01);
     state->tests[i++] = test_waitsof(); // 15 us
 
+    // -- Read out all of the string descriptors, then OUT some data -- //
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_waitsof(); // 22.5 us
 
+    // -- Bidirectional transfers & queries -- //
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_getconf();
     state->tests[i++] = test_bulkin();
     state->tests[i++] = test_waitsof(); // 30 us
 
-    // state->tests[i++] = test_getstrs();
+    // -- Error-handling tests -- //
     state->tests[i++] = test_parity();
     state->tests[i++] = test_waitsof(); // 37.5 us
 
     state->test_num = i;
-
-    // Todo: populate the set of tests ...
 
     vpi_put_userdata(systf_handle, (void*)state);
 

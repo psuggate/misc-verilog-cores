@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Aug 30 02:18:02 2024
+[*] Fri Aug 30 03:24:24 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Aug 30 02:16:29 2024"
-[dumpfile_size] 1063207
+[dumpfile_mtime] "Fri Aug 30 03:22:33 2024"
+[dumpfile_size] 1067345
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 33389000
+[timestart] 33549000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 34020000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 34180000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -35,7 +35,7 @@ vpi_usb_ulpi_tb.ulpi_data[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.configured
-@800200
+@c00201
 -OUT
 @28
 [color] 3
@@ -88,7 +88,7 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.space_w[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.tvalid_w
 @1401200
 -Internal
-@1000200
+@1401201
 -OUT
 @c00200
 -IN
@@ -243,9 +243,7 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_halted_i
 @28
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.crc_err_q
-@29
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.end_q
-@28
 [color] 2
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_sel_q
 [color] 3
