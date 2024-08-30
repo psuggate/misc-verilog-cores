@@ -40,11 +40,11 @@ static void adjust_seq(transfer_t* xfer)
 static void adjust_crc(transfer_t* xfer)
 {
     if (xfer->endpoint == BULK_IN_EP) {
-	// Corrupted token, so the request must be ignored
-	xfer->tok2 ^= 0x80;
+        // Corrupted token, so the request must be ignored
+        xfer->tok2 ^= 0x80;
     } else {
-	// Corrupted data, so the request must be repeated
-	xfer->crc1 ^= 0xFF;
+        // Corrupted data, so the request must be repeated
+        xfer->crc1 ^= 0xFF;
     }
 }
 
@@ -101,13 +101,13 @@ static int tc_parity_init(usb_host_t* host, void* data)
     switch (st->stage) {
     case 0:
         // host->step = 0;
-	st->adjust = adjust_seq;
+        st->adjust = adjust_seq;
         break;
     case 1:
-	st->adjust = adjust_crc;
+        st->adjust = adjust_crc;
         break;
     case 2:
-	st->adjust = adjust_ept;
+        st->adjust = adjust_ept;
         break;
     case 3:
         return 1;
@@ -119,7 +119,7 @@ static int tc_parity_init(usb_host_t* host, void* data)
 
     vpi_printf("[%s:%d] %s INIT (cycle = %lu, stage = %u, step = %u, EP = %u)\n",
                __FILE__, __LINE__, tc_parity_name, host->cycle, st->stage,
-	       st->step, host->xfer.endpoint);
+               st->step, host->xfer.endpoint);
 
     return 0;
 }
@@ -161,13 +161,13 @@ static int tc_parity_step(usb_host_t* host, void* data)
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
-	if (++st->stage < 3) {
-	    tc_parity_init(host, data);
-	    return 0;
-	} else {
-	    st->step = DonePar;
-	    return 1;
-	}
+        if (++st->stage < 3) {
+            tc_parity_init(host, data);
+            return 0;
+        } else {
+            st->step = DonePar;
+            return 1;
+        }
 
     case DonePar:
         // Bulk IN/OUT parity tests completed

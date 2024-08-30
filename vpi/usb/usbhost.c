@@ -169,9 +169,9 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case UpDATA0:
     case UpDATA1:
         result = datax_recv_step(xfer, in, out);
-	if (xfer->rx_ptr == 0 && host->cycle >= xfer->cycle) {
-	    // No data received before time-out period elapsed
-	    xfer->type = TimeOut;
+        if (xfer->rx_ptr == 0 && host->cycle >= xfer->cycle) {
+            // No data received before time-out period elapsed
+            xfer->type = TimeOut;
         } else if (result < -2) {
             // Sequence parity error, so withhold 'ACK'
             xfer->type = TimeOut;
