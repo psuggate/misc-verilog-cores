@@ -90,7 +90,7 @@ module vpi_usb_ulpi_tb;
   assign blki_tkeep_w  = 1'b1;
   assign blki_tdata_w  = tdata_q;
 
-  assign blko_tready_w = 1'b1; // Todo ...
+  // assign blko_tready_w = 1'b1; // Todo ...
 
   always @(posedge usb_clock) begin
     if (!usb_rst_n) begin
@@ -187,6 +187,12 @@ module vpi_usb_ulpi_tb;
       .blki_tlast_i   (blki_tlast_w),
       .blki_tkeep_i   (blki_tkeep_w),
       .blki_tdata_i   (blki_tdata_w),
+
+      .blkx_tvalid_i  (blko_tvalid_w),   // USB 'BULK IN' EP data-path
+      .blkx_tready_o  (blko_tready_w),
+      .blkx_tlast_i   (blko_tlast_w),
+      .blkx_tkeep_i   (blko_tkeep_w),
+      .blkx_tdata_i   (blko_tdata_w),
 
       .blko_tvalid_o  (blko_tvalid_w),   // USB 'BULK OUT' EP data-path
       .blko_tready_i  (blko_tready_w),

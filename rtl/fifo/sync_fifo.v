@@ -1,51 +1,38 @@
 `timescale 1ns / 100ps
-module sync_fifo (
-    clock,
-    reset,
+/**
+ * Skid-buffer for the output data, so that registered-output SRAM's can be
+ * used; e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
+ * Notes:
+ *  - OUTREG = 0 for a FIFO that supports LUT-SRAMs with asynchronous reads
+ *  - OUTREG = 1 for the smallest block-SRAM FIFO
+ *  - OUTREG = 2 for a block-SRAM FIFO with First-Word Fall-Through (FWFT)
+ *  - OUTREG = 3 for a block-SRAM, FWFT FIFO with "double-fall-through"
+ */
+module sync_fifo #(
+    parameter OUTREG = 1,  // 0, 1, 2, or 3
 
-    level_o,
+    parameter  WIDTH = 8,
+    localparam MSB   = WIDTH - 1,
 
-    valid_i,
-    ready_o,
-    data_i,
+    parameter  ABITS = 4,
+    localparam DEPTH = 1 << ABITS,
+    localparam ASB   = ABITS - 1,
+    localparam ADDRS = ABITS + 1,
+    localparam AZERO = {ABITS{1'b0}}
+) (
+    input clock,
+    input reset,
 
-    valid_o,
-    ready_i,
-    data_o
+    output [ASB:0] level_o,
+
+    input valid_i,
+    output ready_o,
+    input [MSB:0] data_i,
+
+    output valid_o,
+    input ready_i,
+    output [MSB:0] data_o
 );
-
-  // Skid-buffer for the output data, so that registered-output SRAM's can be
-  // used; e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
-  // Notes:
-  //  - OUTREG = 0 for a FIFO that supports LUT-SRAMs with asynchronous reads
-  //  - OUTREG = 1 for the smallest block-SRAM FIFO
-  //  - OUTREG = 2 for a block-SRAM FIFO with First-Word Fall-Through (FWFT)
-  //  - OUTREG = 3 for a block-SRAM, FWFT FIFO with "double-fall-through"
-  parameter OUTREG = 1;  // 0, 1, 2, or 3
-
-  parameter WIDTH = 8;
-  localparam MSB = WIDTH - 1;
-
-  parameter ABITS = 4;
-  localparam DEPTH = 1 << ABITS;
-  localparam ASB = ABITS - 1;
-  localparam ADDRS = ABITS + 1;
-  localparam AZERO = {ABITS{1'b0}};
-
-
-  input clock;
-  input reset;
-
-  output [ASB:0] level_o;
-
-  input valid_i;
-  output ready_o;
-  input [MSB:0] data_i;
-
-  output valid_o;
-  input ready_i;
-  output [MSB:0] data_o;
-
 
   reg [MSB:0] sram[0:DEPTH-1];
 
@@ -247,4 +234,4 @@ module sync_fifo (
   endgenerate
 
 
-endmodule  // sync_fifo
+endmodule  /* sync_fifo */

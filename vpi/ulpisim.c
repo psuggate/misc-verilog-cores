@@ -515,10 +515,10 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_waitsof(); // 22.5 us
 
     // -- Bidirectional transfers & queries -- //
-    state->tests[i++] = test_bulkin();
+    state->tests[i++] = test_bulkin(1);
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_getconf();
-    state->tests[i++] = test_bulkin();
+    state->tests[i++] = test_bulkin(1);
     state->tests[i++] = test_waitsof(); // 30 us
 
     // -- Error-handling tests -- //

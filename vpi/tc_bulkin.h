@@ -4,7 +4,7 @@
 #include "testcase.h"
 
 
-testcase_t* test_bulkin(void);
+testcase_t* test_bulkin(uint8_t ep);
 
 
 #endif  /* __TC_BULKIN_H__ */

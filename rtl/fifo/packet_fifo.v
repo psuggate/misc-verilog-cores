@@ -6,58 +6,57 @@
  *  - support 'redo' of a packet, if an ACK was not received;
  *  - 'drop' a packet on CRC failure;
  */
-module packet_fifo
-  #( parameter WIDTH = 8,
-     localparam MSB = WIDTH - 1,
+module packet_fifo #(
+    parameter  WIDTH = 8,
+    localparam MSB   = WIDTH - 1,
 
-     parameter DEPTH = 16,
-     localparam ABITS = $clog2(DEPTH),
-     localparam ASB = ABITS - 1,
-     localparam ADDRS = ABITS + 1,
-     localparam AZERO = {ABITS{1'b0}},
+    parameter  DEPTH = 16,
+    localparam ABITS = $clog2(DEPTH),
+    localparam ASB   = ABITS - 1,
+    localparam ADDRS = ABITS + 1,
+    localparam AZERO = {ABITS{1'b0}},
 
-     // Generate save/next signals using 'tlast's?
-     parameter STORE_LASTS = 1,
+    // Generate save/next signals using 'tlast's?
+    parameter STORE_LASTS = 1,
 
-     parameter SAVE_ON_LAST = 1, // Generate a 'save' strobe on 'tlast'?
-     parameter SAVE_TO_LAST = 0, // Todo: Generate a 'tlast' strobe on 'save'?
-     parameter NEXT_ON_LAST = 1, // Advance to 'next' packet on 'tlast'?
+    parameter SAVE_ON_LAST = 1,  // Generate a 'save' strobe on 'tlast'?
+    parameter SAVE_TO_LAST = 0,  // Todo: Generate a 'tlast' strobe on 'save'?
+    parameter NEXT_ON_LAST = 1,  // Advance to 'next' packet on 'tlast'?
 
-     // Break up large packets into chunks of up to this length? If we reach the
-     // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
-     parameter USE_LENGTH = 0,  // Todo
-     parameter MAX_LENGTH = 512,
+    // Break up large packets into chunks of up to this length? If we reach the
+    // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
+    parameter USE_LENGTH = 0,   // Todo
+    parameter MAX_LENGTH = 512,
 
-     // Skid-buffer for the output data, so that registered-output SRAM's can be
-     // used, e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
-     parameter OUTREG = 1  // 0, 1, or 2
-     )
- (
-  input clock,
-  input reset,
+    // Skid-buffer for the output data, so that registered-output SRAM's can be
+    // used, e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
+    parameter OUTREG = 1  // 0, 1, or 2
+) (
+    input clock,
+    input reset,
 
-  output [ASB:0] level_o,
+    output [ASB:0] level_o,
 
-  input drop_i,
-  input save_i,
-  input redo_i,
-  input next_i,
+    input drop_i,
+    input save_i,
+    input redo_i,
+    input next_i,
 
-  input valid_i,
-  output ready_o,
-  input last_i,
-  input [MSB:0] data_i,
+    input valid_i,
+    output ready_o,
+    input last_i,
+    input [MSB:0] data_i,
 
-  output valid_o,
-  input ready_i,
-  output last_o,
-  output [MSB:0] data_o
+    output valid_o,
+    input ready_i,
+    output last_o,
+    output [MSB:0] data_o
 );
 
   // Store the 'last'-bits?
   localparam integer WSB = STORE_LASTS != 0 ? WIDTH : MSB;
 
-  reg [WSB:0] sram [0:DEPTH-1];
+  reg [WSB:0] sram[0:DEPTH-1];
 
   // Write-port signals
   reg wready;
@@ -70,10 +69,10 @@ module packet_fifo
   wire [ABITS:0] raddr_next;
 
   // Packet address signals
-  reg [ABITS:0] paddr;
+  reg  [ABITS:0] paddr;
 
   // Transition signals
-  reg [ASB:0] level_q;
+  reg  [  ASB:0] level_q;
   wire fetch_w, store_w, match_w, chunk_w, frame_w, wfull_w, empty_w;
   wire reject_a, accept_a, finish_a, replay_a;
   wire [ABITS:0] level_w, waddr_w, raddr_w;
@@ -106,14 +105,14 @@ module packet_fifo
   assign replay_a = redo_i;
 
   // SRAM control & status signals
-  assign store_w = valid_i && wready;
-  assign match_w = waddr[ASB:0] == raddr[ASB:0];
-  assign wfull_w = wrfull_curr || wrfull_next;
-  assign empty_w = rempty_curr || rempty_next;
+  assign store_w  = valid_i && wready;
+  assign match_w  = waddr[ASB:0] == raddr[ASB:0];
+  assign wfull_w  = wrfull_curr || wrfull_next;
+  assign empty_w  = rempty_curr || rempty_next;
 
-  assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0];
-  assign waddr_w = store_w ? waddr_next : waddr;
-  assign raddr_w = fetch_w ? raddr_next : raddr;
+  assign level_w  = waddr_w[ASB:0] - raddr_w[ASB:0];
+  assign waddr_w  = store_w ? waddr_next : waddr;
+  assign raddr_w  = fetch_w ? raddr_next : raddr;
 
 
   // -- Write Port -- //
@@ -146,11 +145,11 @@ module packet_fifo
   wire [ABITS:0] wdiff, rdiff;
   wire [ASB:0] wsize, rsize;
 
-  assign wdiff = waddr_next - paddr;
-  assign wsize = wdiff[ASB:0];
+  assign wdiff   = waddr_next - paddr;
+  assign wsize   = wdiff[ASB:0];
 
-  assign rdiff = raddr_next - rplay;
-  assign rsize = rdiff[ASB:0];
+  assign rdiff   = raddr_next - rplay;
+  assign rsize   = rdiff[ASB:0];
 
   assign chunk_w = USE_LENGTH && wsize == MAX_LENGTH;
   assign frame_w = USE_LENGTH && rsize == MAX_LENGTH;
@@ -257,4 +256,4 @@ module packet_fifo
   endgenerate
 
 
-endmodule  // packet_fifo
+endmodule  /* packet_fifo */
