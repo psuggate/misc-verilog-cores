@@ -35,7 +35,6 @@ module ep_bulk_out #(
     // To bulk data sink
     output m_tvalid,  // Only asserted after CRC16 succeeds
     input m_tready,
-    output m_tkeep,
     output m_tlast,
     output [7:0] m_tdata
 );
@@ -68,7 +67,6 @@ module ep_bulk_out #(
   assign ep_ready_o = rdy_q;
   assign tvalid_w = state == ST_RECV && s_tvalid && s_tkeep;
   assign s_tready = tready_w && state == ST_RECV;
-  assign m_tkeep = m_tvalid;
 
   // Goes negative when there is no longer space for 'MAX_PACKET_LENGTH' to be
   // received.

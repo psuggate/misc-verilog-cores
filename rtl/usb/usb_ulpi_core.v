@@ -49,19 +49,16 @@ module usb_ulpi_core #(
     input blki_tvalid_i,
     output blki_tready_o,
     input blki_tlast_i,
-    input blki_tkeep_i,
     input [7:0] blki_tdata_i,
 
     input blkx_tvalid_i,  // Optional Bulk IN endpoint
     output blkx_tready_o,
     input blkx_tlast_i,
-    input blkx_tkeep_i,
     input [7:0] blkx_tdata_i,
 
     output blko_tvalid_o,
     input blko_tready_i,
     output blko_tlast_o,
-    output blko_tkeep_o,
     output [7:0] blko_tdata_o
 );
 
@@ -124,19 +121,16 @@ module usb_ulpi_core #(
       .blki_tvalid_i(blki_tvalid_i),  // USB 'BULK IN' EP data-path
       .blki_tready_o(blki_tready_o),
       .blki_tlast_i (blki_tlast_i),
-      .blki_tkeep_i (blki_tkeep_i),
       .blki_tdata_i (blki_tdata_i),
 
       .blkx_tvalid_i(blkx_tvalid_i),  // USB 'BULK IN' EP data-path
       .blkx_tready_o(blkx_tready_o),
       .blkx_tlast_i (blkx_tlast_i),
-      .blkx_tkeep_i (blkx_tkeep_i),
       .blkx_tdata_i (blkx_tdata_i),
 
       .blko_tvalid_o(blko_tvalid_o),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(blko_tready_i),
       .blko_tlast_o (blko_tlast_o),
-      .blko_tkeep_o (blko_tkeep_o),
       .blko_tdata_o (blko_tdata_o)
   );
 

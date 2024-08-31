@@ -233,19 +233,16 @@ module usb_demo_top (
       .blki_tvalid_i(s_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(s_tready),
       .blki_tlast_i (s_tlast),
-      .blki_tkeep_i (s_tkeep),
       .blki_tdata_i (s_tdata),
 
       .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
       .blkx_tready_o(x_tready),
       .blkx_tlast_i (x_tlast),
-      .blkx_tkeep_i (x_tkeep),
       .blkx_tdata_i (x_tdata),
 
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(m_tready),
       .blko_tlast_o (m_tlast),
-      .blko_tkeep_o (m_tkeep),
       .blko_tdata_o (m_tdata)
   );
 

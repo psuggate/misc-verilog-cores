@@ -45,19 +45,16 @@ module usb_ulpi_top #(
     input blki_tvalid_i,
     output blki_tready_o,
     input blki_tlast_i,
-    input blki_tkeep_i,
     input [7:0] blki_tdata_i,
 
     input blkx_tvalid_i,  // Optional Bulk IN endpoint
     output blkx_tready_o,
     input blkx_tlast_i,
-    input blkx_tkeep_i,
     input [7:0] blkx_tdata_i,
 
     output blko_tvalid_o,
     input blko_tready_i,
     output blko_tlast_o,
-    output blko_tkeep_o,
     output [7:0] blko_tdata_o
 );
 
@@ -599,7 +596,6 @@ module usb_ulpi_top #(
 
       .m_tvalid(blko_tvalid_o),
       .m_tready(blko_tready_i),
-      .m_tkeep (blko_tkeep_o),
       .m_tlast (blko_tlast_o),
       .m_tdata (blko_tdata_o)
   );

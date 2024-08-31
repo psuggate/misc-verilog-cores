@@ -46,13 +46,9 @@ module vpi_usb_ulpi_tb;
   wire bulk_start_w, bulk_cycle_w, bulk_fetch_w, bulk_store_w;
   wire [3:0] bulk_endpt_w;
 
-  wire blki_tvalid_w, blki_tready_w, blki_tlast_w, blki_tkeep_w;
-  wire blko_tvalid_w, blko_tready_w, blko_tlast_w, blko_tkeep_w;
+  wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
+  wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
   wire [7:0] blki_tdata_w, blko_tdata_w;
-
-  wire s_tvalid, s_tlast, s_tkeep, m_tready;
-  wire m_tvalid, m_tlast, m_tkeep, s_tready;
-  wire [7:0] s_tdata, m_tdata;
 
   wire ulpi_clock;
   wire ulpi_dir, ulpi_nxt, ulpi_stp;
@@ -87,7 +83,6 @@ module vpi_usb_ulpi_tb;
 
   assign blki_tvalid_w = tvalid_q;
   assign blki_tlast_w  = tlast_q;
-  assign blki_tkeep_w  = 1'b1;
   assign blki_tdata_w  = tdata_q;
 
   // assign blko_tready_w = 1'b1; // Todo ...
@@ -185,19 +180,16 @@ module vpi_usb_ulpi_tb;
       .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
       .blki_tready_o  (blki_tready_w),
       .blki_tlast_i   (blki_tlast_w),
-      .blki_tkeep_i   (blki_tkeep_w),
       .blki_tdata_i   (blki_tdata_w),
 
       .blkx_tvalid_i  (blko_tvalid_w),   // USB 'BULK IN' EP data-path
       .blkx_tready_o  (blko_tready_w),
       .blkx_tlast_i   (blko_tlast_w),
-      .blkx_tkeep_i   (blko_tkeep_w),
       .blkx_tdata_i   (blko_tdata_w),
 
       .blko_tvalid_o  (blko_tvalid_w),   // USB 'BULK OUT' EP data-path
       .blko_tready_i  (blko_tready_w),
       .blko_tlast_o   (blko_tlast_w),
-      .blko_tkeep_o   (blko_tkeep_w),
       .blko_tdata_o   (blko_tdata_w)
   );
 
