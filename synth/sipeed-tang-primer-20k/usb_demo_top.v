@@ -104,7 +104,7 @@ module usb_demo_top (
 
   assign s_tkeep = s_tvalid;
 
-// `define __use_legacy_usb_core
+  // `define __use_legacy_usb_core
 `ifdef __use_legacy_usb_core
 
   always @(posedge clock) begin
@@ -192,9 +192,9 @@ module usb_demo_top (
   assign cbits = {conf_event, usb_config};
 
   assign x_tvalid = 1'b0;
-  assign x_tkeep  = 1'b0;
-  assign x_tlast  = 1'b0;
-  assign x_tdata  = 8'hA7;
+  assign x_tkeep = 1'b0;
+  assign x_tlast = 1'b0;
+  assign x_tdata = 8'hA7;
 
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
@@ -366,15 +366,16 @@ module usb_demo_top (
           .redo_i (1'b0),
           .next_i (1'b0),
 
-          .valid_i(m_tvalid),
-          .ready_o(m_tready),
-          .last_i (m_tlast),
-          .data_i (m_tdata),
+          .s_tvalid(m_tvalid),
+          .s_tready(m_tready),
+          .s_tkeep (m_tvalid),
+          .s_tlast (m_tlast),
+          .s_tdata (m_tdata),
 
-          .valid_o(s_tvalid),
-          .ready_i(s_tready),
-          .last_o (s_tlast),
-          .data_o (s_tdata)
+          .m_tvalid(s_tvalid),
+          .m_tready(s_tready),
+          .m_tlast (s_tlast),
+          .m_tdata (s_tdata)
       );
 
 `endif  /* !__do_not_use_packet_fifo */

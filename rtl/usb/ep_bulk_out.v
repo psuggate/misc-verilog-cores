@@ -162,6 +162,51 @@ module ep_bulk_out #(
     end
   end
 
+  // -- Generate 'tlast' on Save -- //
+
+  localparam LAST_ON_SAVE = 0;
+
+  wire vld_w, rdy_w, lst_w;
+  wire [7:0] dat_w;
+
+  assign tready_w = rdy_w;
+
+  generate
+    if (LAST_ON_SAVE) begin : g_last_on_save
+
+      reg xvld, xlst;
+      reg [7:0] xdat;
+
+      assign vld_w = xvld && (s_tvalid && s_tkeep || save_q);
+      assign lst_w = xlst || save_q;
+      assign dat_w = xdat;
+
+      always @(posedge clock) begin
+        if (reset) begin
+          xvld <= 1'b0;
+          xlst <= 1'b0;
+          xdat <= 'bx;
+        end else begin
+          if (s_tvalid && s_tready && s_tkeep) begin
+            xvld <= 1'b1;
+            xlst <= s_tlast;
+            xdat <= s_tdata;
+          end else if (save_q && xvld && tready_w) begin
+            xvld <= 1'b0;
+            xlst <= 1'b0;
+            xdat <= 'bx;
+          end
+        end
+      end
+
+    end else begin : g_normal_save
+
+      assign vld_w = tvalid_w;
+      assign lst_w = s_tlast;
+      assign dat_w = s_tdata;
+
+    end
+  endgenerate
 
   // -- Output Packet FIFO with Drop-Packet-on-Failure -- //
 
@@ -169,7 +214,8 @@ module ep_bulk_out #(
       .WIDTH(8),
       .DEPTH(PACKET_FIFO_DEPTH),
       .STORE_LASTS(1),
-      .SAVE_ON_LAST(0),  // save on CRC16-valid
+      .SAVE_ON_LAST(0),  // save only after CRC16 checking
+      .LAST_ON_SAVE(1),  // delayed 'tlast', after CRC16-valid
       .NEXT_ON_LAST(1),
       .USE_LENGTH(0),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
@@ -185,15 +231,16 @@ module ep_bulk_out #(
       .redo_i(1'b0),
       .next_i(1'b0),
 
-      .valid_i(tvalid_w),
-      .ready_o(tready_w),
-      .last_i (s_tlast),
-      .data_i (s_tdata),
+      .s_tvalid(vld_w),
+      .s_tready(rdy_w),
+      .s_tlast (lst_w),
+      .s_tkeep (1'b1),
+      .s_tdata (dat_w),
 
-      .valid_o(m_tvalid),
-      .ready_i(m_tready),
-      .last_o (m_tlast),
-      .data_o (m_tdata)
+      .m_tvalid(m_tvalid),
+      .m_tready(m_tready),
+      .m_tlast (m_tlast),
+      .m_tdata (m_tdata)
   );
 
 

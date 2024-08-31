@@ -249,7 +249,7 @@ module ep_bulk_in #(
       .DEPTH(PACKET_FIFO_DEPTH),
       .STORE_LASTS(1),
       .SAVE_ON_LAST(1),
-      .SAVE_TO_LAST(1),
+      .LAST_ON_SAVE(1),
       .NEXT_ON_LAST(0),
       .USE_LENGTH(1),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
@@ -264,15 +264,16 @@ module ep_bulk_in #(
       .redo_i (redo_w),
       .next_i (next_w),
 
-      .valid_i(s_tvalid),
-      .ready_o(tready_w),
-      .last_i (s_tlast),
-      .data_i (s_tdata),
+      .s_tvalid(s_tvalid),
+      .s_tready(tready_w),
+      .s_tlast (s_tlast),
+      .s_tkeep (s_tvalid),
+      .s_tdata (s_tdata),
 
-      .valid_o(tvalid_r),
-      .ready_i(tready_r),
-      .last_o (tlast_r),
-      .data_o (m_tdata)
+      .m_tvalid(tvalid_r),
+      .m_tready(tready_r),
+      .m_tlast (tlast_r),
+      .m_tdata (m_tdata)
   );
 
 

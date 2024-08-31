@@ -5,6 +5,7 @@
  *  - only update occupancy when 'tlast' is received/transmitted;
  *  - support 'redo' of a packet, if an ACK was not received;
  *  - 'drop' a packet on CRC failure;
+ *  - removes any transfers where 'tkeep == 0';
  */
 module packet_fifo #(
     parameter  WIDTH = 8,
@@ -20,7 +21,7 @@ module packet_fifo #(
     parameter STORE_LASTS = 1,
 
     parameter SAVE_ON_LAST = 1,  // Generate a 'save' strobe on 'tlast'?
-    parameter SAVE_TO_LAST = 0,  // Todo: Generate a 'tlast' strobe on 'save'?
+    parameter LAST_ON_SAVE = 0,  // Todo: Generate a 'tlast' strobe on 'save'?
     parameter NEXT_ON_LAST = 1,  // Advance to 'next' packet on 'tlast'?
 
     // Break up large packets into chunks of up to this length? If we reach the
@@ -42,15 +43,16 @@ module packet_fifo #(
     input redo_i,
     input next_i,
 
-    input valid_i,
-    output ready_o,
-    input last_i,
-    input [MSB:0] data_i,
+    input s_tvalid,
+    output s_tready,
+    input s_tkeep,
+    input s_tlast,
+    input [MSB:0] s_tdata,
 
-    output valid_o,
-    input ready_i,
-    output last_o,
-    output [MSB:0] data_o
+    output m_tvalid,
+    input m_tready,
+    output m_tlast,
+    output [MSB:0] m_tdata
 );
 
   // Store the 'last'-bits?
@@ -58,21 +60,18 @@ module packet_fifo #(
 
   reg [WSB:0] sram[0:DEPTH-1];
 
-  // Write-port signals
-  reg wready;
-  reg [ABITS:0] waddr;
-  wire [ABITS:0] waddr_next;
-
-  // Read-port signals
-  reg rvalid;
-  reg [ABITS:0] raddr, rplay;
-  wire [ABITS:0] raddr_next;
+  // Write- & Read- port signals
+  reg rvalid, wready;
+  reg [ABITS:0] waddr, raddr, rplay;
+  wire [ABITS:0] waddr_next, raddr_next;
+  wire last_w;
+  wire [MSB:0] data_w;
 
   // Packet address signals
-  reg  [ABITS:0] paddr;
+  reg [ABITS:0] paddr;
 
   // Transition signals
-  reg  [  ASB:0] level_q;
+  reg [ASB:0] level_q;
   wire fetch_w, store_w, match_w, chunk_w, frame_w, wfull_w, empty_w;
   wire reject_a, accept_a, finish_a, replay_a;
   wire [ABITS:0] level_w, waddr_w, raddr_w;
@@ -82,10 +81,8 @@ module packet_fifo #(
   wire xready;
   reg [MSB:0] xdata;
 
-
-  assign level_o = level_q;
-  assign ready_o = wready;
-
+  assign s_tready = wready;
+  assign level_o  = level_q;
 
   // -- FIFO Status Signals -- //
 
@@ -97,27 +94,72 @@ module packet_fifo #(
 
 
   // Accept/reject a packet-store
-  assign accept_a = ((SAVE_ON_LAST && valid_i && wready && last_i) || save_i) && !drop_i;
+  assign accept_a = ((SAVE_ON_LAST && s_tvalid && wready && s_tlast) || save_i) && !drop_i;
   assign reject_a = drop_i;  // ??
 
   // Advance/replace a packet-fetch
-  assign finish_a = ((NEXT_ON_LAST && valid_o && ready_i && last_o) || next_i) && !redo_i;
+  assign finish_a = ((NEXT_ON_LAST && m_tvalid && m_tready && m_tlast) || next_i) && !redo_i;
   assign replay_a = redo_i;
 
   // SRAM control & status signals
-  assign store_w  = valid_i && wready;
   assign match_w  = waddr[ASB:0] == raddr[ASB:0];
   assign wfull_w  = wrfull_curr || wrfull_next;
   assign empty_w  = rempty_curr || rempty_next;
 
-  assign level_w  = waddr_w[ASB:0] - raddr_w[ASB:0];
   assign waddr_w  = store_w ? waddr_next : waddr;
   assign raddr_w  = fetch_w ? raddr_next : raddr;
 
-
   // -- Write Port -- //
 
-  wire last_w = last_i || (SAVE_TO_LAST && save_i);
+  generate
+    if (LAST_ON_SAVE) begin : g_last_on_save
+
+      // Extra layer of registers, so that we can generate 'tlast' signals on
+      // 'save', while also supporting 'tkeep'. This is because 'save' may
+      // arrive when 'tvalid' is LO, or when 'tkeep' is LO, or there may not be
+      // a 'tlast', to trigger 'store_w' and 'accept_a'.
+
+      reg xvld, xlst, save;
+      reg [7:0] xdat;
+
+      assign store_w = xvld && wready && (s_tvalid && s_tkeep || xlst && SAVE_ON_LAST || save);
+      assign last_w  = xlst || (save && LAST_ON_SAVE);
+      assign data_w  = xdat;
+      assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0] + xvld;
+
+      always @(posedge clock) begin
+        if (reset) begin
+          save <= 1'b0;
+          xvld <= 1'b0;
+          xlst <= 1'b0;
+          xdat <= 'bx;
+        end else begin
+          save <= accept_a;
+
+          if (s_tvalid && wready && s_tkeep) begin
+            // Data captured, and we maintain one transfer outside of the FIFO,
+            // until either 'tlast' (and 'SAVE_ON_LAST) or 'save' asserts.
+            xvld <= 1'b1;
+            xlst <= s_tlast || LAST_ON_SAVE && save_i;
+            xdat <= s_tdata;
+          end else if (store_w) begin
+            // Data stored to SRAM, but no new data arrived, this cycle.
+            xvld <= 1'b0;
+            xlst <= 1'b0;
+            xdat <= 'bx;
+          end
+        end
+      end
+
+    end else begin : g_normal_save
+
+      assign store_w = s_tvalid && wready;
+      assign last_w  = s_tlast;
+      assign data_w  = s_tdata;
+      assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0];
+
+    end
+  endgenerate
 
   assign waddr_next = store_w ? waddr + 1 : waddr;
 
@@ -132,7 +174,7 @@ module packet_fifo #(
         waddr <= paddr;
       end else begin
         if (store_w) begin
-          sram[waddr[ASB:0]] <= STORE_LASTS != 0 ? {last_w, data_i} : data_i;
+          sram[waddr[ASB:0]] <= STORE_LASTS != 0 ? {last_w, data_w} : data_w;
         end
         waddr <= waddr_next;
       end
@@ -210,11 +252,11 @@ module packet_fifo #(
 
       // Suitable for Xilinx Distributed SRAM's, and similar, with fast, async
       // reads.
-      assign fetch_w = rvalid && ready_i;
+      assign fetch_w  = rvalid && m_tready;
 
-      assign valid_o = rvalid;
-      assign last_o  = data_w[WIDTH];
-      assign data_o  = data_w[MSB:0];
+      assign m_tvalid = rvalid;
+      assign m_tlast  = data_w[WIDTH];
+      assign m_tdata  = data_w[MSB:0];
 
     end // g_async
   else if (OUTREG > 0) begin : g_outregs
@@ -246,10 +288,10 @@ module packet_fifo #(
           .s_tlast (xlast),
           .s_tdata (xdata),
 
-          .m_tvalid(valid_o),
-          .m_tready(ready_i),
-          .m_tlast (last_o),
-          .m_tdata (data_o)
+          .m_tvalid(m_tvalid),
+          .m_tready(m_tready),
+          .m_tlast (m_tlast),
+          .m_tdata (m_tdata)
       );
 
     end  // g_outregs

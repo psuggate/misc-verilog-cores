@@ -71,15 +71,16 @@ module packet_fifo_tb;
       .redo_i (redo),
       .next_i (next),
 
-      .valid_i(w_vld),
-      .ready_o(w_rdy),
-      .last_i (w_lst),
-      .data_i (w_dat),
+      .s_tvalid(w_vld),
+      .s_tready(w_rdy),
+      .s_tlast (w_lst),
+      .s_tkeep (w_vld),
+      .s_tdata (w_dat),
 
-      .valid_o(r_vld),
-      .ready_i(r_rdy),
-      .last_o (r_lst),
-      .data_o (r_dat)
+      .m_tvalid(r_vld),
+      .m_tready(r_rdy),
+      .m_tlast (r_lst),
+      .m_tdata (r_dat)
   );
 
 

@@ -153,20 +153,21 @@ module sync_fifo_tb;
       .clock(clock),
       .reset(reset),
 
-      .drop_i (pw_drop),
-      .save_i (1'b0),
-      .redo_i (1'b0),
-      .next_i (1'b0),
+      .drop_i(pw_drop),
+      .save_i(1'b0),
+      .redo_i(1'b0),
+      .next_i(1'b0),
 
-      .valid_i(pw_valid),
-      .ready_o(pw_ready),
-      .last_i (pw_last),
-      .data_i (wr_data),
+      .s_tvalid(pw_valid),
+      .s_tready(pw_ready),
+      .s_tlast (pw_last),
+      .s_tkeep (pw_valid),
+      .s_tdata (wr_data),
 
-      .valid_o(pr_valid),
-      .last_o (pr_last),
-      .ready_i(ww_ready),
-      .data_o (pr_data)
+      .m_tvalid(pr_valid),
+      .m_tlast (pr_last),
+      .m_tready(ww_ready),
+      .m_tdata (pr_data)
   );
 
 
@@ -175,7 +176,7 @@ module sync_fifo_tb;
   ///
 
   // -- Run a Test -- //
-/*
+  /*
   task run_test;
     input [1:0] mode;
     input [31:0] limit;
