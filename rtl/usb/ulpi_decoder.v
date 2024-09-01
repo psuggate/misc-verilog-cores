@@ -25,13 +25,11 @@
  *    the end of a transfer when the total-length is a multiple of the maximum
  *    packet length !?
  */
-module ulpi_decoder
- #(
-   parameter USE_MAX_LENGTHS = 1,  // Todo
-   parameter MAX_BULK_LENGTH = 512,
-   parameter MAX_CTRL_LENGTH = 64
-   )                   
- (
+module ulpi_decoder #(
+    parameter USE_MAX_LENGTHS = 1,    // Todo
+    parameter MAX_BULK_LENGTH = 512,
+    parameter MAX_CTRL_LENGTH = 64
+) (
     input clock,
     input reset,
 
@@ -43,6 +41,7 @@ module ulpi_decoder
 
     output crc_error_o,
     output crc_valid_o,
+    output [10:0] sof_count_o,
     output sof_recv_o,
     output eop_recv_o,
     output dec_idle_o,
@@ -59,11 +58,11 @@ module ulpi_decoder
     input m_tready,
     output m_tkeep,
     output m_tlast,
-    output [3:0] m_tuser, // USB PID
+    output [3:0] m_tuser,  // USB PID
     output [7:0] m_tdata
 );
 
-`include "usb_defs.vh"
+  `include "usb_defs.vh"
 
   // -- Constants -- //
 
@@ -89,8 +88,9 @@ module ulpi_decoder
   // USB packet-receive signals
   reg tok_recv_q, tok_ping_q, hsk_recv_q, usb_recv_q, sof_recv_q, dec_actv_q;
   reg tvalid, tlast, tkeep;
-  reg [3:0] tuser;
-  reg [7:0] tdata;
+  reg [10:0] cnt_q;
+  reg [ 3:0] tuser;
+  reg [ 7:0] tdata;
 
   // End-of-Packet state registers
   reg eop_q, rcv_q;
@@ -105,6 +105,7 @@ module ulpi_decoder
 
   assign crc_error_o = crc_error_flag;
   assign crc_valid_o = crc_valid_flag;
+  assign sof_count_o = cnt_q;
   assign sof_recv_o = sof_recv_q;
   assign eop_recv_o = eop_q;
   assign dec_idle_o = ~cyc_q;
@@ -283,6 +284,10 @@ module ulpi_decoder
       end else if (tok_q) begin
         crc_error_flag <= rx_crc5_w != dat_q[7:3];
         crc_valid_flag <= rx_crc5_w == dat_q[7:3];
+      end else if (sof_q) begin
+        crc_error_flag <= rx_crc5_w != dat_q[7:3];
+        crc_valid_flag <= rx_crc5_w == dat_q[7:3];
+        cnt_q <= token_w;
       end
     end else begin
       crc_valid_flag <= 1'b0;
@@ -362,7 +367,7 @@ module ulpi_decoder
   localparam CBITS = $clog2(MAX_BULK_LENGTH);
   localparam CSB = CBITS - 1;
 
-  reg [CSB:0] len_q;
+  reg  [  CSB:0] len_q;
   wire [CBITS:0] len_w;
 
   assign len_w = len_q + 1;
@@ -392,10 +397,10 @@ module ulpi_decoder
       `USBPID_IN:    dbg_pid = "IN";
       `USBPID_SOF:   dbg_pid = "SOF";
       `USBPID_SETUP: dbg_pid = "SETUP";
-      `USBPID_DATA0: dbg_pid = "DATA0"; 
-      `USBPID_DATA1: dbg_pid = "DATA1"; 
-      `USBPID_DATA2: dbg_pid = "DATA2"; 
-      `USBPID_MDATA: dbg_pid = "MDATA"; 
+      `USBPID_DATA0: dbg_pid = "DATA0";
+      `USBPID_DATA1: dbg_pid = "DATA1";
+      `USBPID_DATA2: dbg_pid = "DATA2";
+      `USBPID_MDATA: dbg_pid = "MDATA";
       `USBPID_ACK:   dbg_pid = "ACK";
       `USBPID_NAK:   dbg_pid = "NAK";
       `USBPID_STALL: dbg_pid = "STALL";
@@ -408,7 +413,7 @@ module ulpi_decoder
     endcase
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
 endmodule  /* ulpi_decoder */

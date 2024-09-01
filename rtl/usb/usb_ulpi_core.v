@@ -9,6 +9,7 @@ module usb_ulpi_core #(
 
     // Debug-mode end-point, for reading telemetry
     parameter DEBUG = 0,
+    parameter USE_UART = 1,
     parameter [3:0] ENDPOINTD = 4'd3,
 
     parameter [15:0] VENDOR_ID = 16'hF4CE,
@@ -70,6 +71,9 @@ module usb_ulpi_core #(
   wire configured, conf_event;
   wire [2:0] conf_value;
 
+  wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tlast;
+  wire [7:0] x_tdata, y_tdata;
+
   // -- System Clocks & Resets -- //
 
   ulpi_reset #(
@@ -127,10 +131,10 @@ module usb_ulpi_core #(
       .blki_tlast_i (blki_tlast_i),
       .blki_tdata_i (blki_tdata_i),
 
-      .blkx_tvalid_i(blkx_tvalid_i),  // USB 'BULK IN' EP data-path
-      .blkx_tready_o(blkx_tready_o),
-      .blkx_tlast_i (blkx_tlast_i),
-      .blkx_tdata_i (blkx_tdata_i),
+      .blkx_tvalid_i(y_tvalid),  // USB 'BULK IN' EP data-path
+      .blkx_tready_o(y_tready),
+      .blkx_tlast_i (y_tlast),
+      .blkx_tdata_i (y_tdata),
 
       .blko_tvalid_o(blko_tvalid_o),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(blko_tready_i),
@@ -140,18 +144,36 @@ module usb_ulpi_core #(
 
   assign crc_error_o = U_USB1.crc_error_w;
 
+  // -- Route USB End-Point #3 -- //
+
+  generate
+    if (DEBUG == 0 || USE_UART == 1) begin : g_route_ep3
+
+      assign y_tvalid = blkx_tvalid_i;
+      assign blkx_tready_o = y_tready;
+      assign y_tlast = blkx_tlast_i;
+      assign y_tdata = blkx_tdata_i;
+
+    end else begin : g_debug_ep
+
+      assign blkx_tready_o = 1'b0;
+
+      assign y_tvalid = x_tvalid;
+      assign x_tready = y_tready;
+      assign y_tlast = x_tlast;
+      assign y_tdata = x_tdata;
+
+      assign uart_tx_o = 1'b1;
+
+    end
+  endgenerate  /* g_debug_ep */
+
+  // -- Telemetry Logging -- //
+
   generate
     if (DEBUG) begin : g_debug
 
-      reg [10:0] sof_q;
-      wire [10:0] tok_w = U_USB1.U_DEC1.token_w;
-      wire sof_w = U_USB1.sof_rx_recv_w;
-
-      always @(posedge clock) begin
-        if (sof_w) begin
-          sof_q <= tok_w;
-        end
-      end
+      wire [10:0] sof_w = U_USB1.sof_count_w;
 
       wire err_w = U_USB1.crc_error_w;
       wire [19:0] sig_w;
@@ -166,13 +188,9 @@ module usb_ulpi_core #(
       assign pid_w = U_USB1.U_PROTO1.pid_q;
 
       assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
-      assign ign_w = {crc_error_o, sof_q};  // 12b
+      assign ign_w = {crc_error_o, sof_w};  // 12b
 
       // Capture telemetry, so that it can be read back from EP1
-
-      wire x_tvalid, x_tready, x_tlast;
-      wire [7:0] x_tdata;
-
       axis_logger #(
           .SRAM_BYTES(2048),
           .FIFO_WIDTH(32),
@@ -193,6 +211,16 @@ module usb_ulpi_core #(
           .m_tdata (x_tdata),
           .m_tready(x_tready)
       );
+
+    end else begin
+
+      assign uart_tx_o = 1'b1;
+
+    end
+  endgenerate  /* !g_debug */
+
+  generate
+    if (USE_UART) begin : g_use_uart
 
       // -- Telemetry Read-Back Logic -- //
 
@@ -264,11 +292,7 @@ module usb_ulpi_core #(
           .prescale(UART_PRESCALE)
       );
 
-    end else begin
-
-      assign uart_tx_o = 1'b1;
-
     end
-  endgenerate  /* !g_debug */
+  endgenerate  /* g_use_uart */
 
 endmodule  /* usb_ulpi_core */

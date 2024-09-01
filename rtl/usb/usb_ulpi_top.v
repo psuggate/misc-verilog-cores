@@ -155,6 +155,7 @@ module usb_ulpi_top #(
   wire ep1_rdy_w, ep2_rdy_w, ep3_rdy_w, crc_error_w;
   wire conf_event_w, conf_error_w;
   wire [2:0] conf_value_w, stout_w;
+  wire [10:0] sof_count_w;
 
   wire usb_enum_w, locked, clock, reset;
   wire high_speed_w, usb_reset_w, timeout_w;
@@ -254,6 +255,7 @@ module usb_ulpi_top #(
       .ulpi_data(iob_dat_w),
 
       .crc_error_o(crc_error_w),
+      .sof_count_o(sof_count_w),
       .sof_recv_o (sof_rx_recv_w),
       .eop_recv_o (eop_rx_recv_w),
       .dec_actv_o (dec_actv_w),

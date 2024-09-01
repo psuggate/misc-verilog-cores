@@ -212,6 +212,7 @@ module usb_demo_top (
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
       .DEBUG(1),
+      .USE_UART(0),
       .ENDPOINTD(ENDPOINT3)
   ) U_USB1 (
       .clk_26(clk_26),

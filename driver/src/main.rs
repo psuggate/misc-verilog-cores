@@ -4,7 +4,7 @@ use rusb::Context;
 use simple_logger::SimpleLogger;
 use std::time::Duration;
 
-use driver::{axis_usb::*, tart_telemetry};
+use driver::{axis_usb::*, tart_logger, tart_telemetry};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -36,6 +36,9 @@ struct Args {
 
     #[arg(short, long, default_value = "false")]
     telemetry: bool,
+
+    #[arg(long, default_value = "false")]
+    logger: bool,
 
     /// Verbosity of generated output?
     #[arg(short, long, action = clap::ArgAction::Count)]
@@ -142,6 +145,10 @@ fn axis_usb(args: Args) -> Result<(), rusb::Error> {
 
     if args.telemetry {
         tart_telemetry(&mut axis_usb, args.verbose)?;
+    }
+
+    if args.logger {
+        tart_logger(&mut axis_usb, args.verbose)?;
     }
 
     Ok(())
