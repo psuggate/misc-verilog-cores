@@ -183,8 +183,12 @@ module usb_demo_top (
 
 `else  /* !__use_legacy_usb_core */
 
-  localparam ENDPOINT1 = 4'd2;
-  localparam ENDPOINT2 = 4'd1;
+  // localparam ENDPOINT1 = 4'd2;
+  // localparam ENDPOINT2 = 4'd1;
+
+  localparam ENDPOINT1 = 4'd1;
+  localparam ENDPOINT2 = 4'd2;
+  localparam ENDPOINT3 = 4'd3;
 
   wire conf_event;
   wire [2:0] usb_config;
@@ -206,7 +210,9 @@ module usb_demo_top (
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
       .ENDPOINT1(ENDPOINT1),
-      .ENDPOINT2(ENDPOINT2)
+      .ENDPOINT2(ENDPOINT2),
+      .DEBUG(1),
+      .ENDPOINTD(ENDPOINT3)
   ) U_USB1 (
       .clk_26(clk_26),
       .arst_n(rst_n),

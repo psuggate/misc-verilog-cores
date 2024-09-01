@@ -7,6 +7,10 @@ module usb_ulpi_core #(
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
 
+    // Debug-mode end-point, for reading telemetry
+    parameter DEBUG = 0,
+    parameter [3:0] ENDPOINTD = 4'd3,
+
     parameter [15:0] VENDOR_ID = 16'hF4CE,
     parameter integer VENDOR_LENGTH = 19,
     localparam integer VSB = VENDOR_LENGTH * 8 - 1,
@@ -98,11 +102,11 @@ module usb_ulpi_core #(
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
+      .ENDPOINT3(ENDPOINTD),
       .USE_EP2_IN(1),
-      .USE_EP3_IN(1),
+      .USE_EP3_IN(DEBUG),
       .USE_EP1_OUT(1)
   ) U_USB1 (
-      // .areset_n       (ulpi_rst),
       .areset_n(~reset),
 
       .ulpi_clock_i(clock),
@@ -134,8 +138,137 @@ module usb_ulpi_core #(
       .blko_tdata_o (blko_tdata_o)
   );
 
-  assign uart_tx_o   = 1'b1;
   assign crc_error_o = U_USB1.crc_error_w;
 
+  generate
+    if (DEBUG) begin : g_debug
+
+      reg [10:0] sof_q;
+      wire [10:0] tok_w = U_USB1.U_DEC1.token_w;
+      wire sof_w = U_USB1.sof_rx_recv_w;
+
+      always @(posedge clock) begin
+        if (sof_w) begin
+          sof_q <= tok_w;
+        end
+      end
+
+      wire err_w = U_USB1.crc_error_w;
+      wire [19:0] sig_w;
+      wire [11:0] ign_w;
+      wire [3:0] ep1_w, ep2_w, ep3_w, pid_w;
+      wire [2:0] st_w = U_USB1.stout_w;
+      wire re_w = U_USB1.RxEvent == 2'b01;
+
+      assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
+      assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
+      assign ep3_w = {U_USB1.ep3_err_w, U_USB1.ep3_sel_w, U_USB1.ep3_par_w, U_USB1.ep3_rdy_w};
+      assign pid_w = U_USB1.U_PROTO1.pid_q;
+
+      assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
+      assign ign_w = {crc_error_o, sof_q};  // 12b
+
+      // Capture telemetry, so that it can be read back from EP1
+
+      wire x_tvalid, x_tready, x_tlast;
+      wire [7:0] x_tdata;
+
+      axis_logger #(
+          .SRAM_BYTES(2048),
+          .FIFO_WIDTH(32),
+          .SIG_WIDTH(20),
+          .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
+      ) U_TELEMETRY1 (
+          .clock(clock),
+          .reset(reset),
+
+          .enable_i(configured_o),
+          .change_i(sig_w),
+          .ignore_i(ign_w),
+          .level_o (),
+
+          .m_tvalid(x_tvalid),  // AXI4-Stream for telemetry data
+          .m_tlast (x_tlast),
+          .m_tkeep (),
+          .m_tdata (x_tdata),
+          .m_tready(x_tready)
+      );
+
+      // -- Telemetry Read-Back Logic -- //
+
+      localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
+
+      reg tstart, send_q;
+      wire tcycle_w, tx_busy_w, rx_busy_w;
+      wire u_tvalid, u_tready, r_tvalid, r_tready;
+      wire [7:0] u_tdata, r_tdata;
+
+      always @(posedge clock) begin
+        send_q <= ~send_ni & ~tcycle_w & ~tx_busy_w;
+
+        if (!tcycle_w && (send_q || r_tvalid && r_tdata == "a")) begin
+          tstart <= 1'b1;
+        end else begin
+          tstart <= 1'b0;
+        end
+      end
+
+      // Convert 32b telemetry captures to ASCII hexadecimal //
+      hex_dump #(
+          .UNICODE(0),
+          .BLOCK_SRAM(1)
+      ) U_HEXDUMP1 (
+          .clock(clock),
+          .reset(reset),
+
+          .start_dump_i(tstart),
+          .is_dumping_o(tcycle_w),
+          .fifo_level_o(),
+
+          .s_tvalid(x_tvalid),
+          .s_tready(x_tready),
+          .s_tlast (x_tlast),
+          .s_tkeep (1'b1),
+          .s_tdata (x_tdata),
+
+          .m_tvalid(u_tvalid),
+          .m_tready(u_tready),
+          .m_tlast (),
+          .m_tkeep (),
+          .m_tdata (u_tdata)
+      );
+
+      // Use the FTDI USB UART for dumping the telemetry (as ASCII hex) //
+      uart #(
+          .DATA_WIDTH(8)
+      ) U_UART1 (
+          .clk(clock),
+          .rst(reset),
+
+          .s_axis_tvalid(u_tvalid && !tx_busy_w),
+          .s_axis_tready(u_tready),
+          .s_axis_tdata (u_tdata),
+
+          .m_axis_tvalid(r_tvalid),
+          .m_axis_tready(r_tready),
+          .m_axis_tdata (r_tdata),
+
+          .rxd(uart_rx_i),
+          .txd(uart_tx_o),
+
+          .rx_busy(rx_busy_w),
+          .tx_busy(tx_busy_w),
+          .rx_overrun_error(),
+          .rx_frame_error(),
+
+          .prescale(UART_PRESCALE)
+      );
+
+    end else begin
+
+      assign uart_tx_o = 1'b1;
+
+    end
+  endgenerate  /* !g_debug */
 
 endmodule  /* usb_ulpi_core */

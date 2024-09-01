@@ -11,7 +11,8 @@ pub const TRANSFER_LENGTH_REGISTER: u16 = 0x01u16;
 pub struct AxisUSB {
     pub handle: DeviceHandle<Context>,
     interfaces: Vec<u8>,
-    endpoint: Endpoint,
+    ep_in: Endpoint,
+    ep_out: Endpoint,
     pub telemetry: Endpoint,
     vendor: String,
     label: String,
@@ -67,14 +68,15 @@ impl AxisUSB {
             config: ep_in.config,
             interface: ep_in.interface,
             setting: ep_in.setting,
-            address: 0x82u8,
+            address: 0x83u8,
             has_driver: false,
         };
 
         Ok(Self {
             handle,
             interfaces,
-            endpoint: ep_in,
+            ep_in,
+            ep_out,
             telemetry: ex_in,
             vendor,
             label,
@@ -131,7 +133,7 @@ impl AxisUSB {
         debug!("READ (timeout: {} ms)", timeout.as_millis() as u32);
         let len = self
             .handle
-            .read_bulk(self.endpoint.read_address(), &mut buf, timeout)?;
+            .read_bulk(self.ep_in.read_address(), &mut buf, timeout)?;
         debug!("RESPONSE (bytes = {})", len);
         Ok(Vec::from(&buf[0..len]))
     }
@@ -140,16 +142,16 @@ impl AxisUSB {
         let len: u16 = bytes.len() as u16;
         debug!("WRITE (bytes = {})", len);
         self.handle
-            .write_bulk(self.endpoint.write_address(), bytes, DEFAULT_TIMEOUT)
+            .write_bulk(self.ep_out.write_address(), bytes, DEFAULT_TIMEOUT)
     }
 }
 
 impl Drop for AxisUSB {
     fn drop(&mut self) {
-        if self.endpoint.has_driver {
+        if self.ep_in.has_driver {
             warn!("Re-attaching kernel driver !!");
             self.handle
-                .attach_kernel_driver(self.endpoint.interface)
+                .attach_kernel_driver(self.ep_in.interface)
                 .unwrap();
         }
     }

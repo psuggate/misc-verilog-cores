@@ -152,9 +152,9 @@ module usb_ulpi_top #(
 
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
-  wire space_avail_w, ep2_packet_w, ep3_packet_w, crc_error_w;
+  wire ep1_rdy_w, ep2_rdy_w, ep3_rdy_w, crc_error_w;
   wire conf_event_w, conf_error_w;
-  wire [2:0] conf_value_w;
+  wire [2:0] conf_value_w, stout_w;
 
   wire usb_enum_w, locked, clock, reset;
   wire high_speed_w, usb_reset_w, timeout_w;
@@ -367,6 +367,7 @@ module usb_ulpi_top #(
 
       .RxEvent(RxEvent),
       .timedout_o(timeout_w),
+      .state_o(stout_w),
 
       .set_conf_i (conf_event_w),
       .clr_conf_i (conf_error_w),
@@ -398,7 +399,7 @@ module usb_ulpi_top #(
       .ep0_finish_i(stdreq_finish_w),
 
       .ep1_select_o(ep1_sel_w),
-      .ep1_rx_rdy_i(space_avail_w),
+      .ep1_rx_rdy_i(ep1_rdy_w),
       .ep1_tx_rdy_i(1'b0),
       .ep1_parity_i(ep1_par_w),
       .ep1_finish_o(ep1_ack_w),
@@ -407,7 +408,7 @@ module usb_ulpi_top #(
 
       .ep2_select_o(ep2_sel_w),
       .ep2_rx_rdy_i(1'b0),
-      .ep2_tx_rdy_i(ep2_packet_w),
+      .ep2_tx_rdy_i(ep2_rdy_w),
       .ep2_parity_i(ep2_par_w),
       .ep2_finish_o(ep2_ack_w),
       .ep2_cancel_o(ep2_err_w),
@@ -415,7 +416,7 @@ module usb_ulpi_top #(
 
       .ep3_select_o(ep3_sel_w),
       .ep3_rx_rdy_i(1'b0),
-      .ep3_tx_rdy_i(ep3_packet_w),
+      .ep3_tx_rdy_i(ep3_rdy_w),
       .ep3_parity_i(ep3_par_w),
       .ep3_finish_o(ep3_ack_w),
       .ep3_cancel_o(ep3_err_w),
@@ -582,9 +583,9 @@ module usb_ulpi_top #(
       .clr_conf_i(conf_error_w),
 
       .selected_i(ep1_sel_w),
-      .ack_sent_i(ep1_ack_w),      // Todo ...
+      .ack_sent_i(ep1_ack_w),  // Todo ...
       .rx_error_i(ep1_err_w),
-      .ep_ready_o(space_avail_w),
+      .ep_ready_o(ep1_rdy_w),
       .stalled_o (ep1_hlt_w),
       .parity_o  (ep1_par_w),
 
@@ -612,7 +613,7 @@ module usb_ulpi_top #(
       .selected_i(ep2_sel_w),
       .ack_recv_i(ep2_ack_w),
       .timedout_i(ep2_err_w),
-      .ep_ready_o(ep2_packet_w),
+      .ep_ready_o(ep2_rdy_w),
       .stalled_o (ep2_hlt_w),
       .parity_o  (ep2_par_w),
       .s_tvalid  (blki_tvalid_i),
@@ -638,7 +639,7 @@ module usb_ulpi_top #(
       .selected_i(ep3_sel_w),
       .ack_recv_i(ep3_ack_w),
       .timedout_i(ep3_err_w),
-      .ep_ready_o(ep3_packet_w),
+      .ep_ready_o(ep3_rdy_w),
       .stalled_o (ep3_hlt_w),
       .parity_o  (ep3_par_w),
       .s_tvalid  (blkx_tvalid_i),

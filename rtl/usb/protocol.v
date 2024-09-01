@@ -31,6 +31,7 @@ module protocol #(
 
     input [1:0] RxEvent,
     output timedout_o,
+    output [2:0] state_o,
 
     input set_conf_i,
     input clr_conf_i,
@@ -130,6 +131,7 @@ module protocol #(
   reg [5:0] state;
   reg timeout_q = 1'b0;
   wire seq_w, par_w;
+  reg [2:0] stout;
 
   // Multiplexor Signals, for DATAx -> Host
   reg mux_q;
@@ -137,8 +139,9 @@ module protocol #(
 
   // -- Output Signal Assignments -- //
 
-  assign timedout_o   = timeout_q;
-  assign hsk_send_o   = state == ST_RESP;
+  assign timedout_o = timeout_q;
+  assign hsk_send_o = state == ST_RESP;
+  assign state_o = stout;
 
   assign mux_enable_o = mux_q;
   assign mux_select_o = sel_q;
@@ -356,6 +359,7 @@ module protocol #(
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_IDLE;
+      stout <= 3'd0;
       pid_q <= 'bx;
       tag_q <= 1'b0;
       epg_q <= 1'b0;
@@ -372,11 +376,13 @@ module protocol #(
               pid_q <= 'bx;
               if (tok_endp_i == 4'h0) begin
                 state <= ST_RECV;
+                stout <= 3'd1;
                 tag_q <= 1'b0;
                 epg_q <= 1'b1;
               end else begin
                 // Indicate that operation is unsupported (by timing-out)
                 state <= ST_WAIT;
+                stout <= 3'd5;
                 tag_q <= 1'b1;
                 epg_q <= 1'b0;
               end
@@ -388,15 +394,18 @@ module protocol #(
                 // EP0 CONTROL transfers always succeed; OR,
                 // We have space, so RX some data
                 state <= ST_RECV;
+                stout <= 3'd1;
                 tag_q <= 1'b0;
                 epg_q <= 1'b1;
               end else if (out_sel_w) begin
                 // No space, so we drop then 'NAK'
                 state <= ST_DROP;
+                stout <= 3'd3;
                 tag_q <= 1'b0;
                 epg_q <= 1'b0;
               end else begin
                 state <= ST_WAIT;
+                stout <= 3'd5;
                 tag_q <= 1'b1;
                 epg_q <= 1'b0;
               end
@@ -408,16 +417,19 @@ module protocol #(
                 // Let EP0 sort out this CONTROL transfer; OR,
                 // We have at least one packet ready to TX
                 state <= ST_SEND;
+                stout <= 3'd4;
                 tag_q <= 1'b0;
                 epg_q <= 1'b1;
               end else if (in_sel_w) begin
                 // Selected, but no packet is ready, so NAK
                 state <= ST_RESP;
+                stout <= 3'd2;
                 tag_q <= 1'b0;
                 epg_q <= 1'b1;
               end else begin
                 // Invalid (or halted) end-point, so wait for timeout
                 state <= ST_WAIT;
+                stout <= 3'd5;
                 tag_q <= 1'b1;
                 epg_q <= 1'b0;
               end
@@ -425,6 +437,7 @@ module protocol #(
 
             `USBPID_PING: begin
               state <= ST_RESP;
+              stout <= 3'd2;
               pid_q <= ep0_select_i || out_rdy_q ? `USBPID_ACK : `USBPID_NAK;
               tag_q <= 1'b0;
               epg_q <= 1'b1;
@@ -433,6 +446,7 @@ module protocol #(
             // Ignore, and impossible to reach here
             default: begin
               state <= state;
+              stout <= 3'd7;
               pid_q <= 'bx;
               tag_q <= 1'bx;
               epg_q <= 1'bx;
@@ -450,11 +464,13 @@ module protocol #(
             // If parity-bits sequence error, we ignore the DATAx, but ACK response,
             // or else receive as usual.
             state <= par_q ? ST_RESP : ST_IDLE;
+            stout <= par_q ? 3'd2 : 3'd0;
             epg_q <= par_q;
           end else if (timeout_q || crc_error_i) begin
             // OUT token to DATAx packet timeout
             // Ignore on data corruption, and host will retry
             state <= ST_IDLE;
+            stout <= 3'd0;
             epg_q <= 1'b0;
           end
         end
@@ -467,6 +483,7 @@ module protocol #(
           if (usb_sent_i) begin
             // Waiting for endpoint to send 'DATAx', after an 'IN'
             state <= ST_WAIT;
+            stout <= 3'd5;
             tag_q <= 1'b1;
           end else if (timeout_q) begin
             // Internal error, as a device end-point timed-out, after it signalled
@@ -475,6 +492,7 @@ module protocol #(
             // Todo:
             //  - halt failing end-points ??
             state <= ST_IDLE;
+            stout <= 3'd0;
             tag_q <= 1'b0;
           end
         end
@@ -488,6 +506,7 @@ module protocol #(
           if (hsk_sent_i || timeout_q) begin
             // Sent 'ACK/NAK/NYET/STALL' in response to 'DATAx' & 'PING'
             state <= ST_IDLE;
+            stout <= 3'd0;
           end
         end
 
@@ -499,6 +518,7 @@ module protocol #(
             // Waiting for host to send 'ACK', or waiting for bus turnaround timer
             // to elapse, for an unsupported request.
             state <= ST_IDLE;
+            stout <= 3'd0;
           end
         end
 
@@ -509,13 +529,16 @@ module protocol #(
           epg_q <= 1'b0;
           if (eop_recv_i) begin
             state <= ST_RESP;
+            stout <= 3'd2;
           end else if (timeout_q) begin
             state <= ST_IDLE;
+            stout <= 3'd0;
           end
         end
 
         default: begin
           state <= 'bx;
+          stout <= 3'd6;
           pid_q <= 'bx;
           tag_q <= 1'bx;
           epg_q <= 1'bx;
