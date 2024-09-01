@@ -43,9 +43,6 @@ module vpi_usb_ulpi_tb;
 
   // -- Simulation Signals -- //
 
-  wire bulk_start_w, bulk_cycle_w, bulk_fetch_w, bulk_store_w;
-  wire [3:0] bulk_endpt_w;
-
   wire blki_tvalid_w, blki_tready_w, blki_tlast_w;
   wire blko_tvalid_w, blko_tready_w, blko_tlast_w;
   wire [7:0] blki_tdata_w, blko_tdata_w;
@@ -54,13 +51,8 @@ module vpi_usb_ulpi_tb;
   wire ulpi_dir, ulpi_nxt, ulpi_stp;
   wire [7:0] ulpi_data;
 
-  reg enumerate;
-  wire enum_done, configured, conf_event, usb_idle_w;
+  wire configured, conf_event;
   wire [2:0] usb_config;
-
-  wire host_usb_sof_w, host_crc_err_w;
-  wire dev_usb_sof_w, dev_crc_err_w;
-
 
   reg [3:0] areset_n;
   wire arst_nw = areset_n[3];
@@ -113,14 +105,14 @@ module vpi_usb_ulpi_tb;
   /**
    * Wrapper to the VPI model of a USB host, for providing the stimulus.
    */
-  ulpi_shell U_ULPI_HOST1
-    ( .clock(usb_clock),
+  ulpi_shell U_ULPI_HOST1 (
+      .clock(usb_clock),
       .rst_n(usb_rst_n),
-      .dir(ulpi_dir),
-      .nxt(ulpi_nxt),
-      .stp(ulpi_stp),
-      .data(ulpi_data)
-      );
+      .dir  (ulpi_dir),
+      .nxt  (ulpi_nxt),
+      .stp  (ulpi_stp),
+      .data (ulpi_data)
+  );
 
 
   // -- System Clocks & Resets -- //
@@ -129,16 +121,16 @@ module vpi_usb_ulpi_tb;
       .PHASE("0000"),  // Note: timing-constraints used instead
       .PLLEN(0)
   ) U_RESET1 (
-      .areset_n  (arst_n),
-      .ulpi_clk  (clock),
-      .sys_clock (clk25),
+      .areset_n (arst_n),
+      .ulpi_clk (clock),
+      .sys_clock(clk25),
 
-      .ulpi_rst_n(usb_rst_n),// Active LO
+      .ulpi_rst_n(usb_rst_n),  // Active LO
       .pll_locked(locked),
 
       // .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
-      .usb_reset (reset),   // Active HI
-      .ddr_clock ()         // 120 MHz, PLL output, phase-shifted
+      .usb_reset(reset),  // Active HI
+      .ddr_clock()        // 120 MHz, PLL output, phase-shifted
   );
 
 
@@ -146,51 +138,106 @@ module vpi_usb_ulpi_tb;
   // Cores Under New Tests
   ///
 
-`define __swap_endpoint_directions
-`ifdef  __swap_endpoint_directions
+  wire x_tvalid, x_tready, x_tlast;
+  wire [7:0] x_tdata;
+
+  `define __swap_endpoint_directions
+`ifdef __swap_endpoint_directions
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
-`else   /* !__swap_endpoint_directions */
+`else  /* !__swap_endpoint_directions */
   localparam ENDPOINT1 = 4'd1;
   localparam ENDPOINT2 = 4'd2;
 `endif  /* !__swap_endpoint_directions */
 
   usb_ulpi_top #(
-      .ENDPOINT1(ENDPOINT1),
-      .ENDPOINT2(ENDPOINT2),
+      .ENDPOINT1  (ENDPOINT1),
+      .ENDPOINT2  (ENDPOINT2),
       .USE_EP2_IN (1),
       .USE_EP3_IN (1),
       .USE_EP1_OUT(1)
   ) U_USB1 (
-      .areset_n       (usb_rst_n),
+      .areset_n(usb_rst_n),
 
-      .ulpi_clock_i   (usb_clock),
-      .ulpi_dir_i     (ulpi_dir),
-      .ulpi_nxt_i     (ulpi_nxt),
-      .ulpi_stp_o     (ulpi_stp),
-      .ulpi_data_io   (ulpi_data),
+      .ulpi_clock_i(usb_clock),
+      .ulpi_dir_i  (ulpi_dir),
+      .ulpi_nxt_i  (ulpi_nxt),
+      .ulpi_stp_o  (ulpi_stp),
+      .ulpi_data_io(ulpi_data),
 
-      .usb_clock_o    (dev_clock),
-      .usb_reset_o    (dev_reset),
+      .usb_clock_o(dev_clock),
+      .usb_reset_o(dev_reset),
 
-      .configured_o   (configured),
-      .conf_event_o   (conf_event),
-      .conf_value_o   (usb_config),
+      .configured_o(configured),
+      .conf_event_o(conf_event),
+      .conf_value_o(usb_config),
 
-      .blki_tvalid_i  (blki_tvalid_w),   // USB 'BULK IN' EP data-path
-      .blki_tready_o  (blki_tready_w),
-      .blki_tlast_i   (blki_tlast_w),
-      .blki_tdata_i   (blki_tdata_w),
+      .blki_tvalid_i(blki_tvalid_w),  // USB 'BULK IN' EP data-path
+      .blki_tready_o(blki_tready_w),
+      .blki_tlast_i (blki_tlast_w),
+      .blki_tdata_i (blki_tdata_w),
 
-      .blkx_tvalid_i  (blko_tvalid_w),   // USB 'BULK IN' EP data-path
-      .blkx_tready_o  (blko_tready_w),
-      .blkx_tlast_i   (blko_tlast_w),
-      .blkx_tdata_i   (blko_tdata_w),
+`ifdef __debug_debug_debug
 
-      .blko_tvalid_o  (blko_tvalid_w),   // USB 'BULK OUT' EP data-path
-      .blko_tready_i  (blko_tready_w),
-      .blko_tlast_o   (blko_tlast_w),
-      .blko_tdata_o   (blko_tdata_w)
+      .blkx_tvalid_i(blko_tvalid_w),  // USB 'BULK IN' EP data-path
+      .blkx_tready_o(blko_tready_w),
+      .blkx_tlast_i (blko_tlast_w),
+      .blkx_tdata_i (blko_tdata_w),
+
+`else  /* !__debug_debug_debug */
+
+      .blkx_tvalid_i(x_tvalid),  // USB 'BULK IN' EP data-path
+      .blkx_tready_o(x_tready),
+      .blkx_tlast_i (x_tlast),
+      .blkx_tdata_i (x_tdata),
+
+`endif  /* !__debug_debug_debug */
+
+      .blko_tvalid_o(blko_tvalid_w),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(blko_tready_w),
+      .blko_tlast_o (blko_tlast_w),
+      .blko_tdata_o (blko_tdata_w)
+  );
+
+  // -- Debug Telemetry Logging and Output -- //
+
+  wire [10:0] sof_w = U_USB1.sof_count_w;
+
+  wire err_w = U_USB1.crc_error_w;
+  wire [19:0] sig_w;
+  wire [11:0] ign_w;
+  wire [3:0] ep1_w, ep2_w, ep3_w, pid_w;
+  wire [2:0] st_w = U_USB1.stout_w;
+  wire re_w = U_USB1.RxEvent == 2'b01;
+
+  assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
+  assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
+  assign ep3_w = {U_USB1.ep3_err_w, U_USB1.ep3_sel_w, U_USB1.ep3_par_w, U_USB1.ep3_rdy_w};
+  assign pid_w = U_USB1.U_PROTO1.pid_q;
+
+  assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
+  assign ign_w = {err_w, sof_w};  // 12b
+
+  // Capture telemetry, so that it can be read back from EP1
+  axis_logger #(
+      .SRAM_BYTES(2048),
+      .FIFO_WIDTH(32),
+      .SIG_WIDTH(20),
+      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
+  ) U_TELEMETRY1 (
+      .clock(dev_clock),
+      .reset(dev_reset),
+
+      .enable_i(configured),
+      .change_i(sig_w),
+      .ignore_i(ign_w),
+      .level_o (),
+
+      .m_tvalid(x_tvalid),  // AXI4-Stream for telemetry data
+      .m_tlast (x_tlast),
+      .m_tkeep (),
+      .m_tdata (x_tdata),
+      .m_tready(x_tready)
   );
 
 

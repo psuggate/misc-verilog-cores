@@ -8,12 +8,12 @@ module axis_logger #(
     parameter FIFO_WIDTH = 32,
     localparam MSB = FIFO_WIDTH - 1,
 
-    parameter FIFO_DEPTH = SRAM_BYTES / FIFO_WIDTH,
+    parameter FIFO_DEPTH = SRAM_BYTES / (FIFO_WIDTH >> 3),
     localparam FBITS = $clog2(FIFO_DEPTH),
     localparam FSB = FBITS - 1,
 
-    parameter KEEP_ENABLE = 0,
-    parameter KEEP_WIDTH = FIFO_WIDTH / 4,
+    parameter KEEP_ENABLE = 1,
+    parameter KEEP_WIDTH = FIFO_WIDTH / 8,
     localparam KSB = KEEP_WIDTH - 1,
 
     // Number of samples per 'tlast'
@@ -34,7 +34,7 @@ module axis_logger #(
     input enable_i,
     input [SSB:0] change_i,
     input [ISB:0] ignore_i,
-    output [FSB:0] level_o,
+    output [FBITS:0] level_o,
 
     output m_tvalid,
     input m_tready,
@@ -48,16 +48,17 @@ module axis_logger #(
   reg  [  SSB:0] prev_q;
   reg  [  CSB:0] count;
   wire [CBITS:0] cnext;
-  wire c_tvalid_w, c_tready_w, c_tlast_w;
-  wire x_tvalid_w, x_tready_w, x_tlast_w;
-  wire [KSB:0] c_tkeep_w, x_tkeep_w;
-  wire [MSB:0] c_tdata_w, x_tdata_w;
+  wire c_tvalid, c_tready, c_tlast;
+  wire x_tvalid, x_tready, x_tlast;
+  wire [KSB:0] c_tkeep, x_tkeep;
+  wire [MSB:0] c_tdata, x_tdata;
 
   assign cnext = count + {CZERO, 1'b1};
 
-  assign c_tvalid_w = change_i != prev_q;
-  assign c_tlast_w = cnext[CBITS];
-  assign c_tdata_w = {ignore_i, change_i};
+  assign c_tvalid = change_i != prev_q;
+  assign c_tkeep = {KEEP_WIDTH{1'b1}};
+  assign c_tlast = cnext[CBITS];
+  assign c_tdata = {ignore_i, change_i};
 
   // -- Telemetry Framer -- //
 
@@ -68,7 +69,7 @@ module axis_logger #(
 
     if (reset) begin
       count <= CZERO;
-    end else if (c_tvalid_w) begin
+    end else if (c_tvalid) begin
       count <= cnext[CSB:0];
     end
   end
@@ -94,26 +95,26 @@ module axis_logger #(
       .USER_BAD_FRAME_MASK(0),
       .DROP_BAD_FRAME(0),
       .DROP_WHEN_FULL(0)
-  ) U_BULK_FIFO0 (
+  ) U_FIFO4 (
       .clk(clock),
       .rst(reset),
 
-      .s_axis_tvalid(c_tvalid_w),
-      .s_axis_tready(c_tready_w),
-      .s_axis_tkeep(c_tkeep_w),
-      .s_axis_tlast(c_tlast_w),
-      .s_axis_tdata(c_tdata_w),  // AXI input
+      .s_axis_tvalid(c_tvalid),
+      .s_axis_tready(c_tready),
+      .s_axis_tkeep(c_tkeep),
+      .s_axis_tlast(c_tlast),
+      .s_axis_tdata(c_tdata),  // AXI input
       .s_axis_tid(1'b0),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
 
       .pause_req(1'b0),
 
-      .m_axis_tvalid(x_tvalid_w),
-      .m_axis_tready(x_tready_w),
-      .m_axis_tkeep(x_tkeep_w),
-      .m_axis_tlast(x_tlast_w),
-      .m_axis_tdata(x_tdata_w),  // AXI output
+      .m_axis_tvalid(x_tvalid),
+      .m_axis_tready(x_tready),
+      .m_axis_tkeep(x_tkeep),
+      .m_axis_tlast(x_tlast),
+      .m_axis_tdata(x_tdata),  // AXI output
       .m_axis_tid(),
       .m_axis_tdest(),
       .m_axis_tuser(),
@@ -126,7 +127,7 @@ module axis_logger #(
 
   axis_adapter #(
       .S_DATA_WIDTH(FIFO_WIDTH),
-      .S_KEEP_ENABLE(KEEP_WIDTH),
+      .S_KEEP_ENABLE(KEEP_ENABLE),
       .S_KEEP_WIDTH(KEEP_WIDTH),
       .M_DATA_WIDTH(8),
       .M_KEEP_ENABLE(KEEP_ENABLE),
@@ -137,15 +138,15 @@ module axis_logger #(
       .DEST_WIDTH(1),
       .USER_ENABLE(0),
       .USER_WIDTH(1)
-  ) U_ADAPTER0 (
+  ) U_ADAPT0 (
       .clk(clock),
       .rst(reset),
 
-      .s_axis_tdata(x_tdata_w),  // AXI input
-      .s_axis_tkeep(x_tkeep_w),
-      .s_axis_tvalid(x_tvalid_w),
-      .s_axis_tready(x_tready_w),
-      .s_axis_tlast(x_tlast_w),
+      .s_axis_tdata(x_tdata),  // AXI input
+      .s_axis_tkeep(x_tkeep),
+      .s_axis_tvalid(x_tvalid),
+      .s_axis_tready(x_tready),
+      .s_axis_tlast(x_tlast),
       .s_axis_tid(1'b0),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),

@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Aug 31 04:49:01 2024
+[*] Sun Sep  1 04:39:18 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sat Aug 31 04:47:21 2024"
-[dumpfile_size] 1103884
+[dumpfile_mtime] "Sun Sep  1 04:37:46 2024"
+[dumpfile_size] 1538694
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 23933800
+[timestart] 32303800
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 24560000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 32930000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
 [signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 861
+[sst_vpaned_height] 360
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -51,7 +51,7 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.stalled_o
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.dbg_state[39:0]
-@800200
+@c00200
 -IO
 @28
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.s_tvalid
@@ -66,7 +66,7 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tready
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tlast
 @22
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tdata[7:0]
-@1000200
+@1401200
 -IO
 @c00200
 -Internal
@@ -192,7 +192,7 @@ vpi_usb_ulpi_tb.U_USB1.U_DEC1.sof_recv_o
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_recv_o
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.crc_error_o
-@c00201
+@c00200
 -Internal
 @28
 [color] 3
@@ -209,7 +209,13 @@ vpi_usb_ulpi_tb.U_USB1.U_DEC1.m_tuser[3:0]
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.pid_vld_w
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_DEC1.hsk_q
-@1401201
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.sof_q
+@22
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.dat_q[7:0]
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.out_q[7:0]
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.token_w[10:0]
+vpi_usb_ulpi_tb.U_USB1.U_DEC1.rx_crc5_w[4:0]
+@1401200
 -Internal
 @1000200
 -Decoder
@@ -383,12 +389,5 @@ vpi_usb_ulpi_tb.U_USB1.stdreq_tlast_w
 vpi_usb_ulpi_tb.U_USB1.stdreq_tdata_w[7:0]
 @1401200
 -MUX1
-@28
-vpi_usb_ulpi_tb.blko_tvalid_w
-vpi_usb_ulpi_tb.blko_tready_w
-vpi_usb_ulpi_tb.blko_tkeep_w
-vpi_usb_ulpi_tb.blko_tlast_w
-@22
-vpi_usb_ulpi_tb.blko_tdata_w[7:0]
 [pattern_trace] 1
 [pattern_trace] 0
