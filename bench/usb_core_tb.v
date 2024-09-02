@@ -242,13 +242,6 @@ module usb_core_tb;
 
   assign skeep = svalid;
 
-/*
-  // Salad days
-  always @(negedge usb_clock) begin
-    $ulpi_step(usb_clock, usb_rst_n, ulpi_dir, ulpi_nxt, ulpi_stp, ulpi_data);
-  end
-*/
-
   ulpi_axis_bridge #(
       .PIPELINED  (PIPELINED),
       .EP1_CONTROL(0),

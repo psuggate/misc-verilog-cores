@@ -172,10 +172,12 @@ module protocol #(
   // -- End-Point Enabled/Stalled Registers -- //
 
   always @(posedge clock) begin
-    if (reset || clr_conf_i || ep1_halted_i) begin
+    if (reset || clr_conf_i) begin
+      // if (reset || clr_conf_i || ep1_halted_i) begin
       {ep4_en, ep3_en, ep2_en, ep1_en} <= 4'h0;
     end else if (set_conf_i) begin
-      {ep4_en, ep3_en, ep2_en, ep1_en} <= {EP4_EN[0], EP3_EN[0], EP2_EN[0], EP1_EN[0]};
+      // {ep4_en, ep3_en, ep2_en, ep1_en} <= {EP4_EN[0], EP3_EN[0], EP2_EN[0], EP1_EN[0]};
+      {ep4_en, ep3_en, ep2_en, ep1_en} <= {EP4_EN, EP3_EN, EP2_EN, EP1_EN};
     end
   end
 

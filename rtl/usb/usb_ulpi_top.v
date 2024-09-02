@@ -26,8 +26,7 @@ module usb_ulpi_top #(
     parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
 ) (
     // Global, asynchronous reset & ULPI PHY reset
-    input  areset_n,
-    output reset_no,
+    input areset_n,
 
     // UTMI Low Pin Interface (ULPI)
     input ulpi_clock_i,
@@ -41,6 +40,7 @@ module usb_ulpi_top #(
     output usb_reset_o,  // USB core is in reset state
 
     output configured_o,
+    output high_speed_o,
     output conf_event_o,
     output [2:0] conf_value_o,
 
@@ -197,6 +197,7 @@ module usb_ulpi_top #(
 
   assign dec_tready_w = 1'b1;
 
+  assign high_speed_o = high_speed_w;
   assign conf_event_o = conf_event_w;
   assign conf_value_o = conf_value_w;
 
@@ -230,7 +231,9 @@ module usb_ulpi_top #(
       .high_speed_o (high_speed_w),
       .usb_reset_o  (usb_reset_w),
       .ulpi_rx_cmd_o(),
+      .ulpi_idle_o  (),
       .phy_state_o  (),
+      .ls_changed_o (),
 
       .phy_write_o(phy_write_w),
       .phy_nopid_o(phy_chirp_w),
@@ -261,10 +264,12 @@ module usb_ulpi_top #(
       .ulpi_data(iob_dat_w),
 
       .crc_error_o(crc_error_w),
+      .crc_valid_o(),
       .sof_count_o(sof_count_w),
       .sof_recv_o (sof_rx_recv_w),
       .eop_recv_o (eop_rx_recv_w),
       .dec_actv_o (dec_actv_w),
+      .dec_idle_o (),
 
       .tok_recv_o(tok_rx_recv_w),
       .tok_ping_o(tok_rx_ping_w),
@@ -287,6 +292,7 @@ module usb_ulpi_top #(
 
       .high_speed_i (high_speed_w),
       .encode_idle_o(),
+      .enc_state_o  (),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -431,10 +437,11 @@ module usb_ulpi_top #(
       .ep3_cancel_o(ep3_err_w),
       .ep3_halted_i(ep3_hlt_w),
 
+      .ep4_select_o(),
       .ep4_rx_rdy_i(1'b0),
       .ep4_tx_rdy_i(1'b0),
       .ep4_parity_i(1'b0),
-      .ep4_select_o(),
+      .ep4_finish_o(),
       .ep4_cancel_o(),
       .ep4_halted_i(1'b1)
   );
@@ -518,6 +525,7 @@ module usb_ulpi_top #(
 
       // From the USB protocol logic
       .select_o (stdreq_select_w),
+      .start_o  (),
       .status_o (stdreq_status_w),
       .parity_o (stdreq_parity_w),
       .finish_o (stdreq_finish_w),

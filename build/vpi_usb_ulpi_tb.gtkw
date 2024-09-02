@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep  2 02:56:00 2024
+[*] Mon Sep  2 07:06:11 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Mon Sep  2 02:55:22 2024"
-[dumpfile_size] 1695749
+[dumpfile_mtime] "Mon Sep  2 07:05:53 2024"
+[dumpfile_size] 2189265
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 32349000
+[timestart] 20459000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 32980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 21090000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -398,23 +398,26 @@ vpi_usb_ulpi_tb.U_USB1.stdreq_tdata_w[7:0]
 @800200
 -Logger
 -Master
-@28
+@29
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tvalid
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tready
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tkeep
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tlast
-@22
+@23
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tdata[7:0]
 @1000200
 -Master
 @28
 vpi_usb_ulpi_tb.U_TELEMETRY1.enable_i
 vpi_usb_ulpi_tb.U_TELEMETRY1.c_tvalid
+vpi_usb_ulpi_tb.U_TELEMETRY1.c_tlast
+@24
+vpi_usb_ulpi_tb.U_TELEMETRY1.count[2:0]
 @22
 vpi_usb_ulpi_tb.U_TELEMETRY1.change_i[19:0]
-@c00023
+@c00022
 vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
-@29
+@28
 (0)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
 (1)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
 (2)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
@@ -427,8 +430,10 @@ vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
 (9)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
 (10)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
 (11)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
-@1401201
+@1401200
 -group_end
+@22
+vpi_usb_ulpi_tb.U_TELEMETRY1.x_tkeep[3:0]
 @28
 vpi_usb_ulpi_tb.st_w[2:0]
 vpi_usb_ulpi_tb.err_w

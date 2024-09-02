@@ -156,15 +156,6 @@ module ulpi_decoder #(
         hsk_q <= rx_pid_w[1:0] == PID_HANDSHAKE;
         tok_q <= istoken_w;
       end
-      /*
-      if (rx_pid_w[1:0] == PID_HANDSHAKE && !cyc_q) begin
-        hsk_q <= 1'b1;
-      end
-
-      if (istoken_w && !cyc_q) begin
-        tok_q <= 1'b1;
-      end
-       */
     end
 
   end
@@ -213,7 +204,7 @@ module ulpi_decoder #(
   reg  [ 6:0] addr_q;
   wire [10:0] token_w;
 
-  assign token_w = {dat_q, out_q};
+  assign token_w = {dat_q[2:0], out_q};
 
   // Strobes for when we receive a TOKEN or SOF //
   always @(posedge clock) begin
@@ -309,7 +300,7 @@ module ulpi_decoder #(
   always @(posedge clock) begin
     if (reset) begin
       stb_q <= 1'b0;
-      dat_q <= 'bx;
+      dat_q <= 8'bx;
     end else begin
       if (dir_q && ulpi_dir && ulpi_nxt) begin
         stb_q <= cyc_q;
@@ -330,7 +321,7 @@ module ulpi_decoder #(
   always @(posedge clock) begin
     if (reset || rx_end_w) begin
       vld_q <= 1'b0;
-      out_q <= 'bx;
+      out_q <= 8'bx;
     end else if (ulpi_nxt) begin
       vld_q <= stb_q;
       out_q <= dat_q;
@@ -346,7 +337,7 @@ module ulpi_decoder #(
       tvalid <= 1'b0;
       tlast  <= 1'b0;
       tkeep  <= 1'b0;
-      tdata  <= 'bx;
+      tdata  <= 8'bx;
     end else begin
       tvalid <= cyc_q;
       tlast  <= cyc_q && rx_end_w;
@@ -355,7 +346,7 @@ module ulpi_decoder #(
         tdata <= out_q;
       end else begin
         tkeep <= 1'b0;
-        tdata <= 'bx;
+        tdata <= 8'bx;
       end
     end
   end

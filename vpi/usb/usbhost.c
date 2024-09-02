@@ -17,6 +17,7 @@
 #define HOST_BUF_LEN    16384u
 #define TURNAROUND_TIMER 40
 
+#define NXT_MASK (0xFu)
 
 static const char host_op_strings[9][16] = {
     {"HostError"},
@@ -104,6 +105,13 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
 
     case DnDATA0:
     case DnDATA1:
+        if (xfer->tx_ptr < xfer->tx_len && in->nxt == SIG1 &&
+            (rand() & NXT_MASK) == NXT_MASK) {
+            printf("HOST\t#%8lu cyc =>\tCODS!\n", host->cycle);
+            out->nxt = SIG0;
+            out->data.a = 0x5D;
+            return 0;
+        }
         result = datax_send_step(xfer, in, out);
         if (result < 0) {
             return result;
@@ -118,15 +126,14 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
         if (host->cycle >= xfer->cycle) {
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
-            vpi_printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
-                       host->cycle, __FILE__, __LINE__);
+            printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
+                   host->cycle, __FILE__, __LINE__);
             return 1;
         }
         result = ack_recv_step(xfer, in, out);
         if (result > 0) {
-            vpi_printf("HOST\t#%8lu cyc =>\tBulk OUT ACK [%s:%d]\n",
-                       host->cycle, __FILE__, __LINE__);
-            // transfer_ack(xfer);
+            printf("HOST\t#%8lu cyc =>\tBulk OUT ACK [%s:%d]\n",
+                   host->cycle, __FILE__, __LINE__);
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
         }
@@ -171,6 +178,7 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     case UpDATA0:
     case UpDATA1:
         result = datax_recv_step(xfer, in, out);
+        // result = datax_recv_step(xfer, in, out);
         if (xfer->rx_ptr == 0 && host->cycle >= xfer->cycle) {
             // No data received before time-out period elapsed
             xfer->type = TimeOut;
@@ -185,6 +193,12 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         } else if (result > 0) {
             xfer->type = DnACK;
             xfer->stage = NoXfer;
+        } else {
+            if (xfer->rx_ptr > 0 && out->nxt == SIG1 &&
+                (rand() & NXT_MASK) == NXT_MASK) {
+                printf("HOST\t#%8lu cyc =>\tWALLOP = 0x%02X!\n", host->cycle, NXT_MASK);
+                out->nxt = SIG0;
+            }
         }
         break;
 
@@ -201,8 +215,8 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         if (host->cycle >= xfer->cycle) {
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
-            vpi_printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
-                       host->cycle, __FILE__, __LINE__);
+            printf("HOST\t#%8lu cyc =>\tTimeOut [%s:%d]\n",
+                   host->cycle, __FILE__, __LINE__);
             return 1;
         }
         if (xfer->stage == DATAxBody) {

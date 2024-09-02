@@ -67,12 +67,18 @@ module usb_ulpi_core #(
     output [7:0] blko_tdata_o
 );
 
+  wire usb_clk, usb_rst;
   wire locked, clock, reset;
-  wire configured, conf_event;
+  wire configured, high_speed, conf_event;
   wire [2:0] conf_value;
 
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tlast;
   wire [7:0] x_tdata, y_tdata;
+
+  assign usb_clock_o = usb_clk;
+  assign usb_reset_o = usb_rst;
+
+  assign configured_o = configured;
 
   // -- System Clocks & Resets -- //
 
@@ -93,6 +99,8 @@ module usb_ulpi_core #(
   );
 
   usb_ulpi_top #(
+      .DEBUG(DEBUG),
+
       .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
       .VENDOR_STRING(VENDOR_STRING),
@@ -119,10 +127,11 @@ module usb_ulpi_core #(
       .ulpi_stp_o  (ulpi_stp),
       .ulpi_data_io(ulpi_data),
 
-      .usb_clock_o(usb_clock_o),
-      .usb_reset_o(usb_reset_o),
+      .usb_clock_o(usb_clk),
+      .usb_reset_o(usb_rst),
 
-      .configured_o(configured_o),
+      .configured_o(configured),
+      .high_speed_o(high_speed),
       .conf_event_o(conf_event_o),
       .conf_value_o(conf_value_o),
 
@@ -174,8 +183,6 @@ module usb_ulpi_core #(
     if (DEBUG) begin : g_debug
 
       wire [10:0] sof_w = U_USB1.sof_count_w;
-
-      wire err_w = U_USB1.crc_error_w;
       wire [19:0] sig_w;
       wire [11:0] ign_w;
       wire [3:0] ep1_w, ep2_w, ep3_w, pid_w;
@@ -197,10 +204,11 @@ module usb_ulpi_core #(
           .SIG_WIDTH(20),
           .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
       ) U_TELEMETRY1 (
-          .clock(clock),
-          .reset(reset),
+          .clock(usb_clk),
+          .reset(usb_rst),
 
-          .enable_i(configured_o),
+          .enable_i(configured),
+          // .enable_i(high_speed),
           .change_i(sig_w),
           .ignore_i(ign_w),
           .level_o (),
@@ -231,6 +239,8 @@ module usb_ulpi_core #(
       wire u_tvalid, u_tready, r_tvalid, r_tready;
       wire [7:0] u_tdata, r_tdata;
 
+      assign r_tready = 1'b1;
+
       always @(posedge clock) begin
         send_q <= ~send_ni & ~tcycle_w & ~tx_busy_w;
 
@@ -246,8 +256,8 @@ module usb_ulpi_core #(
           .UNICODE(0),
           .BLOCK_SRAM(1)
       ) U_HEXDUMP1 (
-          .clock(clock),
-          .reset(reset),
+          .clock(usb_clk),
+          .reset(usb_rst),
 
           .start_dump_i(tstart),
           .is_dumping_o(tcycle_w),
@@ -270,8 +280,8 @@ module usb_ulpi_core #(
       uart #(
           .DATA_WIDTH(8)
       ) U_UART1 (
-          .clk(clock),
-          .rst(reset),
+          .clk(usb_clk),
+          .rst(usb_rst),
 
           .s_axis_tvalid(u_tvalid && !tx_busy_w),
           .s_axis_tready(u_tready),

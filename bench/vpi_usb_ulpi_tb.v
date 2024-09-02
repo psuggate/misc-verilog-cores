@@ -79,7 +79,7 @@ module vpi_usb_ulpi_tb;
   assign blki_tlast_w  = tlast_q;
   assign blki_tdata_w  = tdata_q;
 
-  assign blko_tready_w = 1'b1; // Todo ...
+  assign blko_tready_w = 1'b1;  // Todo ...
 
   always @(posedge usb_clock) begin
     if (!usb_rst_n) begin
@@ -143,7 +143,7 @@ module vpi_usb_ulpi_tb;
   wire x_tvalid, x_tready, x_tlast;
   wire [7:0] x_tdata;
 
-`define __swap_endpoint_directions
+  `define __swap_endpoint_directions
 `ifdef __swap_endpoint_directions
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
@@ -187,8 +187,8 @@ module vpi_usb_ulpi_tb;
 
       .blko_tvalid_o(blko_tvalid_w),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(DEBUG ? 1'b1 : x_tready),
-      .blko_tlast_o (blko_tlast_w),
-      .blko_tdata_o (blko_tdata_w)
+      .blko_tlast_o(blko_tlast_w),
+      .blko_tdata_o(blko_tdata_w)
   );
 
   // -- Debug Telemetry Logging and Output -- //
@@ -227,9 +227,9 @@ module vpi_usb_ulpi_tb;
 
       .m_tvalid(x_tvalid),  // AXI4-Stream for telemetry data
       .m_tready(DEBUG ? x_tready : 1'b0),
-      .m_tkeep (),
-      .m_tlast (x_tlast),
-      .m_tdata (x_tdata)
+      .m_tkeep(),
+      .m_tlast(x_tlast),
+      .m_tdata(x_tdata)
   );
 
 

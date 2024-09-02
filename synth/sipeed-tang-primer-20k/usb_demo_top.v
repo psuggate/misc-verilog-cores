@@ -104,7 +104,7 @@ module usb_demo_top (
 
   assign s_tkeep = s_tvalid;
 
-  // `define __use_legacy_usb_core
+`define __use_legacy_usb_core
 `ifdef __use_legacy_usb_core
 
   always @(posedge clock) begin
@@ -190,15 +190,18 @@ module usb_demo_top (
   localparam ENDPOINT2 = 4'd2;
   localparam ENDPOINT3 = 4'd3;
 
-  wire conf_event;
+  wire crc_error_w, conf_event, ep1_rdy, ep2_rdy, ep3_rdy;
   wire [2:0] usb_config;
 
-  assign cbits = {conf_event, usb_config};
+  // assign cbits = {conf_event, usb_config};
+  assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
 
   assign x_tvalid = 1'b0;
   assign x_tkeep = 1'b0;
   assign x_tlast = 1'b0;
   assign x_tdata = 8'hA7;
+
+  localparam LOOPBACK = 1;
 
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
@@ -212,7 +215,7 @@ module usb_demo_top (
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
       .DEBUG(1),
-      .USE_UART(0),
+      .USE_UART(1),
       .ENDPOINTD(ENDPOINT3)
   ) U_USB1 (
       .clk_26(clk_26),
@@ -236,11 +239,12 @@ module usb_demo_top (
       .configured_o(configured),
       .conf_event_o(conf_event),
       .conf_value_o(usb_config),
+      .crc_error_o (crc_error_w),
 
-      .blki_tvalid_i(s_tvalid),  // USB 'BULK IN' EP data-path
+      .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(s_tready),
-      .blki_tlast_i (s_tlast),
-      .blki_tdata_i (s_tdata),
+      .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
+      .blki_tdata_i (LOOPBACK ? m_tdata : s_tdata),
 
       .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
       .blkx_tready_o(x_tready),
@@ -248,10 +252,24 @@ module usb_demo_top (
       .blkx_tdata_i (x_tdata),
 
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
-      .blko_tready_i(m_tready),
-      .blko_tlast_o (m_tlast),
-      .blko_tdata_o (m_tdata)
+      .blko_tready_i(LOOPBACK ? s_tready : m_tready),
+      .blko_tlast_o(m_tlast),
+      .blko_tdata_o(m_tdata)
   );
+
+  assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w;
+  assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w;
+  assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w | crc_error_w;
+
+/*
+  assign {ep3_rdy, ep2_rdy, ep1_rdy} = {U_USB1.U_USB1.mux_enable_w, U_USB1.U_USB1.mux_select_w[1:0]};
+
+  assign {ep3_rdy, ep2_rdy, ep1_rdy} = U_USB1.U_USB1.stout_w;
+
+  assign ep1_rdy = U_USB1.U_USB1.ep1_hlt_w;
+  assign ep2_rdy = U_USB1.U_USB1.ep2_hlt_w;
+  assign ep3_rdy = U_USB1.U_USB1.ep3_hlt_w | crc_error_w;
+*/
 
 `endif  /* !__use_legacy_usb_core */
 
@@ -302,6 +320,13 @@ module usb_demo_top (
 
   // `define __use_ddr3_core
 `ifndef __use_ddr3_core
+
+  wire [  2:0] dfi_bank;
+  wire [RSB:0] dfi_addr;
+  wire [BSB:0] dfi_mask;
+  wire [MSB:0] dfi_wdata, dfi_rdata;
+
+  assign ddr_clk   = 1'b0;
 
   // Just set these signals in order to configure the IOBs of the FPGA.
   assign dfi_rst_n = 1'b0;

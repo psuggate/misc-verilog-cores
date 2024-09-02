@@ -84,16 +84,6 @@ typedef struct {
     uint8_t* dat;
 } usb_bulk_t;
 
-/*
-typedef struct {
-    int type;
-    union __payload {
-        usb_stdreq_t* conf;
-        usb_bulk_t* bulk;
-    } payload;
-} usb_xact_t;
-*/
-
 
 void show_host(usb_host_t* host);
 int host_string(usb_host_t* host, char* str, const int indent);

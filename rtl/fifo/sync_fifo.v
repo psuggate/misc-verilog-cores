@@ -82,7 +82,8 @@ module sync_fifo #(
 
   // -- Write Port -- //
 
-  assign waddr_next = waddr + 1;
+  wire waddr_of_w;
+  assign {waddr_of_w, waddr_next} = waddr + 1;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -101,7 +102,8 @@ module sync_fifo #(
 
   // -- Read Port -- //
 
-  assign raddr_next = raddr + 1;
+  wire raddr_of_w;
+  assign {raddr_of_w, raddr_next} = raddr + 1;
 
   always @(posedge clock) begin
     if (reset) begin

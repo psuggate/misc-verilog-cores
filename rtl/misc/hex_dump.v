@@ -183,6 +183,8 @@ module hex_dump #(
 
     end else begin : g_axis_fifo
 
+      wire oflow_w;
+
       axis_fifo #(
           .DEPTH(BLOCK_SRAM ? 2048 : 16),
           .DATA_WIDTH(8),
@@ -202,7 +204,7 @@ module hex_dump #(
           .USER_BAD_FRAME_MASK(0),
           .DROP_BAD_FRAME(0),
           .DROP_WHEN_FULL(0)
-      ) U_BULK_FIFO0 (
+      ) U_FIFO0 (
           .clk(clock),
           .rst(reset),
 
@@ -228,7 +230,8 @@ module hex_dump #(
           .m_axis_tdest(),
           .m_axis_tuser(),
           // Status
-          .status_depth(level_w),
+          .status_depth({oflow_w, level_w}),
+          .status_depth_commit(),
           .status_overflow(),
           .status_bad_frame(),
           .status_good_frame()

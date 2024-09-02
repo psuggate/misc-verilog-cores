@@ -132,7 +132,7 @@ module packet_fifo #(
           save <= 1'b0;
           xvld <= 1'b0;
           xlst <= 1'b0;
-          xdat <= 'bx;
+          xdat <= {WIDTH{1'bx}};
         end else begin
           save <= accept_a;
 
@@ -146,7 +146,7 @@ module packet_fifo #(
             // Data stored to SRAM, but no new data arrived, this cycle.
             xvld <= 1'b0;
             xlst <= 1'b0;
-            xdat <= 'bx;
+            xdat <= {WIDTH{1'bx}};
           end
         end
       end
@@ -161,7 +161,8 @@ module packet_fifo #(
     end
   endgenerate
 
-  assign waddr_next = store_w ? waddr + 1 : waddr;
+  wire waddr_of_w;
+  assign {waddr_of_w, waddr_next} = store_w ? waddr + 1 : {1'b0, waddr};
 
   always @(posedge clock) begin
     if (reset) begin
@@ -214,7 +215,8 @@ module packet_fifo #(
 
   // -- Read Port -- //
 
-  assign raddr_next = fetch_w ? raddr + 1 : raddr;
+  wire raddr_of_w;
+  assign {raddr_of_w, raddr_next} = fetch_w ? raddr + 1 : {1'b0, raddr};
 
   always @(posedge clock) begin
     if (reset) begin
