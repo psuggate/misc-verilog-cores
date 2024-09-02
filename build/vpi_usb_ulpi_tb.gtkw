@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Sep  1 04:39:18 2024
+[*] Mon Sep  2 02:56:00 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sun Sep  1 04:37:46 2024"
-[dumpfile_size] 1538694
+[dumpfile_mtime] "Mon Sep  2 02:55:22 2024"
+[dumpfile_size] 1695749
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 32303800
+[timestart] 32349000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 32930000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 32980000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 360
+[sst_vpaned_height] 500
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -35,7 +35,7 @@ vpi_usb_ulpi_tb.ulpi_data[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.configured
-@800200
+@c00200
 -OUT
 @28
 [color] 3
@@ -51,7 +51,7 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.stalled_o
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.dbg_state[39:0]
-@c00200
+@800200
 -IO
 @28
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.s_tvalid
@@ -66,9 +66,9 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tready
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tlast
 @22
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tdata[7:0]
-@1401200
+@1000200
 -IO
-@c00200
+@800200
 -Internal
 @28
 [color] 1
@@ -86,9 +86,9 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.level_w[10:0]
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.space_w[11:0]
 @28
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.tvalid_w
-@1401200
--Internal
 @1000200
+-Internal
+@1401200
 -OUT
 @c00200
 -IN
@@ -150,7 +150,7 @@ vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tdata[7:0]
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.hsk_done_o
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.usb_done_o
-@800200
+@c00200
 -Internal
 @28
 [color] 2
@@ -168,8 +168,8 @@ vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tuser[3:0]
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.s_tdata[7:0]
 @1401200
 -Slave
-@1000200
 -Internal
+@1000200
 -Encoder
 @800200
 -Decoder
@@ -283,6 +283,10 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.epg_q
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep_run_q
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep_err_q
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_halted_i
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_en
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_en
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep3_en
 @1401200
 -Internal
 @1000200
@@ -380,7 +384,9 @@ vpi_usb_ulpi_tb.U_USB1.U_CTL1.m_tdata_o[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.U_USB1.mux_enable_w
+@24
 vpi_usb_ulpi_tb.U_USB1.mux_select_w[2:0]
+@28
 vpi_usb_ulpi_tb.U_USB1.stdreq_tvalid_w
 vpi_usb_ulpi_tb.U_USB1.stdreq_tready_w
 vpi_usb_ulpi_tb.U_USB1.stdreq_tkeep_w
@@ -389,5 +395,71 @@ vpi_usb_ulpi_tb.U_USB1.stdreq_tlast_w
 vpi_usb_ulpi_tb.U_USB1.stdreq_tdata_w[7:0]
 @1401200
 -MUX1
+@800200
+-Logger
+-Master
+@28
+vpi_usb_ulpi_tb.U_TELEMETRY1.m_tvalid
+vpi_usb_ulpi_tb.U_TELEMETRY1.m_tready
+vpi_usb_ulpi_tb.U_TELEMETRY1.m_tkeep
+vpi_usb_ulpi_tb.U_TELEMETRY1.m_tlast
+@22
+vpi_usb_ulpi_tb.U_TELEMETRY1.m_tdata[7:0]
+@1000200
+-Master
+@28
+vpi_usb_ulpi_tb.U_TELEMETRY1.enable_i
+vpi_usb_ulpi_tb.U_TELEMETRY1.c_tvalid
+@22
+vpi_usb_ulpi_tb.U_TELEMETRY1.change_i[19:0]
+@c00023
+vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+@29
+(0)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(1)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(2)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(3)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(4)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(5)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(6)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(7)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(8)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(9)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(10)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+(11)vpi_usb_ulpi_tb.U_TELEMETRY1.ignore_i[11:0]
+@1401201
+-group_end
+@28
+vpi_usb_ulpi_tb.st_w[2:0]
+vpi_usb_ulpi_tb.err_w
+vpi_usb_ulpi_tb.re_w
+@22
+vpi_usb_ulpi_tb.pid_w[3:0]
+vpi_usb_ulpi_tb.sof_w[10:0]
+@1000200
+-Logger
+@800200
+-IN3
+@28
+vpi_usb_ulpi_tb.U_USB1.ep3_sel_w
+vpi_usb_ulpi_tb.U_USB1.ep3_rdy_w
+@800200
+-IO
+@28
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.s_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.s_tready
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.s_tlast
+@22
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.s_tdata[7:0]
+@28
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tready
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tkeep
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tlast
+@22
+vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tdata[7:0]
+@1000200
+-IO
+-IN3
 [pattern_trace] 1
 [pattern_trace] 0

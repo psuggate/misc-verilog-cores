@@ -13,6 +13,7 @@
  *  - MUX-select for the end-points;
  */
 module protocol #(
+    parameter DEBUG = 0,
     parameter [3:0] BULK_EP1 = 1,
     parameter USE_EP1_IN = 0,
     parameter USE_EP1_OUT = 1,
@@ -115,6 +116,8 @@ module protocol #(
   localparam EP2_EN = BULK_EP2 != 0 && (USE_EP2_IN || USE_EP2_OUT);
   localparam EP3_EN = BULK_EP3 != 0 && (USE_EP3_IN || USE_EP3_OUT);
   localparam EP4_EN = BULK_EP4 != 0 && (USE_EP4_IN || USE_EP4_OUT);
+
+  localparam [3:0] PID_Q = DEBUG ? 4'h0 : 4'hx;
 
   // -- Module Signals & Registers -- //
 
@@ -360,7 +363,7 @@ module protocol #(
     if (reset) begin
       state <= ST_IDLE;
       stout <= 3'd0;
-      pid_q <= 'bx;
+      pid_q <= PID_Q;
       tag_q <= 1'b0;
       epg_q <= 1'b0;
     end else begin
@@ -373,7 +376,7 @@ module protocol #(
           //  - issue 'STALL' for unsupported IN/OUT & EP pairing?
           case (usb_pid_i)
             `USBPID_SETUP: begin
-              pid_q <= 'bx;
+              pid_q <= PID_Q;
               if (tok_endp_i == 4'h0) begin
                 state <= ST_RECV;
                 stout <= 3'd1;
@@ -389,7 +392,7 @@ module protocol #(
             end
 
             `USBPID_OUT: begin
-              pid_q <= 'bx;
+              pid_q <= PID_Q;
               if (ep0_select_i || out_rdy_q) begin
                 // EP0 CONTROL transfers always succeed; OR,
                 // We have space, so RX some data
@@ -447,7 +450,7 @@ module protocol #(
             default: begin
               state <= state;
               stout <= 3'd7;
-              pid_q <= 'bx;
+              pid_q <= PID_Q;
               tag_q <= 1'bx;
               epg_q <= 1'bx;
             end
@@ -511,7 +514,7 @@ module protocol #(
         end
 
         ST_WAIT: begin
-          pid_q <= 'bx;
+          pid_q <= PID_Q;
           tag_q <= 1'b0;
           epg_q <= 1'b0;
           if (hsk_recv_i || timeout_q) begin
@@ -539,7 +542,7 @@ module protocol #(
         default: begin
           state <= 'bx;
           stout <= 3'd6;
-          pid_q <= 'bx;
+          pid_q <= PID_Q;
           tag_q <= 1'bx;
           epg_q <= 1'bx;
         end

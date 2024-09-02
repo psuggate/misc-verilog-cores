@@ -1,5 +1,7 @@
 `timescale 1ns / 100ps
 module usb_ulpi_top #(
+    parameter DEBUG = 0,
+
     parameter USE_EP2_IN  = 1,
     parameter USE_EP1_OUT = 1,
     parameter USE_EP3_IN  = 0,
@@ -244,7 +246,11 @@ module usb_ulpi_top #(
 
   // -- ULPI Decoder & Encoder -- //
 
-  ulpi_decoder U_DEC1 (
+  ulpi_decoder #(
+      .DEBUG(DEBUG),
+      .MAX_BULK_LENGTH(MAX_PACKET_LENGTH),
+      .MAX_CTRL_LENGTH(MAX_CONFIG_LENGTH)
+  ) U_DEC1 (
       .clock(clock),
       .reset(reset),
 
@@ -353,6 +359,7 @@ module usb_ulpi_top #(
   end
 
   protocol #(
+      .DEBUG      (DEBUG),
       .BULK_EP1   (ENDPOINT1),
       .USE_EP1_IN (0),
       .USE_EP1_OUT(USE_EP1_OUT),
@@ -655,6 +662,6 @@ module usb_ulpi_top #(
       .m_tdata   (ep3_tdata_w)
   );
 
-  // initial #28450 $finish;
+  // initial #28500 $finish;
 
 endmodule  /* usb_ulpi_top */

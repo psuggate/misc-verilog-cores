@@ -38,10 +38,15 @@ fn to_state(seq: usize, val: u32, prev: u32) -> String {
     let ep1 = (val >> 8) & 0x0F;
     let ep2 = (val >> 12) & 0x0F;
     let ep3 = (val >> 16) & 0x0F;
+    let rx = if (val >> 3) & 0x01 == 0x01 {
+        "RX"
+    } else {
+        "  "
+    };
 
     format!(
-        "{:5}  ->  {{ SOF = {:4} : {} : {} : {:X} : {:X} : {:X} }}",
-        seq, sof, state, pid, ep1, ep2, ep3
+        "@{:5}  -> 0x{:08X} {{ SOF = {:4} : {} : {} : {} : {:X} : {:X} : {:X} }}",
+        seq, val, sof, state, pid, rx, ep1, ep2, ep3
     )
 }
 
@@ -104,7 +109,7 @@ pub fn tart_logger(tart: &mut AxisUSB, verbose: u8) -> TartResult<Vec<u8>> {
         println!("Length: {}", len);
         for i in 0..(len / 4) {
             let end = ptr + 4;
-            let sample = u32::from_be_bytes(result[ptr..end].try_into().unwrap());
+            let sample = u32::from_le_bytes(result[ptr..end].try_into().unwrap());
             info!("{}", to_state(i, sample, prev));
             ptr = end;
             prev = sample;

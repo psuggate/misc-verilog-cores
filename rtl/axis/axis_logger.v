@@ -15,6 +15,7 @@ module axis_logger #(
     parameter KEEP_ENABLE = 1,
     parameter KEEP_WIDTH = FIFO_WIDTH / 8,
     localparam KSB = KEEP_WIDTH - 1,
+    localparam KEEPS = {KEEP_WIDTH{1'b1}},
 
     // Number of samples per 'tlast'
     parameter PACKET_SIZE = 8,
@@ -55,15 +56,17 @@ module axis_logger #(
 
   assign cnext = count + {CZERO, 1'b1};
 
-  assign c_tvalid = change_i != prev_q;
-  assign c_tkeep = {KEEP_WIDTH{1'b1}};
+  assign c_tvalid = enable_i && change_i != prev_q;
+  assign c_tkeep = KEEPS;
   assign c_tlast = cnext[CBITS];
   assign c_tdata = {ignore_i, change_i};
 
   // -- Telemetry Framer -- //
 
   always @(posedge clock) begin
-    if (enable_i) begin
+    if (reset) begin
+      prev_q <= {SIG_WIDTH{1'b1}};
+    end else if (enable_i) begin
       prev_q <= change_i;
     end
 
@@ -125,12 +128,15 @@ module axis_logger #(
       .status_good_frame()
   );
 
+  wire [KSB:0] tkeep_w;
+  assign tkeep_w = KEEP_ENABLE ? x_tkeep : KEEPS;
+
   axis_adapter #(
       .S_DATA_WIDTH(FIFO_WIDTH),
-      .S_KEEP_ENABLE(KEEP_ENABLE),
+      .S_KEEP_ENABLE(1),
       .S_KEEP_WIDTH(KEEP_WIDTH),
       .M_DATA_WIDTH(8),
-      .M_KEEP_ENABLE(KEEP_ENABLE),
+      .M_KEEP_ENABLE(1),
       .M_KEEP_WIDTH(1),
       .ID_ENABLE(0),
       .ID_WIDTH(1),
@@ -142,11 +148,11 @@ module axis_logger #(
       .clk(clock),
       .rst(reset),
 
-      .s_axis_tdata(x_tdata),  // AXI input
-      .s_axis_tkeep(x_tkeep),
       .s_axis_tvalid(x_tvalid),
       .s_axis_tready(x_tready),
+      .s_axis_tkeep(tkeep_w),
       .s_axis_tlast(x_tlast),
+      .s_axis_tdata(x_tdata),  // AXI input
       .s_axis_tid(1'b0),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),

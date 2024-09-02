@@ -26,7 +26,8 @@
  *    packet length !?
  */
 module ulpi_decoder #(
-    parameter USE_MAX_LENGTHS = 1,    // Todo
+    parameter DEBUG = 0,
+    parameter USE_MAX_LENGTHS = 1,  // Todo
     parameter MAX_BULK_LENGTH = 512,
     parameter MAX_CTRL_LENGTH = 64
 ) (
@@ -275,19 +276,22 @@ module ulpi_decoder #(
 
   always @(posedge clock) begin
     if (reset) begin
+      if (DEBUG) begin
+        cnt_q <= 11'd0;
+      end
       crc_error_flag <= 1'b0;
       crc_valid_flag <= 1'b0;
     end else if (rx_end_w && cyc_q) begin
       if (!hsk_q && !tok_q) begin
         crc_error_flag <= crc16_q != 16'h800d;
         crc_valid_flag <= crc16_q == 16'h800d;
-      end else if (tok_q) begin
-        crc_error_flag <= rx_crc5_w != dat_q[7:3];
-        crc_valid_flag <= rx_crc5_w == dat_q[7:3];
       end else if (sof_q) begin
         crc_error_flag <= rx_crc5_w != dat_q[7:3];
         crc_valid_flag <= rx_crc5_w == dat_q[7:3];
         cnt_q <= token_w;
+      end else if (tok_q) begin
+        crc_error_flag <= rx_crc5_w != dat_q[7:3];
+        crc_valid_flag <= rx_crc5_w == dat_q[7:3];
       end
     end else begin
       crc_valid_flag <= 1'b0;

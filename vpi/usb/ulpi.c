@@ -235,27 +235,34 @@ int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
     case Token2:
     case DATAxCRC2:
     case HskPID:
-        assert(in->dir == SIG1 && in->nxt == SIG1 && in->data.b == 0x00);
+        assert(in->dir == SIG1);
+        assert(in->nxt == SIG1);
+        assert(in->data.b == 0x00);
         out->nxt = SIG0;
         out->data.a = 0x4C; // RX CMD: RxActive = 0
         xfer->stage = EndRXCMD;
         break;
 
     case DATAxStop:
-        assert(in->dir == SIG1 && in->nxt == SIG0);
+        assert(in->dir == SIG1);
+        assert(in->nxt == SIG0);
         out->data.a = 0x4C;
         out->data.b = 0x00;
         xfer->stage = EndRXCMD;
         break;
 
     case EndRXCMD:
-        assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+        assert(out->dir == SIG1);
+        assert(out->nxt == SIG0);
+        assert(out->data.b == 0x00);
         out->data.a = 0x4D;
         xfer->stage = EOP;
         break;
 
     case EOP:
-        assert(out->dir == SIG1 && out->nxt == SIG0 && out->data.b == 0x00);
+        assert(out->dir == SIG1);
+        assert(out->nxt == SIG0);
+        assert(out->data.b == 0x00);
         out->dir = SIG0;
         out->data.a = 0x00;
         out->data.b = 0xFF;
@@ -263,7 +270,9 @@ int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case LineIdle:
-        assert(in->dir == SIG0 && in->nxt == SIG0 && in->data.a == 0x00);
+        assert(in->dir == SIG0);
+        assert(in->nxt == SIG0);
+        assert(in->data.a == 0x00);
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
         return 1;
@@ -294,15 +303,11 @@ int ulpi_step_with(step_fn_t host_fn, transfer_t* xfer, ulpi_bus_t* bus,
         result = host_fn(xfer, bus, &out);
         memcpy(bus, &out, sizeof(ulpi_bus_t));
         if (result < 0) {
-        // if (result != 0) {
             break;
         }
 
         result |= user_fn(user_data, bus, &out);
-        // result = user_fn(user_data, bus, &out);
         memcpy(bus, &out, sizeof(ulpi_bus_t));
-
-        // printf(".");
     }
 
     return result;
@@ -411,7 +416,9 @@ int token_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case Token1:
-            assert(out->dir == SIG1 && out->nxt == SIG1 && out->data.b == 0x00);
+            assert(out->dir == SIG1);
+            assert(out->nxt == SIG1);
+            assert(out->data.b == 0x00);
             out->data.a = xfer->tok2;
             xfer->stage = Token2;
             break;
@@ -537,7 +544,9 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxPID:
-            assert(in->dir == SIG0 && in->nxt == SIG1 && in->data.b == 0x00);
+            assert(in->dir == SIG0);
+            assert(in->nxt == SIG1);
+            assert(in->data.b == 0x00);
             out->nxt = SIG0;
             xfer->stage = DATAxBody;
             xfer->rx_ptr = 0;
@@ -553,7 +562,8 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             break;
 
         case DATAxBody:
-            assert(in->dir == SIG0 && in->data.b == 0x00);
+            assert(in->dir == SIG0);
+            assert(in->data.b == 0x00);
             if (in->stp == SIG1) {
                 // Turn around the ULPI bus, so that we can send an RX CMD
                 // Todo: check CRC
@@ -618,7 +628,8 @@ int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case HskPID:
-        assert(in->dir == SIG0 && in->data.b == 0x00);
+        assert(in->dir == SIG0);
+        assert(in->data.b == 0x00);
         out->nxt = SIG0;
         if (in->stp == SIG1) {
             xfer->stage = HskStop;
@@ -627,7 +638,9 @@ int ack_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     case HskStop:
         // Todo: RX CMD !?
-        assert(in->dir == SIG0 && in->nxt == SIG0 && in->stp == SIG0);
+        assert(in->dir == SIG0);
+        assert(in->nxt == SIG0);
+        assert(in->stp == SIG0);
         xfer->stage = XferIdle;
         return 1;
 
@@ -669,7 +682,9 @@ int ack_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case AssertDir:
-        assert(in->dir == SIG1 && in->nxt == SIG1 && in->stp == SIG0);
+        assert(in->dir == SIG1);
+        assert(in->nxt == SIG1);
+        assert(in->stp == SIG0);
         out->nxt = SIG0;
         out->data.a = 0x5D; // RX CMD: RxActive = 1
         out->data.b = 0x00;
@@ -677,7 +692,10 @@ int ack_send_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case InitRXCMD:
-        assert(in->dir == SIG1 && in->nxt == SIG0 && in->stp == SIG0 && in->data.b == 0x00);
+        assert(in->dir == SIG1);
+        assert(in->nxt == SIG0);
+        assert(in->stp == SIG0);
+        assert(in->data.b == 0x00);
         out->nxt = SIG1;
         out->data.a = transfer_type_to_pid(xfer);
         xfer->stage = HskPID;
