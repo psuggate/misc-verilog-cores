@@ -542,7 +542,7 @@ module protocol #(
         end
 
         default: begin
-          state <= 'bx;
+          state <= 6'bx;
           stout <= 3'd6;
           pid_q <= PID_Q;
           tag_q <= 1'bx;

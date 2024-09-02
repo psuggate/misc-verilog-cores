@@ -104,7 +104,7 @@ module usb_demo_top (
 
   assign s_tkeep = s_tvalid;
 
-`define __use_legacy_usb_core
+// `define __use_legacy_usb_core
 `ifdef __use_legacy_usb_core
 
   always @(posedge clock) begin
@@ -444,6 +444,7 @@ module usb_demo_top (
           .s_axis_tdata (m_tdata),
 
           .pause_req(1'b0),
+          .pause_ack(),
 
           .m_axis_tvalid(s_tvalid),  // AXI4-Stream output
           .m_axis_tready(s_tready),
@@ -455,6 +456,7 @@ module usb_demo_top (
           .m_axis_tdata(s_tdata),
 
           .status_depth(level_w),  // Status
+          .status_depth_commit(),
           .status_overflow(),
           .status_bad_frame(),
           .status_good_frame()

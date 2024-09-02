@@ -154,8 +154,7 @@ module usb_ulpi_top #(
 
   // -- Encode/decode USB ULPI packets, over the AXI4 streams -- //
 
-  wire ep1_rdy_w, ep2_rdy_w, ep3_rdy_w, crc_error_w;
-  wire conf_event_w, conf_error_w;
+  wire conf_event_w, conf_error_w, crc_error_w;
   wire [2:0] conf_value_w, stout_w;
   wire [10:0] sof_count_w;
 
@@ -186,6 +185,30 @@ module usb_ulpi_top #(
   wire [3:0] enc_tuser_w;
   wire [7:0] enc_tdata_w;
 
+  wire stdreq_select_w, stdreq_status_w, stdreq_parity_w, stdreq_finish_w;
+  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
+  wire [7:0] stdreq_tdata_w;
+
+  wire req_start_w, req_status_w, req_cycle_w;
+  wire [7:0] req_rtype_w, req_rargs_w;
+  wire [15:0] req_value_w, req_index_w, req_length_w;
+  wire [3:0] req_endpt_w = 4'h0;
+
+  wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
+  wire ep3_tvalid_w, ep3_tready_w, ep3_tkeep_w, ep3_tlast_w;
+  wire [7:0] ep2_tdata_w, ep3_tdata_w;
+
+  wire ep1_ack_w, ep1_sel_w, ep1_rdy_w, ep1_par_w, ep1_hlt_w, ep1_err_w;
+  wire ep2_ack_w, ep2_sel_w, ep2_rdy_w, ep2_par_w, ep2_hlt_w, ep2_err_w;
+  wire ep3_ack_w, ep3_sel_w, ep3_rdy_w, ep3_par_w, ep3_hlt_w, ep3_err_w;
+
+  wire mux_enable_w, unused_tready_w;
+  wire [2:0] mux_select_w;
+
+  // Todo: move this into 'ctl_pipe0' or 'stdreq' !?
+  reg  [6:0] usb_addr_q;
+  wire [6:0] ctl_addr_w;
+
   assign clock = ulpi_clock_i;
   assign reset = usb_reset_w;
 
@@ -200,7 +223,6 @@ module usb_ulpi_top #(
   assign high_speed_o = high_speed_w;
   assign conf_event_o = conf_event_w;
   assign conf_value_o = conf_value_w;
-
 
   //
   //  USB PHY, Encoder, Decoder, and Protocol Logic Components
@@ -326,36 +348,6 @@ module usb_ulpi_top #(
 
   // -- FSM for USB packets, handshakes, etc. -- //
 
-  wire unused_tready_w;
-
-  wire stdreq_select_w, stdreq_status_w, stdreq_parity_w, stdreq_finish_w;
-  wire stdreq_tvalid_w, stdreq_tready_w, stdreq_tkeep_w, stdreq_tlast_w;
-  wire [7:0] stdreq_tdata_w;
-
-  wire req_start_w, req_status_w, req_cycle_w;
-  wire [7:0] req_rtype_w, req_rargs_w;
-  wire [15:0] req_value_w, req_index_w, req_length_w;
-  wire [3:0] req_endpt_w = 4'h0;
-
-  wire ep0_end_w;
-  wire ep0_par_w, ep1_par_w, ep2_par_w, ep3_par_w;
-  wire ep0_sel_w, ep1_sel_w, ep2_sel_w, ep3_sel_w;
-
-  wire ep1_tvalid_w, ep1_tready_w, ep1_tkeep_w, ep1_tlast_w;
-  wire ep2_tvalid_w, ep2_tready_w, ep2_tkeep_w, ep2_tlast_w;
-  wire ep3_tvalid_w, ep3_tready_w, ep3_tkeep_w, ep3_tlast_w;
-  wire [7:0] ep1_tdata_w, ep2_tdata_w, ep3_tdata_w;
-
-  wire ep1_err_w, ep2_err_w, ep3_err_w;
-  wire ep1_ack_w, ep2_ack_w, ep3_ack_w, ep1_hlt_w, ep2_hlt_w, ep3_hlt_w;
-
-  wire mux_enable_w;
-  wire [2:0] mux_select_w;
-
-  // Todo: move this into 'ctl_pipe0' or 'stdreq' !?
-  reg [6:0] usb_addr_q;
-  wire [6:0] ctl_addr_w;
-
   always @(posedge clock) begin
     if (reset) begin
       usb_addr_q <= 7'd0;
@@ -445,7 +437,6 @@ module usb_ulpi_top #(
       .ep4_cancel_o(),
       .ep4_halted_i(1'b1)
   );
-
 
   //
   //  USB End-Points and Datapath
@@ -607,7 +598,7 @@ module usb_ulpi_top #(
       .parity_o  (ep1_par_w),
 
       .s_tvalid(dec_tvalid_w),
-      .s_tready(ep1_tready_w),  // Todo: route to protocol, for error-handling
+      .s_tready(),  // Todo: route to protocol, for error-handling
       .s_tkeep (dec_tkeep_w),
       .s_tlast (dec_tlast_w),
       .s_tdata (dec_tdata_w),

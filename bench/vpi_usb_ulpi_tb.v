@@ -11,7 +11,6 @@ module vpi_usb_ulpi_tb;
     $display("USB ULPI Wrapper Testbench");
   end
 
-
   // -- Globals -- //
 
   reg clock, clk25, arst_n;
@@ -32,7 +31,6 @@ module vpi_usb_ulpi_tb;
     #40 arst_n <= 1'b1;
   end
 
-
   // -- Simulation Data -- //
 
   initial begin
@@ -41,7 +39,6 @@ module vpi_usb_ulpi_tb;
 
     #38000 $finish;
   end
-
 
   // -- Simulation Signals -- //
 
@@ -66,7 +63,6 @@ module vpi_usb_ulpi_tb;
       areset_n <= {areset_n[2:0], 1'b1};
     end
   end
-
 
   //
   //  Some Logics
@@ -103,7 +99,6 @@ module vpi_usb_ulpi_tb;
     end
   end
 
-
   /**
    * Wrapper to the VPI model of a USB host, for providing the stimulus.
    */
@@ -115,7 +110,6 @@ module vpi_usb_ulpi_tb;
       .stp  (ulpi_stp),
       .data (ulpi_data)
   );
-
 
   // -- System Clocks & Resets -- //
 
@@ -135,7 +129,6 @@ module vpi_usb_ulpi_tb;
       .ddr_clock()        // 120 MHz, PLL output, phase-shifted
   );
 
-
   //
   // Cores Under New Tests
   ///
@@ -143,7 +136,7 @@ module vpi_usb_ulpi_tb;
   wire x_tvalid, x_tready, x_tlast;
   wire [7:0] x_tdata;
 
-  `define __swap_endpoint_directions
+`define __swap_endpoint_directions
 `ifdef __swap_endpoint_directions
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
@@ -194,7 +187,6 @@ module vpi_usb_ulpi_tb;
   // -- Debug Telemetry Logging and Output -- //
 
   wire [10:0] sof_w = U_USB1.sof_count_w;
-
   wire err_w = U_USB1.crc_error_w;
   wire [19:0] sig_w;
   wire [11:0] ign_w;
