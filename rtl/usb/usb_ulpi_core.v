@@ -172,8 +172,6 @@ module usb_ulpi_core #(
       assign y_tlast = x_tlast;
       assign y_tdata = x_tdata;
 
-      assign uart_tx_o = 1'b1;
-
     end
   endgenerate  /* g_debug_ep */
 
@@ -187,28 +185,40 @@ module usb_ulpi_core #(
   generate
     if (DEBUG) begin : g_debug
 
-      wire [10:0] sof_w = U_USB1.sof_count_w;
+      reg en_q;
+      wire [10:0] sof_w;
       wire [XSB:0] sig_w;
       wire [ISB:0] ign_w;
       wire [3:0] ep1_w, ep2_w, ep3_w, pid_w;
-      wire [2:0] st_w = U_USB1.stout_w;
-      wire re_w = U_USB1.RxEvent == 2'b01;
-      wire en_w = 1'b1; // configured;
+      wire [2:0] st_w;
+      wire re_w;
+
+      assign st_w = U_USB1.stout_w;
+      assign re_w = U_USB1.RxEvent == 2'b01;
 
       assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
       assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
       assign ep3_w = {U_USB1.ep3_err_w, U_USB1.ep3_sel_w, U_USB1.ep3_par_w, U_USB1.ep3_rdy_w};
       assign pid_w = U_USB1.U_PROTO1.pid_q;
+      assign sof_w = U_USB1.sof_count_w;
 
       // assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
       // assign ign_w = {crc_error_o, sof_w};  // 12b
-      assign sig_w = {st_w};  // 3b
+      assign sig_w = st_w;  // 3b
       assign ign_w = {crc_error_o, sof_w, ep3_w, ep2_w, ep1_w, pid_w, re_w};  // 29b
+
+      always @(posedge usb_clk) begin
+        if (usb_rst) begin
+          en_q <= 1'b0;
+        end else if (!en_q && configured) begin
+          en_q <= 1'b1;
+        end
+      end
 
       // Capture telemetry, so that it can be read back from EP1
       axis_logger #(
-          // .SRAM_BYTES(2048),
-          .SRAM_BYTES(4096),
+          .SRAM_BYTES(2048),
+          // .SRAM_BYTES(4096),
           .FIFO_WIDTH(LOG_WIDTH),
           .SIG_WIDTH(SIG_WIDTH),
           .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
@@ -216,7 +226,7 @@ module usb_ulpi_core #(
           .clock(usb_clk),
           .reset(usb_rst),
 
-          .enable_i(en_w),
+          .enable_i(en_q),
           .change_i(sig_w),
           .ignore_i(ign_w),
           .level_o (),
@@ -228,10 +238,6 @@ module usb_ulpi_core #(
           .m_tdata (x_tdata)
       );
 
-    end else begin
-
-      assign uart_tx_o = 1'b1;
-
     end
   endgenerate  /* !g_debug */
 
@@ -240,7 +246,7 @@ module usb_ulpi_core #(
   localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
 
   generate
-    if (USE_UART) begin : g_use_uart
+    if (DEBUG && USE_UART) begin : g_use_uart
 
       reg tstart, send_q;
       wire tcycle_w, tx_busy_w, rx_busy_w;
@@ -309,6 +315,10 @@ module usb_ulpi_core #(
 
           .prescale(UART_PRESCALE)
       );
+
+    end else begin
+
+      assign uart_tx_o = 1'b1;
 
     end
   endgenerate  /* g_use_uart */

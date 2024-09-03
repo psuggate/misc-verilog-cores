@@ -191,10 +191,11 @@ module usb_demo_top (
 `else  /* !__use_legacy_usb_core */
 
   wire crc_error_w, conf_event, ep1_rdy, ep2_rdy, ep3_rdy;
-  wire [2:0] usb_config;
+  wire [2:0] usb_config, stout_w;
 
   // assign cbits = {conf_event, usb_config};
-  assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
+  // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
+  assign cbits = {stout_w, configured};
 
   assign x_tvalid = 1'b0;
   assign x_tkeep = 1'b0;
@@ -215,7 +216,7 @@ module usb_demo_top (
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
       .DEBUG(DEBUG),
-      .USE_UART(1),
+      .USE_UART(0),
       .ENDPOINTD(ENDPOINT3)
   ) U_USB1 (
       .clk_26(clk_26),
@@ -260,6 +261,8 @@ module usb_demo_top (
   assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w;
   assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w;
   assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w | crc_error_w;
+
+  assign stout_w = U_USB1.U_USB1.stout_w;
 
 `endif  /* !__use_legacy_usb_core */
 

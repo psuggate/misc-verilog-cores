@@ -26,8 +26,9 @@ module packet_fifo #(
 
     // Break up large packets into chunks of up to this length? If we reach the
     // maximum packet-length, de-assert 'tready', and wait for a 'save_i'.
-    parameter USE_LENGTH = 0,   // Todo
-    parameter MAX_LENGTH = 512,
+    parameter USE_LENGTH = 0,  // Todo
+    parameter MAX_LENGTH = DEPTH / 2,
+    localparam MAX_LIMIT = MAX_LENGTH - 1,
 
     // Skid-buffer for the output data, so that registered-output SRAM's can be
     // used, e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
@@ -75,7 +76,8 @@ module packet_fifo #(
   reg save_q, drop_q;
   wire fetch_w, store_w, match_w, chunk_w, frame_w, wfull_w, empty_w;
   wire reject_a, accept_a, finish_a, replay_a;
-  wire [ABITS:0] level_w, waddr_w, raddr_w;
+  wire [ABITS:0] level_w, wdiff, rdiff;
+  wire [ASB:0] wsize, rsize;
 
   // Optional extra stage of registers, so that block SRAMs can be used.
   reg xvalid, xlast;
@@ -105,12 +107,22 @@ module packet_fifo #(
   assign replay_a = redo_i;
 
   // SRAM control & status signals
-  assign match_w  = waddr[ASB:0] == raddr[ASB:0];
-  assign wfull_w  = wrfull_curr || wrfull_next;
-  assign empty_w  = rempty_curr || rempty_next;
+  assign match_w = waddr[ASB:0] == raddr[ASB:0];
+  assign wfull_w = wrfull_curr || wrfull_next;
+  assign empty_w = rempty_curr || rempty_next;
 
-  assign waddr_w  = store_w ? waddr_next : waddr;
-  assign raddr_w  = fetch_w ? raddr_next : raddr;
+  // -- Packet-Length and Framing -- //
+
+  assign wdiff = waddr_next - paddr;
+  assign wsize = wdiff[ASB:0];
+
+  assign rdiff = raddr_next - rplay;
+  assign rsize = rdiff[ASB:0];
+
+  // assign chunk_w = USE_LENGTH && wsize == MAX_LENGTH;
+  // assign frame_w = USE_LENGTH && rsize == MAX_LENGTH;
+  assign chunk_w = USE_LENGTH && wsize == MAX_LIMIT;
+  assign frame_w = USE_LENGTH && rsize == MAX_LIMIT;
 
   // -- Write Port -- //
 
@@ -122,11 +134,11 @@ module packet_fifo #(
       // arrive when 'tvalid' is LO, or when 'tkeep' is LO, or there may not be
       // a 'tlast', to trigger 'store_w' and 'accept_a'.
 
-      reg xvld, xlst;
+      reg xvld, xlst, xmax;
       reg [7:0] xdat;
 
       assign store_w = xvld && wready && (s_tvalid && s_tkeep || xlst && SAVE_ON_LAST || save_q);
-      assign last_w  = xlst || (save_q && LAST_ON_SAVE);
+      assign last_w  = xlst || save_q && LAST_ON_SAVE || xmax;
       assign data_w  = xdat;
       assign level_w = waddr_next[ASB:0] - raddr_next[ASB:0] + ((capture_a | xvld) & ~release_a);
 
@@ -137,9 +149,10 @@ module packet_fifo #(
         if (reset) begin
           save_q <= 1'b0;
           drop_q <= 1'b0;
-          xvld <= 1'b0;
-          xlst <= 1'b0;
-          xdat <= {WIDTH{1'bx}};
+          xvld   <= 1'b0;
+          xlst   <= 1'b0;
+          xmax   <= 1'b0;
+          xdat   <= {WIDTH{1'bx}};
         end else begin
           save_q <= save_w;
           drop_q <= drop_i;
@@ -148,12 +161,14 @@ module packet_fifo #(
             // Data captured, and we maintain one transfer outside of the FIFO,
             // until either 'tlast' (and 'SAVE_ON_LAST) or 'save' asserts.
             xvld <= 1'b1;
-            xlst <= s_tlast || LAST_ON_SAVE && save_i;
+            xlst <= s_tlast || LAST_ON_SAVE && save_i || SAVE_ON_LAST && chunk_w;
+            xmax <= chunk_w;
             xdat <= s_tdata;
           end else if (release_a) begin
             // Data stored to SRAM, but no new data arrived, this cycle.
             xvld <= 1'b0;
             xlst <= 1'b0;
+            xmax <= 1'b0;
             xdat <= {WIDTH{1'bx}};
           end
         end
@@ -162,7 +177,7 @@ module packet_fifo #(
     end else begin : g_normal_save
 
       assign store_w = s_tvalid && wready;
-      assign last_w  = s_tlast;
+      assign last_w  = s_tlast || chunk_w;
       assign data_w  = s_tdata;
       assign level_w = waddr_next[ASB:0] - raddr_next[ASB:0];
 
@@ -177,7 +192,8 @@ module packet_fifo #(
       waddr  <= AZERO;
       wready <= 1'b0;
     end else begin
-      wready <= ~wfull_w && ~chunk_w;
+      wready <= ~wfull_w;
+      // wready <= ~wfull_w & ~chunk_w;
 
       if (reject_a) begin
         waddr <= paddr;
@@ -190,20 +206,7 @@ module packet_fifo #(
     end
   end
 
-
-  // -- Frame Pointers -- //
-
-  wire [ABITS:0] wdiff, rdiff;
-  wire [ASB:0] wsize, rsize;
-
-  assign wdiff   = waddr_next - paddr;
-  assign wsize   = wdiff[ASB:0];
-
-  assign rdiff   = raddr_next - rplay;
-  assign rsize   = rdiff[ASB:0];
-
-  assign chunk_w = USE_LENGTH && wsize == MAX_LENGTH;
-  assign frame_w = USE_LENGTH && rsize == MAX_LENGTH;
+  // -- Packet/Frame Pointers -- //
 
   always @(posedge clock) begin
     if (reset) begin
@@ -231,7 +234,8 @@ module packet_fifo #(
       raddr  <= AZERO;
       rvalid <= 1'b0;
     end else begin
-      rvalid <= ~empty_w && ~frame_w;
+      rvalid <= ~empty_w;
+      // rvalid <= ~empty_w & ~frame_w;
 
       if (replay_a) begin
         raddr <= rplay;
