@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-// #define __fast_eop
+#define __fast_eop
 
 
 // Signal/logic levels

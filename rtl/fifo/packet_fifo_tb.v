@@ -57,6 +57,7 @@ module packet_fifo_tb;
       .USE_LENGTH(1),
       .MAX_LENGTH(32),
       .SAVE_ON_LAST(0),
+      .LAST_ON_SAVE(0),
       .NEXT_ON_LAST(0),
       .OUTREG(OUTREG),
       .WIDTH(WIDTH),

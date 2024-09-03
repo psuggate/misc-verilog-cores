@@ -212,6 +212,8 @@ module axis_logger #(
       .m_axis_tuser()
   );
 
+`ifdef __use_an_extra_packet_fifo
+
   // -- Packet FIFO with Maximum-Packet-Length -- //
 
   assign m_tkeep = m_tvalid;
@@ -247,5 +249,16 @@ module axis_logger #(
       .m_tlast (m_tlast),
       .m_tdata (m_tdata)
   );
+
+`else  /* !__use_an_extra_packet_fifo */
+
+  assign m_tvalid = a_tvalid;
+  assign a_tready = m_tready;
+  assign m_tkeep  = a_tkeep;
+  assign m_tlast  = a_tlast;
+  assign m_tdata  = a_tdata;
+
+`endif /* !__use_an_extra_packet_fifo */
+
 
 endmodule  /* axis_logger */
