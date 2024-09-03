@@ -251,7 +251,7 @@ module ep_bulk_in #(
       .SAVE_ON_LAST(1),
       .LAST_ON_SAVE(1),
       .NEXT_ON_LAST(0),
-      .USE_LENGTH(1),
+      .USE_LENGTH(0),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
   ) U_TX_FIFO1 (
