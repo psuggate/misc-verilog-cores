@@ -53,11 +53,6 @@ module packet_fifo_tb;
   //  DDR Core Under New Test
   ///
 
-  //
-  //  FIXME:
-  //   - 'level' incorrect? Goes 0 -> 2 ??
-  //   - 'LAST_ON_SAVE' does not work (with 'SAVE_ON_LAST' disabled) ?!
-  //
   packet_fifo #(
       .USE_LENGTH(1),
       .MAX_LENGTH(32),

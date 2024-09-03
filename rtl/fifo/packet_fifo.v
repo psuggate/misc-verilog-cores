@@ -72,6 +72,7 @@ module packet_fifo #(
 
   // Transition signals
   reg [ASB:0] level_q;
+  reg save_q, drop_q;
   wire fetch_w, store_w, match_w, chunk_w, frame_w, wfull_w, empty_w;
   wire reject_a, accept_a, finish_a, replay_a;
   wire [ABITS:0] level_w, waddr_w, raddr_w;
@@ -86,6 +87,8 @@ module packet_fifo #(
 
   // -- FIFO Status Signals -- //
 
+  wire save_w = ((SAVE_ON_LAST && s_tvalid && wready && s_tlast) || save_i) && !drop_i;
+
   wire wrfull_next = waddr_next[ASB:0] == raddr[ASB:0] && store_w && !fetch_w;
   wire wrfull_curr = match_w && waddr[ABITS] != raddr[ABITS] && fetch_w == store_w;
 
@@ -94,8 +97,8 @@ module packet_fifo #(
 
 
   // Accept/reject a packet-store
-  assign accept_a = ((SAVE_ON_LAST && s_tvalid && wready && s_tlast) || save_i) && !drop_i;
-  assign reject_a = drop_i;  // ??
+  assign accept_a = LAST_ON_SAVE ? save_q : save_w;
+  assign reject_a = LAST_ON_SAVE ? drop_q : drop_i;  // ??
 
   // Advance/replace a packet-fetch
   assign finish_a = ((NEXT_ON_LAST && m_tvalid && m_tready && m_tlast) || next_i) && !redo_i;
@@ -119,30 +122,35 @@ module packet_fifo #(
       // arrive when 'tvalid' is LO, or when 'tkeep' is LO, or there may not be
       // a 'tlast', to trigger 'store_w' and 'accept_a'.
 
-      reg xvld, xlst, save;
+      reg xvld, xlst;
       reg [7:0] xdat;
 
-      assign store_w = xvld && wready && (s_tvalid && s_tkeep || xlst && SAVE_ON_LAST || save);
-      assign last_w  = xlst || (save && LAST_ON_SAVE);
+      assign store_w = xvld && wready && (s_tvalid && s_tkeep || xlst && SAVE_ON_LAST || save_q);
+      assign last_w  = xlst || (save_q && LAST_ON_SAVE);
       assign data_w  = xdat;
-      assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0] + xvld;
+      assign level_w = waddr_next[ASB:0] - raddr_next[ASB:0] + ((capture_a | xvld) & ~release_a);
+
+      wire capture_a = s_tvalid && wready && s_tkeep;
+      wire release_a = xvld && (xlst && SAVE_ON_LAST || save_q);
 
       always @(posedge clock) begin
         if (reset) begin
-          save <= 1'b0;
+          save_q <= 1'b0;
+          drop_q <= 1'b0;
           xvld <= 1'b0;
           xlst <= 1'b0;
           xdat <= {WIDTH{1'bx}};
         end else begin
-          save <= accept_a;
+          save_q <= save_w;
+          drop_q <= drop_i;
 
-          if (s_tvalid && wready && s_tkeep) begin
+          if (capture_a) begin
             // Data captured, and we maintain one transfer outside of the FIFO,
             // until either 'tlast' (and 'SAVE_ON_LAST) or 'save' asserts.
             xvld <= 1'b1;
             xlst <= s_tlast || LAST_ON_SAVE && save_i;
             xdat <= s_tdata;
-          end else if (store_w) begin
+          end else if (release_a) begin
             // Data stored to SRAM, but no new data arrived, this cycle.
             xvld <= 1'b0;
             xlst <= 1'b0;
@@ -156,7 +164,7 @@ module packet_fifo #(
       assign store_w = s_tvalid && wready;
       assign last_w  = s_tlast;
       assign data_w  = s_tdata;
-      assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0];
+      assign level_w = waddr_next[ASB:0] - raddr_next[ASB:0];
 
     end
   endgenerate

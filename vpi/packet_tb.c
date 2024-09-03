@@ -413,7 +413,6 @@ static int fetch_packet(fifo_sigs_t* curr, tc_state_t* st)
             fifo_sigs_show(curr);
             pt_error("fetched-data check");
         }
-        // assert(st->buf[st->tail++] == curr->r_dat.a && curr->r_dat.b == 0x00);
 
         if (curr->r_lst == SIG1) {
             curr->r_rdy = SIG0;
@@ -814,12 +813,12 @@ static int fetch_stop_go(fifo_sigs_t* curr, tc_state_t* st)
 {
     int result = fetch_packet(curr, st);
     if (result != 0) {
-	return result;
+        return result;
     }
     if ((rand() & 0x01) == 1) {
-	curr->r_rdy = SIG1;
+        curr->r_rdy = SIG1;
     } else {
-	curr->r_rdy = SIG0;
+        curr->r_rdy = SIG0;
     }
     return 0;
 }
@@ -1038,7 +1037,7 @@ static int pt_compiletf(char* user_data)
     arg_handle = vpi_scan(arg_iterator);
     if (arg_handle != NULL) {
         vpi_free_object(arg_iterator); /* free iterator memory */
-        return pt_error("can only have 6 arguments");
+        return pt_error("can only have 15 arguments");
     }
 
     if (vpi_get(vpiSize, state->w_dat) != 8) {
