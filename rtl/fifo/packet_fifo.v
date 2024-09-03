@@ -278,7 +278,7 @@ module packet_fifo #(
       assign fetch_w = rvalid && (xvalid && xready || !xvalid);
 
       always @(posedge clock) begin
-        if (reset) begin
+        if (reset || replay_a) begin
           xvalid <= 1'b0;
         end else begin
           if (fetch_w) begin
@@ -295,7 +295,7 @@ module packet_fifo #(
           .BYPASS(OUTREG > 1 ? 0 : 1)
       ) axis_skid_inst (
           .clock(clock),
-          .reset(reset),
+          .reset(reset || replay_a),
 
           .s_tvalid(xvalid),
           .s_tready(xready),

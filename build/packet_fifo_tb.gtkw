@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Sep  3 09:09:56 2024
+[*] Tue Sep  3 09:35:37 2024
 [*]
 [dumpfile] "./packet_fifo_tb.vcd"
-[dumpfile_mtime] "Tue Sep  3 09:09:30 2024"
-[dumpfile_size] 23584
+[dumpfile_mtime] "Tue Sep  3 09:35:25 2024"
+[dumpfile_size] 30224
 [savefile] "./packet_fifo_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
@@ -12,6 +12,7 @@
 *-16.828176 270000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] packet_fifo_tb.
 [treeopen] packet_fifo_tb.U_PFIFO1.
+[treeopen] packet_fifo_tb.U_PFIFO1.g_outregs.
 [sst_width] 233
 [signals_width] 126
 [sst_expanded] 1
@@ -93,20 +94,25 @@ packet_fifo_tb.U_PFIFO1.g_last_on_save.capture_a
 packet_fifo_tb.U_PFIFO1.g_last_on_save.release_a
 packet_fifo_tb.U_PFIFO1.g_last_on_save.xvld
 packet_fifo_tb.U_PFIFO1.g_last_on_save.xlst
-@29
 packet_fifo_tb.U_PFIFO1.g_last_on_save.xmax
 @1000200
 -LAST_ON
 -Store
-@c00200
+@800200
 -Fetch
 @28
 packet_fifo_tb.U_PFIFO1.fetch_w
 @24
 packet_fifo_tb.U_PFIFO1.raddr[7:0]
-@1401200
--Fetch
+@28
+packet_fifo_tb.U_PFIFO1.rvalid
+packet_fifo_tb.U_PFIFO1.xvalid
+packet_fifo_tb.U_PFIFO1.xready
+packet_fifo_tb.U_PFIFO1.xlast
+@23
+packet_fifo_tb.U_PFIFO1.xdata[7:0]
 @1000200
+-Fetch
 -FIFO
 [pattern_trace] 1
 [pattern_trace] 0

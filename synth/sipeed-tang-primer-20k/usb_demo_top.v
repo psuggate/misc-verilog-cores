@@ -194,8 +194,8 @@ module usb_demo_top (
   wire [2:0] usb_config, stout_w;
 
   // assign cbits = {conf_event, usb_config};
-  // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
-  assign cbits = {stout_w, configured};
+  assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
+  // assign cbits = {stout_w, configured};
 
   assign x_tvalid = 1'b0;
   assign x_tkeep = 1'b0;

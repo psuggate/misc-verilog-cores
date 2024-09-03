@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 module packet_fifo_tb;
 
-  localparam integer OUTREG = 0;  // Xilinx distributed (LUT) SRAMs
+  localparam integer OUTREG = 2;  // Xilinx distributed (LUT) SRAMs
   localparam integer WIDTH = 8;  // byte-width data
   localparam integer ABITS = 7;  // 128 entries
   localparam integer DEPTH = 1 << ABITS;
