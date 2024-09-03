@@ -40,7 +40,7 @@ static const char type_strings[19][16] = {
     {"TimeOut"}
 };
 
-static const char stage_strings[19][16] = {
+static const char stage_strings[20][16] = {
     {"NoXfer"},
     {"AssertDir"},
     {"InitRXCMD"},
@@ -54,6 +54,7 @@ static const char stage_strings[19][16] = {
     {"DATAxCRC1"},
     {"DATAxCRC2"},
     {"DATAxStop"},
+    {"ULPITurn"},
     {"EndRXCMD"},
     {"EOP"},
     {"REGW"},
@@ -225,6 +226,66 @@ int check_rx_crc16(transfer_t* xfer)
     }
 }
 
+#ifdef  __fast_eop
+
+int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
+{
+    switch (xfer->stage) {
+
+    case XferIdle:
+        return 1;
+
+    case ULPITurn:
+        out->dir = SIG1;
+        out->nxt = SIG0;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        xfer->stage = DATAxStop;
+        break;
+
+    case Token2:
+    case DATAxCRC2:
+    case HskPID:
+        assert(in->nxt == SIG1);
+        assert(in->data.b == 0x00);
+    case DATAxStop:
+        assert(in->dir == SIG1);
+        out->dir = SIG1;
+        out->nxt = SIG0;
+        out->data.a = 0x4D;
+        out->data.b = 0x00;
+        xfer->stage = EndRXCMD;
+        break;
+
+    case EndRXCMD:
+        assert(out->dir == SIG1);
+        assert(out->nxt == SIG0);
+        assert(out->data.b == 0x00);
+        out->dir = SIG0;
+        out->data.a = 0x00;
+        out->data.b = 0xFF;
+        xfer->stage = LineIdle;
+        break;
+
+    case LineIdle:
+        assert(in->dir == SIG0);
+        assert(in->nxt == SIG0);
+        assert(in->data.a == 0x00);
+        xfer->type = XferIdle;
+        xfer->stage = NoXfer;
+        return 1;
+
+    default:
+        printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
+               xfer->stage, stage_strings[xfer->stage]);
+        return -1;
+    }
+
+    return 0;
+}
+
+#else   /* !__fast_eop */
+
 int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 {
     switch (xfer->stage) {
@@ -244,7 +305,6 @@ int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         break;
 
     case DATAxStop:
-        assert(in->dir == SIG1);
         assert(in->nxt == SIG0);
         out->data.a = 0x4C;
         out->data.b = 0x00;
@@ -285,6 +345,8 @@ int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
     return 0;
 }
+
+#endif  /* !__fast_eop */
 
 /**
  * Evaluates step-functions for both a USB host, and a USB "function" (device),
@@ -567,11 +629,17 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             if (in->stp == SIG1) {
                 // Turn around the ULPI bus, so that we can send an RX CMD
                 // Todo: check CRC
-                out->dir = SIG1;
                 out->nxt = SIG0;
                 out->data.a = 0x00;
+#ifdef  __fast_eop
+                out->dir = SIG0;
+                out->data.b = 0x00;
+                xfer->stage = ULPITurn;
+#else   /* !__fast_eop */
+                out->dir = SIG1;
                 out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
+#endif  /* !__fast_eop */
                 xfer->rx_len = xfer->rx_ptr - 2;
                 if (check_rx_crc16(xfer) < 1) {
                     return -1;

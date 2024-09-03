@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep  2 07:06:11 2024
+[*] Tue Sep  3 01:12:17 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Mon Sep  2 07:05:53 2024"
-[dumpfile_size] 2189265
+[dumpfile_mtime] "Tue Sep  3 01:09:55 2024"
+[dumpfile_size] 2189232
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 20459000
+[timestart] 34189000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 21090000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 34820000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -250,11 +250,12 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_parity_i
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_halted_i
 @1401200
 -EndPoints
-@c00200
+@800200
 -Internal
 @28
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.crc_err_q
+[color] 3
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.end_q
 @c00200
 -OUT
@@ -276,10 +277,17 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_ack_q
 -IN
 @28
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.par_q
+[color] 2
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ta_run_q
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ta_err_q
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.epg_q
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.RxEvent[1:0]
+@25
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep_count[4:0]
+@28
+[color] 2
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep_run_q
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep_err_q
@@ -287,9 +295,8 @@ vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_halted_i
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep1_en
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep2_en
 vpi_usb_ulpi_tb.U_USB1.U_PROTO1.ep3_en
-@1401200
--Internal
 @1000200
+-Internal
 -Protocol
 @820
 [color] 7
@@ -398,12 +405,12 @@ vpi_usb_ulpi_tb.U_USB1.stdreq_tdata_w[7:0]
 @800200
 -Logger
 -Master
-@29
+@28
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tvalid
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tready
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tkeep
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tlast
-@23
+@22
 vpi_usb_ulpi_tb.U_TELEMETRY1.m_tdata[7:0]
 @1000200
 -Master

@@ -15,10 +15,10 @@ clean:
 	make -C usb clean
 	rm -f $(OBJ) $(VPI) $(RUN)
 
-%.o: %.c
+%.o: %.c $(INC)
 	gcc -c -fpic -O2 -I/usr/include/iverilog $<
 
-%.o: usb/%.c
+%.o: usb/%.c $(INC)
 	gcc -c -fpic -O2 -I/usr/include/iverilog $<
 
 %.vpi:	$(OBJ)

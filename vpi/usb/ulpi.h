@@ -5,6 +5,9 @@
 #include <stdint.h>
 
 
+// #define __fast_eop
+
+
 // Signal/logic levels
 #define SIG0 0
 #define SIG1 1
@@ -143,11 +146,12 @@ typedef enum {
     DATAxCRC1, // 10
     DATAxCRC2,
     DATAxStop,
-    EndRXCMD,  // 13
+    ULPITurn,  // 13
+    EndRXCMD,  // 14
     EOP,
     REGW,
     REGR,
-    REGD,      // 17
+    REGD,      // 18
     LineIdle,
 } xfer_stage_t;
 

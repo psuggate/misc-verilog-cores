@@ -223,11 +223,17 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
             assert(in->dir == SIG0 && in->data.b == 0x00);
             if (in->stp == SIG1) {
                 // Turn around the ULPI bus, so that we can send an RX CMD
-                out->dir = SIG1;
                 out->nxt = SIG0;
                 out->data.a = 0x00;
+#ifdef  __fast_eop
+                out->dir = SIG0;
+                out->data.b = 0x00;
+                xfer->stage = ULPITurn;
+#else   /* !__fast_eop */
+                out->dir = SIG1;
                 out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
+#endif  /* !__fast_eop */
                 xfer->rx_len = xfer->rx_ptr - 2;
                 if (check_rx_crc16(xfer) < 1) {
                     return -1;

@@ -597,6 +597,7 @@ module protocol #(
     if (reset) begin
       timeout_q <= 1'b0;
     end else begin
+      // timeout_q <= 1'b0;
       timeout_q <= ta_err_q | ep_err_q;
     end
   end
@@ -646,14 +647,23 @@ module protocol #(
       ep_run_q <= 1'b1;
       ep_err_q <= 1'b0;
       ep_count <= MAX_EP_TIMER;
-    end else if (ep_run_q && (ep_cnext[5] || usb_busy_i || RxEvent == 2'b01)) begin
-      // Timer has elapsed, or start-of-packet has been received
-      ep_run_q <= 1'b0;
-      ep_err_q <= !usb_busy_i && RxEvent != 2'b01;
-      ep_count <= MAX_EP_TIMER;
     end else if (ep_run_q) begin
-      // Still waiting ...
-      ep_count <= ep_cnext;
+      if ((state == ST_SEND || state == ST_RESP) && usb_busy_i) begin
+        // ULPI encoder has started transmission
+        ep_run_q <= 1'b0;
+        ep_err_q <= 1'b0;
+      end else if (state == ST_RECV && RxEvent == 2'b01) begin
+        // ULPI decoder has started receiving
+        ep_run_q <= 1'b0;
+        ep_err_q <= 1'b0;
+      end else if (ep_cnext[5]) begin
+        // Timer has elapsed
+        ep_run_q <= 1'b0;
+        ep_err_q <= 1'b1;
+      end else begin
+        // Still waiting ...
+        ep_count <= ep_cnext;
+      end
     end else begin
       ep_run_q <= 1'b0;
       ep_err_q <= 1'b0;
