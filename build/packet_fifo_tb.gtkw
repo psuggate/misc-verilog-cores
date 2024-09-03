@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Aug 23 06:01:41 2024
+[*] Tue Sep  3 05:55:01 2024
 [*]
 [dumpfile] "./packet_fifo_tb.vcd"
-[dumpfile_mtime] "Fri Aug 23 06:00:56 2024"
-[dumpfile_size] 26389
+[dumpfile_mtime] "Tue Sep  3 05:46:10 2024"
+[dumpfile_size] 20246
 [savefile] "./packet_fifo_tb.gtkw"
-[timestart] 1714900
+[timestart] 0
 [size] 1920 1043
-[pos] -1 -1
-*-16.549292 2340000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] 2559 -28
+*-16.549292 150000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] packet_fifo_tb.
 [sst_width] 233
 [signals_width] 126
@@ -29,7 +29,6 @@ packet_fifo_tb.save
 [color] 1
 packet_fifo_tb.drop
 packet_fifo_tb.next
-@29
 [color] 1
 packet_fifo_tb.redo
 @1000200
@@ -57,5 +56,14 @@ packet_fifo_tb.r_dat[7:0]
 @28
 packet_fifo_tb.U_PFIFO1.chunk_w
 packet_fifo_tb.U_PFIFO1.frame_w
+[color] 3
+packet_fifo_tb.U_PFIFO1.accept_a
+[color] 1
+packet_fifo_tb.U_PFIFO1.reject_a
+packet_fifo_tb.U_PFIFO1.finish_a
+@29
+packet_fifo_tb.U_PFIFO1.store_w
+@28
+packet_fifo_tb.U_PFIFO1.fetch_w
 [pattern_trace] 1
 [pattern_trace] 0

@@ -284,23 +284,32 @@ module axi_wr_path (
   // -- Synchronous, 2 kB, Write-Data FIFO -- //
 
   packet_fifo #(
-      .WIDTH (MASKS + WIDTH),
-      .ABITS (DBITS),
+      .WIDTH(MASKS + WIDTH),
+      .ABITS(DBITS),
+      .SAVE_ON_LAST(1),
+      .LAST_ON_SAVE(0),
+      .NEXT_ON_LAST(1),
       .OUTREG(DATA_FIFO_BLOCK)
   ) wrdata_fifo_inst (
       .clock(clock),
       .reset(reset),
 
-      .valid_i(axi_wvalid_i & wready),
-      .ready_o(wdf_ready),
-      .last_i (axi_wlast_i),
+      .level_o(),
       .drop_i (1'b0),
-      .data_i ({axi_wstrb_i, axi_wdata_i}), // todo: pad end of bursts ??
+      .save_i (1'b0),
+      .redo_i (1'b0),
+      .next_i (1'b0),
 
-      .valid_o(wdf_valid),
-      .ready_i(mem_ready_i),
-      .last_o (wdf_last),
-      .data_o ({mem_strb_o, mem_data_o})
+      .s_tvalid(axi_wvalid_i & wready),
+      .s_tready(wdf_ready),
+      .s_tkeep (1'b1),
+      .s_tlast (axi_wlast_i),
+      .s_tdata ({axi_wstrb_i, axi_wdata_i}), // todo: pad end of bursts ??
+
+      .m_tvalid(wdf_valid),
+      .m_tready(mem_ready_i),
+      .m_tlast (wdf_last),
+      .m_tdata ({mem_strb_o, mem_data_o})
   );
 
 

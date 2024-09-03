@@ -29,7 +29,6 @@ typedef struct {
     uint8_t b;
 } byte_t;
 
-
 typedef struct __fifo_sigs {
     bit_t clock;
     bit_t reset;
@@ -100,6 +99,7 @@ typedef struct __test {
 
 static char err_mesg[2048] = {0};
 
+// -- Prototypes -- //
 
 static int pt_error(const char* reason);
 static int pt_failed(const char* mesg, const int line, pt_state_t* state);
@@ -110,6 +110,7 @@ static int pt_step(pt_state_t* state, fifo_sigs_t* next);
 
 void show_pt_state(pt_state_t* state);
 
+// -- Helpers -- //
 
 uint32_t fill_fixed_len(uint8_t* buf, const uint32_t len)
 {
@@ -124,7 +125,6 @@ uint32_t fill_len_masked(uint8_t* buf, const uint32_t len)
     uint32_t size = rand() & len;
     return fill_fixed_len(buf, size);
 }
-
 
 /**
  * Abort simulation and emit the error-reason.
