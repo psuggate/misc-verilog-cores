@@ -242,6 +242,7 @@ module vpi_usb_ulpi_tb;
   wire core_clk, core_rst, core_dir, core_nxt, core_stp;
   wire [7:0] core_dat;
 
+  wire core_tready_w;
   wire io_tvalid, io_tready, io_tlast;
   wire [7:0] io_tdata;
 

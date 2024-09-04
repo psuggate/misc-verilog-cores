@@ -148,7 +148,6 @@ module axi_ddr3_lite #(
     input [MSB:0] dfi_data_i
 );
 
-
   // -- Global Signals and State -- //
 
   reg en_q;
@@ -359,7 +358,6 @@ module axi_ddr3_lite #(
       .ctl_rdata_o (rd_data)
   );
 
-
   // -- Coordinate with the DDR3 to PHY Interface -- //
 
   ddr3_ddl #(
@@ -487,4 +485,4 @@ module axi_ddr3_lite #(
   endgenerate
 
 
-endmodule  // axi_ddr3_lite
+endmodule  /* axi_ddr3_lite */

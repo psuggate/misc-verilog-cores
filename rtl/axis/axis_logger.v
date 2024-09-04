@@ -4,7 +4,7 @@
  */
 module axis_logger #(
     parameter SRAM_BYTES = 2048,
-    parameter USE_SYNC_FIFO = 1,
+    parameter USE_SYNC_FIFO = 0,
 
     parameter FIFO_WIDTH = 32,
     localparam MSB = FIFO_WIDTH - 1,
@@ -212,7 +212,7 @@ module axis_logger #(
       .m_axis_tuser()
   );
 
-  `define __use_an_extra_packet_fifo
+  // `define __use_an_extra_packet_fifo
 `ifdef __use_an_extra_packet_fifo
 
   // -- Packet FIFO with Maximum-Packet-Length -- //

@@ -1,8 +1,8 @@
 `timescale 1ns / 100ps
 /**
- * DDR3 post -initialisation/-reset configuration is performed here, and is not
- * part of 'FSM' to emphasize that it has been moved out of the "critical path"
- * of the memory controller.
+ * DDR3 post -initialisation/-reset configuration is performed here, and it is
+ * not part of 'FSM', nor is it part of the "critical path" of the DDR3 memory
+ * controller.
  *
  * Notes:
  *  - handles device- and mode- specific timings;
@@ -10,65 +10,37 @@
  * Copyright 2023, Patrick Suggate.
  *
  */
-module ddr3_cfg (
-    clock,
-    reset,
+module ddr3_cfg #(
+    parameter DDR_FREQ_MHZ = 100,
+    parameter DDR_ROW_BITS = 13,
+    localparam RSB = DDR_ROW_BITS - 1
+) (
+    input clock,
+    input reset,
 
-    dfi_rst_no,  // Control these IOB's directly
-    dfi_cke_o,
-    dfi_cs_no,
-    dfi_odt_o,
+    // (Pseudo-) DDR3 PHY Interface (-ish)
+    output dfi_rst_no,  // Control these IOB's directly
+    output dfi_cke_o,
+    output dfi_cs_no,
+    output dfi_odt_o,
 
-    ctl_req_o,  // Memory controller signals
-    ctl_run_o,  // When initialisation has completed
-    ctl_rdy_i,
-    ctl_cmd_o,
-    ctl_ref_o,
-    ctl_ba_o,
-    ctl_adr_o
+    // From/to DDR3 Controller
+    output ctl_req_o,  // Memory controller signals
+    output ctl_run_o,  // When initialisation has completed
+    input ctl_rdy_i,
+    output [2:0] ctl_cmd_o,
+    output ctl_ref_o,
+    output [2:0] ctl_ba_o,
+    output [RSB:0] ctl_adr_o
 );
 
-  //
-  //  Settings for the Configuration Module
-  ///
-
-  // -- DDR3 SDRAM Timings and Parameters -- //
-
-  parameter DDR_FREQ_MHZ = 100;
-  `include "ddr3_settings.vh"
-
-  // Data-path and address settings
-  parameter DDR_ROW_BITS = 13;
-  localparam RSB = DDR_ROW_BITS - 1;
-
-
-  input clock;
-  input reset;
-
-  // (Pseudo-) DDR3 PHY Interface (-ish)
-  output dfi_rst_no;
-  output dfi_cke_o;
-  output dfi_cs_no;
-  output dfi_odt_o;
-
-  // From/to DDR3 Controller
-  output ctl_req_o;
-  output ctl_run_o;
-  input ctl_rdy_i;
-  output [2:0] ctl_cmd_o;
-  output ctl_ref_o;
-  output [2:0] ctl_ba_o;
-  output [RSB:0] ctl_adr_o;
-
-
-  // -- Constants -- //
+`include "ddr3_settings.vh"
 
   // REFRESH settings
   localparam CREFI = (DDR_TREFI - 1) / TCK;  // cycles(tREFI) - 1
   localparam RFC_BITS = $clog2(CREFI);
   localparam RFCSB = RFC_BITS - 1;
   localparam [RFCSB:0] RFC_ZERO = {RFC_BITS{1'b0}};
-
 
   reg [RFCSB:0] refresh_counter;
   reg [2:0] refresh_pending, cmd_q, ba_q;
@@ -79,7 +51,6 @@ module ddr3_cfg (
 
   reg [3:0] cmd_prev_q, cmd_curr_q;
   wire [3:0] cmd_next_w;
-
 
   assign ctl_run_o  = run_q;
   assign ctl_req_o  = req_q;
@@ -93,13 +64,13 @@ module ddr3_cfg (
   assign dfi_cs_no  = cs_nq;
   assign dfi_odt_o  = 1'b0;
 
-
   // -- Initialisation and Refresh Counter -- //
+
 `ifdef __icarus
   // Faster start-up times for the impatient (simulator) ...
   localparam CYCLES_UNSTABLE = (10000 + TCK - 1) / TCK;
   localparam CYCLES_STARTUP = (50000 + TCK - 1) / TCK;
-`else
+`else  /* !__icarus */
   // Clock cycles required for power to stabilise (200 us)
   // Note: RESET# is asserted throughout this period
   localparam CYCLES_UNSTABLE = (200000 + TCK - 1) / TCK;
@@ -107,11 +78,10 @@ module ddr3_cfg (
   // Clock cycles required for SDRAM to internal-RESET# (500 us)
   // Note: CKE has to be de-asserted (>= 5 cycles) prior to this phase
   localparam CYCLES_STARTUP = (500000 + TCK - 1) / TCK;
-`endif
+`endif /* !__icarus */
 
   // Clock cycles required to set all four mode registers
   localparam CYCLES_MODE_SET = 4 * (DDR_CMRD + DDR_CMOD) + 2;
-
 
   // -- Refresh Counter -- //
 
@@ -169,7 +139,6 @@ module ddr3_cfg (
       ref_q <= |refresh_pending;
     end
   end
-
 
   // -- Initialisation State Machine -- //
 
@@ -418,6 +387,7 @@ module ddr3_cfg (
   // -- Simulation Only -- //
 
 `ifdef __icarus
+
   initial begin
     $display("COUNTER_BITS: %d", COUNTER_BITS);
     $display("COUNTER_INIT: %08x", COUNTER_INIT);
@@ -442,7 +412,8 @@ module ddr3_cfg (
       default: dbg_state = "UNKNOWN";
     endcase
   end
-`endif
+
+`endif /* __icarus */
 
 
-endmodule  // ddr3_cfg
+endmodule  /* ddr3_cfg */

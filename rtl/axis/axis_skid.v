@@ -23,28 +23,15 @@ module axis_skid #(
 
   wire sready_next, tvalid_next, mvalid_next;
 
-  generate
-    if (BYPASS == 1) begin : g_bypass
+  assign m_tvalid = BYPASS == 1 ? s_tvalid : mvalid;
+  assign s_tready = BYPASS == 1 ? m_tready : sready;
+  assign m_tlast  = BYPASS == 1 ? s_tlast : mlast;
+  assign m_tdata  = BYPASS == 1 ? s_tdata : mdata;
 
-      // No registers
-      assign m_tvalid = s_tvalid;
-      assign s_tready = m_tready;
-      assign m_tlast  = s_tlast;
-      assign m_tdata  = s_tdata;
-
-      initial begin
-        $display("=> Bypassing AXI-S skid-register");
-      end
-    end // g_bypass
-  else begin : g_skid
-
-      assign s_tready = sready;
-      assign m_tvalid = mvalid;
-      assign m_tlast  = mlast;
-      assign m_tdata  = mdata;
-
-    end  // g_skid
-  endgenerate
+  initial
+    if (BYPASS == 1) begin : i_bypass
+      $display("=> Bypassing AXI-S skid-register");
+    end  // i_bypass
 
   // -- Control -- //
 
@@ -76,7 +63,6 @@ module axis_skid #(
     end
   end
 
-
   // -- Datapath -- //
 
   function src_to_tmp(input src_ready, input dst_valid, input dst_ready);
@@ -106,4 +92,4 @@ module axis_skid #(
     end
   end
 
-endmodule  // axis_skid
+endmodule  /* axis_skid */
