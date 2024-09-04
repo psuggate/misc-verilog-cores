@@ -16,6 +16,9 @@ struct Args {
     #[arg(short, long, default_value = "false")]
     read_first: bool,
 
+    #[arg(long, default_value = "false")]
+    read_twice: bool,
+
     #[arg(short, long, default_value = "false")]
     no_read: bool,
 
@@ -142,6 +145,10 @@ fn axis_usb(args: Args) -> Result<(), rusb::Error> {
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
 
     let _bytes: Vec<u8> = tart_read(&args, &mut axis_usb)?;
+
+    if args.read_twice {
+        let _bytes: Vec<u8> = tart_read(&args, &mut axis_usb)?;
+    }
 
     if args.telemetry {
         tart_telemetry(&mut axis_usb, args.verbose)?;

@@ -269,12 +269,12 @@ module packet_fifo #(
 
       // Suitable for Xilinx Distributed SRAM's, and similar, with fast, async
       // reads.
-      assign fetch_w  = rvalid && m_tready;
-      assign rstop_w  = rvalid && rlast_w && m_tready;
+      assign fetch_w = rvalid && m_tready;
+      assign rstop_w = rvalid && rlast_w && m_tready;
 
       assign m_tvalid = rvalid;
-      assign m_tlast  = rlast_w;
-      assign m_tdata  = rdata_w;
+      assign m_tlast = rlast_w;
+      assign m_tdata = rdata_w;
 
     end // g_async
   else if (OUTREG > 0) begin : g_outregs
