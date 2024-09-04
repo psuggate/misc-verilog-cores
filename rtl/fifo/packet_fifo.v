@@ -176,7 +176,7 @@ module packet_fifo #(
 
     end else begin : g_normal_save
 
-      assign store_w = s_tvalid && wready;
+      assign store_w = s_tvalid && wready && s_tkeep;
       assign last_w  = s_tlast || chunk_w;
       assign data_w  = s_tdata;
       assign level_w = waddr_next[ASB:0] - raddr_next[ASB:0];
@@ -193,7 +193,6 @@ module packet_fifo #(
       wready <= 1'b0;
     end else begin
       wready <= ~wfull_w;
-      // wready <= ~wfull_w & ~chunk_w;
 
       if (reject_a) begin
         waddr <= paddr;
@@ -220,7 +219,6 @@ module packet_fifo #(
       end
 
       if (finish_a) begin
-        // rplay <= raddr_next;
         rplay <= rprev;
       end
     end
@@ -242,7 +240,6 @@ module packet_fifo #(
 
       if (replay_a) begin
         raddr <= rplay;
-        // rprev <= rplay;
       end else begin
         raddr <= raddr_next;
         rprev <= rstop_w ? raddr : rprev;

@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep  4 08:20:31 2024
+[*] Wed Sep  4 09:22:06 2024
 [*]
 [dumpfile] "./ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Wed Sep  4 08:20:17 2024"
-[dumpfile_size] 16557
+[dumpfile_mtime] "Wed Sep  4 09:16:56 2024"
+[dumpfile_size] 44041
 [savefile] "./ep_bulk_in_tb.gtkw"
-[timestart] 141600
-[size] 1920 1043
+[timestart] 54700
+[size] 2560 1376
 [pos] -1 -1
-*-16.710466 600000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.710466 480000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ep_bulk_in_tb.
 [treeopen] ep_bulk_in_tb.U_EPIN1.
 [sst_width] 233
-[signals_width] 142
+[signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 298
+[sst_vpaned_height] 414
 @28
 ep_bulk_in_tb.clock
 [color] 1
@@ -65,6 +65,17 @@ ep_bulk_in_tb.m_tlast
 ep_bulk_in_tb.m_tdata[7:0]
 @1000200
 -To Encoder
+@800201
+-Buf
+@29
+ep_bulk_in_tb.x_tvalid
+ep_bulk_in_tb.x_tready
+ep_bulk_in_tb.x_tkeep
+ep_bulk_in_tb.x_tlast
+@23
+ep_bulk_in_tb.x_tdata[7:0]
+@1000201
+-Buf
 @800200
 -EP IN
 @820
@@ -79,11 +90,40 @@ ep_bulk_in_tb.U_EPIN1.save_w
 ep_bulk_in_tb.U_EPIN1.next_w
 [color] 1
 ep_bulk_in_tb.U_EPIN1.redo_w
-@1000200
--EP IN
+@800200
+-FIFO
 @24
-ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.raddr[5:0]
-ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.rprev[5:0]
-ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.rplay[5:0]
+ep_bulk_in_tb.U_EPIN1.U_FIFO1.raddr[5:0]
+ep_bulk_in_tb.U_EPIN1.U_FIFO1.rprev[5:0]
+ep_bulk_in_tb.U_EPIN1.U_FIFO1.rplay[5:0]
+@1000200
+-FIFO
+-EP IN
+@28
+[color] 2
+ep_bulk_in_tb.out_sel_q
+[color] 3
+ep_bulk_in_tb.out_ack_q
+[color] 1
+ep_bulk_in_tb.out_err_q
+ep_bulk_in_tb.out_rdy_w
+ep_bulk_in_tb.out_par_w
+[color] 1
+ep_bulk_in_tb.out_hlt_w
+@820
+[color] 7
+ep_bulk_in_tb.U_EPOUT1.dbg_state[39:0]
+@800200
+-Out
+@28
+ep_bulk_in_tb.o_tvalid
+ep_bulk_in_tb.o_tready
+ep_bulk_in_tb.o_tlast
+@22
+ep_bulk_in_tb.o_tdata[7:0]
+@1000200
+-Out
+@28
+ep_bulk_in_tb.U_EPOUT1.tready_w
 [pattern_trace] 1
 [pattern_trace] 0

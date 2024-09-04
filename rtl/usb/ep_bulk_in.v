@@ -257,7 +257,7 @@ module ep_bulk_in #(
       .USE_LENGTH(1),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
-  ) U_TX_FIFO1 (
+  ) U_FIFO1 (
       .clock(clock),
       .reset(rst_q),
 

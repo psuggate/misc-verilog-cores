@@ -218,7 +218,7 @@ module ep_bulk_out #(
       .USE_LENGTH(0),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
-  ) U_TX_FIFO1 (
+  ) U_FIFO1 (
       .clock(clock),
       .reset(rst_q),
 
@@ -231,8 +231,8 @@ module ep_bulk_out #(
 
       .s_tvalid(vld_w),
       .s_tready(rdy_w),
-      .s_tlast (lst_w),
       .s_tkeep (1'b1),
+      .s_tlast (lst_w),
       .s_tdata (dat_w),
 
       .m_tvalid(m_tvalid),
