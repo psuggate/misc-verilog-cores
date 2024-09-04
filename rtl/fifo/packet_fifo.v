@@ -100,7 +100,7 @@ module packet_fifo #(
 
   // Accept/reject a packet-store
   assign accept_a = LAST_ON_SAVE ? save_q : save_w;
-  assign reject_a = LAST_ON_SAVE ? drop_q : drop_i;  // ??
+  assign reject_a = drop_i;
 
   // Advance/replace a packet-fetch
   assign finish_a = ((NEXT_ON_LAST && m_tvalid && m_tready && m_tlast) || next_i) && !redo_i;
@@ -119,8 +119,6 @@ module packet_fifo #(
   assign rdiff = raddr_next - rplay;
   assign rsize = rdiff[ASB:0];
 
-  // assign chunk_w = USE_LENGTH && wsize == MAX_LENGTH;
-  // assign frame_w = USE_LENGTH && rsize == MAX_LENGTH;
   assign chunk_w = USE_LENGTH && wsize == MAX_LIMIT;
   assign frame_w = USE_LENGTH && rsize == MAX_LIMIT;
 

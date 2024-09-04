@@ -173,7 +173,7 @@ module ep_bulk_in_tb;
       out_sel_q <= 1'b0;
       out_ack_q <= 1'b0;
       out_err_q <= 1'b0;
-      o_tready  <= 1'b0;
+      o_tready <= 1'b0;
       failed <= 1'b0;
     end else begin
       if (m_tvalid) begin
