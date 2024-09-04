@@ -1,7 +1,6 @@
 `timescale 1ns / 100ps
 module ep_bulk_in_tb;
 
-
   reg clock = 1;
   reg reset = 0;
 
@@ -12,133 +11,136 @@ module ep_bulk_in_tb;
     $dumpfile("ep_bulk_in_tb.vcd");
     $dumpvars;
 
-    #400 $finish;
+    #800 $finish;
   end
 
   reg set_conf_q, clr_conf_q;
-  reg selected_q;
-  reg ack_recv_q, err_recv_q;
+  reg selected_q, ack_recv_q, timedout_q;
+  wire ep_ready_w, parity_w, stalled_w;
 
-  reg svalid, skeep, slast, mready;
-  reg [7:0] sdata;
-  wire sready, mvalid, mkeep, mlast;
-  wire [3:0] muser;
-  wire [7:0] mdata;
+  reg s_tvalid, m_tready;
+  wire s_tlast;
+  reg [7:0] s_tdata;
+  wire s_tready, m_tvalid, m_tkeep, m_tlast;
+  wire [7:0] m_tdata;
 
-  reg splurge = 0;
+  reg fill, send;
+  integer size = 4;
 
   initial begin
-    #40 reset <= 1'b1;
+    #10 reset <= 1'b1;
     set_conf_q <= 1'b0;
     clr_conf_q <= 1'b0;
     selected_q <= 1'b0;
+    timedout_q <= 1'b0;
     ack_recv_q <= 1'b0;
-    err_recv_q <= 1'b0;
-    svalid <= 1'b0;
-    skeep  <= 1'b0;
-    slast  <= 1'b0;
-    sdata  <= 'bx;
-    mready <= 1'b0;
+    m_tready <= 1'b0;
     #15 reset <= 1'b0;
 
-    #10 if (sready || mvalid) begin
+    #10
+    if (s_tready || m_tvalid) begin
       $error("EP IN driving bus when IDLE");
       $fatal;
     end
-
-    // Not configured, so we expect to see a STALL
-    #10 selected_q <= 1'b1;
-    #10 selected_q <= 1'b0;
-    #10 mready <= 1'b1;
-    #10 mready <= 1'b0;
 
     // -- ENABLE EP IN -- //
 
     #20 set_conf_q <= 1'b1;
     #10 set_conf_q <= 1'b0;
 
-    // No data, so we expect to see a NAK
-    #10 selected_q <= 1'b1;
-    #10 selected_q <= 1'b0;
-    #10 mready <= 1'b1;
-    #10 mready <= 1'b0;
+    #10 fill <= 1'b1; size <= 8;
+    #170 fill <= 1'b0;
 
-
-    // Now with data
-    #20 send_data(1);
-    
-    #20 ack_recv_q <= 1'b1;
-    #10 ack_recv_q <= 1'b0;
+    #40 send <= 1'b1;
+    #10 while (selected_q) #10 ;
+    #20 send <= 1'b1;
+    #10 while (selected_q) #10 ;
+    #20 send <= 1'b1;
+    #10 while (selected_q) #10 ;
+    #20 send <= 1'b1;
+    #10 while (selected_q) #10 ;
   end
 
+  integer wcount;
+  wire [31:0] wcnext = wcount + 1;
 
-  integer count;
+  assign s_tlast = wcnext == size;
 
-  task send_data;
-    input [2:0] len;
-    begin
-      count  <= len == 0 ? len + 1 : len;
-      svalid <= 1'b1;
-      skeep  <= len != 3'd0;
-      slast  <= len <= 3'd1;
-      sdata  <= $urandom;
-
-      @(posedge clock);
-      selected_q <= 1'b1;
-
-      while (count > 0) begin
-        mready <= ~(mvalid & mlast);
-
-        @(posedge clock);
-        selected_q <= 1'b0;
-        if (svalid && sready) begin
-          svalid <= count > 1;
-          slast <= count < 2;
-          sdata <= $urandom;
-          count <= count - 1;
-        end
+  always @(posedge clock) begin
+    if (reset) begin
+      fill <= 1'b0;
+      wcount <= 0;
+      s_tvalid <= 1'b0;
+      s_tdata <= 'bx;
+    end else if (fill && s_tready) begin
+      s_tvalid <= 1'b1;
+      s_tdata  <= $urandom;
+      if (s_tvalid && s_tready) begin
+        wcount <= s_tlast ? 0 : wcnext;
       end
-      svalid <= 1'b0;
-      mready <= ~(mvalid & mlast);
-
-      while (mvalid) begin
-        @(posedge clock);
-        mready <= ~(mvalid & mlast);
-      end
-      mready <= 1'b0;
-      $display("%10t: DATAx packet sent (bytes: %d)", $time, len);
+    end else if (!fill) begin
+      s_tvalid <= 1'b0;
+      wcount <= 0;
     end
-  endtask // send_data
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      send <= 1'b0;
+      selected_q <= 1'b0;
+      ack_recv_q <= 1'b0;
+      m_tready <= 1'b0;
+    end else if (send && !selected_q) begin
+      selected_q <= 1'b1;
+      ack_recv_q <= 1'b0;
+      m_tready <= 1'b1;
+    end else if (selected_q) begin
+      if (send && m_tvalid && m_tready && m_tlast) begin
+        m_tready <= 1'b0;
+        send <= 1'b0;
+      end else if (!send && !ack_recv_q) begin
+        ack_recv_q <= 1'b1;
+      end else if (ack_recv_q) begin
+        ack_recv_q <= 1'b0;
+        selected_q <= 1'b0;
+      end
+    end
+  end
 
 
   //
   //  Core Under New Tests
   ///
 
-  ep_bulk_in #(.ENABLED(1), .CONSTANT(1)) EP_IN0
-    (
-     .clock(clock),
-     .reset(reset),
+  ep_bulk_in #(
+      .ENABLED(1),
+      .PACKET_FIFO_DEPTH(32),
+      .MAX_PACKET_LENGTH(8)
+  ) U_EPIN1 (
+      .clock(clock),
+      .reset(reset),
 
-     .set_conf_i(set_conf_q), // From CONTROL PIPE0
-     .clr_conf_i(clr_conf_q), // From CONTROL PIPE0
-     .selected_i(selected_q), // From USB controller
-     .ack_recv_i(ack_recv_q), // From USB decoder
-     .err_recv_i(err_recv_q), // From USB decoder
+      .set_conf_i(set_conf_q),  // From CONTROL PIPE0
+      .clr_conf_i(clr_conf_q),  // From CONTROL PIPE0
+      .selected_i(selected_q),  // From USB controller
+      .timedout_i(timedout_q),  // From USB controller
+      .ack_recv_i(ack_recv_q),  // From USB decoder
 
-     .s_tvalid(svalid), // From Bulk IN data source
-     .s_tready(sready),
-     .s_tkeep(skeep),
-     .s_tlast(slast),
-     .s_tdata(sdata),
+      .ep_ready_o(ep_ready_w),
+      .parity_o  (parity_w),
+      .stalled_o (stalled_w),
 
-     .m_tvalid(mvalid), // To USB encoder
-     .m_tready(mready),
-     .m_tkeep(mkeep),
-     .m_tlast(mlast),
-     .m_tuser(muser),
-     .m_tdata(mdata)
-     );
+      .s_tvalid(s_tvalid),  // From Bulk IN data source
+      .s_tready(s_tready),
+      .s_tlast (s_tlast),
+      .s_tdata (s_tdata),
+
+      .m_tvalid(m_tvalid),  // To USB encoder
+      .m_tready(m_tready),
+      .m_tkeep (m_tkeep),
+      .m_tlast (m_tlast),
+      .m_tdata (m_tdata)
+  );
 
 
-endmodule // ep_bulk_in_tb
+endmodule  /* ep_bulk_in_tb */

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep  4 00:44:50 2024
+[*] Wed Sep  4 03:14:27 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Wed Sep  4 00:43:03 2024"
-[dumpfile_size] 2024682
-[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
-[timestart] 29669000
+[dumpfile] "./vpi_usb_ulpi_tb.vcd"
+[dumpfile_mtime] "Wed Sep  4 03:13:47 2024"
+[dumpfile_size] 2676080
+[savefile] "./vpi_usb_ulpi_tb.gtkw"
+[timestart] 7729000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 30300000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 8360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -90,9 +90,8 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.tvalid_w
 -Internal
 @1401200
 -OUT
-@800200
--IN
 @c00200
+-IN
 -Config
 @28
 [color] 3
@@ -142,6 +141,7 @@ vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tlast
 vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tdata[7:0]
 @1000200
 -Master
+@1401200
 -IN
 @800200
 -Encoder
@@ -150,7 +150,7 @@ vpi_usb_ulpi_tb.U_USB1.U_IN_EP2.m_tdata[7:0]
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.hsk_done_o
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.usb_done_o
-@c00201
+@c00200
 -Internal
 @820
 [color] 7
@@ -197,7 +197,7 @@ vpi_usb_ulpi_tb.U_USB1.U_ENC1.tlast
 vpi_usb_ulpi_tb.U_USB1.U_ENC1.tdata[7:0]
 @1000200
 -Temp
-@1401201
+@1401200
 -Internal
 @1000200
 -Encoder
@@ -506,5 +506,12 @@ vpi_usb_ulpi_tb.U_USB1.U_IN_EP3.m_tdata[7:0]
 -IO
 @1401200
 -IN3
+@28
+vpi_usb_ulpi_tb.core_clk
+vpi_usb_ulpi_tb.core_dir
+vpi_usb_ulpi_tb.core_nxt
+vpi_usb_ulpi_tb.core_stp
+@23
+vpi_usb_ulpi_tb.core_dat[7:0]
 [pattern_trace] 1
 [pattern_trace] 0

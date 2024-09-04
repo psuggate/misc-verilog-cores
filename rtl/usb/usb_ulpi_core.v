@@ -75,8 +75,8 @@ module usb_ulpi_core #(
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tlast;
   wire [7:0] x_tdata, y_tdata;
 
-  assign usb_clock_o = usb_clk;
-  assign usb_reset_o = usb_rst;
+  assign usb_clock_o  = usb_clk;
+  assign usb_reset_o  = usb_rst;
 
   assign configured_o = configured;
 
@@ -120,6 +120,7 @@ module usb_ulpi_core #(
       .USE_EP1_OUT(1)
   ) U_USB1 (
       .areset_n(~reset),
+      // .areset_n(arst_n),
 
       .ulpi_clock_i(clock),
       .ulpi_dir_i  (ulpi_dir),
@@ -178,7 +179,8 @@ module usb_ulpi_core #(
   // -- Telemetry Logging -- //
 
   localparam LOG_WIDTH = 32;
-  localparam SIG_WIDTH = 3;
+  localparam SIG_WIDTH = 20;
+  // localparam SIG_WIDTH = 3;
   localparam XSB = SIG_WIDTH - 1;
   localparam ISB = LOG_WIDTH - SIG_WIDTH - 1;
 
@@ -193,8 +195,8 @@ module usb_ulpi_core #(
       wire [2:0] st_w;
       wire re_w;
 
-      assign st_w = U_USB1.stout_w;
-      assign re_w = U_USB1.RxEvent == 2'b01;
+      assign st_w  = U_USB1.stout_w;
+      assign re_w  = U_USB1.RxEvent == 2'b01;
 
       assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
       assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
@@ -202,10 +204,10 @@ module usb_ulpi_core #(
       assign pid_w = U_USB1.U_PROTO1.pid_q;
       assign sof_w = U_USB1.sof_count_w;
 
-      // assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
-      // assign ign_w = {crc_error_o, sof_w};  // 12b
-      assign sig_w = st_w;  // 3b
-      assign ign_w = {crc_error_o, sof_w, ep3_w, ep2_w, ep1_w, pid_w, re_w};  // 29b
+      assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
+      assign ign_w = {crc_error_o, sof_w};  // 12b
+      // assign sig_w = st_w;  // 3b
+      // assign ign_w = {crc_error_o, sof_w, ep3_w, ep2_w, ep1_w, pid_w, re_w};  // 29b
 
       always @(posedge usb_clk) begin
         if (usb_rst) begin
@@ -222,11 +224,12 @@ module usb_ulpi_core #(
           .FIFO_WIDTH(LOG_WIDTH),
           .SIG_WIDTH(SIG_WIDTH),
           .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
-      ) U_TELEMETRY1 (
+      ) U_LOG1 (
           .clock(usb_clk),
           .reset(usb_rst),
 
-          .enable_i(en_q),
+          .enable_i(configured),
+          // .enable_i(en_q),
           .change_i(sig_w),
           .ignore_i(ign_w),
           .level_o (),

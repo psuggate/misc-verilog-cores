@@ -74,7 +74,7 @@ module ep_bulk_in #(
   wire tready_w;
   wire tvalid_r, tready_r, tlast_r;
   wire save_w, redo_w, next_w;
-  reg rst_q, par_q, set_q, zdp_q;
+  reg rst_q, par_q, set_q, zdp_q, rdy_q;
   reg [CSB:0] rcount, scount;
   wire [CBITS:0] rcnext, scnext;
   wire [ASB:0] level_w;
@@ -83,7 +83,8 @@ module ep_bulk_in #(
   // Todo: packet ready when
   //  - there is a packet(-chunk) in the FIFO; OR,
   //  - a ZDP needs to be transmitted?
-  assign ep_ready_o = tvalid_r | zdp_q;  // send == TX_NONE;
+  assign ep_ready_o = rdy_q;
+  // assign ep_ready_o = tvalid_r || zdp_q || send == TX_NONE;
 
   assign stalled_o = ~set_q;
   assign parity_o = par_q;
@@ -233,8 +234,10 @@ module ep_bulk_in #(
   always @(posedge clock) begin
     send <= snxt;
 
+    rdy_q <= set_q && (tvalid_r || send == TX_NONE || zdp_q);
+
     // Todo:
-    if (!set_q || send == TX_IDLE) begin
+    if (!set_q || send == TX_WAIT && ack_recv_i) begin
       zdp_q <= 1'b0;
     end else if (scount == CMAX && tvalid_r && tready_r && tlast_r) begin
       zdp_q <= 1'b1;

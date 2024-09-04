@@ -1,68 +1,79 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Aug 17 07:40:08 2024
+[*] Wed Sep  4 07:27:30 2024
 [*]
 [dumpfile] "./ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Sun Jun 30 04:24:39 2024"
-[dumpfile_size] 5553
+[dumpfile_mtime] "Wed Sep  4 07:25:42 2024"
+[dumpfile_size] 13794
 [savefile] "./ep_bulk_in_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
-[pos] 2559 -28
-*-15.495940 120000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] -1 -1
+*-16.710466 520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ep_bulk_in_tb.
+[treeopen] ep_bulk_in_tb.U_EPIN1.
 [sst_width] 233
-[signals_width] 150
+[signals_width] 142
 [sst_expanded] 1
 [sst_vpaned_height] 298
 @28
 ep_bulk_in_tb.clock
+[color] 1
 ep_bulk_in_tb.reset
-@800200
--Control
-@28
+[color] 3
 ep_bulk_in_tb.set_conf_q
+[color] 2
 ep_bulk_in_tb.clr_conf_q
+@800200
+-Control
+@28
+[color] 2
 ep_bulk_in_tb.selected_q
+[color] 3
 ep_bulk_in_tb.ack_recv_q
-ep_bulk_in_tb.err_recv_q
+[color] 1
+ep_bulk_in_tb.timedout_q
+ep_bulk_in_tb.ep_ready_w
+ep_bulk_in_tb.parity_w
+ep_bulk_in_tb.stalled_w
 @1000200
 -Control
+@28
+ep_bulk_in_tb.fill
+@420
+ep_bulk_in_tb.wcount
+@24
+ep_bulk_in_tb.wcnext[31:0]
 @800200
 -From Source
 @28
-ep_bulk_in_tb.svalid
-ep_bulk_in_tb.sready
-ep_bulk_in_tb.skeep
-ep_bulk_in_tb.slast
+ep_bulk_in_tb.s_tvalid
+ep_bulk_in_tb.s_tready
+ep_bulk_in_tb.s_tlast
 @22
-ep_bulk_in_tb.sdata[7:0]
+ep_bulk_in_tb.s_tdata[7:0]
 @1000200
 -From Source
 @800200
--To Decoder
+-To Encoder
 @28
-ep_bulk_in_tb.mvalid
-ep_bulk_in_tb.mready
-ep_bulk_in_tb.mkeep
-ep_bulk_in_tb.mlast
+ep_bulk_in_tb.m_tvalid
+ep_bulk_in_tb.m_tready
+ep_bulk_in_tb.m_tkeep
+ep_bulk_in_tb.m_tlast
 @22
-ep_bulk_in_tb.muser[3:0]
-ep_bulk_in_tb.mdata[7:0]
+ep_bulk_in_tb.m_tdata[7:0]
 @1000200
--To Decoder
+-To Encoder
 @800200
 -EP IN
 @820
 [color] 7
-ep_bulk_in_tb.EP_IN0.dbg_state[39:0]
-[color] 2
-ep_bulk_in_tb.EP_IN0.dbg_pid[47:0]
-@28
-ep_bulk_in_tb.EP_IN0.tvalid_w
-ep_bulk_in_tb.EP_IN0.tready_w
-ep_bulk_in_tb.EP_IN0.tkeep_w
-ep_bulk_in_tb.EP_IN0.tlast_w
+ep_bulk_in_tb.U_EPIN1.dbg_recv[39:0]
+[color] 7
+ep_bulk_in_tb.U_EPIN1.dbg_send[39:0]
+@29
+ep_bulk_in_tb.U_EPIN1.zdp_q
 @1000200
 -EP IN
 [pattern_trace] 1

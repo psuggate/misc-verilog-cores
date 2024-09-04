@@ -2,6 +2,12 @@
 module vpi_usb_ulpi_tb;
 
   localparam DEBUG = 1;
+  localparam MAX_PACKET_LENGTH = 512;
+  // localparam MAX_PACKET_LENGTH = 16;
+
+  localparam ENDPOINT1 = 4'd2;
+  localparam ENDPOINT2 = 4'd1;
+  localparam ENDPOINT3 = 4'd3;
 
   // Local FIFO address-bits
   localparam FBITS = 11;
@@ -133,27 +139,22 @@ module vpi_usb_ulpi_tb;
   // Cores Under New Tests
   ///
 
+  `define __use_small_packets
+
   wire x_tvalid, x_tready, x_tlast;
   wire [7:0] x_tdata;
 
-`define __swap_endpoint_directions
-`ifdef __swap_endpoint_directions
-  localparam ENDPOINT1 = 4'd2;
-  localparam ENDPOINT2 = 4'd1;
-`else  /* !__swap_endpoint_directions */
-  localparam ENDPOINT1 = 4'd1;
-  localparam ENDPOINT2 = 4'd2;
-`endif  /* !__swap_endpoint_directions */
-
   usb_ulpi_top #(
-      .DEBUG      (DEBUG),
-      .ENDPOINT1  (ENDPOINT1),
-      .ENDPOINT2  (ENDPOINT2),
-      .USE_EP2_IN (1),
-      .USE_EP3_IN (1),
-      .USE_EP1_OUT(1)
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .DEBUG            (DEBUG),
+      .ENDPOINT1        (ENDPOINT1),
+      .ENDPOINT2        (ENDPOINT2),
+      .USE_EP2_IN       (1),
+      .USE_EP3_IN       (1),
+      .USE_EP1_OUT      (1)
   ) U_USB1 (
-      .areset_n(usb_rst_n),
+      .areset_n(~reset),
+      // .areset_n(usb_rst_n),
 
       .ulpi_clock_i(usb_clock),
       .ulpi_dir_i  (ulpi_dir),
@@ -168,10 +169,17 @@ module vpi_usb_ulpi_tb;
       .conf_event_o(conf_event),
       .conf_value_o(usb_config),
 
+`ifdef __use_small_packets
       .blki_tvalid_i(blki_tvalid_w),  // USB 'BULK IN' EP data-path
       .blki_tready_o(blki_tready_w),
       .blki_tlast_i (blki_tlast_w),
       .blki_tdata_i (blki_tdata_w),
+`else  /* !__use_small_packets */
+      .blki_tvalid_i(blko_tvalid_w),  // USB 'BULK IN' EP data-path
+      .blki_tready_o(blko_tready_w),
+      .blki_tlast_i (blko_tlast_w),
+      .blki_tdata_i (blko_tdata_w),
+`endif  /* !__use_small_packets */
 
       .blkx_tvalid_i(DEBUG ? x_tvalid : blko_tvalid_w),  // USB 'BULK IN' EP data-path
       .blkx_tready_o(x_tready),
@@ -179,7 +187,11 @@ module vpi_usb_ulpi_tb;
       .blkx_tdata_i (DEBUG ? x_tdata : blko_tdata_w),
 
       .blko_tvalid_o(blko_tvalid_w),  // USB 'BULK OUT' EP data-path
+`ifdef __use_small_packets
       .blko_tready_i(DEBUG ? 1'b1 : x_tready),
+`else  /* !__use_small_packets */
+      .blko_tready_i(DEBUG ? blko_tready_w : x_tready),
+`endif  /* !__use_small_packets */
       .blko_tlast_o(blko_tlast_w),
       .blko_tdata_o(blko_tdata_w)
   );
@@ -224,5 +236,75 @@ module vpi_usb_ulpi_tb;
       .m_tdata(x_tdata)
   );
 
+`define __all_in_one_usb_ulpi_core
+`ifdef  __all_in_one_usb_ulpi_core
+
+  wire core_clk, core_rst, core_dir, core_nxt, core_stp;
+  wire [7:0] core_dat;
+
+  wire io_tvalid, io_tready, io_tlast;
+  wire [7:0] io_tdata;
+
+  assign core_clk = clock;
+  assign core_dir = ulpi_dir;
+  assign core_nxt = ulpi_nxt;
+  assign core_dat = ulpi_dir ? ulpi_data : 8'bz;
+
+  usb_ulpi_core #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2),
+      .DEBUG(DEBUG),
+      .USE_UART(0),
+      .ENDPOINTD(ENDPOINT3)
+  ) U_CORE1 (
+      .clk_26(clk25),
+      .arst_n(arst_n),
+      // .arst_n(usb_rst_n),
+
+      .ulpi_clk (core_clk),
+      .ulpi_rst (core_rst),
+      .ulpi_dir (core_dir),
+      .ulpi_nxt (core_nxt),
+      .ulpi_stp (core_stp),
+      .ulpi_data(core_dat),
+
+      // Todo: debug UART signals ...
+      .send_ni  (1'b1),
+      .uart_rx_i(1'b1),
+      .uart_tx_o(),
+
+      .usb_clock_o(),
+      .usb_reset_o(),
+
+      .configured_o(),
+      .conf_event_o(),
+      .conf_value_o(),
+      .crc_error_o (),
+
+`ifdef __use_small_packets
+      .blki_tvalid_i(blki_tvalid_w),  // USB 'BULK IN' EP data-path
+      .blki_tready_o(core_tready_w),
+      .blki_tlast_i(blki_tlast_w),
+      .blki_tdata_i(blki_tdata_w),
+`else  /* !__use_small_packets */
+      .blki_tvalid_i(io_tvalid),  // USB 'BULK IN' EP data-path
+      .blki_tready_o(io_tready),
+      .blki_tlast_i(io_tlast),
+      .blki_tdata_i(io_tdata),
+`endif  /* !__use_small_packets */
+
+      .blkx_tvalid_i(1'b0),
+      .blkx_tready_o(),
+      .blkx_tlast_i (1'b0),
+      .blkx_tdata_i (8'bx),
+
+      .blko_tvalid_o(io_tvalid),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(io_tready),
+      .blko_tlast_o (io_tlast),
+      .blko_tdata_o (io_tdata)
+  );
+
+`endif  /* !__all_in_one_usb_ulpi_core */
 
 endmodule  /* vpi_usb_ulpi_tb */
