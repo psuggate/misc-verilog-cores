@@ -14,9 +14,7 @@
  *  - after a packet is sent, only strobe (HI) 'usb_done_o' when EOP has been
  *    confirmed (via RX CMD, or EOP-elapsed timer) !?
  */
-module ulpi_encoder #(
-    parameter OUTREG = 3
-) (
+module ulpi_encoder (
     input clock,
     input reset,
 
@@ -154,6 +152,20 @@ module ulpi_encoder #(
 
   // -- ULPI Encoder FSM -- //
 
+  reg end_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      end_q <= 1'b0;
+    end else begin
+      if (s_tvalid && s_tready && (!s_tkeep || s_tlast)) begin
+        end_q <= 1'b1;
+      end else if (xsend == TX_DONE) begin
+        end_q <= 1'b0;
+      end
+    end
+  end
+
   always @(posedge clock) begin
     if (reset) begin
       xsend <= TX_IDLE;
@@ -172,16 +184,20 @@ module ulpi_encoder #(
             xsend <= phy_write_i && tready_w || phy_nopid_i ? TX_INIT :
                      phy_stop_i ? TX_STOP : TX_IDLE;
           end else begin
-            // Running in HS-mode
             xsend <= hsk_send_i || s_tvalid ? TX_XPID : TX_IDLE;
           end
         end
 
         TX_XPID: begin
           // Output PID has been accepted? If so, we can receive another byte.
-          xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) :
-                   s_tvalid && s_tready && s_tlast ? TX_CRC0 : xsend;
-          // xsend <= mvalid_w ? (hsk_send_i ? TX_STOP : TX_DATA) : xsend;
+          if (mvalid_w && hsk_send_i) begin
+            xsend <= TX_STOP;
+          // end else if (end_q || s_tvalid && s_tready && s_tlast) begin
+          end else if (end_q) begin
+            xsend <= TX_CRC0;
+          end else if (mvalid_w) begin
+            xsend <= TX_DATA;
+          end
         end
 
         TX_DATA: begin
@@ -266,6 +282,7 @@ module ulpi_encoder #(
             sready = 1'b1;
             sdata  = usb_pid_w;
             tvalid = 1'b1;
+            // tlast  = s_tlast;
             tdata  = s_tdata;
           end
         end
@@ -371,8 +388,8 @@ module ulpi_encoder #(
       .s_tlast (slast),
       .s_tdata (sdata),
 
-      .t_tvalid(tvalid),    // If OUTREG > 2, allow the temp-register to be
-      .t_tready(tready_w),  // explicitly loaded
+      .t_tvalid(tvalid),    // Allow the temp-register to be explicitly loaded
+      .t_tready(tready_w),
       .t_tlast (tlast),
       .t_tdata (tdata),
 

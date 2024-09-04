@@ -74,15 +74,8 @@ typedef struct {
     uint8_t error_count;
     uint16_t len;
     uint8_t* buf;
+    uint64_t guard;
 } usb_host_t;
-
-
-typedef struct {
-    uint8_t addr;
-    uint8_t ep;
-    uint16_t len;
-    uint8_t* dat;
-} usb_bulk_t;
 
 
 void show_host(usb_host_t* host);

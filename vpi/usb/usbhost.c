@@ -19,6 +19,8 @@
 
 #define NXT_MASK (0xFu)
 
+#define GUARDIAN (0xA5B43C690F87E12Dlu)
+
 static const char host_op_strings[9][16] = {
     {"HostError"},
     {"HostReset"},
@@ -107,7 +109,6 @@ static int bulk_out_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out
     case DnDATA1:
         if (xfer->tx_ptr < xfer->tx_len && in->nxt == SIG1 &&
             (rand() & NXT_MASK) == NXT_MASK) {
-            printf("HOST\t#%8lu cyc =>\tCODS!\n", host->cycle);
             out->nxt = SIG0;
             out->data.a = 0x5D;
             return 0;
@@ -196,7 +197,6 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
         } else {
             if (xfer->rx_ptr > 0 && out->nxt == SIG1 &&
                 (rand() & NXT_MASK) == NXT_MASK) {
-                printf("HOST\t#%8lu cyc =>\tWALLOP = 0x%02X!\n", host->cycle, NXT_MASK);
                 out->nxt = SIG0;
             }
         }
@@ -290,6 +290,7 @@ void usbh_init(usb_host_t* host)
     host->sof = 0u;
     host->buf = (uint8_t*)malloc(HOST_BUF_LEN);
     host->len = HOST_BUF_LEN;
+    host->guard = GUARDIAN;
 }
 
 int host_string(usb_host_t* host, char* str, const int indent)
@@ -453,6 +454,12 @@ int usbh_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
     }
 
     memcpy(&host->prev, in, sizeof(ulpi_bus_t));
+
+    if (host->guard != GUARDIAN) {
+        printf("HOST\t#%8lu cyc =>\tOverRun (guard = 0x%016lu) [%s:%d]\n",
+               host->cycle, host->guard, __FILE__, __LINE__);
+        return -1;
+    }
 
     return result; 
 }

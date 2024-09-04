@@ -661,6 +661,6 @@ module usb_ulpi_top #(
       .m_tdata   (ep3_tdata_w)
   );
 
-  // initial #28500 $finish;
+  initial #37340 $finish;
 
 endmodule  /* usb_ulpi_top */
