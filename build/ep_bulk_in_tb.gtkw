@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep  4 07:27:30 2024
+[*] Wed Sep  4 08:20:31 2024
 [*]
 [dumpfile] "./ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Wed Sep  4 07:25:42 2024"
-[dumpfile_size] 13794
+[dumpfile_mtime] "Wed Sep  4 08:20:17 2024"
+[dumpfile_size] 16557
 [savefile] "./ep_bulk_in_tb.gtkw"
-[timestart] 0
+[timestart] 141600
 [size] 1920 1043
 [pos] -1 -1
-*-16.710466 520000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.710466 600000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ep_bulk_in_tb.
 [treeopen] ep_bulk_in_tb.U_EPIN1.
 [sst_width] 233
@@ -72,9 +72,18 @@ ep_bulk_in_tb.m_tdata[7:0]
 ep_bulk_in_tb.U_EPIN1.dbg_recv[39:0]
 [color] 7
 ep_bulk_in_tb.U_EPIN1.dbg_send[39:0]
-@29
+@28
 ep_bulk_in_tb.U_EPIN1.zdp_q
+[color] 3
+ep_bulk_in_tb.U_EPIN1.save_w
+ep_bulk_in_tb.U_EPIN1.next_w
+[color] 1
+ep_bulk_in_tb.U_EPIN1.redo_w
 @1000200
 -EP IN
+@24
+ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.raddr[5:0]
+ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.rprev[5:0]
+ep_bulk_in_tb.U_EPIN1.U_TX_FIFO1.rplay[5:0]
 [pattern_trace] 1
 [pattern_trace] 0

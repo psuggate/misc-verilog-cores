@@ -237,7 +237,7 @@ module ep_bulk_in #(
     rdy_q <= set_q && (tvalid_r || send == TX_NONE || zdp_q);
 
     // Todo:
-    if (!set_q || send == TX_WAIT && ack_recv_i) begin
+    if (!set_q || send == TX_WAIT && (ack_recv_i || timedout_i)) begin
       zdp_q <= 1'b0;
     end else if (scount == CMAX && tvalid_r && tready_r && tlast_r) begin
       zdp_q <= 1'b1;
@@ -254,7 +254,7 @@ module ep_bulk_in #(
       .SAVE_ON_LAST(1),
       .LAST_ON_SAVE(1),
       .NEXT_ON_LAST(0),
-      .USE_LENGTH(0),
+      .USE_LENGTH(1),
       .MAX_LENGTH(MAX_PACKET_LENGTH),
       .OUTREG(2)
   ) U_TX_FIFO1 (

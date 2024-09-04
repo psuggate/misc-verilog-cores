@@ -11,7 +11,7 @@ module ep_bulk_in_tb;
     $dumpfile("ep_bulk_in_tb.vcd");
     $dumpvars;
 
-    #800 $finish;
+    #1200 $finish;
   end
 
   reg set_conf_q, clr_conf_q;
@@ -24,7 +24,7 @@ module ep_bulk_in_tb;
   wire s_tready, m_tvalid, m_tkeep, m_tlast;
   wire [7:0] m_tdata;
 
-  reg fill, send;
+  reg fill, send, fail;
   integer size = 4;
 
   initial begin
@@ -48,12 +48,17 @@ module ep_bulk_in_tb;
     #20 set_conf_q <= 1'b1;
     #10 set_conf_q <= 1'b0;
 
-    #10 fill <= 1'b1; size <= 8;
+    #10 fill <= 1'b1; size <= 16;
     #170 fill <= 1'b0;
 
+    // Send first packet, and its ZDP
     #40 send <= 1'b1;
     #10 while (selected_q) #10 ;
     #20 send <= 1'b1;
+    #10 while (selected_q) #10 ;
+
+    // Send second packet, replaying on timeout, then its ZDP
+    #20 send <= 1'b1; fail <= 1'b1;
     #10 while (selected_q) #10 ;
     #20 send <= 1'b1;
     #10 while (selected_q) #10 ;
@@ -87,22 +92,28 @@ module ep_bulk_in_tb;
   always @(posedge clock) begin
     if (reset) begin
       send <= 1'b0;
+      fail <= 1'b0;
       selected_q <= 1'b0;
       ack_recv_q <= 1'b0;
+      timedout_q <= 1'b0;
       m_tready <= 1'b0;
     end else if (send && !selected_q) begin
       selected_q <= 1'b1;
       ack_recv_q <= 1'b0;
+      timedout_q <= 1'b0;
       m_tready <= 1'b1;
     end else if (selected_q) begin
       if (send && m_tvalid && m_tready && m_tlast) begin
         m_tready <= 1'b0;
         send <= 1'b0;
-      end else if (!send && !ack_recv_q) begin
-        ack_recv_q <= 1'b1;
-      end else if (ack_recv_q) begin
+      end else if (!send && !ack_recv_q && !timedout_q) begin
+        ack_recv_q <= ~fail;
+        timedout_q <= fail;
+      end else if (ack_recv_q || timedout_q) begin
         ack_recv_q <= 1'b0;
+        timedout_q <= 1'b0;
         selected_q <= 1'b0;
+        fail <= 1'b0;
       end
     end
   end

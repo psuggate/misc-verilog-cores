@@ -15,7 +15,7 @@ module packet_fifo #(
     localparam ABITS = $clog2(DEPTH),
     localparam ASB   = ABITS - 1,
     localparam ADDRS = ABITS + 1,
-    localparam AZERO = {ABITS{1'b0}},
+    localparam AZERO = {ADDRS{1'b0}},
 
     // Generate save/next signals using 'tlast's?
     parameter STORE_LASTS = 1,
@@ -81,7 +81,7 @@ module packet_fifo #(
 
   // Optional extra stage of registers, so that block SRAMs can be used.
   reg xvalid, xlast;
-  wire xready;
+  wire xready, rstop_w;
   reg [MSB:0] xdata;
 
   assign s_tready = wready;
@@ -208,6 +208,8 @@ module packet_fifo #(
 
   // -- Packet/Frame Pointers -- //
 
+  reg [ABITS:0] rprev;
+
   always @(posedge clock) begin
     if (reset) begin
       paddr <= AZERO;
@@ -218,7 +220,8 @@ module packet_fifo #(
       end
 
       if (finish_a) begin
-        rplay <= raddr_next;
+        // rplay <= raddr_next;
+        rplay <= rprev;
       end
     end
   end
@@ -232,15 +235,17 @@ module packet_fifo #(
   always @(posedge clock) begin
     if (reset) begin
       raddr  <= AZERO;
+      rprev  <= AZERO;
       rvalid <= 1'b0;
     end else begin
       rvalid <= ~empty_w;
-      // rvalid <= ~empty_w & ~frame_w;
 
       if (replay_a) begin
         raddr <= rplay;
+        // rprev <= rplay;
       end else begin
         raddr <= raddr_next;
+        rprev <= rstop_w ? raddr : rprev;
       end
     end
   end
@@ -262,20 +267,25 @@ module packet_fifo #(
   generate
     if (OUTREG == 0) begin : g_async
 
-      wire [WIDTH:0] data_w = STORE_LASTS != 0 ? sram[raddr[ASB:0]] : {1'b0, sram[raddr[ASB:0]]};
+      wire rlast_w;
+      wire [MSB:0] rdata_w;
+
+      assign {rlast_w, rdata_w} = STORE_LASTS != 0 ? sram[raddr[ASB:0]] : {1'b0, sram[raddr[ASB:0]]};
 
       // Suitable for Xilinx Distributed SRAM's, and similar, with fast, async
       // reads.
       assign fetch_w  = rvalid && m_tready;
+      assign rstop_w  = rvalid && rlast_w && m_tready;
 
       assign m_tvalid = rvalid;
-      assign m_tlast  = data_w[WIDTH];
-      assign m_tdata  = data_w[MSB:0];
+      assign m_tlast  = rlast_w;
+      assign m_tdata  = rdata_w;
 
     end // g_async
   else if (OUTREG > 0) begin : g_outregs
 
       assign fetch_w = rvalid && (xvalid && xready || !xvalid);
+      assign rstop_w = xvalid && xlast && xready;
 
       always @(posedge clock) begin
         if (reset || replay_a) begin
