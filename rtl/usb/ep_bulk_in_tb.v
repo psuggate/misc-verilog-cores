@@ -162,7 +162,7 @@ module ep_bulk_in_tb;
 
   reg out_sel_q, out_ack_q, out_err_q;
   wire out_rdy_w, out_par_w, out_hlt_w;
-  reg o_tready;
+  reg o_tready, failed;
   wire tready_w, x_tvalid, x_tready, x_tlast, x_tkeep, o_tvalid, o_tlast;
   wire [7:0] x_tdata, o_tdata;
 
@@ -174,6 +174,7 @@ module ep_bulk_in_tb;
       out_ack_q <= 1'b0;
       out_err_q <= 1'b0;
       o_tready  <= 1'b0;
+      failed <= 1'b0;
     end else begin
       if (m_tvalid) begin
         out_sel_q <= 1'b1;
@@ -181,8 +182,22 @@ module ep_bulk_in_tb;
         out_sel_q <= 1'b0;
       end
 
-      out_ack_q <= x_tvalid && x_tready && x_tlast;
-      out_err_q <= timedout_q;
+      if (x_tvalid && x_tready && x_tlast) begin
+        out_ack_q <= !failed && !timedout_q;
+        out_err_q <= failed || timedout_q;
+        failed <= 1'b0;
+      end else if (timedout_q) begin
+        out_ack_q <= 1'b0;
+        out_err_q <= 1'b0;
+        failed <= 1'b1;
+      end else begin
+        out_ack_q <= 1'b0;
+        out_err_q <= 1'b0;
+        failed <= failed;
+      end
+
+      // out_ack_q <= x_tvalid && x_tready && x_tlast;
+      // out_err_q <= timedout_q;
 
       if (out_sel_q) begin
         o_tready <= 1'b1;

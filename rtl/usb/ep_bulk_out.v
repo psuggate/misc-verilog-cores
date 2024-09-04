@@ -8,8 +8,7 @@
 module ep_bulk_out #(
     parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
-    parameter ENABLED = 1,
-    parameter IGNORE_ZDP = 1  // TODO
+    parameter ENABLED = 1
 ) (
     input clock,
     input reset,
@@ -56,8 +55,7 @@ module ep_bulk_out #(
   localparam [4:0] ST_FULL = 5'b10000;
 
   reg [4:0] snext, state;
-  reg par_q, rst_q, rdy_q;
-  reg save_q, drop_q, full_q, zero_q;
+  reg par_q, rst_q, rdy_q, full_q;
   wire [  ASB:0] level_w;
   wire [ABITS:0] space_w;
   wire tvalid_w, tready_w;
@@ -65,7 +63,7 @@ module ep_bulk_out #(
   assign stalled_o = state == ST_HALT;
   assign parity_o = par_q;
   assign ep_ready_o = rdy_q;
-  assign tvalid_w = state == ST_RECV && s_tvalid && s_tkeep;
+  assign tvalid_w = state == ST_RECV && s_tvalid;
   assign s_tready = tready_w && state == ST_RECV;
 
   // Goes negative when there is no longer space for 'MAX_PACKET_LENGTH' to be
@@ -79,10 +77,11 @@ module ep_bulk_out #(
       rst_q <= 1'b1;
       par_q <= 1'b0;
       rdy_q <= 1'b0;
+      full_q <= 1'bx;
     end else begin
       rst_q <= 1'b0;
 
-      if (save_q) begin
+      if (state == ST_SAVE && ack_sent_i) begin
         par_q <= ~par_q;
       end
 
@@ -91,120 +90,46 @@ module ep_bulk_out #(
       end else if (state == ST_HALT || state == ST_FULL) begin
         rdy_q <= 1'b0;
       end
-    end
-  end
 
-  // -- Packet FIFO Control & Status Signals -- //
-
-  always @(posedge clock) begin
-    if (reset || set_conf_i) begin
-      save_q <= 1'b0;
-      drop_q <= 1'b0;
-      full_q <= 1'b0;
-      zero_q <= 1'b1;  // Todo: not required !?
-    end else begin
-      save_q <= state == ST_SAVE && ack_sent_i && (IGNORE_ZDP || !zero_q);
-      drop_q <= state == ST_RECV && rx_error_i;
       full_q <= space_w[ABITS];
-
-      // Detect ZDP's, as we do not store them
-      if (state == ST_IDLE && selected_i) begin
-        zero_q <= 1'b1;
-      end else if (state == ST_RECV && s_tvalid && s_tready && s_tkeep) begin
-        zero_q <= 1'b0;
-      end
     end
   end
-
 
   // -- FSM for Bulk IN Transfers -- //
-
-  always @* begin
-    snext = state;
-    case (state)
-      ST_HALT:
-      if (set_conf_i) begin
-        snext = ST_IDLE;
-      end
-      ST_IDLE:
-      if (selected_i) begin
-        snext = ST_RECV;
-      end
-      ST_RECV:
-      if (!selected_i) begin
-        snext = ST_HALT;
-      end else if (s_tvalid && s_tready && s_tlast) begin
-        snext = ST_SAVE;
-      end else if (rx_error_i) begin
-        snext = ST_IDLE;
-      end
-      ST_SAVE:
-      if (ack_sent_i) begin
-        snext = full_q ? ST_FULL : ST_IDLE;
-      end
-      ST_FULL:
-      if (!full_q) begin
-        snext = ST_IDLE;
-      end else if (selected_i) begin
-        snext = ST_HALT;
-      end
-      default: snext = 'bx;
-    endcase
-  end
 
   always @(posedge clock) begin
     if (reset || clr_conf_i || ENABLED != 1) begin
       state <= ST_HALT;
     end else begin
-      state <= snext;
+      case (state)
+        ST_HALT:
+          if (set_conf_i) begin
+            state <= ST_IDLE;
+          end
+        ST_IDLE:
+          if (selected_i) begin
+            state <= ST_RECV;
+          end
+        ST_RECV:
+          if (!selected_i || rx_error_i) begin
+            state <= ST_HALT;
+          end else if (s_tvalid && s_tready && s_tlast) begin
+            state <= ST_SAVE;
+          end
+        ST_SAVE:
+          if (ack_sent_i || rx_error_i) begin
+            state <= full_q ? ST_FULL : ST_IDLE;
+          end
+        ST_FULL:
+          if (!full_q) begin
+            state <= ST_IDLE;
+          end else if (selected_i) begin
+            state <= ST_HALT;
+          end
+        default: state <= 'bx;
+      endcase
     end
   end
-
-  // -- Generate 'tlast' on Save -- //
-
-  localparam LAST_ON_SAVE = 0;
-
-  wire vld_w, rdy_w, lst_w;
-  wire [7:0] dat_w;
-
-  assign tready_w = rdy_w;
-
-  generate
-    if (LAST_ON_SAVE) begin : g_last_on_save
-
-      reg xvld, xlst;
-      reg [7:0] xdat;
-
-      assign vld_w = xvld && (s_tvalid && s_tkeep || save_q);
-      assign lst_w = xlst || save_q;
-      assign dat_w = xdat;
-
-      always @(posedge clock) begin
-        if (reset) begin
-          xvld <= 1'b0;
-          xlst <= 1'b0;
-          xdat <= 'bx;
-        end else begin
-          if (s_tvalid && s_tready && s_tkeep) begin
-            xvld <= 1'b1;
-            xlst <= s_tlast;
-            xdat <= s_tdata;
-          end else if (save_q && xvld && tready_w) begin
-            xvld <= 1'b0;
-            xlst <= 1'b0;
-            xdat <= 'bx;
-          end
-        end
-      end
-
-    end else begin : g_normal_save
-
-      assign vld_w = tvalid_w;
-      assign lst_w = s_tlast;
-      assign dat_w = s_tdata;
-
-    end
-  endgenerate
 
   // -- Output Packet FIFO with Drop-Packet-on-Failure -- //
 
@@ -224,16 +149,16 @@ module ep_bulk_out #(
 
       .level_o(level_w),
 
-      .drop_i(drop_q),
-      .save_i(save_q),
+      .drop_i(rx_error_i),
+      .save_i(ack_sent_i),
       .redo_i(1'b0),
       .next_i(1'b0),
 
-      .s_tvalid(vld_w),
-      .s_tready(rdy_w),
-      .s_tkeep (1'b1),
-      .s_tlast (lst_w),
-      .s_tdata (dat_w),
+      .s_tvalid(tvalid_w),
+      .s_tready(tready_w),
+      .s_tkeep (s_tkeep),
+      .s_tlast (s_tlast),
+      .s_tdata (s_tdata),
 
       .m_tvalid(m_tvalid),
       .m_tready(m_tready),

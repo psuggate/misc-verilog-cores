@@ -164,7 +164,7 @@ module packet_fifo #(
             xlst <= s_tlast || LAST_ON_SAVE && save_i || SAVE_ON_LAST && chunk_w;
             xmax <= chunk_w;
             xdat <= s_tdata;
-          end else if (release_a) begin
+          end else if (release_a || drop_i) begin
             // Data stored to SRAM, but no new data arrived, this cycle.
             xvld <= 1'b0;
             xlst <= 1'b0;

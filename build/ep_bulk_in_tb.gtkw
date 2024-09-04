@@ -1,17 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep  4 09:22:06 2024
+[*] Wed Sep  4 22:06:39 2024
 [*]
 [dumpfile] "./ep_bulk_in_tb.vcd"
-[dumpfile_mtime] "Wed Sep  4 09:16:56 2024"
-[dumpfile_size] 44041
+[dumpfile_mtime] "Wed Sep  4 22:06:16 2024"
+[dumpfile_size] 39128
 [savefile] "./ep_bulk_in_tb.gtkw"
 [timestart] 54700
 [size] 2560 1376
 [pos] -1 -1
-*-16.710466 480000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.710466 740000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ep_bulk_in_tb.
 [treeopen] ep_bulk_in_tb.U_EPIN1.
+[treeopen] ep_bulk_in_tb.U_EPOUT1.
 [sst_width] 233
 [signals_width] 150
 [sst_expanded] 1
@@ -24,7 +25,7 @@ ep_bulk_in_tb.reset
 ep_bulk_in_tb.set_conf_q
 [color] 2
 ep_bulk_in_tb.clr_conf_q
-@800200
+@c00200
 -Control
 @28
 [color] 2
@@ -36,7 +37,7 @@ ep_bulk_in_tb.timedout_q
 ep_bulk_in_tb.ep_ready_w
 ep_bulk_in_tb.parity_w
 ep_bulk_in_tb.stalled_w
-@1000200
+@1401200
 -Control
 @28
 ep_bulk_in_tb.fill
@@ -54,7 +55,7 @@ ep_bulk_in_tb.s_tlast
 ep_bulk_in_tb.s_tdata[7:0]
 @1000200
 -From Source
-@800200
+@c00200
 -To Encoder
 @28
 ep_bulk_in_tb.m_tvalid
@@ -63,20 +64,9 @@ ep_bulk_in_tb.m_tkeep
 ep_bulk_in_tb.m_tlast
 @22
 ep_bulk_in_tb.m_tdata[7:0]
-@1000200
+@1401200
 -To Encoder
-@800201
--Buf
-@29
-ep_bulk_in_tb.x_tvalid
-ep_bulk_in_tb.x_tready
-ep_bulk_in_tb.x_tkeep
-ep_bulk_in_tb.x_tlast
-@23
-ep_bulk_in_tb.x_tdata[7:0]
-@1000201
--Buf
-@800200
+@c00200
 -EP IN
 @820
 [color] 7
@@ -98,7 +88,19 @@ ep_bulk_in_tb.U_EPIN1.U_FIFO1.rprev[5:0]
 ep_bulk_in_tb.U_EPIN1.U_FIFO1.rplay[5:0]
 @1000200
 -FIFO
+@1401200
 -EP IN
+@800200
+-Buf
+@28
+ep_bulk_in_tb.x_tvalid
+ep_bulk_in_tb.x_tready
+ep_bulk_in_tb.x_tkeep
+ep_bulk_in_tb.x_tlast
+@22
+ep_bulk_in_tb.x_tdata[7:0]
+@1000200
+-Buf
 @28
 [color] 2
 ep_bulk_in_tb.out_sel_q
@@ -113,9 +115,15 @@ ep_bulk_in_tb.out_hlt_w
 @820
 [color] 7
 ep_bulk_in_tb.U_EPOUT1.dbg_state[39:0]
+@25
+ep_bulk_in_tb.U_EPOUT1.U_FIFO1.waddr[5:0]
+@24
+ep_bulk_in_tb.U_EPOUT1.U_FIFO1.paddr[5:0]
 @800200
 -Out
 @28
+ep_bulk_in_tb.U_EPOUT1.tvalid_w
+ep_bulk_in_tb.U_EPOUT1.tready_w
 ep_bulk_in_tb.o_tvalid
 ep_bulk_in_tb.o_tready
 ep_bulk_in_tb.o_tlast
@@ -123,7 +131,5 @@ ep_bulk_in_tb.o_tlast
 ep_bulk_in_tb.o_tdata[7:0]
 @1000200
 -Out
-@28
-ep_bulk_in_tb.U_EPOUT1.tready_w
 [pattern_trace] 1
 [pattern_trace] 0
