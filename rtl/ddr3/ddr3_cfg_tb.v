@@ -5,6 +5,7 @@ module ddr3_cfg_tb;
 
   // DDR3 SRAM Timings
   localparam DDR_FREQ_MHZ = 100;
+
   `include "ddr3_settings.vh"
 
   // Trims an additional clock-cycle of latency, if '1'
@@ -29,7 +30,6 @@ module ddr3_cfg_tb;
   localparam REQID = 4;
   localparam ISB = REQID - 1;
 
-
   // -- Simulation Data -- //
 
   initial begin
@@ -37,7 +37,6 @@ module ddr3_cfg_tb;
     #60000 $dumpvars(0, ddr3_cfg_tb);
     #20000 $finish;  // todo ...
   end
-
 
   // -- Globals -- //
 
@@ -53,7 +52,6 @@ module ddr3_cfg_tb;
     #200 rst <= 1'b0;
   end
 
-
   wire locked, clock, reset;
   wire clk_ddr, clk_ddr_dqs, clk_ref;
 
@@ -61,7 +59,6 @@ module ddr3_cfg_tb;
   assign clk_ddr = ddr;
   assign clock = osc;
   assign reset = rst | ~locked;
-
 
   // -- DDR3 Configurator for a Memory Controller -- //
 
@@ -109,9 +106,7 @@ module ddr3_cfg_tb;
   wire [1:0] ddr_dm, ddr_dqs_p, ddr_dqs_n;
   wire [15:0] ddr_dq;
 
-
   assign rd_ready = 1'b1;
-
 
   // -- Manage the REFRESH Requests -- //
 
@@ -125,7 +120,6 @@ module ddr3_cfg_tb;
 
   assign cfg_rdy = ddl_rdy;
   assign ctl_rdy = ddl_rdy;
-
 
   always @(posedge clock) begin
     if (reset || !cfg_run) begin
@@ -141,7 +135,6 @@ module ddr3_cfg_tb;
       end
     end
   end
-
 
   // -- Use the Memory Controller FSM to Generate Requests -- //
 
@@ -166,7 +159,6 @@ module ddr3_cfg_tb;
       mem_run <= 1'b1;
     end
   end
-
 
   reg [127:0] data;
 
@@ -217,7 +209,6 @@ module ddr3_cfg_tb;
     @(posedge clock);
   end
 
-
   // -- Fake Write Data -- //
 
   reg  [1:0] wr_count;
@@ -241,7 +232,6 @@ module ddr3_cfg_tb;
     end
   end
 
-
   // -- DDR3 Simulation Model from Micron -- //
 
   ddr3 ddr3_sdram_inst (
@@ -262,7 +252,6 @@ module ddr3_cfg_tb;
       .tdqs_n(),
       .odt(ddr_odt)
   );
-
 
   // -- DDR3 PHI Interface Modules -- //
 
@@ -399,7 +388,6 @@ module ddr3_cfg_tb;
       .ddl_adr_o(ddl_adr)
   );
 
-
   // -- Module Under Test -- //
 
   wire cfg_valid;
@@ -429,7 +417,6 @@ module ddr3_cfg_tb;
       .ctl_adr_o(cfg_adr)
   );
 
-
   // -- Perform write transfer (128-bit) -- //
 
   task mem_store;
@@ -453,7 +440,6 @@ module ddr3_cfg_tb;
       // todo: tx data stuffs
     end
   endtask  // mem_store
-
 
   // -- Perform read transfer (128-bit) -- //
 
@@ -482,4 +468,4 @@ module ddr3_cfg_tb;
   endtask  // mem_fetch
 
 
-endmodule  // ddr3_cfg_tb
+endmodule  /* ddr3_cfg_tb */

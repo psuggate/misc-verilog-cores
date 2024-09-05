@@ -148,6 +148,8 @@ module axi_ddr3_lite #(
     input [MSB:0] dfi_data_i
 );
 
+  `include "axi_defs.vh"
+
   // -- Global Signals and State -- //
 
   reg en_q;
@@ -180,13 +182,11 @@ module axi_ddr3_lite #(
   wire by_valid, by_ready, by_last;
   wire [MSB:0] by_data;
 
-
   assign configured_o = en_q;
 
   always @(posedge clock) begin
     en_q <= ~reset & cfg_run;
   end
-
 
   // -- AXI Requests to DDR3 Requests -- //
 
@@ -208,7 +208,7 @@ module axi_ddr3_lite #(
       .axi_awid_i(axi_awid_i),
       .axi_awlen_i(axi_awlen_i),
       .axi_awburst_i(axi_awburst_i),
-      .axi_awsize_i(3'b010),
+      .axi_awsize_i(BURST_SIZE_4B),
       .axi_awaddr_i(axi_awaddr_i[ASB:ADDRS_LSB]),
 
       .axi_wvalid_i(axi_wvalid_i),  // AXI4 Write Data Port
@@ -227,7 +227,7 @@ module axi_ddr3_lite #(
       .axi_arid_i(axi_arid_i),
       .axi_arlen_i(axi_arlen_i),
       .axi_arburst_i(axi_arburst_i),
-      .axi_arsize_i(3'b010),
+      .axi_arsize_i(BURST_SIZE_4B),
       .axi_araddr_i(axi_araddr_i[ASB:ADDRS_LSB]),
 
       .axi_rvalid_o(axi_rvalid_o),
@@ -263,8 +263,8 @@ module axi_ddr3_lite #(
       .mem_rdata_i(rd_data)
   );
 
+  // -- DDR3 Memory Controller FSM -- //
 
-  // -- DDR3 Memory Controller -- //
   ddr3_fsm #(
       .DDR_ROW_BITS(DDR_ROW_BITS),
       .DDR_COL_BITS(DDR_COL_BITS),

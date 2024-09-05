@@ -241,7 +241,6 @@ module axi_ddr3_lite_tb;
       .odt(ddr_odt)
   );
 
-
   // -- DDR3 PHY -- //
 
 `ifdef __gowin_for_the_win
@@ -491,7 +490,6 @@ module axi_ddr3_lite_tb;
     end
   endtask  // axi_store
 
-
   // -- Perform read transfer (128-bit) -- //
 
   task axi_fetch;
@@ -531,7 +529,6 @@ module axi_ddr3_lite_tb;
       @(posedge clock);
     end
   endtask  // axi_fetch
-
 
   // -- Perform fast-path read transaction (128-bit) -- //
 
