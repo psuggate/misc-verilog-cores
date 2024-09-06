@@ -1,109 +1,73 @@
 `timescale 1ns / 100ps
 /**
  * Write datapath, for an AXI4 to SDRAM interface.
- * 
+ *
  * For every WRITE-request, store one write command for each BL8 transaction
  * that is required to complete an AXI4 (burst-) WRITE request. The WRITE-data
  * FIFO stores all (burst-)data as one write-data packet.
  *
  * Note: WRITE-data buffering is used, so the AXI4 interface may accept multiple
  * packets before any are actually written to the SDRAM.
- * 
+ *
  * Copyright 2023, Patrick Suggate.
- * 
+ *
  */
-module axi_wr_path (
-    clock,
-    reset,
+module axi_wr_path #(
+    parameter  ADDRS = 32,
+    localparam ASB   = ADDRS - 1,
 
-    axi_awvalid_i,
-    axi_awready_o,
-    axi_awaddr_i,
-    axi_awid_i,
-    axi_awlen_i,
-    axi_awburst_i,
+    parameter  WIDTH = 32,
+    localparam MSB   = WIDTH - 1,
 
-    axi_wvalid_i,
-    axi_wready_o,
-    axi_wlast_i,
-    axi_wstrb_i,
-    axi_wdata_i,
+    parameter  MASKS = WIDTH / 8,
+    localparam SSB   = MASKS - 1,
 
-    axi_bvalid_o,
-    axi_bready_i,
-    axi_bresp_o,
-    axi_bid_o,
+    parameter AXI_ID_WIDTH = 4,
+    localparam ISB = AXI_ID_WIDTH - 1,
 
-    mem_store_o,
-    mem_accept_i,
-    mem_wseq_o,
-    mem_wrid_o,
-    mem_addr_o,
+    parameter CTRL_FIFO_DEPTH = 16,
+    parameter CTRL_FIFO_BLOCK = 0,
+    localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
 
-    mem_valid_o,
-    mem_ready_i,
-    mem_last_o,
-    mem_strb_o,
-    mem_data_o
+    parameter DATA_FIFO_DEPTH = 512,
+    parameter DATA_FIFO_BLOCK = 1,
+    localparam DBITS = $clog2(DATA_FIFO_DEPTH)
+) (
+    input clock,
+    input reset,
+
+    input axi_awvalid_i,  // AXI4 Write Address Port
+    output axi_awready_o,
+    input [ASB:0] axi_awaddr_i,
+    input [ISB:0] axi_awid_i,
+    input [7:0] axi_awlen_i,
+    input [1:0] axi_awburst_i,
+    input axi_wvalid_i,  // AXI4 Write Data Port
+    output axi_wready_o,
+    input [MSB:0] axi_wdata_i,
+    input [SSB:0] axi_wstrb_i,
+    input axi_wlast_i,
+    output axi_bvalid_o,  // AXI4 Write Response
+    input axi_bready_i,
+    output [1:0] axi_bresp_o,
+    output [ISB:0] axi_bid_o,
+
+    output mem_store_o,
+    input mem_accept_i,
+    output mem_wseq_o,
+    output [ISB:0] mem_wrid_o,
+    output [ASB:0] mem_addr_o,
+
+    output mem_valid_o,
+    input mem_ready_i,
+    output mem_last_o,
+    output [SSB:0] mem_strb_o,
+    output [MSB:0] mem_data_o
 );
-
-  parameter ADDRS = 32;
-  localparam ASB = ADDRS - 1;
-
-  parameter WIDTH = 32;
-  localparam MSB = WIDTH - 1;
-
-  parameter MASKS = WIDTH / 8;
-  localparam SSB = MASKS - 1;
-
-  parameter AXI_ID_WIDTH = 4;
-  localparam ISB = AXI_ID_WIDTH - 1;
-
-  parameter CTRL_FIFO_DEPTH = 16;
-  parameter CTRL_FIFO_BLOCK = 0;
-  localparam CBITS = $clog2(CTRL_FIFO_DEPTH);
-
-  parameter DATA_FIFO_DEPTH = 512;
-  parameter DATA_FIFO_BLOCK = 1;
-  localparam DBITS = $clog2(DATA_FIFO_DEPTH);
-
-
-  input clock;
-  input reset;
-
-  input axi_awvalid_i;  // AXI4 Write Address Port
-  output axi_awready_o;
-  input [ASB:0] axi_awaddr_i;
-  input [ISB:0] axi_awid_i;
-  input [7:0] axi_awlen_i;
-  input [1:0] axi_awburst_i;
-  input axi_wvalid_i;  // AXI4 Write Data Port
-  output axi_wready_o;
-  input [MSB:0] axi_wdata_i;
-  input [SSB:0] axi_wstrb_i;
-  input axi_wlast_i;
-  output axi_bvalid_o;  // AXI4 Write Response
-  input axi_bready_i;
-  output [1:0] axi_bresp_o;
-  output [ISB:0] axi_bid_o;
-
-  output mem_store_o;
-  input mem_accept_i;
-  output mem_wseq_o;
-  output [ISB:0] mem_wrid_o;
-  output [ASB:0] mem_addr_o;
-
-  output mem_valid_o;
-  input mem_ready_i;
-  output mem_last_o;
-  output [SSB:0] mem_strb_o;
-  output [MSB:0] mem_data_o;
-
 
   // todo:
   //  - padding with empty-words for unaligned and/or small transfers
   //  - any advantage to accepting commands _before_ data ??
-
 
   // -- Constants -- //
 
@@ -119,7 +83,6 @@ module axi_wr_path (
   localparam ST_FILL = 4'b0001;
   localparam ST_BUSY = 4'b0010;
 
-
   reg bvalid, aready, wready;
   reg [  3:0] state;
   reg [  1:0] bresp;
@@ -132,7 +95,6 @@ module axi_wr_path (
   wire xvalid, xready, xseq;
   wire [ISB:0] xid;
   wire [ASB:0] xaddr;
-
 
   assign axi_awready_o = aready;
   assign axi_wready_o = wready;

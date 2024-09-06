@@ -29,7 +29,7 @@ OUT	:= $(TB:%.v=%.out)
 VCD	:= $(OUT:%.out=%.vcd)
 
 # Icarus settings & options
-OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I../../bench/ -I$(DIR)/ddr3/
+OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I../../bench/ -I$(DIR)/ddr3/ -I$(DIR)/axis/
 
 sim:	build $(VCD)
 

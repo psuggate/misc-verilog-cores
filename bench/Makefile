@@ -5,7 +5,7 @@ all:	sim
 #  Icarus Verilog settings
 ##
 IVC	?= iverilog
-OPT	:= -g2005-sv -D__icarus -Wall -I../rtl/ -I../rtl/usb/ -I../rtl/ddr3/
+OPT	:= -g2005-sv -D__icarus -Wall -I../rtl/axis/ -I../rtl/usb/ -I../rtl/ddr3/
 
 RTLDIR	:= ../rtl
 

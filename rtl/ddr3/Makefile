@@ -8,11 +8,11 @@ sim:	build
 BUILD	:= ../../build
 BENCH	:= ../../bench
 ARCH	:= ../arch
+AXIS	:= ../axis
 
 IVC	?= iverilog
-OPT	:= -g2005-sv -D__icarus -Wall -I$(BENCH)
-
-INC	:= $(wildcard *.vh)
+OPT	:= -g2005-sv -D__icarus -Wall -I$(AXIS)/ -I$(BENCH)
+INC	:= $(wildcard *.vh $(AXIS)/*.vh)
 
 AXIS	:= $(wildcard ../axis/*.v)
 FIFO	:= $(wildcard ../fifo/*.v)
@@ -25,7 +25,7 @@ RTL	:= $(filter-out %_tb.v, $(SRC))
 TOP	:= $(filter %_tb.v, $(SRC))
 OUT	:= $(TOP:%.v=$(BUILD)/%.out)
 
-build:	$(OUT)
+build:	$(OUT) $(INC)
 
-../../build/%.out: %.v $(RTL) $(LIB)
+../../build/%.out: %.v $(RTL) $(LIB) $(INC)
 	$(IVC) $(OPT) -o $@ -s $(*F) $^

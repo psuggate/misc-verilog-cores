@@ -79,10 +79,12 @@ module memreq #(
 
   wire mux_enable_w, mux_select_w;
 
-  wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tlast;
-  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
-  wire [7:0] y_tdata, b_tdata;
+  wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
+  wire a_tvalid, a_tready, a_tkeep, a_tlast, b_tvalid, b_tready, b_tlast;
+  wire z_tvalid, z_tready, z_tkeep, z_tlast;
+  wire [7:0] y_tdata, b_tdata, z_tdata;
   wire [MSB:0] x_tdata, a_tdata;
+  wire [ISB:0] y_tid, b_tid;
 
   // Write-buffer (FIFO) assignments, to the DDR3 controller
   assign wvalid_o = x_tvalid;
@@ -105,11 +107,13 @@ module memreq #(
 
   // -- Parser for Control Transfer Parameters -- //
 
-  reg cyc_q, stb_q;
+  reg cyc_q, stb_q, req_q;
   reg [2:0] ptr_q;
+  wire tkeep_w, end_w;
 
   assign req_done_w = end_w;  // Todo ...
 
+  reg req_start_q, req_cycle_q;
   reg [ASB:0] req_addr_q;
   reg [ISB:0] req_id_q;
   reg [7:0] req_len_q;
@@ -120,23 +124,10 @@ module memreq #(
   always @(posedge clock) begin
     if (!cyc_q) begin
       ptr_q <= 3'b000;
-      req_lenlo_q <= 0;
-      req_lenhi_q <= 0;
+      req_len_q <= 0;
       req_start_q <= 1'b0;
       req_cycle_q <= 1'b0;
     end else if (req_q && s_tvalid && s_tkeep && s_tready) begin
-      req_rtype_q <= ptr_q == 3'b000 ? s_tdata : req_rtype_q;
-      req_rargs_q <= ptr_q == 3'b001 ? s_tdata : req_rargs_q;
-
-      req_vallo_q <= ptr_q == 3'b010 ? s_tdata : req_vallo_q;
-      req_valhi_q <= ptr_q == 3'b011 ? s_tdata : req_valhi_q;
-
-      req_idxlo_q <= ptr_q == 3'b100 ? s_tdata : req_idxlo_q;
-      req_idxhi_q <= ptr_q == 3'b101 ? s_tdata : req_idxhi_q;
-
-      req_lenlo_q <= ptr_q == 3'b110 ? s_tdata : req_lenlo_q;
-      req_lenhi_q <= ptr_q == 3'b111 ? s_tdata : req_lenhi_q;
-
       if (ptr_q == 7) begin
         if (!req_cycle_q) begin
           req_start_q <= 1'b1;
@@ -254,10 +245,6 @@ module memreq #(
 
   // -- Read Datapath -- //
 
-  wire y_tvalid, y_tready, y_tkeep, y_tlast;
-  wire [ISB:0] y_tid;
-  wire [  7:0] y_tdata;
-
   axis_async_fifo #(
       .DEPTH(FIFO_DEPTH),
       .DATA_WIDTH(DATA_WIDTH),
@@ -332,7 +319,7 @@ module memreq #(
       .DEST_WIDTH(1),
       .USER_ENABLE(0),
       .USER_WIDTH(1)
-  ) U_ADAPT1 (
+  ) U_ADAPT2 (
       .clk(bus_clock),
       .rst(bus_reset),
 
@@ -398,5 +385,6 @@ module memreq #(
       .m_axis_tdest (),
       .m_axis_tdata (m_tdata)
   );
+
 
 endmodule  /* memreq */

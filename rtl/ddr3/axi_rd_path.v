@@ -1,85 +1,54 @@
 `timescale 1ns / 100ps
-module axi_rd_path (
-    clock,
-    reset,
+module axi_rd_path #(
+    parameter  ADDRS = 32,
+    localparam ASB   = ADDRS - 1,
 
-    axi_arvalid_i,
-    axi_arready_o,
-    axi_araddr_i,
-    axi_arid_i,
-    axi_arlen_i,
-    axi_arburst_i,
+    parameter  WIDTH = 32,
+    localparam MSB   = WIDTH - 1,
 
-    axi_rready_i,
-    axi_rvalid_o,
-    axi_rlast_o,
-    axi_rresp_o,
-    axi_rid_o,
-    axi_rdata_o,
+    parameter  MASKS = WIDTH / 8,
+    localparam SSB   = MASKS - 1,
 
-    mem_fetch_o,
-    mem_accept_i,
-    mem_rseq_o,
-    mem_reqid_o,
-    mem_addr_o,
+    parameter AXI_ID_WIDTH = 4,
+    localparam ISB = AXI_ID_WIDTH - 1,
 
-    mem_valid_i,
-    mem_ready_o,
-    mem_last_i,
-    mem_reqid_i,
-    mem_data_i
+    parameter CTRL_FIFO_DEPTH = 16,
+    parameter CTRL_FIFO_BLOCK = 0,
+    localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
+
+    parameter DATA_FIFO_DEPTH = 512,
+    parameter DATA_FIFO_BLOCK = 1,
+    localparam DBITS = $clog2(DATA_FIFO_DEPTH)
+) (
+    input clock,
+    input reset,
+
+    input axi_arvalid_i,  // AXI4 Read Address Port
+    output axi_arready_o,
+    input [ISB:0] axi_arid_i,
+    input [7:0] axi_arlen_i,
+    input [1:0] axi_arburst_i,
+    input [ASB:0] axi_araddr_i,
+
+    input axi_rready_i,  // AXI4 Read Data Port
+    output axi_rvalid_o,
+    output [MSB:0] axi_rdata_o,
+    output [1:0] axi_rresp_o,
+    output [ISB:0] axi_rid_o,
+    output axi_rlast_o,
+
+    output mem_fetch_o,
+    input mem_accept_i,
+    output mem_rseq_o,
+    output [ISB:0] mem_reqid_o,
+    output [ASB:0] mem_addr_o,
+
+    input mem_valid_i,
+    output mem_ready_o,
+    input mem_last_i,
+    input [ISB:0] mem_reqid_i,
+    input [MSB:0] mem_data_i
 );
-
-  parameter ADDRS = 32;
-  localparam ASB = ADDRS - 1;
-
-  parameter WIDTH = 32;
-  localparam MSB = WIDTH - 1;
-
-  parameter MASKS = WIDTH / 8;
-  localparam SSB = MASKS - 1;
-
-  parameter AXI_ID_WIDTH = 4;
-  localparam ISB = AXI_ID_WIDTH - 1;
-
-  parameter CTRL_FIFO_DEPTH = 16;
-  parameter CTRL_FIFO_BLOCK = 0;
-  localparam CBITS = $clog2(CTRL_FIFO_DEPTH);
-
-  parameter DATA_FIFO_DEPTH = 512;
-  parameter DATA_FIFO_BLOCK = 1;
-  localparam DBITS = $clog2(DATA_FIFO_DEPTH);
-
-
-  input clock;
-  input reset;
-
-  input axi_arvalid_i;  // AXI4 Read Address Port
-  output axi_arready_o;
-  input [ISB:0] axi_arid_i;
-  input [7:0] axi_arlen_i;
-  input [1:0] axi_arburst_i;
-  input [ASB:0] axi_araddr_i;
-
-  input axi_rready_i;  // AXI4 Read Data Port
-  output axi_rvalid_o;
-  output [MSB:0] axi_rdata_o;
-  output [1:0] axi_rresp_o;
-  output [ISB:0] axi_rid_o;
-  output axi_rlast_o;
-
-  output mem_fetch_o;
-  input mem_accept_i;
-  output mem_rseq_o;
-  output [ISB:0] mem_reqid_o;
-  output [ASB:0] mem_addr_o;
-
-  input mem_valid_i;
-  output mem_ready_o;
-  input mem_last_i;
-  input [ISB:0] mem_reqid_i;
-  input [MSB:0] mem_data_i;
-
 
   // -- Constants -- //
 
@@ -206,6 +175,7 @@ module axi_rd_path (
 
 
 `ifdef __icarus
+
   always @(posedge clock) begin
     if (reset);
     else begin
@@ -215,7 +185,8 @@ module axi_rd_path (
       end
     end
   end
-`endif
+
+`endif /* __icarus */
 
 
-endmodule  // axi_rd_path
+endmodule  /* axi_rd_path */

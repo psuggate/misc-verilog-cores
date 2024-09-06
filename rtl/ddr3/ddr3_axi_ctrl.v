@@ -14,174 +14,110 @@
  * Copyright 2023, Patrick Suggate.
  *
  */
-module ddr3_axi_ctrl (
-    clock,
-    reset,
+module ddr3_axi_ctrl #(
+    // Sets the number of (full-width) AXI4 transfers for a burst transaction
+    // to/from the memory-controller
+    parameter MEM_BURST_LEN = 4,
 
-    axi_awvalid_i,
-    axi_awready_o,
-    axi_awaddr_i,
-    axi_awid_i,
-    axi_awlen_i,
-    axi_awsize_i,
-    axi_awburst_i,
+    // For people that want their lives to be difficult ...
+    parameter AXI_USES_SIZE = 0,
+    parameter AXI_UNALIGNED = 0,
 
-    axi_wvalid_i,
-    axi_wready_o,
-    axi_wlast_i,
-    axi_wstrb_i,
-    axi_wdata_i,
+    parameter AXI_ID_WIDTH = 4,
+    localparam ISB = AXI_ID_WIDTH - 1,
 
-    axi_bvalid_o,
-    axi_bready_i,
-    axi_bresp_o,
-    axi_bid_o,
+    parameter MEM_ID_WIDTH = 4,
+    localparam TSB = MEM_ID_WIDTH - 1,
+    localparam TZERO = {MEM_ID_WIDTH{1'b0}},
 
-    axi_arvalid_i,
-    axi_arready_o,
-    axi_araddr_i,
-    axi_arid_i,
-    axi_arlen_i,
-    axi_arsize_i,
-    axi_arburst_i,
+    // Byte-address width, in bits -- lower bits will (typ) be ignored, and upper
+    // bits may be ignored as well, if they lie outside of address-range
+    parameter  ADDRS = 32,
+    localparam ASB   = ADDRS - 1,
 
-    axi_rready_i,
-    axi_rvalid_o,
-    axi_rlast_o,
-    axi_rresp_o,
-    axi_rid_o,
-    axi_rdata_o,
+    // Should be one of: {8, 16, 32, 64, 128, 256, 512, 1024}
+    parameter  WIDTH = 32,
+    localparam MSB   = WIDTH - 1,
 
-    mem_wrreq_o,  // WRITE requests to CTRL
-    mem_wrack_i,
-    mem_wrerr_i,
-    mem_wrlst_o,
-    mem_wrtid_o,
-    mem_wradr_o,
+    parameter  MASKS = WIDTH / 8,
+    localparam SSB   = MASKS - 1,
 
-    mem_valid_o,  // WRITE data to DFI
-    mem_ready_i,
-    mem_wlast_o,
-    mem_wmask_o,
-    mem_wdata_o,
+    parameter CTRL_FIFO_DEPTH = 16,
+    parameter CTRL_FIFO_BLOCK = 0,  // Defaults to using LUT-SRAM's
+    localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
 
-    mem_rdreq_o,  // READ requests to CTRL
-    mem_rdack_i,
-    mem_rderr_i,
-    mem_rdlst_o,
-    mem_rdtid_o,
-    mem_rdadr_o,
+    parameter DATA_FIFO_DEPTH = 512,  // Default: 2kB SRAM block
+    parameter DATA_FIFO_BLOCK = 1,  // Defaults to using SRAM hard-IP blocks
+    localparam DBITS = $clog2(DATA_FIFO_DEPTH),
 
-    mem_valid_i,  // READ data from DFI
-    mem_ready_o,
-    mem_rlast_i,
-    mem_rdata_i
+    // If the memory controller is idle (and both datapaths), send any request
+    // straight to the memory-controller (if 'FAST_PATH_ENABLE == 1')
+    // todo: this will require combinational outputs, limiting frequency ??
+    parameter FAST_PATH_ENABLE = 1
+) (
+    input clock,
+    input reset,
+
+    input axi_awvalid_i,  // AXI4 Write Address Port
+    output axi_awready_o,
+    input [ASB:0] axi_awaddr_i,
+    input [ISB:0] axi_awid_i,
+    input [7:0] axi_awlen_i,
+    input [2:0] axi_awsize_i,
+    input [1:0] axi_awburst_i,
+    input axi_wvalid_i,  // AXI4 Write Data Port
+    output axi_wready_o,
+    input [MSB:0] axi_wdata_i,
+    input [SSB:0] axi_wstrb_i,
+    input axi_wlast_i,
+    output axi_bvalid_o,  // AXI4 Write Response
+    input axi_bready_i,
+    output [1:0] axi_bresp_o,
+    output [ISB:0] axi_bid_o,
+
+    input axi_arvalid_i,  // AXI4 Read Address Port
+    output axi_arready_o,
+    input [ASB:0] axi_araddr_i,
+    input [ISB:0] axi_arid_i,
+    input [7:0] axi_arlen_i,
+    input [2:0] axi_arsize_i,
+    input [1:0] axi_arburst_i,
+    input axi_rready_i,  // AXI4 Read Data Port
+    output axi_rvalid_o,
+    output [MSB:0] axi_rdata_o,
+    output [1:0] axi_rresp_o,
+    output [ISB:0] axi_rid_o,
+    output axi_rlast_o,
+
+    // Write-request port (to controller)
+    output mem_wrreq_o,
+    input mem_wrack_i,
+    input mem_wrerr_i,
+    output mem_wrlst_o,
+    output [TSB:0] mem_wrtid_o,
+    output [ASB:0] mem_wradr_o,
+
+    // Write-data port (to datapath)
+    output mem_valid_o,
+    input mem_ready_i,
+    output mem_wlast_o,
+    output [SSB:0] mem_wmask_o,
+    output [MSB:0] mem_wdata_o,
+
+    // Read-request port (to controller)
+    output mem_rdreq_o,
+    input mem_rdack_i,
+    input mem_rderr_i,
+    output mem_rdlst_o,
+    output [TSB:0] mem_rdtid_o,
+    output [ASB:0] mem_rdadr_o,
+
+    // Read-data port (from datapath)
+    input mem_valid_i,
+    output mem_ready_o,
+    input mem_rlast_i,
+    input [MSB:0] mem_rdata_i
 );
-
-  // Sets the number of (full-width) AXI4 transfers for a burst transaction
-  // to/from the memory-controller
-  parameter MEM_BURST_LEN = 4;
-
-  // For people that want their lives to be difficult ...
-  parameter AXI_USES_SIZE = 0;
-  parameter AXI_UNALIGNED = 0;
-
-  parameter AXI_ID_WIDTH = 4;
-  localparam ISB = AXI_ID_WIDTH - 1;
-
-  parameter MEM_ID_WIDTH = 4;
-  localparam TSB = MEM_ID_WIDTH - 1;
-  localparam TZERO = {MEM_ID_WIDTH{1'b0}};
-
-  // Byte-address width, in bits -- lower bits will (typ) be ignored, and upper
-  // bits may be ignored as well, if they lie outside of address-range
-  parameter ADDRS = 32;
-  localparam ASB = ADDRS - 1;
-
-  // Should be one of: {8, 16, 32, 64, 128, 256, 512, 1024}
-  parameter WIDTH = 32;
-  localparam MSB = WIDTH - 1;
-
-  parameter MASKS = WIDTH / 8;
-  localparam SSB = MASKS - 1;
-
-  parameter CTRL_FIFO_DEPTH = 16;
-  parameter CTRL_FIFO_BLOCK = 0;  // Defaults to using LUT-SRAM's
-  localparam CBITS = $clog2(CTRL_FIFO_DEPTH);
-
-  parameter DATA_FIFO_DEPTH = 512;  // Default: 2kB SRAM block
-  parameter DATA_FIFO_BLOCK = 1;  // Defaults to using SRAM hard-IP blocks
-  localparam DBITS = $clog2(DATA_FIFO_DEPTH);
-
-  // If the memory controller is idle (and both datapaths), send any request
-  // straight to the memory-controller (if 'FAST_PATH_ENABLE == 1')
-  // todo: this will require combinational outputs, limiting frequency ??
-  parameter FAST_PATH_ENABLE = 1;
-
-
-  input clock;
-  input reset;
-
-  input axi_awvalid_i;  // AXI4 Write Address Port
-  output axi_awready_o;
-  input [ASB:0] axi_awaddr_i;
-  input [ISB:0] axi_awid_i;
-  input [7:0] axi_awlen_i;
-  input [2:0] axi_awsize_i;
-  input [1:0] axi_awburst_i;
-  input axi_wvalid_i;  // AXI4 Write Data Port
-  output axi_wready_o;
-  input [MSB:0] axi_wdata_i;
-  input [SSB:0] axi_wstrb_i;
-  input axi_wlast_i;
-  output axi_bvalid_o;  // AXI4 Write Response
-  input axi_bready_i;
-  output [1:0] axi_bresp_o;
-  output [ISB:0] axi_bid_o;
-
-  input axi_arvalid_i;  // AXI4 Read Address Port
-  output axi_arready_o;
-  input [ASB:0] axi_araddr_i;
-  input [ISB:0] axi_arid_i;
-  input [7:0] axi_arlen_i;
-  input [2:0] axi_arsize_i;
-  input [1:0] axi_arburst_i;
-  input axi_rready_i;  // AXI4 Read Data Port
-  output axi_rvalid_o;
-  output [MSB:0] axi_rdata_o;
-  output [1:0] axi_rresp_o;
-  output [ISB:0] axi_rid_o;
-  output axi_rlast_o;
-
-  // Write-request port (to controller)
-  output mem_wrreq_o;
-  input mem_wrack_i;
-  input mem_wrerr_i;
-  output mem_wrlst_o;
-  output [TSB:0] mem_wrtid_o;
-  output [ASB:0] mem_wradr_o;
-
-  // Write-data port (to datapath)
-  output mem_valid_o;
-  input mem_ready_i;
-  output mem_wlast_o;
-  output [SSB:0] mem_wmask_o;
-  output [MSB:0] mem_wdata_o;
-
-  // Read-request port (to controller)
-  output mem_rdreq_o;
-  input mem_rdack_i;
-  input mem_rderr_i;
-  output mem_rdlst_o;
-  output [TSB:0] mem_rdtid_o;
-  output [ASB:0] mem_rdadr_o;
-
-  // Read-data port (from datapath)
-  input mem_valid_i;
-  output mem_ready_o;
-  input mem_rlast_i;
-  input [MSB:0] mem_rdata_i;
-
 
   // -- Constants -- //
 
