@@ -8,20 +8,20 @@
  */
 module memreq #(
     parameter FIFO_DEPTH = 512,
-    parameter ADDRESS_WIDTH = 28,
-    localparam AZERO = {ADDRESS_WIDTH{1'b0}},
-    localparam ASB = ADDRESS_WIDTH - 1,
     parameter DATA_WIDTH = 32,
     localparam MSB = DATA_WIDTH - 1,
     parameter STROBES = DATA_WIDTH / 8,
     localparam SSB = STROBES - 1,
-    parameter ID_WIDTH = 4,
+    localparam ADDRESS_WIDTH = 28,
+    localparam AZERO = {ADDRESS_WIDTH{1'b0}},
+    localparam ASB = ADDRESS_WIDTH - 1,
+    localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1
 ) (
-    input mem_clock, // DDR3 controller domain
+    input mem_clock,  // DDR3 controller domain
     input mem_reset,
 
-    input bus_clock, // SPI or USB domain
+    input bus_clock,  // SPI or USB domain
     input bus_reset,
 
     // From USB or SPI
@@ -29,7 +29,7 @@ module memreq #(
     output s_tready,
     input s_tkeep,
     input s_tlast,
-    input [7:0] s_tuser,
+    input [7:0] s_tdata,
 
     // To USB or SPI
     output m_tvalid,
@@ -80,11 +80,12 @@ module memreq #(
   wire mux_enable_w, mux_select_w;
 
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
-  wire a_tvalid, a_tready, a_tkeep, a_tlast, b_tvalid, b_tready, b_tlast;
+  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
   wire z_tvalid, z_tready, z_tkeep, z_tlast;
-  wire [7:0] y_tdata, b_tdata, z_tdata;
-  wire [MSB:0] x_tdata, a_tdata;
-  wire [ISB:0] y_tid, b_tid;
+  wire [SSB:0] a_tkeep, x_tkeep, b_tkeep;
+  wire [7:0] y_tdata, z_tdata;
+  wire [MSB:0] x_tdata, b_tdata, a_tdata;
+  wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
 
   // Write-buffer (FIFO) assignments, to the DDR3 controller
   assign wvalid_o = x_tvalid;
@@ -105,40 +106,87 @@ module memreq #(
 
   reg [6:0] state, snext;
 
-  // -- Parser for Control Transfer Parameters -- //
+  // -- Parser for Memory Transaction Requests -- //
 
   reg cyc_q, stb_q, req_q;
-  reg [2:0] ptr_q;
-  wire tkeep_w, end_w;
+  reg [4:0] ptr_q;
+  wire tkeep_w, cmd_end_w;
 
-  assign req_done_w = end_w;  // Todo ...
+  reg [7:0] cmd_q, len_q, len_c;
+  reg [ISB:0] tid_q, tid_c;  // 4b
+  reg [ASB:0] adr_q, adr_c;  // 28b
 
-  reg req_start_q, req_cycle_q;
-  reg [ASB:0] req_addr_q;
-  reg [ISB:0] req_id_q;
-  reg [7:0] req_len_q;
+  assign cmd_end_w = ptr_q[4];
 
-  // Todo:
-  //  - if there is more data after the 8th byte, then forward that out (via
-  //    an AXI4-Stream skid-register) !?
-  always @(posedge clock) begin
-    if (!cyc_q) begin
-      ptr_q <= 3'b000;
-      req_len_q <= 0;
-      req_start_q <= 1'b0;
-      req_cycle_q <= 1'b0;
-    end else if (req_q && s_tvalid && s_tkeep && s_tready) begin
-      if (ptr_q == 7) begin
-        if (!req_cycle_q) begin
-          req_start_q <= 1'b1;
-          req_cycle_q <= 1'b1;
-        end
-      end else begin
-        ptr_q <= ptr_q + 1;
-      end
+  // DeMUX for memory requests
+  always @* begin
+    len_c = len_q;
+    tid_c = tid_q;
+    adr_c = adr_q;
+
+    case (ptr_q)
+      5'h01: len_c = s_tdata;
+      5'h02: adr_c[7:0] = s_tdata;
+      5'h04: adr_c[15:8] = s_tdata;
+      5'h08: adr_c[23:16] = s_tdata;
+      5'h10: {tid_c, adr_c[ASB:24]} = s_tdata;
+    endcase
+  end
+
+  always @(posedge bus_clock) begin
+    if (state == ST_IDLE) begin
+      ptr_q <= 5'b00001;
+      cmd_q <= s_tdata;
+      len_q <= 8'bx;
+      tid_q <= {ID_WIDTH{1'bx}};
+      adr_q <= {ADDRESS_WIDTH{1'bx}};
+    end else if (s_tvalid && s_tkeep && s_tready) begin
+      ptr_q <= {ptr_q[4:0], 1'b0};
+      cmd_q <= cmd_q;
+      len_q <= len_c;
+      tid_q <= tid_c;
+      adr_q <= adr_c;
+    end
+  end
+
+  // -- FSM for Memory Requests -- //
+
+  always @(posedge bus_clock) begin
+    if (bus_reset) begin
+      state <= ST_IDLE;
     end else begin
-      req_start_q <= 1'b0;
-      req_cycle_q <= req_done_w ? 1'b0 : req_cycle_q;
+      case (state)
+        ST_IDLE: begin
+          if (s_tvalid && s_tready && s_tkeep) begin
+            state <= s_tdata[7] ? ST_RADR : ST_WADR;
+          end
+        end
+        ST_WADR: begin
+          if (cmd_end_w) begin
+            state <= ST_WDAT;
+          end
+        end
+        ST_WDAT: begin
+          if (s_tvalid && s_tready && s_tlast) begin
+            state <= ST_RESP;
+          end
+        end
+        ST_RADR: begin
+          if (cmd_end_w) begin
+            state <= ST_RDAT;
+          end
+        end
+        ST_RDAT: begin
+          if (rvalid_i && rready_o && rlast_i) begin
+            state <= ST_SEND;
+          end
+        end
+        ST_SEND: begin
+          if (m_tvalid && m_tready && m_tlast) begin
+            state <= ST_IDLE;
+          end
+        end
+      endcase
     end
   end
 
@@ -153,21 +201,21 @@ module memreq #(
       .M_DATA_WIDTH(DATA_WIDTH),
       .M_KEEP_ENABLE(1),
       .M_KEEP_WIDTH(STROBES),
-      .ID_ENABLE(0),
-      .ID_WIDTH(1),
+      .ID_ENABLE(1),
+      .ID_WIDTH(ID_WIDTH),
       .DEST_ENABLE(0),
       .DEST_WIDTH(1),
       .USER_ENABLE(0),
       .USER_WIDTH(1)
   ) U_ADAPT1 (
-      .clk(clock),
-      .rst(reset),
+      .clk(bus_clock),
+      .rst(bus_reset),
 
       .s_axis_tvalid(s_tvalid),
       .s_axis_tready(s_tready),
       .s_axis_tkeep(tkeep_w),
       .s_axis_tlast(s_tlast),
-      .s_axis_tid(1'b0),
+      .s_axis_tid(tid_q),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
       .s_axis_tdata(s_tdata),  // AXI input
@@ -176,7 +224,7 @@ module memreq #(
       .m_axis_tready(a_tready),
       .m_axis_tkeep(a_tkeep),
       .m_axis_tlast(a_tlast),
-      .m_axis_tid(),
+      .m_axis_tid(a_tid),
       .m_axis_tdest(),
       .m_axis_tuser(),
       .m_axis_tdata(a_tdata)  // AXI output
@@ -185,7 +233,7 @@ module memreq #(
   axis_async_fifo #(
       .DEPTH(FIFO_DEPTH),
       .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(0),
+      .KEEP_ENABLE(1),
       .KEEP_WIDTH(STROBES),
       .LAST_ENABLE(1),
       .ID_ENABLE(1),
@@ -210,7 +258,7 @@ module memreq #(
       .s_axis_tkeep(a_tkeep),
       .s_axis_tlast(a_tlast),
       .s_axis_tdata(a_tdata),  // AXI input
-      .s_axis_tid(1'b0),
+      .s_axis_tid(a_tid),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
 
@@ -248,7 +296,7 @@ module memreq #(
   axis_async_fifo #(
       .DEPTH(FIFO_DEPTH),
       .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(0),
+      .KEEP_ENABLE(1),
       .KEEP_WIDTH(STROBES),
       .LAST_ENABLE(1),
       .ID_ENABLE(1),
@@ -323,7 +371,7 @@ module memreq #(
       .clk(bus_clock),
       .rst(bus_reset),
 
-      .s_axis_tvalid(b_tvalid),  // AXI input
+      .s_axis_tvalid(b_tvalid),  // AXI input: 32b
       .s_axis_tready(b_tready),
       .s_axis_tkeep({STROBES{b_tvalid}}),
       .s_axis_tlast(b_tlast),
@@ -332,7 +380,7 @@ module memreq #(
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
 
-      .m_axis_tvalid(y_tvalid),  // AXI output
+      .m_axis_tvalid(y_tvalid),  // AXI output: 8b
       .m_axis_tready(y_tready),
       .m_axis_tkeep(y_tkeep),
       .m_axis_tlast(y_tlast),
@@ -367,7 +415,7 @@ module memreq #(
       .enable(mux_enable_w),
       .select(mux_select_w),
 
-      .s_axis_tvalid({z_tvalid, y_tvalid}),
+      .s_axis_tvalid({z_tvalid, y_tvalid}), // AXI input: 2x 8b
       .s_axis_tready({z_tready, y_tready}),
       .s_axis_tkeep ({z_tkeep, y_tkeep}),
       .s_axis_tlast ({z_tlast, y_tlast}),
@@ -376,7 +424,7 @@ module memreq #(
       .s_axis_tdest (2'bx),
       .s_axis_tdata ({z_tdata, y_tdata}),
 
-      .m_axis_tvalid(m_tvalid),
+      .m_axis_tvalid(m_tvalid), // AXI output: 8b
       .m_axis_tready(m_tready),
       .m_axis_tkeep (m_tkeep),
       .m_axis_tlast (m_tlast),

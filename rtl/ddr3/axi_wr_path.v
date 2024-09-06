@@ -204,7 +204,7 @@ module axi_wr_path #(
   axi_chunks #(
       .ADDRS(ADDRS),
       .REQID(AXI_ID_WIDTH)
-  ) chunker_inst (
+  ) U_CHUNK1 (
       .clock(clock),
       .reset(reset),
 
@@ -229,7 +229,7 @@ module axi_wr_path #(
       .WIDTH (COMMAND_WIDTH),
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
-  ) command_fifo_inst (
+  ) U_FIFO1 (
       .clock(clock),
       .reset(reset),
 
@@ -247,12 +247,12 @@ module axi_wr_path #(
 
   packet_fifo #(
       .WIDTH(MASKS + WIDTH),
-      .ABITS(DBITS),
+      .DEPTH(1 << DBITS),
       .SAVE_ON_LAST(1),
       .LAST_ON_SAVE(0),
       .NEXT_ON_LAST(1),
       .OUTREG(DATA_FIFO_BLOCK)
-  ) wrdata_fifo_inst (
+  ) U_FIFO2 (
       .clock(clock),
       .reset(reset),
 

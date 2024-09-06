@@ -1,13 +1,32 @@
 `timescale 1ns / 100ps
-module ddr3_top (
+module ddr3_top #(
+    parameter SRAM_BYTES = 2048,
+    parameter DATA_WIDTH = 32,
+
+    // Trims an additional clock-cycle of latency, if '1'
+    parameter LOW_LATENCY = 1'b0  // 0 or 1
+) (
     input clk_26,
     input rst_n,   // 'S2' button for async-reset
 
-    input send_n,  // 'S4' button for telemetry read-back
-    output [5:0] leds,
+    input bus_clock,
+    input bus_reset,
 
-    input  uart_rx,  // '/dev/ttyUSB1'
-    output uart_tx,
+    output ddr3_conf_o,
+
+    // From USB or SPI
+    input s_tvalid,
+    output s_tready,
+    input s_tkeep,
+    input s_tlast,
+    input [7:0] s_tdata,
+
+    // To USB or SPI
+    output m_tvalid,
+    input m_tready,
+    output m_tkeep,
+    output m_tlast,
+    output [7:0] m_tdata,
 
     // 1Gb DDR3 SDRAM pins
     output ddr_ck,
@@ -27,14 +46,24 @@ module ddr3_top (
     inout [15:0] ddr_dq
 );
 
+  // `define __use_250_MHz
+`ifdef __use_250_MHz
+  localparam DDR_FREQ_MHZ = 125;
+
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 36;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+`else
+  localparam DDR_FREQ_MHZ = 100;
+
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 28;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+`endif
+
   // -- Constants -- //
-
-  // USB UART settings
-  localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
-
-  //
-  //  DDR3 Core Parameters
-  ///
 
   // Settings for DLL=off mode
   parameter DDR_CL = 6;
@@ -43,9 +72,6 @@ module ddr3_top (
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
   localparam WR_PREFETCH = 1'b1;
-
-  // Trims an additional clock-cycle of latency, if '1'
-  parameter LOW_LATENCY = 1'b0;  // 0 or 1
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
@@ -76,8 +102,6 @@ module ddr3_top (
 
   // -- DDR3 Core and AXI Interconnect Signals -- //
 
-  wire ddr3_conf;
-
   // AXI4 Signals to/from the Memory Controller
   wire awvalid, wvalid, wlast, bready, arvalid, rready;
   wire awready, wready, bvalid, arready, rvalid, rlast;
@@ -97,23 +121,8 @@ module ddr3_top (
   wire [BSB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
 
-
-  // `define __use_250_MHz
-`ifdef __use_250_MHz
-  localparam DDR_FREQ_MHZ = 125;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 36;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`else
-  localparam DDR_FREQ_MHZ = 100;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`endif
+  wire clk_200, clk_100, locked;
+  wire ddr_clk, clock, reset;
 
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
@@ -126,34 +135,49 @@ module ddr3_top (
       .DYN_SDIV_SEL(SDIV_SEL)
   ) axis_rpll_inst (
       .clkout(clk_200),  // 200 MHz
-      .clockd(cll_100),  // 100 MHz
+      .clockd(clk_100),  // 100 MHz
       .lock  (locked),
       .clkin (clk_26)
   );
 
+  assign ddr_clk = clk_200;
+  assign clock   = clk_100;
+  assign reset   = ~locked;
 
-  // -- Controls the DDR3 via USB -- //
+  // -- Processes & Dispatches Memory Requests -- //
 
-  axis_ddr3_ctrl U_DDR3_AXIS1 (
-      .clock(clock),
-      .reset(reset),
+  memreq #(
+      .FIFO_DEPTH(SRAM_BYTES * 8 / DATA_WIDTH),
+      .DATA_WIDTH(DATA_WIDTH),
+      .STROBES(DATA_WIDTH / 8)
+  ) U_MEMREQ1 (
+      .mem_clock(clock),  // DDR3 controller domain
+      .mem_reset(reset),
 
-      .s_valid_i(cvalid),
-      .s_ready_o(cready),
-      .s_last_i (clast),
-      .s_data_i (cdata),
+      .bus_clock(bus_clock),  // SPI or USB domain
+      .bus_reset(bus_reset),
 
-      .m_valid_o(m_tvalid),
-      .m_ready_i(m_tready),
-      .m_last_o (m_tlast),
-      .m_data_o (m_tdata),
+      // From USB or SPI
+      .s_tvalid(s_tvalid),
+      .s_tready(s_tready),
+      .s_tkeep (s_tkeep),
+      .s_tlast (s_tlast),
+      .s_tdata (s_tdata),
 
+      // To USB or SPI
+      .m_tvalid(m_tvalid),
+      .m_tready(m_tready),
+      .m_tkeep (m_tkeep),
+      .m_tlast (m_tlast),
+      .m_tdata (m_tdata),
+
+      // Write -address(), -data(), & -response ports(), to/from DDR3 controller
       .awvalid_o(awvalid),
       .awready_i(awready),
-      .awburst_o(awburst),
-      .awlen_o(awlen),
-      .awid_o(awid),
       .awaddr_o(awaddr),
+      .awid_o(awid),
+      .awlen_o(awlen),
+      .awburst_o(awburst),
 
       .wvalid_o(wvalid),
       .wready_i(wready),
@@ -163,21 +187,22 @@ module ddr3_top (
 
       .bvalid_i(bvalid),
       .bready_o(bready),
-      .bid_i(bid),
       .bresp_i(bresp),
+      .bid_i(bid),
 
+      // Read -address & -data ports(), to/from the DDR3 controller
       .arvalid_o(arvalid),
       .arready_i(arready),
-      .arburst_o(arburst),
-      .arlen_o(arlen),
-      .arid_o(arid),
       .araddr_o(araddr),
+      .arid_o(arid),
+      .arlen_o(arlen),
+      .arburst_o(arburst),
 
       .rvalid_i(rvalid),
       .rready_o(rready),
       .rlast_i(rlast),
-      .rid_i(rid),
       .rresp_i(rresp),
+      .rid_i(rid),
       .rdata_i(rdata)
   );
 
@@ -185,6 +210,7 @@ module ddr3_top (
   //
   //  DDR Core Under New Test
   ///
+
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
       .DDR_ROW_BITS (DDR_ROW_BITS),
@@ -202,7 +228,7 @@ module ddr3_top (
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset
 
-      .configured_o(ddr3_conf),
+      .configured_o(ddr3_conf_o),
 
       .tele_select_i(1'b0),
       .tele_start_i (1'b0),
@@ -330,131 +356,4 @@ module ddr3_top (
   );
 
 
-  //
-  //  Debug Telemetry & UART
-  ///
-
-  // -- Capture telemetry, so that it can be read back via UART -- //
-
-  bulk_telemetry #(
-      .ENDPOINT(ENDPOINT2),
-      .FIFO_DEPTH(1024),
-      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
-  ) U_TELEMETRY1 (
-      .clock(clock),
-      .reset(reset),
-
-      .usb_enum_i  (1'b1),
-      .high_speed_i(hs_enabled_w),
-
-      .LineState  (LineState),    // Byte 3
-      .ctl_cycle_i(ctl_cycle_w),
-      .usb_reset_i(usb_reset),
-      .usb_endpt_i(tok_endpt_w),
-
-      .usb_tuser_i(usb_tuser_w),  // Byte 2
-      .ctl_error_i(ctl_error_w),
-      .usb_state_i(usb_state_w),
-      .crc_error_i(crc_error_w),
-
-      .usb_error_i(err_code_w),  // Byte 1
-      .usb_recv_i(usb_rx_recv_w),
-      .usb_sent_i(usb_tx_done_w),
-      .hsk_sent_i(hsk_tx_done_w),
-      .tok_recv_i(tok_rx_recv_w),
-      .tok_ping_i(tok_parity_w),  // todo ...
-      .timeout_i(timeout_w),
-      .usb_sof_i(usb_sof_w),
-      .blk_state_i(blk_state_w),
-
-      .ctl_state_i(ctl_state_w),  // Byte 0
-      .phy_state_i(phy_state_w),
-
-      .start_i (tstart || 1'b1),
-      .select_i(1'b1),
-      .endpt_i (4'd2),
-      .error_o (terror),
-      .level_o (tlevel),
-
-      .m_tvalid(tvalid),  // AXI4-Stream for telemetry data
-      .m_tlast (tlast),
-      .m_tkeep (tkeep),
-      .m_tdata (tdata),
-      .m_tready(tready)
-  );
-
-
-  // -- Telemetry Read-Back Logic -- //
-
-  always @(posedge clock) begin
-    send_q <= ~send_ni & ~tcycle & ~tx_busy_w;
-
-    if (!tcycle && (send_q || uvalid && udata == "a")) begin
-      tstart <= 1'b1;
-    end else begin
-      tstart <= 1'b0;
-    end
-  end
-
-
-  // -- Convert 32b telemetry captures to ASCII hexadecimal -- //
-
-  hex_dump #(
-      .UNICODE(0),
-      .BLOCK_SRAM(1)
-  ) U_HEXDUMP1 (
-      .clock(clock),
-      .reset(reset),
-
-      .start_dump_i(tstart),
-      .is_dumping_o(tcycle),
-      .fifo_level_o(),
-
-      .s_tvalid(tvalid),
-      .s_tready(tready),
-      .s_tlast (tlast),
-      .s_tkeep (tkeep),
-      .s_tdata (tdata),
-
-      .m_tvalid(xvalid),
-      .m_tready(xready),
-      .m_tlast (xlast),
-      .m_tkeep (),
-      .m_tdata (xdata)
-  );
-
-  assign gvalid = xvalid && !tx_busy_w;
-  assign xready = gready;
-  assign glast  = xlast;
-  assign gdata  = xdata;
-
-
-  // -- Use the FTDI USB UART for dumping the telemetry (as ASCII hex) -- //
-
-  uart #(
-      .DATA_WIDTH(8)
-  ) U_UART1 (
-      .clk(clock),
-      .rst(reset),
-
-      .s_axis_tvalid(gvalid),
-      .s_axis_tready(gready),
-      .s_axis_tdata (gdata),
-
-      .m_axis_tvalid(uvalid),
-      .m_axis_tready(uready),
-      .m_axis_tdata (udata),
-
-      .rxd(uart_rx_i),
-      .txd(uart_tx_o),
-
-      .rx_busy(rx_busy_w),
-      .tx_busy(tx_busy_w),
-      .rx_overrun_error(),
-      .rx_frame_error(),
-
-      .prescale(UART_PRESCALE)
-  );
-
-
-endmodule  // ddr3_top
+endmodule  /* ddr3_top */

@@ -113,7 +113,7 @@ module axi_rd_path #(
       .WIDTH (COMMAND_WIDTH),
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
-  ) command_fifo_inst (
+  ) U_FIFO1 (
       .clock(clock),
       .reset(reset),
 
@@ -138,7 +138,7 @@ module axi_rd_path #(
       .WIDTH (AXI_ID_WIDTH),
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
-  ) response_fifo_inst (
+  ) U_FIFO2 (
       .clock(clock),
       .reset(reset),
 
@@ -160,7 +160,7 @@ module axi_rd_path #(
       .WIDTH (WIDTH + 1),
       .ABITS (DBITS),
       .OUTREG(DATA_FIFO_BLOCK)
-  ) rddata_fifo_inst (
+  ) U_FIFO3 (
       .clock(clock),
       .reset(reset),
 
