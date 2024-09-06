@@ -64,6 +64,7 @@ module usb_ddr3_top (
   // -- DDR3 Settings -- //
 
   parameter DDR_FREQ_MHZ = 100;
+  localparam LOW_LATENCY = 0;
 
   // -- UART Settings -- //
 
@@ -166,12 +167,10 @@ module usb_ddr3_top (
   //  DDR3 Cores Under Next-generation Tests
   ///
 
-  localparam LOW_LATENCY = 0;
-
   ddr3_top #(
-             .SRAM_BYTES(2048),
-             .DATA_WIDTH(32),
-      .LOW_LATENCY  (LOW_LATENCY)
+      .SRAM_BYTES (2048),
+      .DATA_WIDTH (32),
+      .LOW_LATENCY(LOW_LATENCY)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock
       .rst_n (rst_n),   // 'S2' button for async-reset

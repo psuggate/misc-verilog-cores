@@ -83,9 +83,10 @@ module memreq #(
   wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
   wire z_tvalid, z_tready, z_tkeep, z_tlast;
   wire [SSB:0] a_tkeep, x_tkeep, b_tkeep;
+  wire [1:0] b_tuser, y_tuser;
+  wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
   wire [7:0] y_tdata, z_tdata;
   wire [MSB:0] x_tdata, b_tdata, a_tdata;
-  wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
 
   // Write-buffer (FIFO) assignments, to the DDR3 controller
   assign wvalid_o = x_tvalid;
@@ -108,13 +109,21 @@ module memreq #(
 
   // -- Parser for Memory Transaction Requests -- //
 
-  reg cyc_q, stb_q, req_q;
-  reg [4:0] ptr_q;
-  wire tkeep_w, cmd_end_w;
+  localparam [7:0] CMD_NOP = 8'h00;
+  localparam [7:0] CMD_STORE = 8'h01;
+  localparam [7:0] CMD_WDONE = 8'h02;
+  localparam [7:0] CMD_WFAIL = 8'h03;
+  localparam [7:0] CMD_FETCH = 8'h80;
+  localparam [7:0] CMD_RDATA = 8'h81;
+  localparam [7:0] CMD_RFAIL = 8'h82;
 
+  reg [4:0] ptr_q;
   reg [7:0] cmd_q, len_q, len_c;
   reg [ISB:0] tid_q, tid_c;  // 4b
   reg [ASB:0] adr_q, adr_c;  // 28b
+  wire tkeep_w, cmd_end_w;
+  wire bokay_w, wfull_w, rokay_w, rempty_w;
+  wire [ISB:0] rid_w;
 
   assign cmd_end_w = ptr_q[4];
 
@@ -161,38 +170,25 @@ module memreq #(
             state <= s_tdata[7] ? ST_RADR : ST_WADR;
           end
         end
-        ST_WADR: begin
-          if (cmd_end_w) begin
-            state <= ST_WDAT;
-          end
-        end
-        ST_WDAT: begin
-          if (s_tvalid && s_tready && s_tlast) begin
-            state <= ST_RESP;
-          end
-        end
-        ST_RADR: begin
-          if (cmd_end_w) begin
-            state <= ST_RDAT;
-          end
-        end
-        ST_RDAT: begin
-          if (rvalid_i && rready_o && rlast_i) begin
-            state <= ST_SEND;
-          end
-        end
-        ST_SEND: begin
-          if (m_tvalid && m_tready && m_tlast) begin
-            state <= ST_IDLE;
-          end
-        end
+
+        // Write States //
+        ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
+        ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
+        ST_RESP: state <= rempty_w ? state : ST_IDLE;
+
+        // Read States //
+        ST_RADR: state <= cmd_end_w ? ST_RDAT : state;
+        ST_RDAT: state <= b_tvalid && b_tready && b_tlast ? ST_SEND : state;
+        ST_SEND: state <= m_tvalid && m_tready && m_tlast ? ST_IDLE : state;
       endcase
     end
   end
 
   // -- Write Datapath -- //
 
-  assign tkeep_w = state == ST_WDAT;
+  assign bready_o = ~wfull_w;
+  assign tkeep_w  = state == ST_WDAT;
+  assign bokay_w  = bresp_i == RESP_OKAY;
 
   axis_adapter #(
       .S_DATA_WIDTH(8),
@@ -291,6 +287,22 @@ module memreq #(
       .m_status_good_frame()
   );
 
+  // Write-responses FIFO
+  afifo_gray #(
+      .WIDTH(ID_WIDTH + 1),
+      .ABITS(4)
+  ) U_BFIFO1 (
+      .reset_ni (mem_reset),
+      .wr_clk_i (mem_clock),
+      .wr_en_i  (bvalid_i),
+      .wr_data_i({bokay_w, bid_i}),
+      .wfull_o  (wfull_w),
+      .rd_clk_i (bus_clock),
+      .rd_en_i  (state == ST_RESP),
+      .rd_data_o({rokay_w, rid_w}),
+      .rempty_o (rempty_w)
+  );
+
   // -- Read Datapath -- //
 
   axis_async_fifo #(
@@ -303,8 +315,8 @@ module memreq #(
       .ID_WIDTH(ID_WIDTH),
       .DEST_ENABLE(0),
       .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1),
+      .USER_ENABLE(1),
+      .USER_WIDTH(2),
       .RAM_PIPELINE(1),
       .OUTPUT_FIFO_ENABLE(0),
       .FRAME_FIFO(1),
@@ -316,26 +328,26 @@ module memreq #(
       .s_clk(mem_clock),
       .s_rst(mem_reset),
 
-      .s_axis_tvalid(rvalid_i),
+      .s_axis_tvalid(rvalid_i),  // AXI input: 32b, MEM domain
       .s_axis_tready(rready_o),
       .s_axis_tkeep({STROBES{rvalid_i}}),
       .s_axis_tlast(rlast_i),
-      .s_axis_tdata(rdata_i),  // AXI input
       .s_axis_tid(rid_i),
       .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
+      .s_axis_tuser(rresp_i),
+      .s_axis_tdata(rdata_i),
 
       .m_clk(bus_clock),
       .m_rst(bus_reset),
 
-      .m_axis_tvalid(b_tvalid),
+      .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
       .m_axis_tready(b_tready),
       .m_axis_tkeep(b_tkeep),
       .m_axis_tlast(b_tlast),
       .m_axis_tid(b_tid),
       .m_axis_tdest(),
-      .m_axis_tuser(),
-      .m_axis_tdata(b_tdata),  // AXI output
+      .m_axis_tuser(b_tuser),
+      .m_axis_tdata(b_tdata),
 
       .s_pause_req(1'b0),
       .s_pause_ack(),
@@ -361,12 +373,12 @@ module memreq #(
       .M_DATA_WIDTH(8),
       .M_KEEP_ENABLE(1),
       .M_KEEP_WIDTH(1),
-      .ID_ENABLE(0),
+      .ID_ENABLE(1),
       .ID_WIDTH(ID_WIDTH),
       .DEST_ENABLE(0),
       .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1)
+      .USER_ENABLE(1),
+      .USER_WIDTH(2)
   ) U_ADAPT2 (
       .clk(bus_clock),
       .rst(bus_reset),
@@ -386,7 +398,7 @@ module memreq #(
       .m_axis_tlast(y_tlast),
       .m_axis_tid(y_tid),
       .m_axis_tdest(),
-      .m_axis_tuser(),
+      .m_axis_tuser(y_tuser),
       .m_axis_tdata(y_tdata)
   );
 
@@ -396,6 +408,100 @@ module memreq #(
   // Todo:
   //  - 3x sources: Write Response, Read Data, Read Response ??
   //
+
+  reg mux_q, sel_q, vld_q, lst_q, idx_q;
+  reg [  7:0] res_q;
+  reg [ISB:0] rid_q;
+
+  assign z_tvalid = vld_q;
+  assign z_tkeep  = vld_q;
+  assign z_tlast  = lst_q;
+  assign z_tdata  = idx_q ? rid_q : res_q;
+
+  always @(posedge bus_clock) begin
+    if (bus_reset) begin
+      mux_q <= 1'b0;
+      sel_q <= 1'b0;
+      idx_q <= 1'b0;
+      vld_q <= 1'b0;
+      lst_q <= 1'b0;
+      res_q <= 8'bx;
+      rid_q <= 8'bx;
+    end else begin
+      case (state)
+        ST_IDLE: begin
+          if (vld_q && !idx_q) begin
+            // Send the 2nd byte of the write-response
+            mux_q <= 1'b1;
+            sel_q <= 1'b1;
+            idx_q <= 1'b1;
+            vld_q <= 1'b1;
+            lst_q <= 1'b1;
+          end else begin
+            mux_q <= 1'b0;
+            sel_q <= 1'b0;
+            idx_q <= 1'b0;
+            vld_q <= 1'b0;
+            lst_q <= 1'b0;
+          end
+        end
+
+        ST_RESP: begin
+          if (!rempty_w) begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b1;
+            idx_q <= 1'b0;
+            vld_q <= 1'b1;
+            lst_q <= 1'b0;
+            res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
+            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
+          end
+        end
+
+        ST_RDAT: begin
+          if (!idx_q && !vld_q && y_tvalid && y_tready) begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b1;
+            idx_q <= 1'b0;
+            vld_q <= 1'b1;
+            lst_q <= 1'b0;
+            res_q <= b_tuser == RESP_OKAY ? CMD_RDATA : CMD_RFAIL;
+            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, y_tid};
+          end else if (!idx_q && vld_q) begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b1;
+            idx_q <= 1'b1;
+            vld_q <= 1'b1;
+            lst_q <= 1'b0;
+          end else if (idx_q && vld_q) begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b0;
+            idx_q <= 1'b1;
+            vld_q <= 1'b0;
+            lst_q <= 1'b0;
+          end else begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b0;
+            idx_q <= 1'b1;
+            vld_q <= 1'b0;
+            lst_q <= 1'b0;
+          end
+        end
+
+        ST_SEND: begin
+          sel_q <= 1'b0;
+          idx_q <= 1'b0;
+          vld_q <= 1'b0;
+          lst_q <= 1'b0;
+          if (m_tvalid && m_tready && m_tlast) begin
+            mux_q <= 1'b0;
+          end else begin
+            mux_q <= 1'b1;
+          end
+        end
+      endcase
+    end
+  end
 
   axis_mux #(
       .S_COUNT(2),
@@ -412,8 +518,8 @@ module memreq #(
       .clk(bus_clock),
       .rst(bus_reset),
 
-      .enable(mux_enable_w),
-      .select(mux_select_w),
+      .enable(mux_q),
+      .select(sel_q),
 
       .s_axis_tvalid({z_tvalid, y_tvalid}), // AXI input: 2x 8b
       .s_axis_tready({z_tready, y_tready}),
