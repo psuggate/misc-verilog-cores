@@ -390,7 +390,7 @@ module memreq #(
       .s_axis_tdata(b_tdata),
       .s_axis_tid(b_tid),
       .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
+      .s_axis_tuser(b_tuser),
 
       .m_axis_tvalid(y_tvalid),  // AXI output: 8b
       .m_axis_tready(y_tready),

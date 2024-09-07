@@ -19,3 +19,8 @@ localparam [1:0] BURST_TYPE_FIXED = 2'b00;
 localparam [1:0] BURST_TYPE_INCR = 2'b01;
 localparam [1:0] BURST_TYPE_WRAP = 2'b10;
 localparam [1:0] BURST_TYPE_Reserved = 2'b11;
+
+//
+// AXI transaction response codes.
+//
+localparam [1:0] RESP_OKAY = 2'b00;

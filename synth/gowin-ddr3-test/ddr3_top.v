@@ -69,9 +69,15 @@ module ddr3_top #(
   parameter DDR_CL = 6;
   parameter DDR_CWL = 6;
 
+`ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
   localparam WR_PREFETCH = 1'b1;
+`else
+  localparam PHY_WR_DELAY = 1;
+  localparam PHY_RD_DELAY = 1;
+  localparam WR_PREFETCH = 1'b0;
+`endif
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
@@ -126,6 +132,19 @@ module ddr3_top #(
 
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
+`ifdef __icarus
+
+  reg dclk = 1, lock_q = 0;
+
+  assign clk_200 = dclk;
+  assign clk_100 = clk_26;
+  assign locked = lock_q;
+
+  always #2.5 dclk <= ~dclk;
+  initial #20 lock_q = 1;
+
+`else
+
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(
       .FCLKIN("27"),
@@ -139,6 +158,8 @@ module ddr3_top #(
       .lock  (locked),
       .clkin (clk_26)
   );
+
+`endif /* !__icarus */
 
   assign ddr_clk = clk_200;
   assign clock   = clk_100;
@@ -309,6 +330,11 @@ module ddr3_top #(
 
   // -- DDR3 PHY -- //
 
+`ifdef __gowin_for_the_win
+
+  // GoWin Global System Reset signal tree.
+  GSR GSR ();
+
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
       .DDR3_WIDTH (16),
@@ -354,6 +380,58 @@ module ddr3_top #(
       .ddr_dqs_nio(ddr_dqs_n),
       .ddr_dq_io(ddr_dq)
   );
+
+`else /* !__gowin_for_the_win */
+
+  // Generic PHY -- that probably won't synthesise correctly, due to how the
+  // (read-)data is registered ...
+  generic_ddr3_phy #(
+      .DDR3_WIDTH(16),  // (default)
+      .ADDR_BITS(DDR_ROW_BITS),  // default: 14
+      .WR_PREFETCH(WR_PREFETCH)
+  ) ddr3_phy_inst (
+      .clock  (clock),
+      .reset  (reset),
+      .clk_ddr(clk_ddr),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(dfi_valid),
+      .dfi_last_o(dfi_last),
+      .dfi_data_o(dfi_rdata),
+
+      .ddr3_ck_po(ddr_ck),
+      .ddr3_ck_no(ddr_ck_n),
+      .ddr3_cke_o(ddr_cke),
+      .ddr3_rst_no(ddr_rst_n),
+      .ddr3_cs_no(ddr_cs),
+      .ddr3_ras_no(ddr_ras),
+      .ddr3_cas_no(ddr_cas),
+      .ddr3_we_no(ddr_we),
+      .ddr3_odt_o(ddr_odt),
+      .ddr3_ba_o(ddr_bank),
+      .ddr3_a_o(ddr_addr),
+      .ddr3_dm_o(ddr_dm),
+      .ddr3_dqs_pio(ddr_dqs),
+      .ddr3_dqs_nio(ddr_dqs_n),
+      .ddr3_dq_io(ddr_dq)
+  );
+
+`endif  /* !__gowin_for_the_win */
 
 
 endmodule  /* ddr3_top */

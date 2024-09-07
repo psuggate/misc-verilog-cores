@@ -1,0 +1,61 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Sep  7 04:44:42 2024
+[*]
+[dumpfile] "./ddr3_top_tb.vcd"
+[dumpfile_mtime] "Sat Sep  7 04:43:26 2024"
+[dumpfile_size] 99858
+[savefile] "./gowin-ddr3-test.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-16.435682 144000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 233
+[signals_width] 142
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@29
+ddr3_top_tb.configured
+@800200
+-DDR3
+@28
+ddr3_top_tb.ddr_rst_n
+ddr3_top_tb.ddr_ck_p
+ddr3_top_tb.ddr_ck_n
+ddr3_top_tb.ddr_cke
+ddr3_top_tb.ddr_cs_n
+ddr3_top_tb.ddr_ras_n
+ddr3_top_tb.ddr_cas_n
+ddr3_top_tb.ddr_we_n
+ddr3_top_tb.ddr_ba[2:0]
+@22
+ddr3_top_tb.ddr_a[12:0]
+@28
+ddr3_top_tb.ddr_dm[1:0]
+ddr3_top_tb.ddr_dqs_p[1:0]
+ddr3_top_tb.ddr_dqs_n[1:0]
+@22
+ddr3_top_tb.ddr_dq[15:0]
+@1000200
+-DDR3
+@800200
+-AXI-S
+@28
+ddr3_top_tb.bclk
+ddr3_top_tb.s_tvalid
+ddr3_top_tb.s_tready
+ddr3_top_tb.s_tkeep
+ddr3_top_tb.s_tlast
+@22
+ddr3_top_tb.s_tdata[7:0]
+@28
+ddr3_top_tb.m_tvalid
+ddr3_top_tb.m_tready
+ddr3_top_tb.m_tkeep
+ddr3_top_tb.m_tlast
+@22
+ddr3_top_tb.m_tdata[7:0]
+@1000200
+-AXI-S
+[pattern_trace] 1
+[pattern_trace] 0
