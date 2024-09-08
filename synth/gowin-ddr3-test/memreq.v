@@ -288,6 +288,35 @@ module memreq #(
   );
 
   // Write-responses FIFO
+`define __temp_afifo
+`ifdef __temp_afifo
+
+  // Todo: super yucky
+
+  wire rvalid_w;
+
+  axis_afifo #(
+              .WIDTH(ID_WIDTH + 1),
+              .ABITS(16)
+              )
+  U_BFIFO1 (
+            .s_aresetn(bus_reset),
+            .s_aclk(mem_clock),
+            .s_tvalid_i(bvalid_i),
+            .s_tready_o(bready_o),
+            .s_tlast_i(1'b1),
+            .s_tdata_i({bokay_w, bid_i}),
+            .m_aclk(bus_clock),
+            .m_tvalid_o(rvalid_w),
+            .m_tready_i(state == ST_RESP),
+            .m_tlast_o(),
+            .m_tdata_o({rokay_w, rid_w})
+            );
+
+`else /* !__temp_afifo */
+
+  // Todo: this FIFO does not like to have enables set when full/empty
+
   afifo_gray #(
       .WIDTH(ID_WIDTH + 1),
       .ABITS(4)
@@ -302,6 +331,9 @@ module memreq #(
       .rd_data_o({rokay_w, rid_w}),
       .rempty_o (rempty_w)
   );
+
+`endif /* !__temp_afifo */
+
 
   // -- Read Datapath -- //
 
