@@ -186,9 +186,9 @@ module memreq #(
 
   // -- Write Datapath -- //
 
-  assign bready_o = ~wfull_w;
-  assign tkeep_w  = state == ST_WDAT;
-  assign bokay_w  = bresp_i == RESP_OKAY;
+  // assign bready_o = ~wfull_w;
+  assign tkeep_w = state == ST_WDAT;
+  assign bokay_w = bresp_i == RESP_OKAY;
 
   axis_adapter #(
       .S_DATA_WIDTH(8),
@@ -288,52 +288,24 @@ module memreq #(
   );
 
   // Write-responses FIFO
-`define __temp_afifo
-`ifdef __temp_afifo
-
-  // Todo: super yucky
-
   wire rvalid_w;
-
   axis_afifo #(
-              .WIDTH(ID_WIDTH + 1),
-              .ABITS(16)
-              )
-  U_BFIFO1 (
-            .s_aresetn(bus_reset),
-            .s_aclk(mem_clock),
-            .s_tvalid_i(bvalid_i),
-            .s_tready_o(bready_o),
-            .s_tlast_i(1'b1),
-            .s_tdata_i({bokay_w, bid_i}),
-            .m_aclk(bus_clock),
-            .m_tvalid_o(rvalid_w),
-            .m_tready_i(state == ST_RESP),
-            .m_tlast_o(),
-            .m_tdata_o({rokay_w, rid_w})
-            );
-
-`else /* !__temp_afifo */
-
-  // Todo: this FIFO does not like to have enables set when full/empty
-
-  afifo_gray #(
       .WIDTH(ID_WIDTH + 1),
+      .TLAST(0),
       .ABITS(4)
   ) U_BFIFO1 (
-      .reset_ni (mem_reset),
-      .wr_clk_i (mem_clock),
-      .wr_en_i  (bvalid_i),
-      .wr_data_i({bokay_w, bid_i}),
-      .wfull_o  (wfull_w),
-      .rd_clk_i (bus_clock),
-      .rd_en_i  (state == ST_RESP),
-      .rd_data_o({rokay_w, rid_w}),
-      .rempty_o (rempty_w)
+      .aresetn(bus_reset),
+      .s_aclk(mem_clock),
+      .s_tvalid(bvalid_i),
+      .s_tready(bready_o),
+      .s_tlast(1'b1),
+      .s_tdata({bokay_w, bid_i}),
+      .m_aclk(bus_clock),
+      .m_tvalid(rvalid_w),
+      .m_tready(state == ST_RESP),
+      .m_tlast(),
+      .m_tdata({rokay_w, rid_w})
   );
-
-`endif /* !__temp_afifo */
-
 
   // -- Read Datapath -- //
 

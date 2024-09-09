@@ -106,38 +106,38 @@ module spi_to_spi #(
       .WIDTH(8),
       .ABITS(4)
   ) U_TX_FIFO1 (
-      .s_aresetn(~reset),
+      .aresetn (~reset),
 
-      .s_aclk(clock),
-      .s_tvalid_i(master_tx_tvalid),
-      .s_tready_o(master_tx_tready),
-      .s_tlast_i(master_tx_tlast),
-      .s_tdata_i(master_tx_tdata),
+      .s_aclk  (clock),
+      .s_tvalid(master_tx_tvalid),
+      .s_tready(master_tx_tready),
+      .s_tlast (master_tx_tlast),
+      .s_tdata (master_tx_tdata),
 
-      .m_aclk    (SCK),
-      .m_tvalid_o(tvalid),
-      .m_tready_i(tready),
-      .m_tlast_o (tlast),
-      .m_tdata_o (tdata)
+      .m_aclk  (SCK),
+      .m_tvalid(tvalid),
+      .m_tready(tready),
+      .m_tlast (tlast),
+      .m_tdata (tdata)
   );
 
   axis_afifo #(
       .WIDTH(8),
       .ABITS(4)
   ) U_RX_FIFO1 (
-      .s_aresetn(~reset),
+      .aresetn (~reset),
 
-      .s_aclk(SCK),
-      .s_tvalid_i(yvalid),
-      .s_tready_o(yready),
-      .s_tlast_i(ylast),
-      .s_tdata_i(ydata),
+      .s_aclk  (SCK),
+      .s_tvalid(yvalid),
+      .s_tready(yready),
+      .s_tlast (ylast),
+      .s_tdata (ydata),
 
-      .m_aclk    (clock),
-      .m_tvalid_o(master_rx_tvalid),
-      .m_tready_i(master_rx_tready),
-      .m_tlast_o (master_rx_tlast),
-      .m_tdata_o (master_rx_tdata)
+      .m_aclk  (clock),
+      .m_tvalid(master_rx_tvalid),
+      .m_tready(master_rx_tready),
+      .m_tlast (master_rx_tlast),
+      .m_tdata (master_rx_tdata)
   );
 
   spi_master #(

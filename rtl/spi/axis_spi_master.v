@@ -27,7 +27,6 @@ module axis_spi_master #(
     input [7:0] s_tdata
 );
 
-
   // -- Signals & State -- //
 
   wire xvalid, xready, xlast;
@@ -38,38 +37,38 @@ module axis_spi_master #(
       .WIDTH(8),
       .ABITS(4)
   ) U_TX_FIFO1 (
-      .s_aresetn(ARSTn),
+      .aresetn (ARSTn),
 
-      .s_aclk(clock),
-      .s_tvalid_i(s_tvalid),
-      .s_tready_o(s_tready),
-      .s_tlast_i(s_tlast),
-      .s_tdata_i(s_tdata),
+      .s_aclk  (clock),
+      .s_tvalid(s_tvalid),
+      .s_tready(s_tready),
+      .s_tlast (s_tlast),
+      .s_tdata (s_tdata),
 
-      .m_aclk    (SCK),
-      .m_tvalid_o(xvalid),
-      .m_tready_i(xready),
-      .m_tlast_o (xlast),
-      .m_tdata_o (xdata)
+      .m_aclk  (SCK),
+      .m_tvalid(xvalid),
+      .m_tready(xready),
+      .m_tlast (xlast),
+      .m_tdata (xdata)
   );
 
   axis_afifo #(
       .WIDTH(8),
       .ABITS(4)
   ) RX_FIFO1 (
-      .s_aresetn(ARSTn),
+      .aresetn (ARSTn),
 
-      .s_aclk(SCK),
-      .s_tvalid_i(rvalid),
-      .s_tready_o(rready),
-      .s_tlast_i(rlast),
-      .s_tdata_i(rdata),
+      .s_aclk  (SCK),
+      .s_tvalid(rvalid),
+      .s_tready(rready),
+      .s_tlast (rlast),
+      .s_tdata (rdata),
 
-      .m_aclk    (clock),
-      .m_tvalid_o(m_tvalid),
-      .m_tready_i(m_tready),
-      .m_tlast_o (m_tlast),
-      .m_tdata_o (m_tdata)
+      .m_aclk  (clock),
+      .m_tvalid(m_tvalid),
+      .m_tready(m_tready),
+      .m_tlast (m_tlast),
+      .m_tdata (m_tdata)
   );
 
 

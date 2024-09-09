@@ -98,7 +98,7 @@ empty will place the FIFO in an undefined state.
 module afifo_gray #(
     parameter integer WIDTH = 16,
     parameter integer ABITS = 4,
-    parameter integer ASIZE = 1 << ABITS,
+    localparam integer DEPTH = 1 << ABITS,
     parameter integer DELAY = 3
 ) (  // System clocks and resets:
     rd_clk_i,
@@ -188,7 +188,7 @@ module afifo_gray #(
   //  Memory Block
   //-------------------------------------------------------------------------
 
-  reg [MSB:0] sram[0:ASIZE-1];
+  reg [MSB:0] sram[0:DEPTH-1];
 
   assign rd_data_o = sram[rp_bin[ASB:0]];
 

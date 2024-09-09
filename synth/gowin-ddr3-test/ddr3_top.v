@@ -387,8 +387,7 @@ module ddr3_top #(
   // (read-)data is registered ...
   generic_ddr3_phy #(
       .DDR3_WIDTH(16),  // (default)
-      .ADDR_BITS(DDR_ROW_BITS),  // default: 14
-      .WR_PREFETCH(WR_PREFETCH)
+      .ADDR_BITS(DDR_ROW_BITS)  // default: 14
   ) ddr3_phy_inst (
       .clock  (clock),
       .reset  (reset),
