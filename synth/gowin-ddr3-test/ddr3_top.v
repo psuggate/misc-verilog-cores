@@ -391,7 +391,7 @@ module ddr3_top #(
   ) ddr3_phy_inst (
       .clock  (clock),
       .reset  (reset),
-      .clk_ddr(clk_ddr),
+      .clk_ddr(ddr_clk),
 
       .dfi_rst_ni(dfi_rst_n),
       .dfi_cke_i (dfi_cke),

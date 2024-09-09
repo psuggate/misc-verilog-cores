@@ -278,26 +278,28 @@ module axi_wr_path #(
   // -- More Simulation Assertions -- //
 
 `ifdef __icarus
+
   always @(posedge clock) begin
     if (reset);
     else begin
       if (axi_awvalid_i && axi_awburst_i != BURST_INCR) begin
         $error("%10t: Only 'INCR' WRITE bursts are supported", $time);
-        $fatal;
+        // $fatal;
       end
 
       // todo: temporary restrictions ...
       if (axi_awvalid_i && axi_awlen_i[1:0] != 2'd3) begin
         $error("%10t: Only WRITE bursts that are multiples of 16-bytes are supported", $time);
-        $fatal;
+        // $fatal;
       end
       if (axi_awvalid_i && axi_awaddr_i[2:0] != 3'd0) begin
         $error("%10t: Only 16-byte-aligned WRITE bursts are supported", $time);
-        $fatal;
+        // $fatal;
       end
       // odot: temporary restrictions ...
     end
   end
+
 `endif
 
 

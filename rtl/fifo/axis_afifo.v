@@ -7,6 +7,7 @@ module axis_afifo #(
     parameter TLAST = 1,
     parameter integer WIDTH = 8,
     localparam MSB = WIDTH - 1,
+    localparam FSB = WIDTH + TLAST - 1,
     parameter integer ABITS = 4,
     parameter integer DELAY = 3
 ) (
@@ -26,9 +27,8 @@ module axis_afifo #(
 );
 
   wire wr_full, rd_empty;
-
-  assign s_tready = ~wr_full;
-  assign m_tvalid = ~rd_empty;
+  wire fetch_w, store_w;
+  wire [WIDTH:0] wdata_w, rdata_w;
 
   initial begin
     if (TLAST != 0 && TLAST != 1) begin
@@ -36,6 +36,14 @@ module axis_afifo #(
       $finish;
     end
   end
+
+  assign s_tready = ~wr_full;
+  assign m_tvalid = ~rd_empty;
+
+  assign store_w = s_tvalid & ~wr_full;
+  assign wdata_w = {s_tlast, s_tdata};
+  assign fetch_w = m_tready & ~rd_empty;
+  assign {m_tlast, m_tdata} = rdata_w;
 
   afifo_gray #(
       .WIDTH(WIDTH + TLAST),
@@ -47,14 +55,14 @@ module axis_afifo #(
 
       // Write clock domain:
       .wr_clk_i (s_aclk),
-      .wr_en_i  (s_tvalid & ~wr_full),
-      .wr_data_i({s_tlast, s_tdata}),
+      .wr_en_i  (store_w),
+      .wr_data_i(wdata_w[FSB:0]),
       .wfull_o  (wr_full),
 
       // Read clock domain:
       .rd_clk_i (m_aclk),
-      .rd_en_i  (m_tready & ~rd_empty),
-      .rd_data_o({m_tlast, m_tdata}),
+      .rd_en_i  (fetch_w),
+      .rd_data_o(rdata_w[FSB:0]),
       .rempty_o (rd_empty)
   );
 

@@ -88,13 +88,6 @@ module memreq #(
   wire [7:0] y_tdata, z_tdata;
   wire [MSB:0] x_tdata, b_tdata, a_tdata;
 
-  // Write-buffer (FIFO) assignments, to the DDR3 controller
-  assign wvalid_o = x_tvalid;
-  assign x_tready = wready_i;
-  assign wlast_o  = x_tlast;
-  assign wstrb_o  = {STROBES{x_tvalid}};
-  assign wdata_o  = x_tdata;
-
   // -- Finite State Machine (FSM) for Memory Requests -- //
 
   localparam ST_IDLE = 1;
@@ -117,12 +110,13 @@ module memreq #(
   localparam [7:0] CMD_RDATA = 8'h81;
   localparam [7:0] CMD_RFAIL = 8'h82;
 
+  reg wen_q;
   reg [4:0] ptr_q;
   reg [7:0] cmd_q, len_q, len_c;
   reg [ISB:0] tid_q, tid_c;  // 4b
   reg [ASB:0] adr_q, adr_c;  // 28b
-  wire tkeep_w, cmd_end_w;
-  wire bokay_w, wfull_w, rokay_w, rempty_w;
+  wire tkeep_w, rvalid_w, cmd_end_w;
+  wire bokay_w, wfull_w, rokay_w;
   wire [ISB:0] rid_w;
 
   assign cmd_end_w = ptr_q[4];
@@ -156,6 +150,26 @@ module memreq #(
       tid_q <= tid_c;
       adr_q <= adr_c;
     end
+
+    if (bus_reset) begin
+      wen_q <= 1'b0;
+    end else begin
+      if (cmd_q[7] == 1'b0 && ptr_q == 5'h1 && state != ST_IDLE) begin
+        wen_q <= 1'b1;
+      end else if (s_tvalid && s_tready && s_tlast) begin
+        wen_q <= 1'b0;
+      end
+    end
+  end
+
+  // -- Memory-Domain Registers -- //
+
+  reg [7:0] alen_m;
+
+  always @(posedge mem_clock) begin
+    if (x_tvalid) begin
+      alen_m <= len_q;
+    end
   end
 
   // -- FSM for Memory Requests -- //
@@ -174,7 +188,7 @@ module memreq #(
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
         ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
-        ST_RESP: state <= rempty_w ? state : ST_IDLE;
+        ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
         // Read States //
         ST_RADR: state <= cmd_end_w ? ST_RDAT : state;
@@ -184,10 +198,65 @@ module memreq #(
     end
   end
 
+  // -- Write-Port, Memory-Domain FSM -- //
+
+  localparam [3:0] WR_IDLE = 1;
+  localparam [3:0] WR_ADDR = 2;
+  localparam [3:0] WR_DATA = 4;
+  localparam [3:0] WR_RESP = 8;
+
+  reg [3:0] wr;
+
+  // Write-buffer (FIFO) assignments, to the DDR3 controller
+  assign wvalid_o = wr == WR_DATA && x_tvalid;
+  assign wlast_o  = wr == WR_DATA && x_tlast;
+  assign wstrb_o  = {STROBES{x_tvalid}};
+  assign wdata_o  = x_tdata;
+
+  assign x_tready  = wr == WR_ADDR ? awready_i :
+                     wr == WR_DATA ? wready_i : 1'b0;
+
+  assign awvalid_o = wr == WR_IDLE && x_tvalid && x_tkeep;
+  assign awburst_o = BURST_TYPE_INCR;
+  assign awlen_o   = alen_m;
+  assign awid_o    = x_tdata[31:ADDRESS_WIDTH];
+  assign awaddr_o  = x_tdata[ASB:0];
+
+  assign arlen_o   = alen_m;
+  assign arid_o    = x_tdata[31:ADDRESS_WIDTH];
+  assign araddr_o  = x_tdata[ASB:0];
+
+  always @(posedge mem_clock) begin
+    if (mem_reset) begin
+      wr <= WR_IDLE;
+    end else begin
+      case (wr)
+        WR_IDLE: wr <= x_tvalid ? WR_ADDR : wr;
+        WR_ADDR: begin
+          if (x_tvalid && x_tready && x_tkeep) begin
+            wr <= WR_DATA;
+          end
+        end
+        WR_DATA: begin
+          if (x_tvalid && x_tready && x_tlast) begin
+            wr <= WR_RESP;
+          end
+        end
+        WR_RESP: begin
+          if (bvalid_i && bready_o) begin
+            wr <= WR_IDLE;
+          end
+        end
+        default: begin
+          wr <= 'bx;
+        end
+      endcase
+    end
+  end
+
   // -- Write Datapath -- //
 
-  // assign bready_o = ~wfull_w;
-  assign tkeep_w = state == ST_WDAT;
+  assign tkeep_w = wen_q;  // state == ST_WDAT;
   assign bokay_w = bresp_i == RESP_OKAY;
 
   axis_adapter #(
@@ -207,7 +276,7 @@ module memreq #(
       .clk(bus_clock),
       .rst(bus_reset),
 
-      .s_axis_tvalid(s_tvalid),
+      .s_axis_tvalid(s_tvalid & tkeep_w),
       .s_axis_tready(s_tready),
       .s_axis_tkeep(tkeep_w),
       .s_axis_tlast(s_tlast),
@@ -266,7 +335,7 @@ module memreq #(
       .m_axis_tkeep(x_tkeep),
       .m_axis_tlast(x_tlast),
       .m_axis_tdata(x_tdata),  // AXI output
-      .m_axis_tid(),
+      .m_axis_tid(x_tid),
       .m_axis_tdest(),
       .m_axis_tuser(),
 
@@ -288,23 +357,22 @@ module memreq #(
   );
 
   // Write-responses FIFO
-  wire rvalid_w;
   axis_afifo #(
       .WIDTH(ID_WIDTH + 1),
       .TLAST(0),
       .ABITS(4)
   ) U_BFIFO1 (
-      .aresetn(bus_reset),
-      .s_aclk(mem_clock),
+      .aresetn (bus_reset),
+      .s_aclk  (mem_clock),
       .s_tvalid(bvalid_i),
       .s_tready(bready_o),
-      .s_tlast(1'b1),
-      .s_tdata({bokay_w, bid_i}),
-      .m_aclk(bus_clock),
+      .s_tlast (1'b1),
+      .s_tdata ({bokay_w, bid_i}),
+      .m_aclk  (bus_clock),
       .m_tvalid(rvalid_w),
       .m_tready(state == ST_RESP),
-      .m_tlast(),
-      .m_tdata({rokay_w, rid_w})
+      .m_tlast (),
+      .m_tdata ({rokay_w, rid_w})
   );
 
   // -- Read Datapath -- //
@@ -451,7 +519,7 @@ module memreq #(
         end
 
         ST_RESP: begin
-          if (!rempty_w) begin
+          if (rvalid_w) begin
             mux_q <= 1'b1;
             sel_q <= 1'b1;
             idx_q <= 1'b0;
@@ -543,6 +611,52 @@ module memreq #(
       .m_axis_tdest (),
       .m_axis_tdata (m_tdata)
   );
+
+`ifdef __icarus
+
+  reg [39:0] dbg_state;
+  reg [47:0] dbg_cmd, dbg_res;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_WADR: dbg_state = "WADR";
+      ST_WDAT: dbg_state = "WDAT";
+      ST_RESP: dbg_state = "RESP";
+      ST_RADR: dbg_state = "RADR";
+      ST_RDAT: dbg_state = "RDAT";
+      ST_SEND: dbg_state = "SEND";
+      default: dbg_state = " ?? ";
+    endcase
+  end
+
+  always @* begin
+    case (cmd_q)
+      CMD_NOP:   dbg_cmd = " NOP ";
+      CMD_STORE: dbg_cmd = "STORE";
+      CMD_WDONE: dbg_cmd = "WDONE";
+      CMD_WFAIL: dbg_cmd = "WFAIL";
+      CMD_FETCH: dbg_cmd = "FETCH";
+      CMD_RDATA: dbg_cmd = "RDATA";
+      CMD_RFAIL: dbg_cmd = "RFAIL";
+      default:   dbg_cmd = " ??? ";
+    endcase
+  end
+
+  always @* begin
+    case (res_q)
+      CMD_NOP:   dbg_res = " NOP ";
+      CMD_STORE: dbg_res = "STORE";
+      CMD_WDONE: dbg_res = "WDONE";
+      CMD_WFAIL: dbg_res = "WFAIL";
+      CMD_FETCH: dbg_res = "FETCH";
+      CMD_RDATA: dbg_res = "RDATA";
+      CMD_RFAIL: dbg_res = "RFAIL";
+      default:   dbg_res = " ??? ";
+    endcase
+  end
+
+`endif  /* __icarus */
 
 
 endmodule  /* memreq */
