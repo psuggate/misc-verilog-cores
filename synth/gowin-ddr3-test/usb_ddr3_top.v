@@ -167,6 +167,8 @@ module usb_ddr3_top (
   //  DDR3 Cores Under Next-generation Tests
   ///
 
+  assign m_tkeep = 1'b1; // Todo ...
+
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),

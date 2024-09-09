@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep  9 06:28:09 2024
+[*] Mon Sep  9 07:26:58 2024
 [*]
-[dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.vcd"
+[dumpfile] "./memreq_tb.vcd"
 [dumpfile_mtime] "Mon Sep  9 06:20:39 2024"
 [dumpfile_size] 36219
-[savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.gtkw"
+[savefile] "./memreq_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-16.435682 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.435682 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] memreq_tb.
 [sst_width] 233
 [signals_width] 150
@@ -37,7 +37,7 @@ memreq_tb.m_tkeep
 memreq_tb.m_tdata[7:0]
 @800200
 -Write
-@29
+@28
 memreq_tb.U_REQ1.mem_clock
 @800200
 -Addr
@@ -68,20 +68,32 @@ memreq_tb.bresp[1:0]
 memreq_tb.U_REQ1.dbg_state[39:0]
 [color] 7
 memreq_tb.U_REQ1.dbg_cmd[47:0]
-@22
-memreq_tb.U_REQ1.cmd_q[7:0]
 @24
 [color] 7
 memreq_tb.U_REQ1.ptr_q[4:0]
-@22
-memreq_tb.U_REQ1.adr_q[27:0]
 @28
 [color] 2
 memreq_tb.U_REQ1.wen_q
 @22
+memreq_tb.U_REQ1.cmd_q[7:0]
+memreq_tb.U_REQ1.len_q[7:0]
+memreq_tb.U_REQ1.adr_q[27:0]
 memreq_tb.U_REQ1.tid_q[3:0]
 @800200
 -WRFIFO
+@800201
+-In
+@29
+memreq_tb.U_REQ1.a_tvalid
+memreq_tb.U_REQ1.a_tready
+@23
+memreq_tb.U_REQ1.a_tkeep[3:0]
+@29
+memreq_tb.U_REQ1.a_tlast
+@23
+memreq_tb.U_REQ1.a_tdata[31:0]
+@1000201
+-In
 @28
 memreq_tb.U_REQ1.x_tvalid
 memreq_tb.U_REQ1.x_tready

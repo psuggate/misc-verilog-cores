@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 /**
  * Simple, asynchronous FIFO that uses the (small) LUT SRAMs of an FPGA; e.g.
- * Xilinx "distributed SRAMs," or GoWin "shadow SRAMs."
+ * Xilinx "distributed" SRAMs, or GoWin "shadow" SRAMs.
  */
 module axis_afifo #(
     parameter TLAST = 1,

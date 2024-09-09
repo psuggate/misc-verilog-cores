@@ -1,13 +1,13 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Nov 17 06:06:15 2023
+[*] Mon Sep  9 07:52:26 2024
 [*]
 [dumpfile] "./sync_fifo_tb.vcd"
-[dumpfile_mtime] "Fri Nov 17 06:06:09 2023"
-[dumpfile_size] 13193
+[dumpfile_mtime] "Mon Sep  9 07:52:18 2024"
+[dumpfile_size] 14376
 [savefile] "./sync_fifo_tb.gtkw"
 [timestart] 0
-[size] 1920 1043
+[size] 2560 1376
 [pos] -1 -1
 *-15.403194 235000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] sync_fifo_tb.
@@ -17,7 +17,7 @@
 [sst_width] 233
 [signals_width] 134
 [sst_expanded] 1
-[sst_vpaned_height] 414
+[sst_vpaned_height] 575
 @28
 sync_fifo_tb.clock
 sync_fifo_tb.reset
@@ -26,7 +26,8 @@ sync_fifo_tb.reset
 @22
 [color] 7
 sync_fifo_tb.sy_level[3:0]
-sync_fifo_tb.sync_fifo_inst.level_w[4:0]
+@24
+sync_fifo_tb.sync_fifo_inst.lnext_w[4:0]
 @28
 sync_fifo_tb.sync_fifo_inst.fetch_w
 sync_fifo_tb.sync_fifo_inst.store_w
@@ -79,9 +80,8 @@ sync_fifo_tb.pr_last
 sync_fifo_tb.pr_data[1:0]
 @1401200
 -Packet
-@29
-sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.s_tready
 @28
+sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.s_tready
 sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tvalid
 sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tready
 sync_fifo_tb.sync_fifo_inst.g_outregs.axis_skid_inst.t_tdata[1:0]

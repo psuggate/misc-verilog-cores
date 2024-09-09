@@ -216,12 +216,16 @@ module memreq #(
   assign x_tready  = wr == WR_ADDR ? awready_i :
                      wr == WR_DATA ? wready_i : 1'b0;
 
+  // Todo ...
   assign awvalid_o = wr == WR_IDLE && x_tvalid && x_tkeep;
   assign awburst_o = BURST_TYPE_INCR;
   assign awlen_o   = alen_m;
   assign awid_o    = x_tdata[31:ADDRESS_WIDTH];
   assign awaddr_o  = x_tdata[ASB:0];
 
+  // Todo ...
+  assign arvalid_o = 1'b0;
+  assign arburst_o = BURST_TYPE_INCR;
   assign arlen_o   = alen_m;
   assign arid_o    = x_tdata[31:ADDRESS_WIDTH];
   assign araddr_o  = x_tdata[ASB:0];

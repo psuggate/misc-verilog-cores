@@ -49,7 +49,7 @@ module sync_fifo #(
   // Transition signals
   reg [ASB:0] level_q;
   wire fetch_w, store_w, match_w, wfull_w, empty_w;
-  wire [ABITS:0] level_w, waddr_w, raddr_w;
+  wire [ABITS:0] waddr_w, raddr_w;
 
   // Optional extra stage of registers, so that block SRAMs can be used
   reg xvalid;
@@ -75,7 +75,6 @@ module sync_fifo #(
   assign wfull_w = wrfull_curr | wrfull_next;
   assign empty_w = rempty_curr | rempty_next;
 
-  assign level_w = waddr_w[ASB:0] - raddr_w[ASB:0];
   assign waddr_w = store_w ? waddr_next : waddr;
   assign raddr_w = fetch_w ? raddr_next : raddr;
 
@@ -124,18 +123,13 @@ module sync_fifo #(
   wire incr_w = valid_i && wready;
   wire decr_w = valid_o && ready_i;
 
+  wire [ABITS:0] lnext_w = level_q + incr_w - decr_w;
+
   always @(posedge clock) begin
     if (reset) begin
       level_q <= AZERO;
     end else begin
-      if (incr_w && !decr_w) begin
-        level_q <= level_q + 1;
-      end else if (!incr_w && decr_w) begin
-        level_q <= level_q - 1;
-      end else begin  // incr_w == decr_w
-        level_q <= level_q;
-      end
-      // level_q <= level_w[ASB:0];
+      level_q <= lnext_w[ASB:0];
     end
   end
 
