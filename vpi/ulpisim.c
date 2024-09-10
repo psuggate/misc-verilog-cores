@@ -344,6 +344,7 @@ static int cb_step_sync(p_cb_data cb_data)
 
     if (state->op == UT_Done) {
         state->cycle++;
+	vpi_control(vpiFinish, 0);
         return 0;
     }
 

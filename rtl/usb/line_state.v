@@ -335,8 +335,6 @@ module line_state #(
           end else begin
             {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
           end
-          // state <= phy_busy_i ? ST_FS_START : state;
-          // {set_q, adr_q, val_q} <= {1'b1, 8'h8A, 8'd0};
         end
 
         ST_IDLE: begin

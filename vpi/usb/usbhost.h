@@ -13,7 +13,10 @@
 #define MAX_PACKET_LEN 512
 #define MAX_CONFIG_LEN 64
 
-// #define __short_timers
+
+//
+// Set the simulation delays for accuracy or convenience.
+//
 #ifdef  __short_timers
 
 #define RESET_TICKS        60
@@ -21,14 +24,16 @@
 
 #else   /* !__short_timers */
 #ifdef  __long_timers
-
+//
+//  These delays match those from the USB 2.0 spec.
+//
 #define RESET_TICKS     60000
 #define SOF_N_TICKS      7500
 
 #else   /* !__long_timers */
 
-#define RESET_TICKS        60
-#define SOF_N_TICKS       750
+#define RESET_TICKS      6000
+#define SOF_N_TICKS      1500
 
 #endif  /* !__long_timers */
 #endif  /* !__short_timers */

@@ -7,6 +7,10 @@
 
 #define __fast_eop
 
+// Use realistic simulation delays, or conveniently-short delays?
+// #define __long_timers
+// #define __short_timers
+
 
 // Signal/logic levels
 #define SIG0 0

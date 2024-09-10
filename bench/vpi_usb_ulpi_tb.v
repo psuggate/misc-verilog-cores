@@ -43,7 +43,8 @@ module vpi_usb_ulpi_tb;
     $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
 
-    #38000 $finish;
+    // #38000 $finish;
+    #3800000 $finish;
   end
 
   // -- Simulation Signals -- //

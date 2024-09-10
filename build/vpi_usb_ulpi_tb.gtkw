@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep  4 03:14:27 2024
+[*] Tue Sep 10 23:23:49 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Wed Sep  4 03:13:47 2024"
-[dumpfile_size] 2676080
+[dumpfile_mtime] "Tue Sep 10 23:21:55 2024"
+[dumpfile_size] 11436161
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 7729000
+[timestart] 607509000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 8360000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 608140000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [sst_width] 233
@@ -75,12 +75,8 @@ vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.m_tdata[7:0]
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.rst_q
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.par_q
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.rdy_q
-[color] 3
-vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.save_q
-vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.drop_q
-[color] 5
-vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.zero_q
 @24
+[color] 5
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.level_w[10:0]
 @420
 vpi_usb_ulpi_tb.U_USB1.U_OUT_EP1.space_w[11:0]
@@ -511,7 +507,19 @@ vpi_usb_ulpi_tb.core_clk
 vpi_usb_ulpi_tb.core_dir
 vpi_usb_ulpi_tb.core_nxt
 vpi_usb_ulpi_tb.core_stp
-@23
+@22
 vpi_usb_ulpi_tb.core_dat[7:0]
+@c00201
+-LineState
+@28
+vpi_usb_ulpi_tb.U_USB1.U_LS1.ls_pulse_1_0ms
+vpi_usb_ulpi_tb.U_USB1.U_LS1.ls_pulse_3_0ms
+vpi_usb_ulpi_tb.U_USB1.U_LS1.ls_count_3_0ms[1:0]
+vpi_usb_ulpi_tb.U_USB1.U_LS1.new_ls_q
+@24
+vpi_usb_ulpi_tb.U_USB1.U_LS1.count_2_5us[7:0]
+vpi_usb_ulpi_tb.U_USB1.U_LS1.count_100us[5:0]
+@1401201
+-LineState
 [pattern_trace] 1
 [pattern_trace] 0
