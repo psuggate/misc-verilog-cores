@@ -162,16 +162,6 @@ module memreq #(
     end
   end
 
-  // -- Memory-Domain Registers -- //
-
-  reg [7:0] alen_m;
-
-  always @(posedge mem_clock) begin
-    if (x_tvalid) begin
-      alen_m <= len_q;
-    end
-  end
-
   // -- FSM for Memory Requests -- //
 
   always @(posedge bus_clock) begin
@@ -198,14 +188,85 @@ module memreq #(
     end
   end
 
-  // -- Write-Port, Memory-Domain FSM -- //
+  // -- Memory-Domain Command & Address Synchronisation -- //
+
+  localparam CMD_FIFO_WIDTH = ID_WIDTH + ADDRESS_WIDTH + 8 + 1;
+  localparam CSB = CMD_FIFO_WIDTH - 1;
 
   localparam [3:0] WR_IDLE = 1;
   localparam [3:0] WR_ADDR = 2;
   localparam [3:0] WR_DATA = 4;
   localparam [3:0] WR_RESP = 8;
 
-  reg [3:0] wr;
+  localparam [3:0] RD_IDLE = 1;
+  localparam [3:0] RD_ADDR = 2;
+  localparam [3:0] RD_DATA = 4;
+  localparam [3:0] RD_RESP = 8;
+
+  reg [3:0] wr, rd;
+  reg cmd_m, rd_m;
+  reg [7:0] len_m;
+  reg [ISB:0] tid_m;
+  reg [ASB:0] adr_m;
+  wire cmd_w, ack_w, rd_w, c_tvalid_w, c_tready_w;
+  wire wr_cmd_w, rd_cmd_w, wr_rdy_w, rd_rdy_w, wr_ack_w, rd_ack_w;
+  wire [ISB:0] tid_w;
+  wire [7:0] len_w;
+  wire [ASB:0] adr_w;
+  wire [CSB:0] c_tdata_w;
+
+  assign c_tvalid_w = ptr_q[4] == 1'b1;
+  assign c_tdata_w = {cmd_q[7], tid_q, len_q, adr_q};
+
+  // Note: According to the AXI spec., not supposed to have combinational logic
+  //   between 'valid' and 'ready' ports, which is why these signals are laid-
+  //   out this way.
+  assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE;
+
+  always @(posedge mem_clock) begin
+    if (mem_reset || wr_ack_w || rd_ack_w) begin
+      cmd_m <= 1'b0;
+      {rd_m, tid_m, len_m, adr_m} <= {CMD_FIFO_WIDTH{1'bx}};
+    end else if (cmd_w && ack_w) begin
+      cmd_m <= 1'b1;
+      rd_m  <= rd_w;
+      tid_m <= tid_w;
+      len_m <= len_w;
+      adr_m <= adr_w;
+    end
+  end
+
+  axis_afifo #(
+      .WIDTH(CMD_FIFO_WIDTH),
+      .TLAST(0),
+      .ABITS(4)
+  ) U_CFIFO1 (
+      .aresetn (bus_reset),
+
+      .s_aclk  (bus_clock),
+      .s_tvalid(c_tvalid_w),
+      .s_tready(c_tready_w),
+      .s_tlast (1'b1),
+      .s_tdata (c_tdata_w),
+
+      .m_aclk  (mem_clock),
+      .m_tvalid(cmd_w),
+      .m_tready(ack_w),
+      .m_tlast (),
+      .m_tdata ({rd_w, tid_w, len_w, adr_w})
+  );
+
+  // -- Write-Port, Memory-Domain FSM -- //
+
+  assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
+  assign wr_ack_w = awvalid_o && awready_i;
+
+  // Todo ...
+  assign awvalid_o = cmd_m && !rd_m;
+  assign awburst_o = BURST_TYPE_INCR;
+  assign awlen_o   = len_m;
+  assign awid_o    = tid_m;
+  assign awaddr_o  = adr_m;
 
   // Write-buffer (FIFO) assignments, to the DDR3 controller
   assign wvalid_o = wr == WR_DATA && x_tvalid;
@@ -213,34 +274,15 @@ module memreq #(
   assign wstrb_o  = {STROBES{x_tvalid}};
   assign wdata_o  = x_tdata;
 
-  assign x_tready  = wr == WR_ADDR ? awready_i :
-                     wr == WR_DATA ? wready_i : 1'b0;
-
-  // Todo ...
-  assign awvalid_o = wr == WR_IDLE && x_tvalid && x_tkeep;
-  assign awburst_o = BURST_TYPE_INCR;
-  assign awlen_o   = alen_m;
-  assign awid_o    = x_tdata[31:ADDRESS_WIDTH];
-  assign awaddr_o  = x_tdata[ASB:0];
-
-  // Todo ...
-  assign arvalid_o = 1'b0;
-  assign arburst_o = BURST_TYPE_INCR;
-  assign arlen_o   = alen_m;
-  assign arid_o    = x_tdata[31:ADDRESS_WIDTH];
-  assign araddr_o  = x_tdata[ASB:0];
+  assign x_tready  = wr == WR_DATA ? wready_i : 1'b0;
 
   always @(posedge mem_clock) begin
     if (mem_reset) begin
       wr <= WR_IDLE;
     end else begin
       case (wr)
-        WR_IDLE: wr <= x_tvalid ? WR_ADDR : wr;
-        WR_ADDR: begin
-          if (x_tvalid && x_tready && x_tkeep) begin
-            wr <= WR_DATA;
-          end
-        end
+        WR_IDLE: wr <= wr_cmd_w ? WR_ADDR : wr;
+        WR_ADDR: wr <= x_tvalid ? WR_DATA : wr;
         WR_DATA: begin
           if (x_tvalid && x_tready && x_tlast) begin
             wr <= WR_RESP;
@@ -378,6 +420,36 @@ module memreq #(
       .m_tlast (),
       .m_tdata ({rokay_w, rid_w})
   );
+
+  // -- Read-Port, Memory-Domain FSM -- //
+
+  assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
+  assign rd_ack_w = arvalid_o && arready_i;
+  assign rd_end_w = rvalid_i && rready_o && rlast_i;
+
+  // Read-address assignments, to the DDR3 controller
+  assign arvalid_o = cmd_m && rd_m;
+  assign arburst_o = BURST_TYPE_INCR;
+  assign arlen_o   = len_m;
+  assign arid_o    = tid_m;
+  assign araddr_o  = adr_m;
+
+  // Read-buffer (FIFO) 'ready' signal assignment, for DDR3 fetched-data
+  assign rready_o = rd == RD_DATA;
+
+  always @(posedge mem_clock) begin
+    if (mem_reset) begin
+      rd <= RD_IDLE;
+    end else begin
+      case (rd)
+        RD_IDLE: rd <= rd_cmd_w ? RD_ADDR : rd;
+        RD_ADDR: rd <= rd_ack_w ? RD_DATA : rd;
+        RD_DATA: rd <= rd_end_w ? RD_IDLE : rd;
+        RD_RESP: rd <= bready_o ? RD_IDLE : rd; // Todo: use resp. FIFO !?
+        default: rd <= 'bx;
+      endcase
+    end
+  end
 
   // -- Read Datapath -- //
 
