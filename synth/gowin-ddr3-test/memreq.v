@@ -428,7 +428,7 @@ module memreq #(
 
   assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
   assign rd_ack_w = arvalid_o && arready_i;
-  assign rd_end_w = rvalid_i && rready_o && rlast_i;
+  assign rd_end_w = fvalid_w && fready_w && rlast_i;
 
   // Read-address assignments, to the DDR3 controller
   assign arvalid_o = cmd_m && rd_m;
@@ -438,7 +438,11 @@ module memreq #(
   assign araddr_o  = adr_m;
 
   // Read-buffer (FIFO) 'ready' signal assignment, for DDR3 fetched-data
-  assign rready_o = rd == RD_DATA;
+  // Todo: slow combinational signals !?!
+  wire fready_w, fvalid_w;
+
+  assign rready_o = rd == RD_DATA && fready_w;
+  assign fvalid_w = rd == RD_DATA && rvalid_i;
 
   always @(posedge mem_clock) begin
     if (mem_reset) begin
@@ -479,8 +483,8 @@ module memreq #(
       .s_clk(mem_clock),
       .s_rst(mem_reset),
 
-      .s_axis_tvalid(rvalid_i),  // AXI input: 32b, MEM domain
-      .s_axis_tready(rready_o),
+      .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
+      .s_axis_tready(fready_w),
       .s_axis_tkeep({STROBES{rvalid_i}}),
       .s_axis_tlast(rlast_i),
       .s_axis_tid(rid_i),

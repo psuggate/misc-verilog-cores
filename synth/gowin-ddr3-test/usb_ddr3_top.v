@@ -1,4 +1,6 @@
 `timescale 1ns / 100ps
+`define __use_ddr3_because_reasons
+
 module usb_ddr3_top (
     // Clock and reset from the dev-board
     input clk_26,
@@ -37,6 +39,13 @@ module usb_ddr3_top (
 );
 
   // -- USB Settings -- //
+
+  localparam DEBUG = 1;
+`ifdef __use_ddr3_because_reasons
+  localparam LOOPBACK = 0;
+`else
+  localparam LOOPBACK = 1;
+`endif
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
@@ -79,6 +88,7 @@ module usb_ddr3_top (
 
   // Local Signals //
   wire configured, crc_error_w, ep1_rdy, ep2_rdy, ep3_rdy;
+  wire ddr3_conf_w, sys_clk, sys_rst;
 
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
@@ -115,11 +125,12 @@ module usb_ddr3_top (
       .ENDPOINT2(ENDPOINT2),
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .MAX_CONFIG_LENGTH(MAX_CONFIG_LENGTH),
-      .DEBUG(1),
-      .USE_UART(1),
+      .DEBUG(DEBUG),
+      .USE_UART(0),
       .ENDPOINTD(ENDPOINT3)
   ) U_USB1 (
-      .clk_26(clk_26),
+      // .clk_26(clk_26),
+      .clk_26(sys_clk),
       .arst_n(rst_n),
 
       .ulpi_clk (ulpi_clk),
@@ -138,14 +149,14 @@ module usb_ddr3_top (
       .usb_reset_o(reset),
 
       .configured_o(configured),
-      .conf_event_o(),
-      .conf_value_o(),
+      .conf_event_o(conf_event),
+      .conf_value_o(usb_config),
       .crc_error_o (crc_error_w),
 
-      .blki_tvalid_i(s_tvalid),  // USB 'BULK IN' EP data-path
+      .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(s_tready),
-      .blki_tlast_i (s_tlast),
-      .blki_tdata_i (s_tdata),
+      .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
+      .blki_tdata_i (LOOPBACK ? m_tdata : s_tdata),
 
       .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
       .blkx_tready_o(x_tready),
@@ -153,21 +164,24 @@ module usb_ddr3_top (
       .blkx_tdata_i (x_tdata),
 
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
-      .blko_tready_i(m_tready),
-      .blko_tlast_o (m_tlast),
-      .blko_tdata_o (m_tdata)
+      .blko_tready_i(LOOPBACK ? s_tready : m_tready),
+      .blko_tlast_o(m_tlast),
+      .blko_tdata_o(m_tdata)
   );
 
-  assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w;
-  assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w;
-  assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w | crc_error_w;
+  assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w ^ ddr3_conf_w;
+  assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w ^ sys_rst;
+  assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w ^ crc_error_w;
 
 
   //
   //  DDR3 Cores Under Next-generation Tests
   ///
 
-  assign m_tkeep = 1'b1; // Todo ...
+`ifdef __use_ddr3_because_reasons
+
+  assign m_tkeep = m_tvalid;  // Todo ...
+  wire u_tready;
 
   ddr3_top #(
       .SRAM_BYTES (2048),
@@ -180,16 +194,20 @@ module usb_ddr3_top (
       .bus_clock(clock),
       .bus_reset(reset),
 
+      .ddr3_conf_o(ddr3_conf_w),
+      .ddr_clock_o(sys_clk),
+      .ddr_reset_o(sys_rst),
+
       // From USB or SPI
-      .s_tvalid(m_tvalid),
+      .s_tvalid(LOOPBACK ? 1'b0 : m_tvalid),
       .s_tready(m_tready),
-      .s_tkeep (m_tkeep),
-      .s_tlast (m_tlast),
+      .s_tkeep (LOOPBACK ? 1'b0 : m_tkeep),
+      .s_tlast (LOOPBACK ? 1'b0 : m_tlast),
       .s_tdata (m_tdata),
 
       // To USB or SPI
       .m_tvalid(s_tvalid),
-      .m_tready(s_tready),
+      .m_tready(LOOPBACK ? 1'b0 : s_tready),
       .m_tkeep (s_tkeep),
       .m_tlast (s_tlast),
       .m_tdata (s_tdata),
@@ -211,6 +229,14 @@ module usb_ddr3_top (
       .ddr_dqs_n(ddr_dqs_n),
       .ddr_dq(ddr_dq)
   );
+
+`else  /* !__use_ddr3_because_reasons */
+
+  assign ddr3_conf_w = 1'b0;
+  assign sys_clk = clk_26;
+  assign sys_rst = 1'b0;
+
+`endif  /* !__use_ddr3_because_reasons */
 
 
 endmodule  // usb_ddr3_top

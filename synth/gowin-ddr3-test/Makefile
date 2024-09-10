@@ -1,5 +1,5 @@
 .PHONY:	sim build upload
-BIT	?= impl/pnr/ddr3_test.fs
+BIT	?= impl/pnr/gowin-ddr3-test.fs
 
 upload:
 	openFPGALoader --board tangprimer20k --write-sram $(BIT)

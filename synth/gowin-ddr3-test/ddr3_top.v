@@ -13,6 +13,8 @@ module ddr3_top #(
     input bus_reset,
 
     output ddr3_conf_o,
+    output ddr_clock_o,
+    output ddr_reset_o,
 
     // From USB or SPI
     input s_tvalid,
@@ -138,7 +140,7 @@ module ddr3_top #(
 
   assign clk_200 = dclk;
   assign clk_100 = clk_26;
-  assign locked = lock_q;
+  assign locked  = lock_q;
 
   always #2.5 dclk <= ~dclk;
   initial #20 lock_q = 1;
@@ -159,7 +161,10 @@ module ddr3_top #(
       .clkin (clk_26)
   );
 
-`endif /* !__icarus */
+`endif  /* !__icarus */
+
+  assign ddr_clock_o = clock;
+  assign ddr_reset_o = reset;
 
   assign ddr_clk = clk_200;
   assign clock   = clk_100;
@@ -330,10 +335,14 @@ module ddr3_top #(
 
   // -- DDR3 PHY -- //
 
+`ifndef __icarus
+  `define __gowin_for_the_win
+`endif  /* !__icarus */
+
 `ifdef __gowin_for_the_win
 
   // GoWin Global System Reset signal tree.
-  GSR GSR ();
+  GSR GSR (.GSRI(1'b1));
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
@@ -381,7 +390,7 @@ module ddr3_top #(
       .ddr_dq_io(ddr_dq)
   );
 
-`else /* !__gowin_for_the_win */
+`else  /* !__gowin_for_the_win */
 
   // Generic PHY -- that probably won't synthesise correctly, due to how the
   // (read-)data is registered ...

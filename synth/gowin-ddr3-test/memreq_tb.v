@@ -42,7 +42,7 @@ module memreq_tb;
     #40 rst = 1'b0;
     #16 @(posedge bclk) #1;
 
-    s_tdata = req[7:0];
+    s_tdata  = req[7:0];
     s_tvalid = 1'b1;
     s_tkeep  = 1'b1;
     #16 s_tdata = req[15:8];
@@ -81,12 +81,14 @@ module memreq_tb;
 
     #16 s_tvalid = 1'b0;
     s_tkeep = 1'b0;
-    s_tlast  = 1'b0;
+    s_tlast = 1'b0;
 
     while (!m_tvalid) @(posedge bclk);
 
     #800 $finish;
   end
+
+  initial #2000 $finish;
 
   // -- Simulation Signals & Registers -- //
 
