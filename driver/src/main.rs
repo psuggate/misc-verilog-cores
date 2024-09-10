@@ -81,7 +81,7 @@ fn tart_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
 }
 
 fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
-    let rdcmd: [u8; 6] = [0xA0, 0x20, 0x80, 0xF0, 0x08, 0x01];
+    let rdcmd: [u8; 6] = [0xA0, 0x20, 0x80, 0xF0, 0x08, 0x80];
     let num = tart.write(&rdcmd)?;
     if num != 6 {
         error!("TART DDR3 CMD failed, num = {:?}", num);
