@@ -57,6 +57,7 @@ module vpi_usb_ulpi_tb;
   wire [7:0] ulpi_data;
 
   wire configured, conf_event;
+  wire ddr3_conf_w, sys_clk, sys_rst;
   wire [2:0] usb_config;
 
   reg [3:0] areset_n;
@@ -307,5 +308,99 @@ module vpi_usb_ulpi_tb;
   );
 
 `endif  /* !__all_in_one_usb_ulpi_core */
+
+
+  //
+  //  DDR3 Cores Under Next-generation Tests
+  ///
+
+`ifdef __use_ddr3_because_reasons
+
+  wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
+  wire ddr_cs_n, ddr_ras_n, ddr_cas_n, ddr_we_n;
+  wire [1:0] ddr_dm, ddr_dqs_p, ddr_dqs_n;
+  wire [2:0] ddr_ba;
+  wire [12:0] ddr_a;
+  wire [15:0] ddr_dq;
+
+  assign m_tkeep = m_tvalid;  // Todo ...
+  wire u_tready;
+
+  ddr3_top #(
+      .SRAM_BYTES (2048),
+      .DATA_WIDTH (32),
+      .LOW_LATENCY(LOW_LATENCY)
+  ) ddr_core_inst (
+      .clk_26(clk25),  // Dev-board clock
+      .rst_n (rst_n),   // 'S2' button for async-reset
+
+      .bus_clock(clock),
+      .bus_reset(reset),
+
+      .ddr3_conf_o(ddr3_conf_w),
+      .ddr_clock_o(sys_clk),
+      .ddr_reset_o(sys_rst),
+
+      // From USB or SPI
+      .s_tvalid(LOOPBACK ? 1'b0 : m_tvalid),
+      .s_tready(m_tready),
+      .s_tkeep (LOOPBACK ? 1'b0 : m_tkeep),
+      .s_tlast (LOOPBACK ? 1'b0 : m_tlast),
+      .s_tdata (m_tdata),
+
+      // To USB or SPI
+      .m_tvalid(s_tvalid),
+      .m_tready(LOOPBACK ? 1'b0 : s_tready),
+      .m_tkeep (s_tkeep),
+      .m_tlast (s_tlast),
+      .m_tdata (s_tdata),
+
+      // 1Gb DDR3 SDRAM pins
+      .ddr_ck(ddr_ck_p),
+      .ddr_ck_n(ddr_ck_n),
+      .ddr_cke(ddr_cke),
+      .ddr_rst_n(ddr_rst_n),
+      .ddr_cs(ddr_cs_n),
+      .ddr_ras(ddr_ras_n),
+      .ddr_cas(ddr_cas_n),
+      .ddr_we(ddr_we_n),
+      .ddr_odt(ddr_odt),
+      .ddr_bank(ddr_ba),
+      .ddr_addr(ddr_a),
+      .ddr_dm(ddr_dm),
+      .ddr_dqs(ddr_dqs_p),
+      .ddr_dqs_n(ddr_dqs_n),
+      .ddr_dq(ddr_dq)
+  );
+
+  // -- DDR3 Simulation Model from Micron -- //
+
+  ddr3 ddr3_sdram_inst (
+      .rst_n(ddr_rst_n),
+      .ck(ddr_ck_p),
+      .ck_n(ddr_ck_n),
+      .cke(ddr_cke),
+      .cs_n(ddr_cs_n),
+      .ras_n(ddr_ras_n),
+      .cas_n(ddr_cas_n),
+      .we_n(ddr_we_n),
+      .dm_tdqs(ddr_dm),
+      .ba(ddr_ba),
+      .addr({1'b0, ddr_a}),
+      .dq(ddr_dq),
+      .dqs(ddr_dqs_p),
+      .dqs_n(ddr_dqs_n),
+      .tdqs_n(),
+      .odt(ddr_odt)
+  );
+
+`else  /* !__use_ddr3_because_reasons */
+
+  assign ddr3_conf_w = 1'b0;
+  assign sys_clk = clk25;
+  assign sys_rst = 1'b0;
+
+`endif  /* !__use_ddr3_because_reasons */
+
 
 endmodule  /* vpi_usb_ulpi_tb */

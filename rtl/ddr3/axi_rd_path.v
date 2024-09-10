@@ -114,8 +114,9 @@ module axi_rd_path #(
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
   ) U_FIFO1 (
-      .clock(clock),
-      .reset(reset),
+      .clock  (clock),
+      .reset  (reset),
+      .level_o(),
 
       .valid_i(xvalid),
       .ready_o(xready),
@@ -139,8 +140,9 @@ module axi_rd_path #(
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
   ) U_FIFO2 (
-      .clock(clock),
-      .reset(reset),
+      .clock  (clock),
+      .reset  (reset),
+      .level_o(),
 
       .valid_i(mem_accept_i),
       .ready_o(),
@@ -161,8 +163,9 @@ module axi_rd_path #(
       .ABITS (DBITS),
       .OUTREG(DATA_FIFO_BLOCK)
   ) U_FIFO3 (
-      .clock(clock),
-      .reset(reset),
+      .clock  (clock),
+      .reset  (reset),
+      .level_o(),
 
       .valid_i(mem_valid_i),
       .ready_o(rdf_ready),
@@ -186,7 +189,7 @@ module axi_rd_path #(
     end
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
 endmodule  /* axi_rd_path */

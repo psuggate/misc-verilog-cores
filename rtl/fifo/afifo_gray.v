@@ -96,43 +96,32 @@ empty will place the FIFO in an undefined state.
 
 `timescale 1ns / 100ps
 module afifo_gray #(
-    parameter integer WIDTH = 16,
-    parameter integer ABITS = 4,
-    localparam integer DEPTH = 1 << ABITS,
-    parameter integer DELAY = 3
+    parameter  integer WIDTH = 16,
+    localparam integer MSB   = WIDTH - 1,
+    parameter  integer ABITS = 4,
+    localparam integer ASB   = ABITS - 1,
+    localparam integer DEPTH = 1 << ABITS
 ) (  // System clocks and resets:
-    rd_clk_i,
-    wr_clk_i,
-    reset_ni,
+    input rd_clk_i,
+    input wr_clk_i,
+    input reset_ni,
 
     // Data signals:
-    wr_en_i,
-    wr_data_i,
-    rd_en_i,
-    rd_data_o,
+    input wr_en_i,
+    input [MSB:0] wr_data_i,
+    input rd_en_i,
+    output [MSB:0] rd_data_o,
 
     // FIFO status flags:
-    wfull_o,
-    rempty_o
+    output wfull_o,
+    output rempty_o
 );
 
-  localparam integer MSB = WIDTH - 1;
-  localparam integer ASB = ABITS - 1;
+  reg wfull_q = 1'b0;
+  reg rempty_q = 1'b1;
 
-  input rd_clk_i;
-  input wr_clk_i;
-  input reset_ni;
-
-  // Data signals:
-  input wr_en_i;
-  input [MSB:0] wr_data_i;
-  input rd_en_i;
-  output [MSB:0] rd_data_o;
-
-  // FIFO status flags:
-  output reg wfull_o = 1'b0;
-  output reg rempty_o = 1'b1;
-
+  assign wfull_o  = wfull_q;
+  assign rempty_o = rempty_q;
 
   //-------------------------------------------------------------------------
   //  Local Wires
@@ -154,35 +143,33 @@ module afifo_gray #(
   reg rd_rst = 1'b1, wr_rst = 1'b1;
   reg rd_rst_r = 1'b1, wr_rst_r = 1'b1;
 
-
   //-------------------------------------------------------------------------
   //  Reset Logic
   //-------------------------------------------------------------------------
 
   always @(posedge rd_clk_i or negedge reset_ni) begin
     if (!reset_ni) begin
-      rd_rst_r <= #DELAY 1'b1;
-      rd_rst   <= #DELAY 1'b1;
+      rd_rst_r <= 1'b1;
+      rd_rst   <= 1'b1;
     end else begin
-      rd_rst_r <= #DELAY 1'b0;
+      rd_rst_r <= 1'b0;
       if (!rd_rst_r) begin
-        rd_rst <= #DELAY 1'b0;  // Release Reset
+        rd_rst <= 1'b0;  // Release Reset
       end
     end
   end
 
   always @(posedge wr_clk_i or negedge reset_ni) begin
     if (!reset_ni) begin
-      wr_rst_r <= #DELAY 1'b1;
-      wr_rst   <= #DELAY 1'b1;
+      wr_rst_r <= 1'b1;
+      wr_rst   <= 1'b1;
     end else begin
-      wr_rst_r <= #DELAY 1'b0;
+      wr_rst_r <= 1'b0;
       if (!wr_rst_r) begin
-        wr_rst <= #DELAY 1'b0;  // Release Reset
+        wr_rst <= 1'b0;  // Release Reset
       end
     end
   end
-
 
   //-------------------------------------------------------------------------
   //  Memory Block
@@ -194,10 +181,9 @@ module afifo_gray #(
 
   always @(posedge wr_clk_i) begin
     if (wr_en_i && !wr_rst) begin
-      sram[wp_bin[ASB:0]] <= #DELAY wr_data_i;
+      sram[wp_bin[ASB:0]] <= wr_data_i;
     end
   end
-
 
   //-------------------------------------------------------------------------
   //  Read/Write Pointers Logic
@@ -208,11 +194,11 @@ module afifo_gray #(
 
   always @(posedge wr_clk_i) begin
     if (wr_rst) begin
-      wp_bin  <= #DELAY{ABITS + 1{1'b0}};
-      wp_gray <= #DELAY{ABITS + 1{1'b0}};
+      wp_bin  <= {ABITS + 1{1'b0}};
+      wp_gray <= {ABITS + 1{1'b0}};
     end else if (wr_en_i) begin
-      wp_bin  <= #DELAY wp_bin_next;
-      wp_gray <= #DELAY wp_gray_next;
+      wp_bin  <= wp_bin_next;
+      wp_gray <= wp_gray_next;
     end
   end
 
@@ -221,30 +207,28 @@ module afifo_gray #(
 
   always @(posedge rd_clk_i) begin
     if (rd_rst) begin
-      rp_bin  <= #DELAY{ABITS + 1{1'b0}};
-      rp_gray <= #DELAY{ABITS + 1{1'b0}};
+      rp_bin  <= {ABITS + 1{1'b0}};
+      rp_gray <= {ABITS + 1{1'b0}};
     end else if (rd_en_i) begin
-      rp_bin  <= #DELAY rp_bin_next;
-      rp_gray <= #DELAY rp_gray_next;
+      rp_bin  <= rp_bin_next;
+      rp_gray <= rp_gray_next;
     end
   end
-
 
   //-------------------------------------------------------------------------
   //  Synchronization Logic
   //-------------------------------------------------------------------------
 
   always @(posedge rd_clk_i) begin
-    wp_s <= #DELAY wp_gray;  // write pointer -> read domain
+    wp_s <= wp_gray;  // write pointer -> read domain
   end
 
   always @(posedge wr_clk_i) begin
-    rp_s <= #DELAY rp_gray;  // read pointer -> write domain
+    rp_s <= rp_gray;  // read pointer -> write domain
   end
 
-
   //-------------------------------------------------------------------------
-  //  Registered Wfull_o & Rempty_o Flags
+  //  Registered Wfull_q & Rempty_q Flags
   //-------------------------------------------------------------------------
 
   // -- Convert Gray to binary -- //
@@ -253,9 +237,9 @@ module afifo_gray #(
 
   always @(posedge rd_clk_i) begin
     if (!reset_ni) begin
-      rempty_o <= #DELAY 1'b1;
+      rempty_q <= 1'b1;
     end else begin
-      rempty_o <= #DELAY wp_s == rp_gray || rd_en_i && wp_s == rp_gray_next;
+      rempty_q <= wp_s == rp_gray || rd_en_i && wp_s == rp_gray_next;
     end
   end
 
@@ -266,27 +250,26 @@ module afifo_gray #(
 
   always @(posedge wr_clk_i) begin
     if (!reset_ni) begin
-      wfull_o <= #DELAY 1'b0;
+      wfull_q <= 1'b0;
     end else begin
-      wfull_o <= #DELAY full_curr || full_next;
+      wfull_q <= full_curr || full_next;
     end
   end
-
 
   //-------------------------------------------------------------------------
   //  Sanity Check
   //-------------------------------------------------------------------------
 
   always @(posedge wr_clk_i) begin
-    if (wr_en_i && wfull_o) begin
+    if (wr_en_i && wfull_q) begin
       $display("%m WARNING: Writing while FIFO is FULL (%t)", $time);
     end
   end
 
   always @(posedge rd_clk_i) begin
-    if (rd_en_i && rempty_o) begin
+    if (rd_en_i && rempty_q) begin
       $display("%m WARNING: Reading while FIFO is EMPTY (%t)", $time);
     end
   end
 
-endmodule  // afifo_gray
+endmodule  /* afifo_gray */

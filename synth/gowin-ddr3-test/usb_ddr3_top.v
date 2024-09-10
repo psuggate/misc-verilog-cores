@@ -149,8 +149,8 @@ module usb_ddr3_top (
       .usb_reset_o(reset),
 
       .configured_o(configured),
-      .conf_event_o(conf_event),
-      .conf_value_o(usb_config),
+      .conf_event_o(),
+      .conf_value_o(),
       .crc_error_o (crc_error_w),
 
       .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path

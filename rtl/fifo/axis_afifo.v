@@ -47,11 +47,10 @@ module axis_afifo #(
 
   afifo_gray #(
       .WIDTH(WIDTH + TLAST),
-      .ABITS(ABITS),
-      .DELAY(DELAY)
+      .ABITS(ABITS)
   ) AFIFO0 (
       // Asynchronous reset:
-      .reset_ni (aresetn),
+      .reset_ni(aresetn),
 
       // Write clock domain:
       .wr_clk_i (s_aclk),
