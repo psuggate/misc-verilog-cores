@@ -82,7 +82,7 @@ module memreq_tb;
 
   reg [3:0] state;
 
-  always @(posedge bclk) begin
+  always @(posedge mclk) begin
     if (rst) begin
       state  <= ST_IDLE;
       bvalid <= 1'b0;
@@ -90,32 +90,48 @@ module memreq_tb;
       case (state)
         ST_IDLE: begin
           if (awvalid_w) begin
+            $display("%8t: Address-Write Request ('%m')", $time);
             state <= ST_WDAT;
             bid   <= awid_w;
           end
         end
+
         ST_WDAT: begin
           if (wvalid_w && wlast_w) begin
+            $display("%8t: Write-Data Received ('%m')", $time);
             state <= ST_RESP;
           end
         end
+
         ST_RESP: begin
           bvalid <= 1'b1;
           bresp  <= RESP_OKAY;
           if (bready_w) begin
+            $display("%8t: Write-Response Sent ('%m')", $time);
             state <= ST_DONE;
           end
         end
+
         ST_DONE: begin
           bvalid <= 1'b0;
           bresp  <= 2'dx;
           state  <= ST_IDLE;
+          $display("%8t: Returning to IDLE ('%m')", $time);
         end
+
         default: begin
-          $error("Error: Invalid 'state' value: %d (instance %m)", state);
+          $error("%8t: Error: Invalid 'state' value: %d ('%m')", $time, state);
           $finish;
         end
       endcase
+    end
+  end
+
+  always @(posedge bclk) begin
+    if (rst) begin
+      m_tready <= 1'b0;
+    end else if (m_tvalid) begin
+      m_tready <= ~(m_tready & m_tlast);
     end
   end
 

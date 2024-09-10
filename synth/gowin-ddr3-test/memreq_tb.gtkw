@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep  9 07:26:58 2024
+[*] Tue Sep 10 01:35:14 2024
 [*]
 [dumpfile] "./memreq_tb.vcd"
-[dumpfile_mtime] "Mon Sep  9 06:20:39 2024"
-[dumpfile_size] 36219
+[dumpfile_mtime] "Tue Sep 10 01:34:39 2024"
+[dumpfile_size] 40346
 [savefile] "./memreq_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-16.435682 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.435682 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] memreq_tb.
 [sst_width] 233
 [signals_width] 150
@@ -18,9 +18,8 @@
 @28
 memreq_tb.bclk
 memreq_tb.rst
-@22
-[color] 7
-memreq_tb.state[3:0]
+@800200
+-To
 @28
 memreq_tb.s_tvalid
 memreq_tb.s_tready
@@ -28,6 +27,10 @@ memreq_tb.s_tlast
 memreq_tb.s_tkeep
 @22
 memreq_tb.s_tdata[7:0]
+@1000200
+-To
+@800200
+-From
 @28
 memreq_tb.m_tvalid
 memreq_tb.m_tready
@@ -35,6 +38,23 @@ memreq_tb.m_tlast
 memreq_tb.m_tkeep
 @22
 memreq_tb.m_tdata[7:0]
+@1000200
+-From
+@29
+memreq_tb.mclk
+@22
+[color] 7
+memreq_tb.state[3:0]
+@28
+memreq_tb.awvalid_w
+@22
+memreq_tb.awid_w[3:0]
+memreq_tb.awlen_w[7:0]
+@28
+memreq_tb.wvalid_w
+memreq_tb.wlast_w
+@c00200
+-MemReq
 @800200
 -Write
 @28
@@ -52,6 +72,17 @@ memreq_tb.U_REQ1.awaddr_o[27:0]
 @1000200
 -Addr
 @800200
+-Data
+@28
+memreq_tb.U_REQ1.wvalid_o
+memreq_tb.U_REQ1.wready_i
+memreq_tb.U_REQ1.wlast_o
+@22
+memreq_tb.U_REQ1.wstrb_o[3:0]
+memreq_tb.U_REQ1.wdata_o[31:0]
+@1000200
+-Data
+@800200
 -Resp
 @28
 memreq_tb.bvalid
@@ -63,6 +94,8 @@ memreq_tb.bresp[1:0]
 @1000200
 -Resp
 -Write
+@800200
+-Bus-Domain
 @820
 [color] 7
 memreq_tb.U_REQ1.dbg_state[39:0]
@@ -79,20 +112,33 @@ memreq_tb.U_REQ1.cmd_q[7:0]
 memreq_tb.U_REQ1.len_q[7:0]
 memreq_tb.U_REQ1.adr_q[27:0]
 memreq_tb.U_REQ1.tid_q[3:0]
+@1000200
+-Bus-Domain
+@800200
+-Mem-Domain
+@28
+memreq_tb.U_REQ1.cmd_w
+memreq_tb.U_REQ1.ack_w
+memreq_tb.U_REQ1.cmd_m
+memreq_tb.U_REQ1.rd_m
+@22
+memreq_tb.U_REQ1.len_m[7:0]
+memreq_tb.U_REQ1.tid_m[3:0]
+@1000200
+-Mem-Domain
 @800200
 -WRFIFO
-@800201
 -In
-@29
+@28
 memreq_tb.U_REQ1.a_tvalid
 memreq_tb.U_REQ1.a_tready
-@23
+@22
 memreq_tb.U_REQ1.a_tkeep[3:0]
-@29
+@28
 memreq_tb.U_REQ1.a_tlast
-@23
+@22
 memreq_tb.U_REQ1.a_tdata[31:0]
-@1000201
+@1000200
 -In
 @28
 memreq_tb.U_REQ1.x_tvalid
@@ -106,5 +152,7 @@ memreq_tb.U_REQ1.x_tdata[31:0]
 memreq_tb.U_REQ1.cmd_q[7:0]
 @1000200
 -WRFIFO
+@1401200
+-MemReq
 [pattern_trace] 1
 [pattern_trace] 0

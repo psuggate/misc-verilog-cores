@@ -81,7 +81,7 @@ module memreq #(
 
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
   wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
-  wire z_tvalid, z_tready, z_tkeep, z_tlast;
+  wire z_tvalid, z_tready, z_tkeep, z_tlast, c_tvalid_w, c_tready_w;
   wire [SSB:0] a_tkeep, x_tkeep, b_tkeep;
   wire [1:0] b_tuser, y_tuser;
   wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
@@ -110,7 +110,7 @@ module memreq #(
   localparam [7:0] CMD_RDATA = 8'h81;
   localparam [7:0] CMD_RFAIL = 8'h82;
 
-  reg wen_q;
+  reg wen_q, stb_q;
   reg [4:0] ptr_q;
   reg [7:0] cmd_q, len_q, len_c;
   reg [ISB:0] tid_q, tid_c;  // 4b
@@ -151,10 +151,16 @@ module memreq #(
       adr_q <= adr_c;
     end
 
+    if (bus_reset || stb_q && c_tready_w) begin
+      stb_q <= 1'b0;
+    end else if (ptr_q[4]) begin
+      stb_q <= 1'b1;
+    end
+
     if (bus_reset) begin
       wen_q <= 1'b0;
     end else begin
-      if (cmd_q[7] == 1'b0 && ptr_q == 5'h1 && state != ST_IDLE) begin
+      if (cmd_q[7] == 1'b0 && ptr_q[4] && state != ST_IDLE) begin
         wen_q <= 1'b1;
       end else if (s_tvalid && s_tready && s_tlast) begin
         wen_q <= 1'b0;
@@ -205,17 +211,17 @@ module memreq #(
 
   reg [3:0] wr, rd;
   reg cmd_m, rd_m;
-  reg [7:0] len_m;
+  reg [  7:0] len_m;
   reg [ISB:0] tid_m;
   reg [ASB:0] adr_m;
-  wire cmd_w, ack_w, rd_w, c_tvalid_w, c_tready_w;
-  wire wr_cmd_w, rd_cmd_w, wr_rdy_w, rd_rdy_w, wr_ack_w, rd_ack_w;
+  wire cmd_w, ack_w, rd_w;
+  wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
   wire [ISB:0] tid_w;
-  wire [7:0] len_w;
+  wire [  7:0] len_w;
   wire [ASB:0] adr_w;
   wire [CSB:0] c_tdata_w;
 
-  assign c_tvalid_w = ptr_q[4] == 1'b1;
+  assign c_tvalid_w = stb_q;
   assign c_tdata_w = {cmd_q[7], tid_q, len_q, adr_q};
 
   // Note: According to the AXI spec., not supposed to have combinational logic
@@ -241,7 +247,7 @@ module memreq #(
       .TLAST(0),
       .ABITS(4)
   ) U_CFIFO1 (
-      .aresetn (bus_reset),
+      .aresetn(~bus_reset),
 
       .s_aclk  (bus_clock),
       .s_tvalid(c_tvalid_w),
@@ -260,6 +266,7 @@ module memreq #(
 
   assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
   assign wr_ack_w = awvalid_o && awready_i;
+  assign wr_end_w = x_tvalid && x_tready && x_tlast;
 
   // Todo ...
   assign awvalid_o = cmd_m && !rd_m;
@@ -282,12 +289,8 @@ module memreq #(
     end else begin
       case (wr)
         WR_IDLE: wr <= wr_cmd_w ? WR_ADDR : wr;
-        WR_ADDR: wr <= x_tvalid ? WR_DATA : wr;
-        WR_DATA: begin
-          if (x_tvalid && x_tready && x_tlast) begin
-            wr <= WR_RESP;
-          end
-        end
+        WR_ADDR: wr <= wr_ack_w ? WR_DATA : wr;
+        WR_DATA: wr <= wr_end_w ? WR_RESP : wr;
         WR_RESP: begin
           if (bvalid_i && bready_o) begin
             wr <= WR_IDLE;
@@ -408,7 +411,7 @@ module memreq #(
       .TLAST(0),
       .ABITS(4)
   ) U_BFIFO1 (
-      .aresetn (bus_reset),
+      .aresetn (~bus_reset),
       .s_aclk  (mem_clock),
       .s_tvalid(bvalid_i),
       .s_tready(bready_o),
@@ -445,7 +448,7 @@ module memreq #(
         RD_IDLE: rd <= rd_cmd_w ? RD_ADDR : rd;
         RD_ADDR: rd <= rd_ack_w ? RD_DATA : rd;
         RD_DATA: rd <= rd_end_w ? RD_IDLE : rd;
-        RD_RESP: rd <= bready_o ? RD_IDLE : rd; // Todo: use resp. FIFO !?
+        RD_RESP: rd <= bready_o ? RD_IDLE : rd;  // Todo: use resp. FIFO !?
         default: rd <= 'bx;
       endcase
     end
