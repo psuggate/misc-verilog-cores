@@ -87,6 +87,7 @@ fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Erro
         error!("TART DDR3 CMD failed, num = {:?}", num);
         return Ok(Vec::new());
     }
+    debug!("DDR3 WRITTEN (bytes = {}): {:?}", num, &rdcmd);
 
     if args.no_read {
         return Ok(Vec::new());
