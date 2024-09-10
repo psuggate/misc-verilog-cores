@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Sep 10 01:35:14 2024
+[*] Tue Sep 10 02:01:48 2024
 [*]
 [dumpfile] "./memreq_tb.vcd"
-[dumpfile_mtime] "Tue Sep 10 01:34:39 2024"
-[dumpfile_size] 40346
+[dumpfile_mtime] "Tue Sep 10 01:59:03 2024"
+[dumpfile_size] 60875
 [savefile] "./memreq_tb.gtkw"
-[timestart] 0
+[timestart] 40500
 [size] 1920 1043
 [pos] -1 -1
-*-16.435682 210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.435682 700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] memreq_tb.
 [sst_width] 233
 [signals_width] 150
@@ -40,19 +40,38 @@ memreq_tb.m_tkeep
 memreq_tb.m_tdata[7:0]
 @1000200
 -From
-@29
+@28
 memreq_tb.mclk
 @22
 [color] 7
 memreq_tb.state[3:0]
-@28
+@800201
+-Store
+@29
 memreq_tb.awvalid_w
-@22
+@23
 memreq_tb.awid_w[3:0]
 memreq_tb.awlen_w[7:0]
-@28
+@29
 memreq_tb.wvalid_w
 memreq_tb.wlast_w
+@1000201
+-Store
+@800200
+-Fetch
+@420
+[color] 7
+memreq_tb.count
+@28
+memreq_tb.vld_q
+memreq_tb.rready_w
+memreq_tb.res_q[1:0]
+memreq_tb.lst_q
+@22
+memreq_tb.len_q[7:0]
+memreq_tb.dat_q[31:0]
+@1000200
+-Fetch
 @c00200
 -MemReq
 @800200
