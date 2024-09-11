@@ -41,10 +41,12 @@ module usb_ddr3_top (
   // -- USB Settings -- //
 
   localparam DEBUG = 1;
-`ifdef __use_ddr3_because_reasons
-  localparam LOOPBACK = 0;
-`else
   localparam LOOPBACK = 1;
+`ifdef __use_ddr3_because_reasons
+  // localparam LOOPBACK = 0;
+  localparam USE_EP4_OUT = 1;
+`else
+  localparam USE_EP4_OUT = 0;
 `endif
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
@@ -106,12 +108,6 @@ module usb_ddr3_top (
 
   assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
 
-  // Todo: use for control & logging ??
-  assign x_tvalid = 1'b0;
-  assign x_tkeep = 1'b0;
-  assign x_tlast = 1'b0;
-  assign x_tdata = 8'hA7;
-
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
       .VENDOR_LENGTH(VENDOR_LENGTH),
@@ -127,7 +123,8 @@ module usb_ddr3_top (
       .MAX_CONFIG_LENGTH(MAX_CONFIG_LENGTH),
       .DEBUG(DEBUG),
       .USE_UART(0),
-      .ENDPOINTD(ENDPOINT3)
+      .ENDPOINTD(ENDPOINT3),
+                  .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
       // .clk_26(clk_26),
       .clk_26(sys_clk),
@@ -166,7 +163,12 @@ module usb_ddr3_top (
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(LOOPBACK ? s_tready : m_tready),
       .blko_tlast_o(m_tlast),
-      .blko_tdata_o(m_tdata)
+      .blko_tdata_o(m_tdata),
+
+      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(y_tready),
+      .blky_tlast_o(y_tlast),
+      .blky_tdata_o(y_tdata)
   );
 
   assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w ^ ddr3_conf_w;
@@ -180,8 +182,7 @@ module usb_ddr3_top (
 
 `ifdef __use_ddr3_because_reasons
 
-  assign m_tkeep = m_tvalid;  // Todo ...
-  wire u_tready;
+  assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
       .SRAM_BYTES (2048),
@@ -199,18 +200,18 @@ module usb_ddr3_top (
       .ddr_reset_o(sys_rst),
 
       // From USB or SPI
-      .s_tvalid(LOOPBACK ? 1'b0 : m_tvalid),
-      .s_tready(m_tready),
-      .s_tkeep (LOOPBACK ? 1'b0 : m_tkeep),
-      .s_tlast (LOOPBACK ? 1'b0 : m_tlast),
-      .s_tdata (m_tdata),
+      .s_tvalid(y_tvalid),
+      .s_tready(y_tready),
+      .s_tkeep (y_tkeep),
+      .s_tlast (y_tlast),
+      .s_tdata (y_tdata),
 
       // To USB or SPI
-      .m_tvalid(s_tvalid),
-      .m_tready(LOOPBACK ? 1'b0 : s_tready),
-      .m_tkeep (s_tkeep),
-      .m_tlast (s_tlast),
-      .m_tdata (s_tdata),
+      .m_tvalid(x_tvalid),
+      .m_tready(x_tready),
+      .m_tkeep (x_tkeep),
+      .m_tlast (x_tlast),
+      .m_tdata (x_tdata),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck),
@@ -235,6 +236,12 @@ module usb_ddr3_top (
   assign ddr3_conf_w = 1'b0;
   assign sys_clk = clk_26;
   assign sys_rst = 1'b0;
+
+  // Todo: use for control & logging ??
+  assign x_tvalid = 1'b0;
+  assign x_tkeep = 1'b0;
+  assign x_tlast = 1'b0;
+  assign x_tdata = 8'hA7;
 
 `endif  /* !__use_ddr3_because_reasons */
 

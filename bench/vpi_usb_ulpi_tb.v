@@ -238,8 +238,8 @@ module vpi_usb_ulpi_tb;
       .m_tdata(x_tdata)
   );
 
-`define __all_in_one_usb_ulpi_core
-`ifdef  __all_in_one_usb_ulpi_core
+  `define __all_in_one_usb_ulpi_core
+`ifdef __all_in_one_usb_ulpi_core
 
   wire core_clk, core_rst, core_dir, core_nxt, core_stp;
   wire [7:0] core_dat;
@@ -320,7 +320,7 @@ module vpi_usb_ulpi_tb;
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
   wire ddr_cs_n, ddr_ras_n, ddr_cas_n, ddr_we_n;
   wire [1:0] ddr_dm, ddr_dqs_p, ddr_dqs_n;
-  wire [2:0] ddr_ba;
+  wire [ 2:0] ddr_ba;
   wire [12:0] ddr_a;
   wire [15:0] ddr_dq;
 
@@ -333,7 +333,7 @@ module vpi_usb_ulpi_tb;
       .LOW_LATENCY(LOW_LATENCY)
   ) ddr_core_inst (
       .clk_26(clk25),  // Dev-board clock
-      .rst_n (rst_n),   // 'S2' button for async-reset
+      .rst_n (rst_n),  // 'S2' button for async-reset
 
       .bus_clock(clock),
       .bus_reset(reset),

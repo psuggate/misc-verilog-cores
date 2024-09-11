@@ -6,6 +6,7 @@ module usb_ulpi_core #(
 
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
+    parameter USE_EP4_OUT = 0,
 
     // Debug-mode end-point, for reading telemetry
     parameter DEBUG = 0,
@@ -64,7 +65,12 @@ module usb_ulpi_core #(
     output blko_tvalid_o,
     input blko_tready_i,
     output blko_tlast_o,
-    output [7:0] blko_tdata_o
+    output [7:0] blko_tdata_o,
+
+    output blky_tvalid_o,
+    input blky_tready_i,
+    output blky_tlast_o,
+    output [7:0] blky_tdata_o
 );
 
   wire usb_clk, usb_rst;
@@ -117,7 +123,8 @@ module usb_ulpi_core #(
       .ENDPOINT3(ENDPOINTD),
       .USE_EP2_IN(1),
       .USE_EP3_IN(DEBUG),
-      .USE_EP1_OUT(1)
+      .USE_EP1_OUT(1),
+      .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
       .areset_n(~reset),
       // .areset_n(arst_n),
@@ -149,7 +156,12 @@ module usb_ulpi_core #(
       .blko_tvalid_o(blko_tvalid_o),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(blko_tready_i),
       .blko_tlast_o (blko_tlast_o),
-      .blko_tdata_o (blko_tdata_o)
+      .blko_tdata_o (blko_tdata_o),
+
+      .blky_tvalid_o(blky_tvalid_o),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(blky_tready_i),
+      .blky_tlast_o (blky_tlast_o),
+      .blky_tdata_o (blky_tdata_o)
   );
 
   assign crc_error_o = U_USB1.crc_error_w;

@@ -167,8 +167,8 @@ module ddr3_top #(
   assign ddr_reset_o = reset;
 
   assign ddr_clk = clk_200;
-  assign clock   = clk_100;
-  assign reset   = ~locked;
+  assign clock = clk_100;
+  assign reset = ~locked;
 
   // -- Processes & Dispatches Memory Requests -- //
 

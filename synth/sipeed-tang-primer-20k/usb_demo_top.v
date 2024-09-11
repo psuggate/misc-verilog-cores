@@ -75,7 +75,7 @@ module usb_demo_top (
   assign leds = {~cbits[3:0], 2'b11};
   assign s_tkeep = s_tvalid;
 
-// `define __use_legacy_usb_core
+  // `define __use_legacy_usb_core
 `ifdef __use_legacy_usb_core
 
   // FIFO state //
@@ -217,7 +217,8 @@ module usb_demo_top (
       .ENDPOINT2(ENDPOINT2),
       .DEBUG(DEBUG),
       .USE_UART(0),
-      .ENDPOINTD(ENDPOINT3)
+      .ENDPOINTD(ENDPOINT3),
+      .USE_EP4_OUT(DEBUG)
   ) U_USB1 (
       .clk_26(clk_26),
       .arst_n(rst_n),
@@ -255,7 +256,12 @@ module usb_demo_top (
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(LOOPBACK ? s_tready : m_tready),
       .blko_tlast_o(m_tlast),
-      .blko_tdata_o(m_tdata)
+      .blko_tdata_o(m_tdata),
+
+      .blky_tvalid_o(),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(1'b0),
+      .blky_tlast_o(),
+      .blky_tdata_o()
   );
 
   assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w;
