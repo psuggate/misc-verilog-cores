@@ -77,6 +77,7 @@ module usb_ddr3_top (
 
   parameter DDR_FREQ_MHZ = 100;
   localparam LOW_LATENCY = 0;
+  localparam WR_PREFETCH = 1'b0;
 
   // -- UART Settings -- //
 
@@ -190,7 +191,8 @@ module usb_ddr3_top (
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
-      .LOW_LATENCY(LOW_LATENCY)
+      .LOW_LATENCY(LOW_LATENCY),
+             .WR_PREFETCH(WR_PREFETCH)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock
       .rst_n (rst_n),   // 'S2' button for async-reset

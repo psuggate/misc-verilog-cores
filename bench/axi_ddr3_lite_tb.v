@@ -10,25 +10,21 @@ module axi_ddr3_lite_tb;
   localparam DDR_ROW_BITS = 13;
   localparam RSB = DDR_ROW_BITS - 1;
 
-  parameter DDR_COL_BITS = 10;
+  localparam DDR_COL_BITS = 10;
   localparam CSB = DDR_COL_BITS - 1;
 
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
-  localparam WR_PREFETCH = 1'b1;
-  // localparam WR_PREFETCH = 1'b0;
 `else
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
-  localparam WR_PREFETCH = 1'b0;
 `endif
 
   // Trims an additional clock-cycle of latency, if '1'
-  parameter LOW_LATENCY = 1'b1;  // 0 or 1
-
-  parameter BYPASS_ENABLE = 1'b1;
-
+  localparam LOW_LATENCY = 1'b1;  // 0 or 1
+  localparam WR_PREFETCH = 1'b0;
+  localparam BYPASS_ENABLE = 1'b1;
 
   // -- Data-path and address settings -- //
 
@@ -47,7 +43,6 @@ module axi_ddr3_lite_tb;
   localparam REQID = 4;
   localparam ISB = REQID - 1;
 
-
   // -- Simulation Data -- //
 
   initial begin
@@ -56,7 +51,6 @@ module axi_ddr3_lite_tb;
 
     #80000 $finish;  // todo ...
   end
-
 
   // -- Globals -- //
 
@@ -72,34 +66,14 @@ module axi_ddr3_lite_tb;
     #200 rst <= 1'b0;
   end
 
-
   wire locked, clock, reset;
   wire clk_ddr, clk_ddr_dqs, clk_ref;
-
-`ifdef __salad__X__gowin_for_the_win
-  // todo: work out actual values ...
-  gowin_rpll #(
-      .FCLKIN("27"),
-      .IDIV_SEL(8),
-      .FBDIV_SEL(17),
-      .ODIV_SEL(3)
-  ) RPLL_inst (
-      .clkin (osc),
-      .lock  (locked),
-      .clkout(clk_ddr),
-      .clkref(clk_ref)
-  );
-
-`else
 
   assign #50 locked = 1'b1;
   assign clk_ddr = ddr;
 
-`endif
-
   assign clock = osc;
   assign reset = rst | ~locked;
-
 
   // -- DDR3 and Controller Signals -- //
 
@@ -128,7 +102,6 @@ module axi_ddr3_lite_tb;
   reg [7:0] awlen, arlen, bylen;
   reg [1:0] awburst, arburst, byburst;
   reg [ASB:0] awaddr, araddr, byaddr;
-  // reg [MSB:0] rd_data;
   reg [SSB:0] wstrb;
   wire awready, wready, bvalid, arready, rvalid, rlast, fetch, store, rd_ready, wr_valid, wr_last;
   wire abready, dbvalid, dblast;
@@ -137,7 +110,6 @@ module axi_ddr3_lite_tb;
   wire [ASB:0] maddr;
   wire [SSB:0] wr_mask;
   wire [MSB:0] rdata, bdata, rd_data, wr_data;
-
 
   // -- Initialisation -- //
 
@@ -205,7 +177,6 @@ module axi_ddr3_lite_tb;
     $finish;
   end
 
-
   // -- Stimulus for the Bypass-Port -- //
 
   always @(posedge clock) begin
@@ -218,7 +189,6 @@ module axi_ddr3_lite_tb;
       dbready <= 1'b0;  // todo: 1'b1;
     end
   end
-
 
   // -- DDR3 Simulation Model from Micron -- //
 

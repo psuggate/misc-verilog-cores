@@ -33,7 +33,7 @@ module axi_wr_path #(
     parameter DATA_FIFO_BLOCK = 1,
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
 
-    parameter USE_SYNC_FIFO = 1
+    parameter USE_SYNC_FIFO = 0
 ) (
     input clock,
     input reset,

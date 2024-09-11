@@ -65,7 +65,6 @@ module axi_rd_path #(
   localparam ST_READ = 4'b0010;
   localparam ST_BUSY = 4'b0100;
 
-
   reg aready;
   reg [3:0] state;
   wire cmd_ready, rcf_valid, rdf_ready, rrf_ready;
@@ -74,13 +73,11 @@ module axi_rd_path #(
   wire [ISB:0] xid;
   wire [ASB:0] xaddr;
 
-
   assign axi_arready_o = cmd_ready;
   assign axi_rresp_o   = rrf_ready ? AXI_RESP_OKAY : 2'bxx;
 
   assign mem_fetch_o   = rcf_valid;
   assign mem_ready_o   = rdf_ready;
-
 
   // -- Chunker for Large Bursts -- //
 
@@ -105,7 +102,6 @@ module axi_rd_path #(
       .xaddr_o(xaddr)
   );
 
-
   // -- Read-Data Command FIFO -- //
 
   // todo: the output 'data_o' is combinational/async (by default), which could
@@ -128,7 +124,6 @@ module axi_rd_path #(
       .ready_i(mem_accept_i),
       .data_o ({mem_addr_o, mem_reqid_o, mem_rseq_o})
   );
-
 
   // -- Read-Data Response FIFO -- //
 
@@ -154,7 +149,6 @@ module axi_rd_path #(
       .ready_i(axi_rvalid_o & axi_rready_i & axi_rlast_o),
       .data_o (axi_rid_o)
   );
-
 
   // -- Synchronous, 2 kB, Read-Data FIFO -- //
 
@@ -192,7 +186,6 @@ module axi_rd_path #(
       .m_tlast (axi_rlast_o),
       .m_tdata (axi_rdata_o)
   );
-
 
 `ifdef __icarus
 

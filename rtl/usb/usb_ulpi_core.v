@@ -11,7 +11,9 @@ module usb_ulpi_core #(
 
     // Debug-mode end-point, for reading telemetry
     parameter DEBUG = 0,
+    parameter LOGGER = 0,
     parameter USE_UART = 1,
+    localparam USE_EP3_IN = LOGGER && USE_UART || USE_EP4_OUT ? 1 : 0,
     parameter [3:0] ENDPOINTD = 4'd3,
 
     parameter [15:0] VENDOR_ID = 16'hF4CE,
@@ -124,7 +126,7 @@ module usb_ulpi_core #(
       .ENDPOINT3(ENDPOINTD),
       .ENDPOINT4(ENDPOINT4),
       .USE_EP2_IN(1),
-      .USE_EP3_IN(DEBUG),
+      .USE_EP3_IN(USE_EP3_IN),
       .USE_EP1_OUT(1),
       .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
@@ -171,7 +173,7 @@ module usb_ulpi_core #(
   // -- Route USB End-Point #3 -- //
 
   generate
-    if (DEBUG == 0 || USE_UART == 1) begin : g_route_ep3
+    if (LOGGER == 0 || USE_UART == 1) begin : g_route_ep3
 
       assign y_tvalid = blkx_tvalid_i;
       assign blkx_tready_o = y_tready;
@@ -199,7 +201,7 @@ module usb_ulpi_core #(
   localparam ISB = LOG_WIDTH - SIG_WIDTH - 1;
 
   generate
-    if (DEBUG) begin : g_debug
+    if (LOGGER) begin : g_debug
 
       reg en_q;
       wire [10:0] sof_w;
@@ -263,7 +265,7 @@ module usb_ulpi_core #(
   localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
 
   generate
-    if (DEBUG && USE_UART) begin : g_use_uart
+    if (LOGGER && USE_UART) begin : g_use_uart
 
       reg tstart, send_q;
       wire tcycle_w, tx_busy_w, rx_busy_w;

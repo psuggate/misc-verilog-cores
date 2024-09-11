@@ -4,7 +4,8 @@ module ddr3_top #(
     parameter DATA_WIDTH = 32,
 
     // Trims an additional clock-cycle of latency, if '1'
-    parameter LOW_LATENCY = 1'b0  // 0 or 1
+    parameter LOW_LATENCY = 1'b0,  // 0 or 1
+    parameter WR_PREFETCH = 1'b0   // 0 or 1
 ) (
     input clk_26,
     input rst_n,   // 'S2' button for async-reset
@@ -48,22 +49,12 @@ module ddr3_top #(
     inout [15:0] ddr_dq
 );
 
-  // `define __use_250_MHz
-`ifdef __use_250_MHz
-  localparam DDR_FREQ_MHZ = 125;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 36;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`else
   localparam DDR_FREQ_MHZ = 100;
 
   localparam IDIV_SEL = 3;
   localparam FBDIV_SEL = 28;
   localparam ODIV_SEL = 4;
   localparam SDIV_SEL = 2;
-`endif
 
   // -- Constants -- //
 
@@ -74,12 +65,10 @@ module ddr3_top #(
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
-  localparam WR_PREFETCH = 1'b1;
-`else
+`else /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
-  localparam WR_PREFETCH = 1'b0;
-`endif
+`endif /* !__gowin_for_the_win */
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
