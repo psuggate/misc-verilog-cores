@@ -20,10 +20,14 @@ MISC	:= $(filter-out %_tb.v, $(MISC_V))
 FIFO	:= $(wildcard $(RTLDIR)/fifo/*.v)
 ARCH	:= $(wildcard $(RTLDIR)/arch/*.v) arch/gw2a_prim_sim.v
 
+SYNTH	:= ../synth/gowin-ddr3-test
+EXTRA_V	:= $(wildcard $(SYNTH)/*.v)
+EXTRA	:= $(filter-out %_tb.v, $(EXTRA_V))
+
 SIMSRC	:= $(wildcard *.v)
 SRC	:= $(filter-out %_tb.v, $(SIMSRC))
 
-LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(SRC)
+LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(EXTRA) $(SRC)
 TOP	?= $(wildcard *_tb.v)
 OUT	?= $(TOP:%.v=../build/%.out)
 

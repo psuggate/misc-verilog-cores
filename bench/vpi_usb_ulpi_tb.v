@@ -8,6 +8,7 @@ module vpi_usb_ulpi_tb;
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
   localparam ENDPOINT3 = 4'd3;
+  localparam ENDPOINT4 = 4'd5;
 
   // Local FIFO address-bits
   localparam FBITS = 11;
@@ -143,17 +144,22 @@ module vpi_usb_ulpi_tb;
 
   `define __use_small_packets
 
-  wire x_tvalid, x_tready, x_tlast;
+  wire x_tvalid, x_tready, x_tkeep, x_tlast;
   wire [7:0] x_tdata;
+  wire y_tvalid, y_tready, y_tkeep, y_tlast;
+  wire [7:0] y_tdata;
 
   usb_ulpi_top #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .DEBUG            (DEBUG),
       .ENDPOINT1        (ENDPOINT1),
       .ENDPOINT2        (ENDPOINT2),
+      .ENDPOINT3        (ENDPOINT3),
+      .ENDPOINT4        (ENDPOINT4),
       .USE_EP2_IN       (1),
       .USE_EP3_IN       (1),
-      .USE_EP1_OUT      (1)
+      .USE_EP1_OUT      (1),
+      .USE_EP4_OUT      (1)
   ) U_USB1 (
       .areset_n(~reset),
       // .areset_n(usb_rst_n),
@@ -259,11 +265,12 @@ module vpi_usb_ulpi_tb;
       .ENDPOINT2(ENDPOINT2),
       .DEBUG(DEBUG),
       .USE_UART(0),
-      .ENDPOINTD(ENDPOINT3)
+      .ENDPOINTD(ENDPOINT3),
+      .ENDPOINT4(ENDPOINT4),
+      .USE_EP4_OUT      (1)
   ) U_CORE1 (
       .clk_26(clk25),
       .arst_n(arst_n),
-      // .arst_n(usb_rst_n),
 
       .ulpi_clk (core_clk),
       .ulpi_rst (core_rst),
@@ -297,15 +304,20 @@ module vpi_usb_ulpi_tb;
       .blki_tdata_i(io_tdata),
 `endif  /* !__use_small_packets */
 
-      .blkx_tvalid_i(1'b0),
+      .blkx_tvalid_i(x_tvalid),
       .blkx_tready_o(),
-      .blkx_tlast_i (1'b0),
-      .blkx_tdata_i (8'bx),
+      .blkx_tlast_i (x_tlast),
+      .blkx_tdata_i (x_tdata),
 
       .blko_tvalid_o(io_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(io_tready),
       .blko_tlast_o (io_tlast),
-      .blko_tdata_o (io_tdata)
+      .blko_tdata_o (io_tdata),
+
+      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(y_tready),
+      .blky_tlast_o (y_tlast),
+      .blky_tdata_o (y_tdata)
   );
 
 `endif  /* !__all_in_one_usb_ulpi_core */
@@ -315,7 +327,10 @@ module vpi_usb_ulpi_tb;
   //  DDR3 Cores Under Next-generation Tests
   ///
 
+`define __use_ddr3_because_reasons
 `ifdef __use_ddr3_because_reasons
+
+  localparam LOW_LATENCY = 0;
 
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
   wire ddr_cs_n, ddr_ras_n, ddr_cas_n, ddr_we_n;
@@ -324,8 +339,7 @@ module vpi_usb_ulpi_tb;
   wire [12:0] ddr_a;
   wire [15:0] ddr_dq;
 
-  assign m_tkeep = m_tvalid;  // Todo ...
-  wire u_tready;
+  assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
       .SRAM_BYTES (2048),
@@ -333,7 +347,7 @@ module vpi_usb_ulpi_tb;
       .LOW_LATENCY(LOW_LATENCY)
   ) ddr_core_inst (
       .clk_26(clk25),  // Dev-board clock
-      .rst_n (rst_n),  // 'S2' button for async-reset
+      .rst_n (arst_n),  // 'S2' button for async-reset
 
       .bus_clock(clock),
       .bus_reset(reset),
@@ -343,18 +357,20 @@ module vpi_usb_ulpi_tb;
       .ddr_reset_o(sys_rst),
 
       // From USB or SPI
-      .s_tvalid(LOOPBACK ? 1'b0 : m_tvalid),
-      .s_tready(m_tready),
-      .s_tkeep (LOOPBACK ? 1'b0 : m_tkeep),
-      .s_tlast (LOOPBACK ? 1'b0 : m_tlast),
-      .s_tdata (m_tdata),
+      .s_tvalid(y_tvalid),
+      .s_tready(y_tready),
+      .s_tkeep (y_tkeep),
+      .s_tlast (y_tlast),
+      .s_tdata (y_tdata),
 
+/*
       // To USB or SPI
-      .m_tvalid(s_tvalid),
-      .m_tready(LOOPBACK ? 1'b0 : s_tready),
-      .m_tkeep (s_tkeep),
-      .m_tlast (s_tlast),
-      .m_tdata (s_tdata),
+      .m_tvalid(x_tvalid),
+      .m_tkeep (x_tkeep),
+      .m_tlast (x_tlast),
+      .m_tdata (x_tdata),
+*/
+      .m_tready(1'b0),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck_p),

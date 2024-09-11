@@ -96,7 +96,8 @@ module usb_ddr3_top (
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
   wire x_tvalid, x_tready, x_tlast, x_tkeep;
   wire m_tvalid, m_tready, m_tlast, m_tkeep;
-  wire [7:0] s_tdata, x_tdata, m_tdata;
+  wire y_tvalid, y_tready, y_tlast, y_tkeep;
+  wire [7:0] s_tdata, x_tdata, m_tdata, y_tdata;
 
   // -- LEDs Stuffs -- //
 

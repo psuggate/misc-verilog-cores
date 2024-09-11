@@ -7,6 +7,7 @@ module usb_ulpi_core #(
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
     parameter USE_EP4_OUT = 0,
+    parameter [3:0] ENDPOINT4 = 4'd4,
 
     // Debug-mode end-point, for reading telemetry
     parameter DEBUG = 0,
@@ -121,6 +122,7 @@ module usb_ulpi_core #(
       .ENDPOINT1(ENDPOINT1),
       .ENDPOINT2(ENDPOINT2),
       .ENDPOINT3(ENDPOINTD),
+      .ENDPOINT4(ENDPOINT4),
       .USE_EP2_IN(1),
       .USE_EP3_IN(DEBUG),
       .USE_EP1_OUT(1),
