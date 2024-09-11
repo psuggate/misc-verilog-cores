@@ -154,6 +154,30 @@ module usb_ddr3_top (
       .conf_value_o(),
       .crc_error_o (crc_error_w),
 
+`ifdef __use_ddr3_because_reasons
+
+      .blkx_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
+      .blkx_tready_o(s_tready),
+      .blkx_tlast_i (LOOPBACK ? m_tlast : s_tlast),
+      .blkx_tdata_i (LOOPBACK ? m_tdata : s_tdata),
+
+      .blki_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
+      .blki_tready_o(x_tready),
+      .blki_tlast_i (x_tlast),
+      .blki_tdata_i (x_tdata),
+
+      .blky_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(LOOPBACK ? s_tready : m_tready),
+      .blky_tlast_o(m_tlast),
+      .blky_tdata_o(m_tdata),
+
+      .blko_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(y_tready),
+      .blko_tlast_o (y_tlast),
+      .blko_tdata_o (y_tdata)
+
+`else /* !__use_ddr3_because_reasons */
+
       .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(s_tready),
       .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
@@ -173,6 +197,8 @@ module usb_ddr3_top (
       .blky_tready_i(y_tready),
       .blky_tlast_o (y_tlast),
       .blky_tdata_o (y_tdata)
+
+`endif /* !__use_ddr3_because_reasons */
   );
 
   assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w ^ ddr3_conf_w;

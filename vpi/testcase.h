@@ -8,10 +8,10 @@
 
 
 #define BULK_IN_EP 1
-// #define BULK_IN_EP 2
+#define DDR3_IN_EP 3
 
 #define BULK_OUT_EP 2
-// #define BULK_OUT_EP 1
+#define DDR3_OUT_EP 5
 
 
 /**

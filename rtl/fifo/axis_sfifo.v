@@ -68,6 +68,10 @@ module axis_sfifo #(
     end // g_bypass
   else if (USELIB) begin : g_lib_fifo
 
+      wire [ABITS:0] level_w;
+
+      assign level_o = level_w[ASB:0];
+
       // Use the "library" version (by Alex Forencich), as it is smaller (but it
       // has combinational delays on some of its outputs, reducing f_max).
 
@@ -115,7 +119,7 @@ module axis_sfifo #(
           .m_axis_tuser(),
           .m_axis_tdata(m_tdata),
 
-          .status_depth(level_o),
+          .status_depth(level_w),
           .status_depth_commit(),
           .status_overflow(),
           .status_bad_frame(),

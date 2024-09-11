@@ -3,6 +3,7 @@
 
 #include "tc_bulkin.h"
 #include "tc_bulkout.h"
+#include "tc_ddr3out.h"
 #include "tc_getdesc.h"
 #include "tc_getconf.h"
 #include "tc_getstrs.h"
@@ -513,9 +514,11 @@ static int ut_compiletf(char* user_data)
     // -- Read out all of the string descriptors, then OUT some data -- //
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
+    state->tests[i++] = test_ddr3out(0x0280F0);
     state->tests[i++] = test_waitsof(); // 22.5 us
 
     // -- Bidirectional transfers & queries -- //
+    state->tests[i++] = test_bulkout();
     state->tests[i++] = test_bulkin(1);
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_getconf();

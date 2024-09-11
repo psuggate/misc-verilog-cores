@@ -129,7 +129,7 @@ module usb_ulpi_core #(
       .USE_EP3_IN(USE_EP3_IN),
       .USE_EP1_OUT(1),
       .USE_EP4_OUT(USE_EP4_OUT)
-  ) U_USB1 (
+  ) U_TOP1 (
       .areset_n(~reset),
       // .areset_n(arst_n),
 
@@ -168,7 +168,7 @@ module usb_ulpi_core #(
       .blky_tdata_o (blky_tdata_o)
   );
 
-  assign crc_error_o = U_USB1.crc_error_w;
+  assign crc_error_o = U_TOP1.crc_error_w;
 
   // -- Route USB End-Point #3 -- //
 
@@ -211,14 +211,14 @@ module usb_ulpi_core #(
       wire [2:0] st_w;
       wire re_w;
 
-      assign st_w  = U_USB1.stout_w;
-      assign re_w  = U_USB1.RxEvent == 2'b01;
+      assign st_w  = U_TOP1.stout_w;
+      assign re_w  = U_TOP1.RxEvent == 2'b01;
 
-      assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
-      assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
-      assign ep3_w = {U_USB1.ep3_err_w, U_USB1.ep3_sel_w, U_USB1.ep3_par_w, U_USB1.ep3_rdy_w};
-      assign pid_w = U_USB1.U_PROTO1.pid_q;
-      assign sof_w = U_USB1.sof_count_w;
+      assign ep1_w = {U_TOP1.ep1_err_w, U_TOP1.ep1_sel_w, U_TOP1.ep1_par_w, U_TOP1.ep1_rdy_w};
+      assign ep2_w = {U_TOP1.ep2_err_w, U_TOP1.ep2_sel_w, U_TOP1.ep2_par_w, U_TOP1.ep2_rdy_w};
+      assign ep3_w = {U_TOP1.ep3_err_w, U_TOP1.ep3_sel_w, U_TOP1.ep3_par_w, U_TOP1.ep3_rdy_w};
+      assign pid_w = U_TOP1.U_PROTO1.pid_q;
+      assign sof_w = U_TOP1.sof_count_w;
 
       assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
       assign ign_w = {crc_error_o, sof_w};  // 12b

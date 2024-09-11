@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-#define __fast_eop
+// #define __fast_eop
 
 // Use realistic simulation delays, or conveniently-short delays?
 // #define __long_timers

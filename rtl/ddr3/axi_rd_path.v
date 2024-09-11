@@ -8,6 +8,7 @@ module axi_rd_path #(
 
     parameter  MASKS = WIDTH / 8,
     localparam SSB   = MASKS - 1,
+    localparam KZERO = {MASKS{1'b0}},
 
     parameter AXI_ID_WIDTH = 4,
     localparam ISB = AXI_ID_WIDTH - 1,
@@ -176,7 +177,7 @@ module axi_rd_path #(
 
       .s_tvalid(mem_valid_i),
       .s_tready(rdf_ready),
-      .s_tkeep (1'b0),
+      .s_tkeep (KZERO),
       .s_tlast (mem_last_i),
       .s_tdata (mem_data_i),
 

@@ -1,9 +1,17 @@
 `timescale 1ns / 100ps
+`define __use_ddr3_because_reasons
 module vpi_usb_ulpi_tb;
 
   localparam DEBUG = 1;
+  localparam LOGGER = 0;
+
+  // DDR3 settings
+  localparam WR_PREFETCH = 0;
+  localparam LOW_LATENCY = 0;
+
+  // USB settings
   localparam MAX_PACKET_LENGTH = 512;
-  // localparam MAX_PACKET_LENGTH = 16;
+  localparam MAX_CONFIG_LENGTH = 64;
 
   localparam ENDPOINT1 = 4'd2;
   localparam ENDPOINT2 = 4'd1;
@@ -138,37 +146,41 @@ module vpi_usb_ulpi_tb;
       .ddr_clock()        // 120 MHz, PLL output, phase-shifted
   );
 
+
   //
   // Cores Under New Tests
   ///
 
-  `define __use_small_packets
-
+  wire io_tvalid, io_tready, io_tlast;
   wire x_tvalid, x_tready, x_tkeep, x_tlast;
-  wire [7:0] x_tdata;
   wire y_tvalid, y_tready, y_tkeep, y_tlast;
-  wire [7:0] y_tdata;
+  wire [7:0] x_tdata, y_tdata, io_tdata;
 
-  usb_ulpi_top #(
+  usb_ulpi_core #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
-      .DEBUG            (DEBUG),
+      .MAX_CONFIG_LENGTH(MAX_CONFIG_LENGTH),
       .ENDPOINT1        (ENDPOINT1),
       .ENDPOINT2        (ENDPOINT2),
-      .ENDPOINT3        (ENDPOINT3),
+      .ENDPOINTD        (ENDPOINT3),
       .ENDPOINT4        (ENDPOINT4),
-      .USE_EP2_IN       (1),
-      .USE_EP3_IN       (1),
-      .USE_EP1_OUT      (1),
-      .USE_EP4_OUT      (1)
+      .USE_EP4_OUT      (1),
+      .DEBUG            (DEBUG),
+      .LOGGER           (LOGGER),
+      .USE_UART         (0)
   ) U_USB1 (
-      .areset_n(~reset),
-      // .areset_n(usb_rst_n),
+      .clk_26(clk25),
+      .arst_n(arst_n),
 
-      .ulpi_clock_i(usb_clock),
-      .ulpi_dir_i  (ulpi_dir),
-      .ulpi_nxt_i  (ulpi_nxt),
-      .ulpi_stp_o  (ulpi_stp),
-      .ulpi_data_io(ulpi_data),
+      .ulpi_clk(usb_clock),
+      .ulpi_dir  (ulpi_dir),
+      .ulpi_nxt  (ulpi_nxt),
+      .ulpi_stp  (ulpi_stp),
+      .ulpi_data(ulpi_data),
+
+      // Todo: debug UART signals ...
+      .send_ni  (1'b1),
+      .uart_rx_i(1'b1),
+      .uart_tx_o(),
 
       .usb_clock_o(dev_clock),
       .usb_reset_o(dev_reset),
@@ -176,161 +188,38 @@ module vpi_usb_ulpi_tb;
       .configured_o(configured),
       .conf_event_o(conf_event),
       .conf_value_o(usb_config),
-
-`ifdef __use_small_packets
-      .blki_tvalid_i(blki_tvalid_w),  // USB 'BULK IN' EP data-path
-      .blki_tready_o(blki_tready_w),
-      .blki_tlast_i (blki_tlast_w),
-      .blki_tdata_i (blki_tdata_w),
-`else  /* !__use_small_packets */
-      .blki_tvalid_i(blko_tvalid_w),  // USB 'BULK IN' EP data-path
-      .blki_tready_o(blko_tready_w),
-      .blki_tlast_i (blko_tlast_w),
-      .blki_tdata_i (blko_tdata_w),
-`endif  /* !__use_small_packets */
-
-      .blkx_tvalid_i(DEBUG ? x_tvalid : blko_tvalid_w),  // USB 'BULK IN' EP data-path
-      .blkx_tready_o(x_tready),
-      .blkx_tlast_i (DEBUG ? x_tlast : blko_tlast_w),
-      .blkx_tdata_i (DEBUG ? x_tdata : blko_tdata_w),
-
-      .blko_tvalid_o(blko_tvalid_w),  // USB 'BULK OUT' EP data-path
-`ifdef __use_small_packets
-      .blko_tready_i(DEBUG ? 1'b1 : x_tready),
-`else  /* !__use_small_packets */
-      .blko_tready_i(DEBUG ? blko_tready_w : x_tready),
-`endif  /* !__use_small_packets */
-      .blko_tlast_o(blko_tlast_w),
-      .blko_tdata_o(blko_tdata_w)
-  );
-
-  // -- Debug Telemetry Logging and Output -- //
-
-  wire [10:0] sof_w = U_USB1.sof_count_w;
-  wire err_w = U_USB1.crc_error_w;
-  wire [19:0] sig_w;
-  wire [11:0] ign_w;
-  wire [3:0] ep1_w, ep2_w, ep3_w, pid_w;
-  wire [2:0] st_w = U_USB1.stout_w;
-  wire re_w = U_USB1.RxEvent == 2'b01;
-
-  assign ep1_w = {U_USB1.ep1_err_w, U_USB1.ep1_sel_w, U_USB1.ep1_par_w, U_USB1.ep1_rdy_w};
-  assign ep2_w = {U_USB1.ep2_err_w, U_USB1.ep2_sel_w, U_USB1.ep2_par_w, U_USB1.ep2_rdy_w};
-  assign ep3_w = {U_USB1.ep3_err_w, U_USB1.ep3_sel_w, U_USB1.ep3_par_w, U_USB1.ep3_rdy_w};
-  assign pid_w = U_USB1.U_PROTO1.pid_q;
-
-  assign sig_w = {ep3_w, ep2_w, ep1_w, pid_w, re_w, st_w};  // 20b
-  assign ign_w = {err_w, sof_w};  // 12b
-
-  // Capture telemetry, so that it can be read back from EP1
-  axis_logger #(
-      .SRAM_BYTES(2048),
-      .FIFO_WIDTH(32),
-      .SIG_WIDTH(20),
-      .PACKET_SIZE(8)  // Note: 8x 32b words per USB (BULK IN) packet
-  ) U_TELEMETRY1 (
-      .clock(dev_clock),
-      .reset(dev_reset),
-
-      .enable_i(configured),
-      .change_i(sig_w),
-      .ignore_i(ign_w),
-      .level_o (),
-
-      .m_tvalid(x_tvalid),  // AXI4-Stream for telemetry data
-      .m_tready(DEBUG ? x_tready : 1'b0),
-      .m_tkeep(),
-      .m_tlast(x_tlast),
-      .m_tdata(x_tdata)
-  );
-
-  `define __all_in_one_usb_ulpi_core
-`ifdef __all_in_one_usb_ulpi_core
-
-  wire core_clk, core_rst, core_dir, core_nxt, core_stp;
-  wire [7:0] core_dat;
-
-  wire core_tready_w;
-  wire io_tvalid, io_tready, io_tlast;
-  wire [7:0] io_tdata;
-
-  assign core_clk = clock;
-  assign core_dir = ulpi_dir;
-  assign core_nxt = ulpi_nxt;
-  assign core_dat = ulpi_dir ? ulpi_data : 8'bz;
-
-  usb_ulpi_core #(
-      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
-      .ENDPOINT1(ENDPOINT1),
-      .ENDPOINT2(ENDPOINT2),
-      .DEBUG(DEBUG),
-      .USE_UART(0),
-      .ENDPOINTD(ENDPOINT3),
-      .ENDPOINT4(ENDPOINT4),
-      .USE_EP4_OUT      (1)
-  ) U_CORE1 (
-      .clk_26(clk25),
-      .arst_n(arst_n),
-
-      .ulpi_clk (core_clk),
-      .ulpi_rst (core_rst),
-      .ulpi_dir (core_dir),
-      .ulpi_nxt (core_nxt),
-      .ulpi_stp (core_stp),
-      .ulpi_data(core_dat),
-
-      // Todo: debug UART signals ...
-      .send_ni  (1'b1),
-      .uart_rx_i(1'b1),
-      .uart_tx_o(),
-
-      .usb_clock_o(),
-      .usb_reset_o(),
-
-      .configured_o(),
-      .conf_event_o(),
-      .conf_value_o(),
       .crc_error_o (),
 
-`ifdef __use_small_packets
-      .blki_tvalid_i(blki_tvalid_w),  // USB 'BULK IN' EP data-path
-      .blki_tready_o(core_tready_w),
-      .blki_tlast_i(blki_tlast_w),
-      .blki_tdata_i(blki_tdata_w),
-`else  /* !__use_small_packets */
       .blki_tvalid_i(io_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(io_tready),
-      .blki_tlast_i(io_tlast),
-      .blki_tdata_i(io_tdata),
-`endif  /* !__use_small_packets */
-
-      .blkx_tvalid_i(x_tvalid),
-      .blkx_tready_o(),
-      .blkx_tlast_i (x_tlast),
-      .blkx_tdata_i (x_tdata),
+      .blki_tlast_i (io_tlast),
+      .blki_tdata_i (io_tdata),
 
       .blko_tvalid_o(io_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(io_tready),
       .blko_tlast_o (io_tlast),
       .blko_tdata_o (io_tdata),
 
-      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blkx_tvalid_i(x_tvalid),  // DDR3 -> USB 'BULK IN' EP
+      .blkx_tready_o(x_tready),
+      .blkx_tlast_i (x_tlast),
+      .blkx_tdata_i (x_tdata),
+
+      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP -> DDR3
       .blky_tready_i(y_tready),
       .blky_tlast_o (y_tlast),
       .blky_tdata_o (y_tdata)
   );
-
-`endif  /* !__all_in_one_usb_ulpi_core */
 
 
   //
   //  DDR3 Cores Under Next-generation Tests
   ///
 
-`define __use_ddr3_because_reasons
 `ifdef __use_ddr3_because_reasons
 
-  localparam LOW_LATENCY = 0;
+  reg drst_n = 1'b1;
+  wire drst_w = ~drst_n;
 
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
   wire ddr_cs_n, ddr_ras_n, ddr_cas_n, ddr_we_n;
@@ -341,16 +230,22 @@ module vpi_usb_ulpi_tb;
 
   assign y_tkeep = y_tvalid;  // Todo ...
 
+  initial begin
+    drst_n <= 1'b0;
+    #400000 drst_n <= 1'b1;
+  end
+
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
+      .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) ddr_core_inst (
       .clk_26(clk25),  // Dev-board clock
-      .rst_n (arst_n),  // 'S2' button for async-reset
+      .rst_n (drst_n), // 'S2' button for async-reset
 
       .bus_clock(clock),
-      .bus_reset(reset),
+      .bus_reset(drst_w),
 
       .ddr3_conf_o(ddr3_conf_w),
       .ddr_clock_o(sys_clk),
@@ -363,14 +258,12 @@ module vpi_usb_ulpi_tb;
       .s_tlast (y_tlast),
       .s_tdata (y_tdata),
 
-/*
       // To USB or SPI
       .m_tvalid(x_tvalid),
+      .m_tready(x_tready),
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
-*/
-      .m_tready(1'b0),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck_p),

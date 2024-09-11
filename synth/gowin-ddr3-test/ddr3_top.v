@@ -124,17 +124,28 @@ module ddr3_top #(
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
 `ifdef __icarus
-
-  reg dclk = 1, lock_q = 0;
+  //
+  //  Simulation-Only Clocks & Resets
+  ///
+  reg dclk = 1, mclk = 0, lock_q = 0;
 
   assign clk_200 = dclk;
-  assign clk_100 = clk_26;
+  assign clk_100 = mclk;
   assign locked  = lock_q;
 
   always #2.5 dclk <= ~dclk;
-  initial #20 lock_q = 1;
+  always #5.0 mclk <= ~mclk;
+  initial #20 lock_q = 0;
 
-`else
+  always @(posedge mclk or negedge rst_n) begin
+    if (!rst_n) begin
+      lock_q <= 1'b0;
+    end else begin
+      lock_q <= #100000 1'b1;
+    end
+  end
+
+`else /* !__icarus */
 
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(

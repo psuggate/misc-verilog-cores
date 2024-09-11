@@ -11,14 +11,22 @@ typedef enum __bulkout_state {
     BulkOUT0,
     BulkOUT1,
     BulkOUT2,
+    BulkOUT3,
+    BulkOUT4,
+    BulkOUT5,
+    BulkOUT6,
     BulkDone,
 } bulkout_state_t;
 
 static const char tc_bulkout_name[] = "BULK OUT";
-static const char bulkout_strings[4][16] = {
+static const char bulkout_strings[8][16] = {
     {"BulkOUT0"},
     {"BulkOUT1"},
     {"BulkOUT2"},
+    {"BulkOUT3"},
+    {"BulkOUT4"},
+    {"BulkOUT5"},
+    {"BulkOUT6"},
     {"BulkDone"},
 };
 
@@ -89,7 +97,33 @@ static int tc_bulkout_step(usb_host_t* host, void* data)
         return 0;
 
     case BulkOUT2:
-        // BulkOUT2 completed, so move to BulkDone
+        // BulkOUT2 completed, so move to BulkOUT3
+	// Note: Bulk OUT transfer of size=1, because Bulk IN of this size used
+	//   to break the ULPI encoder.
+        tc_bulkout_xfer(host, 1, BULK_OUT_EP);
+        *st = BulkOUT3;
+        return 0;
+
+    case BulkOUT3:
+        // BulkOUT3 completed, so move to BulkOUT4
+        tc_bulkout_xfer(host, 2, BULK_OUT_EP);
+        *st = BulkOUT4;
+        return 0;
+
+    case BulkOUT4:
+        // BulkOUT4 completed, so move to BulkOUT5
+        tc_bulkout_xfer(host, 3, BULK_OUT_EP);
+        *st = BulkOUT5;
+        return 0;
+
+    case BulkOUT5:
+        // BulkOUT5 completed, so move to BulkOUT6
+        tc_bulkout_xfer(host, 4, BULK_OUT_EP);
+        *st = BulkOUT6;
+        return 0;
+
+    case BulkOUT6:
+        // BulkOUT6 completed, so move to BulkDone
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
