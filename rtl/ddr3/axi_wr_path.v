@@ -33,7 +33,7 @@ module axi_wr_path #(
     parameter DATA_FIFO_BLOCK = 1,
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
 
-    parameter USE_SYNC_FIFO = 0
+    parameter USE_SYNC_FIFO = 1
 ) (
     input clock,
     input reset,
@@ -258,34 +258,34 @@ module axi_wr_path #(
   generate
     if (USE_SYNC_FIFO) begin : g_sync_fifo
 
-  packet_fifo #(
-      .WIDTH(MASKS + WIDTH),
-      .DEPTH(1 << DBITS),
-      .SAVE_ON_LAST(1),
-      .LAST_ON_SAVE(0),
-      .NEXT_ON_LAST(1),
-      .OUTREG(DATA_FIFO_BLOCK)
-  ) U_FIFO2 (
-      .clock(clock),
-      .reset(reset),
+      packet_fifo #(
+          .WIDTH(MASKS + WIDTH),
+          .DEPTH(1 << DBITS),
+          .SAVE_ON_LAST(1),
+          .LAST_ON_SAVE(0),
+          .NEXT_ON_LAST(1),
+          .OUTREG(DATA_FIFO_BLOCK)
+      ) U_FIFO2 (
+          .clock(clock),
+          .reset(reset),
 
-      .level_o(),
-      .drop_i (1'b0),
-      .save_i (1'b0),
-      .redo_i (1'b0),
-      .next_i (1'b0),
+          .level_o(),
+          .drop_i (1'b0),
+          .save_i (1'b0),
+          .redo_i (1'b0),
+          .next_i (1'b0),
 
-      .s_tvalid(axi_wvalid_i & wready),
-      .s_tready(wdf_ready),
-      .s_tkeep (1'b1),
-      .s_tlast (axi_wlast_i),
-      .s_tdata ({axi_wstrb_i, axi_wdata_i}), // todo: pad end of bursts ??
+          .s_tvalid(axi_wvalid_i & wready),
+          .s_tready(wdf_ready),
+          .s_tkeep (1'b1),
+          .s_tlast (axi_wlast_i),
+          .s_tdata ({axi_wstrb_i, axi_wdata_i}), // todo: pad end of bursts ??
 
-      .m_tvalid(wdf_valid),
-      .m_tready(mem_ready_i),
-      .m_tlast (wdf_last),
-      .m_tdata ({mem_strb_o, mem_data_o})
-  );
+          .m_tvalid(wdf_valid),
+          .m_tready(mem_ready_i),
+          .m_tlast (wdf_last),
+          .m_tdata ({mem_strb_o, mem_data_o})
+      );
 
     end else begin : g_axis_fifo
 
