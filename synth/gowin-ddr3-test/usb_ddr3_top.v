@@ -67,6 +67,7 @@ module usb_ddr3_top (
   localparam ENDPOINT1 = 4'd1;
   localparam ENDPOINT2 = 4'd2;
   localparam ENDPOINT3 = 4'd3;
+  localparam ENDPOINT4 = 4'd4;
 
   // Maximum packet lengths for each packet-type (up to 1024 & 64, respectively)
   localparam integer MAX_PACKET_LENGTH = 512;
@@ -102,7 +103,7 @@ module usb_ddr3_top (
   // -- LEDs Stuffs -- //
 
   // Note: only 4 (of 6) LED's available in default config
-  assign leds = {~cbits[3:0], 2'b11};
+  assign leds  = {~cbits[3:0], 2'b11};
 
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
@@ -125,7 +126,8 @@ module usb_ddr3_top (
       .DEBUG(DEBUG),
       .USE_UART(0),
       .ENDPOINTD(ENDPOINT3),
-                  .USE_EP4_OUT(USE_EP4_OUT)
+      .ENDPOINT4(ENDPOINT4),
+      .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
       // .clk_26(clk_26),
       .clk_26(sys_clk),
@@ -168,8 +170,8 @@ module usb_ddr3_top (
 
       .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
       .blky_tready_i(y_tready),
-      .blky_tlast_o(y_tlast),
-      .blky_tdata_o(y_tdata)
+      .blky_tlast_o (y_tlast),
+      .blky_tdata_o (y_tdata)
   );
 
   assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w ^ ddr3_conf_w;

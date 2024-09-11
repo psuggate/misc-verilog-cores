@@ -31,7 +31,9 @@ module axi_wr_path #(
 
     parameter DATA_FIFO_DEPTH = 512,
     parameter DATA_FIFO_BLOCK = 1,
-    localparam DBITS = $clog2(DATA_FIFO_DEPTH)
+    localparam DBITS = $clog2(DATA_FIFO_DEPTH),
+
+    parameter USE_SYNC_FIFO = 0
 ) (
     input clock,
     input reset,
@@ -245,6 +247,17 @@ module axi_wr_path #(
 
   // -- Synchronous, 2 kB, Write-Data FIFO -- //
 
+  //
+  // Todo:
+  //  - not required if the data flows directly to a 'Bulk EP IN' core, as these
+  //    already contain sufficient buffering ??
+  //  - use a packet FIFO, so we only bother the AXI bus when we have a full
+  //    frame of data to transfer ??
+  //  - pad end of bursts ??
+  //
+  generate
+    if (USE_SYNC_FIFO) begin : g_sync_fifo
+
   packet_fifo #(
       .WIDTH(MASKS + WIDTH),
       .DEPTH(1 << DBITS),
@@ -273,6 +286,62 @@ module axi_wr_path #(
       .m_tlast (wdf_last),
       .m_tdata ({mem_strb_o, mem_data_o})
   );
+
+    end else begin : g_axis_fifo
+
+      axis_fifo #(
+          .DEPTH(DATA_FIFO_DEPTH),
+          .DATA_WIDTH(WIDTH),
+          .KEEP_ENABLE(1),
+          .KEEP_WIDTH(MASKS),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(0),
+          .ID_WIDTH(1),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(DATA_FIFO_BLOCK),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(1),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_FIFO4 (
+          .clk(clock),
+          .rst(reset),
+
+          .s_axis_tvalid(axi_wvalid_i & wready),
+          .s_axis_tready(wdf_ready),
+          .s_axis_tkeep(axi_wstrb_i),
+          .s_axis_tlast(axi_wlast_i),
+          .s_axis_tid(1'b0),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(1'b0),
+          .s_axis_tdata(axi_wdata_i),
+
+          .pause_req(1'b0),
+          .pause_ack(),
+
+          .m_axis_tvalid(wdf_valid),
+          .m_axis_tready(mem_ready_i),
+          .m_axis_tkeep(mem_strb_o),
+          .m_axis_tlast(wdf_last),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+          .m_axis_tdata(mem_data_o),
+
+          .status_depth(),
+          .status_depth_commit(),
+          .status_overflow(),
+          .status_bad_frame(),
+          .status_good_frame()
+      );
+
+    end
+  endgenerate  /* !SYNC_FIFO */
 
 
   // -- More Simulation Assertions -- //
