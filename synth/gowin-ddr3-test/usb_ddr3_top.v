@@ -201,9 +201,9 @@ module usb_ddr3_top (
 `endif /* !__use_ddr3_because_reasons */
   );
 
-  assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w ^ ddr3_conf_w;
-  assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w ^ sys_rst;
-  assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w ^ crc_error_w;
+  assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w ^ ddr3_conf_w;
+  assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w ^ sys_rst;
+  assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w ^ crc_error_w;
 
 
   //
