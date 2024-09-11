@@ -232,8 +232,9 @@ module axi_wr_path #(
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
   ) U_FIFO1 (
-      .clock(clock),
-      .reset(reset),
+      .clock  (clock),
+      .reset  (reset),
+      .level_o(),
 
       .valid_i(xvalid),
       .ready_o(xready),

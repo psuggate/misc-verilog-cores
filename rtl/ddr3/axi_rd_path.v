@@ -158,6 +158,8 @@ module axi_rd_path #(
 
   // -- Synchronous, 2 kB, Read-Data FIFO -- //
 
+  localparam USELIB = USE_SYNC_FIFO == 0 && DATA_FIFO_BLOCK > 0;
+
   //
   // Todo:
   //  - not required if the data flows directly to a 'Bulk EP IN' core, as these
@@ -166,82 +168,30 @@ module axi_rd_path #(
   //    frame of data to transfer ??
   //  - pad end of bursts ??
   //
-  generate
-    if (USE_SYNC_FIFO) begin : g_sync_fifo
+  axis_sfifo #(
+      .WIDTH (WIDTH),
+      .DEPTH (DATA_FIFO_DEPTH),
+      .OUTREG(DATA_FIFO_BLOCK),
+      .TKEEP (0),
+      .TLAST (1),
+      .USELIB(USELIB)
+  ) U_FIFO3 (
+      .clock  (clock),
+      .reset  (reset),
+      .level_o(),
 
-      sync_fifo #(
-          .WIDTH (WIDTH + 1),
-          .ABITS (DBITS),
-          .OUTREG(DATA_FIFO_BLOCK)
-      ) U_FIFO3 (
-          .clock  (clock),
-          .reset  (reset),
-          .level_o(),
+      .s_tvalid(mem_valid_i),
+      .s_tready(rdf_ready),
+      .s_tkeep (1'b0),
+      .s_tlast (mem_last_i),
+      .s_tdata (mem_data_i),
 
-          .valid_i(mem_valid_i),
-          .ready_o(rdf_ready),
-          .data_i ({mem_last_i, mem_data_i}),
-
-          .valid_o(axi_rvalid_o),
-          .ready_i(axi_rready_i),
-          .data_o ({axi_rlast_o, axi_rdata_o})
-      );
-
-    end else begin : g_axis_fifo
-
-      axis_fifo #(
-          .DEPTH(DATA_FIFO_DEPTH),
-          .DATA_WIDTH(WIDTH),
-          .KEEP_ENABLE(0),
-          .KEEP_WIDTH(1),
-          .LAST_ENABLE(1),
-          .ID_ENABLE(0),
-          .ID_WIDTH(1),
-          .DEST_ENABLE(0),
-          .DEST_WIDTH(1),
-          .USER_ENABLE(0),
-          .USER_WIDTH(1),
-          .RAM_PIPELINE(DATA_FIFO_BLOCK),
-          .OUTPUT_FIFO_ENABLE(0),
-          .FRAME_FIFO(0),
-          .USER_BAD_FRAME_VALUE(0),
-          .USER_BAD_FRAME_MASK(0),
-          .DROP_BAD_FRAME(0),
-          .DROP_WHEN_FULL(0)
-      ) U_FIFO4 (
-          .clk(clock),
-          .rst(reset),
-
-          .s_axis_tvalid(mem_valid_i),
-          .s_axis_tready(rdf_ready),
-          .s_axis_tkeep(1'b1),
-          .s_axis_tlast(mem_last_i),
-          .s_axis_tid(1'b0),
-          .s_axis_tdest(1'b0),
-          .s_axis_tuser(1'b0),
-          .s_axis_tdata(mem_data_i),
-
-          .pause_req(1'b0),
-          .pause_ack(),
-
-          .m_axis_tvalid(axi_rvalid_o),
-          .m_axis_tready(axi_rready_i),
-          .m_axis_tkeep(),
-          .m_axis_tlast(axi_rlast_o),
-          .m_axis_tid(),
-          .m_axis_tdest(),
-          .m_axis_tuser(),
-          .m_axis_tdata(axi_rdata_o),
-
-          .status_depth(),
-          .status_depth_commit(),
-          .status_overflow(),
-          .status_bad_frame(),
-          .status_good_frame()
-      );
-
-    end
-  endgenerate  /* !SYNC_FIFO */
+      .m_tvalid(axi_rvalid_o),
+      .m_tready(axi_rready_i),
+      .m_tkeep (),
+      .m_tlast (axi_rlast_o),
+      .m_tdata (axi_rdata_o)
+  );
 
 
 `ifdef __icarus

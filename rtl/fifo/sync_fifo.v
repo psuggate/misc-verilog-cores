@@ -1,7 +1,17 @@
 `timescale 1ns / 100ps
 /**
- * Skid-buffer for the output data, so that registered-output SRAM's can be
- * used; e.g., Xilinx Block SRAMs, or GoWin BSRAMs.
+ * Synchronous FIFO with similar flow-control to that used by AXI-Stream.
+ *
+ * Various FPGA SRAM-types can be supported, with either zero or one pipeline-
+ * registers (within the SRAM primitive), with additional pipeline registers, as
+ * well as supporting fast-reads (similar to First-Word-Fall-Through, FWFT), if
+ * desired.
+ *
+ * There are four output pipeline settings, with the last two instantiating a
+ * skid-buffer, for the output data, so that registered-output SRAM's can be
+ * used; e.g., Xilinx Block SRAMs, or GoWin BSRAMs, and without additional wait-
+ * states when stopping and starting.
+ *
  * Notes:
  *  - OUTREG = 0 for a FIFO that supports LUT-SRAMs with asynchronous reads
  *  - OUTREG = 1 for the smallest block-SRAM FIFO
@@ -36,20 +46,15 @@ module sync_fifo #(
 
   reg [MSB:0] sram[0:DEPTH-1];
 
-  // Write-port signals
-  reg wready;
-  reg [ABITS:0] waddr;
-  wire [ABITS:0] waddr_next;
-
-  // Read-port signals
-  reg rvalid;
-  reg [ABITS:0] raddr;
-  wire [ABITS:0] raddr_next;
+  // Read- & write- port signals
+  reg wready, rvalid;
+  reg [ABITS:0] waddr, raddr;
+  wire waddr_of_w, raddr_of_w;
+  wire [ABITS:0] waddr_w, raddr_w, waddr_next, raddr_next;
 
   // Transition signals
   reg [ASB:0] level_q;
   wire fetch_w, store_w, match_w, wfull_w, empty_w;
-  wire [ABITS:0] waddr_w, raddr_w;
 
   // Optional extra stage of registers, so that block SRAMs can be used
   reg xvalid;
@@ -58,72 +63,29 @@ module sync_fifo #(
   wire sready, tready;
   wire [MSB:0] sdata_w;
 
-
   assign level_o = level_q;
   assign ready_o = wready;
 
-
   // -- FIFO Status Signals -- //
 
-  wire wrfull_next = waddr_next[ASB:0] == raddr[ASB:0] && store_w && !fetch_w;
-  wire wrfull_curr = match_w && waddr[ABITS] != raddr[ABITS] && fetch_w == store_w;
+  wire wrfull_next, wrfull_curr, rempty_next, rempty_curr;
+  wire incr_w, decr_w;
+  wire [ABITS:0] lnext_w;
 
-  wire rempty_next = raddr_next[ASB:0] == waddr[ASB:0] && fetch_w && !store_w;
-  wire rempty_curr = match_w && waddr[ABITS] == raddr[ABITS] && fetch_w == store_w;
+  assign wrfull_next = waddr_next[ASB:0] == raddr[ASB:0] && store_w && !fetch_w;
+  assign wrfull_curr = match_w && waddr[ABITS] != raddr[ABITS] && fetch_w == store_w;
+
+  assign rempty_next = raddr_next[ASB:0] == waddr[ASB:0] && fetch_w && !store_w;
+  assign rempty_curr = match_w && waddr[ABITS] == raddr[ABITS] && fetch_w == store_w;
 
   assign match_w = waddr[ASB:0] == raddr[ASB:0];
   assign wfull_w = wrfull_curr | wrfull_next;
   assign empty_w = rempty_curr | rempty_next;
 
-  assign waddr_w = store_w ? waddr_next : waddr;
-  assign raddr_w = fetch_w ? raddr_next : raddr;
-
-
-  // -- Write Port -- //
-
-  wire waddr_of_w;
-  assign {waddr_of_w, waddr_next} = waddr + 1;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      waddr  <= {ADDRS{1'b0}};
-      wready <= 1'b0;
-    end else begin
-      wready <= ~wfull_w;
-
-      if (store_w) begin
-        sram[waddr[ASB:0]] <= data_i;
-        waddr <= waddr_next;
-      end
-    end
-  end
-
-
-  // -- Read Port -- //
-
-  wire raddr_of_w;
-  assign {raddr_of_w, raddr_next} = raddr + 1;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      raddr  <= {ADDRS{1'b0}};
-      rvalid <= 1'b0;
-    end else begin
-      rvalid <= ~empty_w;
-
-      if (fetch_w) begin
-        raddr <= raddr_next;
-      end
-    end
-  end
-
-
-  // -- FIFO Status -- //
-
-  wire incr_w = valid_i && wready;
-  wire decr_w = valid_o && ready_i;
-
-  wire [ABITS:0] lnext_w = level_q + incr_w - decr_w;
+  // Todo: is this efficient enough !?
+  assign incr_w = valid_i && wready;
+  assign decr_w = valid_o && ready_i;
+  assign lnext_w = level_q + incr_w - decr_w;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -133,6 +95,34 @@ module sync_fifo #(
     end
   end
 
+  // -- Read- & Write- Port Logic -- //
+
+  assign waddr_w = store_w ? waddr_next : waddr;
+  assign raddr_w = fetch_w ? raddr_next : raddr;
+
+  assign {waddr_of_w, waddr_next} = waddr + 1;
+  assign {raddr_of_w, raddr_next} = raddr + 1;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      waddr  <= {ADDRS{1'b0}};
+      raddr  <= {ADDRS{1'b0}};
+      wready <= 1'b0;
+      rvalid <= 1'b0;
+    end else begin
+      wready <= ~wfull_w;
+      rvalid <= ~empty_w;
+
+      if (store_w) begin
+        sram[waddr[ASB:0]] <= data_i;
+        waddr <= waddr_next;
+      end
+
+      if (fetch_w) begin
+        raddr <= raddr_next;
+      end
+    end
+  end
 
   // -- Output Register (OPTIONAL) -- //
 
@@ -174,7 +164,6 @@ module sync_fifo #(
        */
       assign fetch_w  = rvalid && (!xvalid || xvalid && xready_w);
 
-
       // -- First-Word Fall-Through -- //
 
       assign xready_w = sready;
@@ -182,7 +171,6 @@ module sync_fifo #(
       assign tvalid_w = !rvalid && xvalid && valid_i && wready;
       assign svalid_w = xvalid || !xvalid && !rvalid && valid_i && OUTREG > 1;
       assign sdata_w  = !xvalid && valid_i && sready && OUTREG > 1 ? data_i : xdata;
-
 
       // -- SRAM Output-Register -- //
 
@@ -198,7 +186,6 @@ module sync_fifo #(
           end
         end
       end
-
 
       // -- Skid Register with Loadable, Overflow Register -- //
 

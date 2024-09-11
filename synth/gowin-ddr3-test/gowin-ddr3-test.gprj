@@ -33,6 +33,7 @@
         <File path="../../rtl/ddr3/ddr3_telemetry.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/afifo_gray.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_afifo.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/fifo/axis_sfifo.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/fifo_dc_gray.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/packet_fifo.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/sync_fifo.v" type="file.verilog" enable="1"/>
