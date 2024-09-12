@@ -514,7 +514,8 @@ static int ut_compiletf(char* user_data)
     // -- Read out all of the string descriptors, then OUT some data -- //
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
-    state->tests[i++] = test_ddr3out(0x0280F0);
+    state->tests[i++] = test_ddr3out(0x02A8F0);
+    // state->tests[i++] = test_ddr3out(0x0280F0);
     state->tests[i++] = test_waitsof(); // 22.5 us
 
     // -- Bidirectional transfers & queries -- //

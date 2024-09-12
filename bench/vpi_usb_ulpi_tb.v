@@ -240,9 +240,9 @@ module vpi_usb_ulpi_tb;
       .DATA_WIDTH (32),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
-  ) ddr_core_inst (
+  ) U_DDRC1 (
       .clk_26(clk25),  // Dev-board clock
-      .rst_n (drst_n), // 'S2' button for async-reset
+      .arst_n(drst_n), // 'S2' button for async-reset
 
       .bus_clock(clock),
       .bus_reset(drst_w),

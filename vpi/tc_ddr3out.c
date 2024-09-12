@@ -64,7 +64,7 @@ static void tc_ddr3out_xfer(usb_host_t* host, int n, const ddr3out_state_t* st)
     xfer->tx_ptr = 0;
 
     xfer->tx[0] = 0x01; // STORE
-    xfer->tx[1] = (uint8_t)n; // Length
+    xfer->tx[1] = (uint8_t)(n - 1) | 0x03u; // Length - 1 (AXI4)
     xfer->tx[2] = st->addr & 0xFF;
     xfer->tx[3] = (st->addr >> 8) & 0xFF;
     xfer->tx[4] = (st->addr >> 16) & 0xFF;

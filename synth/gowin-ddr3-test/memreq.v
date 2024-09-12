@@ -227,7 +227,12 @@ module memreq #(
   // Note: According to the AXI spec., not supposed to have combinational logic
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
   //   out this way.
-  assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE;
+  assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE && (rd_w ? fready_w : x_tvalid);
+  // assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE;
+
+  assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
+  assign wr_ack_w = awvalid_o && awready_i;
+  assign wr_end_w = x_tvalid && x_tready && x_tlast;
 
   always @(posedge mem_clock) begin
     if (mem_reset || wr_ack_w || rd_ack_w) begin
@@ -263,10 +268,6 @@ module memreq #(
   );
 
   // -- Write-Port, Memory-Domain FSM -- //
-
-  assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
-  assign wr_ack_w = awvalid_o && awready_i;
-  assign wr_end_w = x_tvalid && x_tready && x_tlast;
 
   // Todo ...
   assign awvalid_o = cmd_m && !rd_m;
@@ -358,7 +359,7 @@ module memreq #(
       .USER_WIDTH(1),
       .RAM_PIPELINE(1),
       .OUTPUT_FIFO_ENABLE(0),
-      .FRAME_FIFO(0),
+      .FRAME_FIFO(1),
       .USER_BAD_FRAME_VALUE(0),
       .USER_BAD_FRAME_MASK(0),
       .DROP_BAD_FRAME(0),

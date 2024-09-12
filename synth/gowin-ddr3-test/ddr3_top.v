@@ -8,7 +8,7 @@ module ddr3_top #(
     parameter WR_PREFETCH = 1'b0   // 0 or 1
 ) (
     input clk_26,
-    input rst_n,   // 'S2' button for async-reset
+    input arst_n,   // 'S2' button for async-reset
 
     input bus_clock,
     input bus_reset,
@@ -137,8 +137,8 @@ module ddr3_top #(
   always #5.0 mclk <= ~mclk;
   initial #20 lock_q = 0;
 
-  always @(posedge mclk or negedge rst_n) begin
-    if (!rst_n) begin
+  always @(posedge mclk or negedge arst_n) begin
+    if (!arst_n) begin
       lock_q <= 1'b0;
     end else begin
       lock_q <= #100000 1'b1;
@@ -154,7 +154,7 @@ module ddr3_top #(
       .FBDIV_SEL(FBDIV_SEL),
       .ODIV_SEL(ODIV_SEL),
       .DYN_SDIV_SEL(SDIV_SEL)
-  ) axis_rpll_inst (
+  ) U_rPLL1 (
       .clkout(clk_200),  // 200 MHz
       .clockd(clk_100),  // 100 MHz
       .lock  (locked),
@@ -250,7 +250,9 @@ module ddr3_top #(
       .MEM_ID_WIDTH (REQID),
       .BYPASS_ENABLE(0),
       .TELEMETRY    (0)
-  ) ddr_core_inst (
+  ) U_LITE (
+      .arst_n(arst_n), // Global, asynchronous reset
+
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset
 
@@ -348,7 +350,7 @@ module ddr3_top #(
       .WR_PREFETCH(WR_PREFETCH),
       .DDR3_WIDTH (16),
       .ADDR_BITS  (DDR_ROW_BITS)
-  ) u_phy (
+  ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
       .clk_ddr(ddr_clk),
@@ -397,7 +399,7 @@ module ddr3_top #(
   generic_ddr3_phy #(
       .DDR3_WIDTH(16),  // (default)
       .ADDR_BITS(DDR_ROW_BITS)  // default: 14
-  ) ddr3_phy_inst (
+  ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
       .clk_ddr(ddr_clk),

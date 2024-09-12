@@ -178,7 +178,7 @@ module ddr3_axi_ctrl #(
       .AXI_ID_WIDTH(REQ_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
-  ) axi_wr_path_inst (
+  ) U_WR_PATH1 (
       .clock(clock),
       .reset(reset),
 
@@ -223,7 +223,7 @@ module ddr3_axi_ctrl #(
       .AXI_ID_WIDTH(MEM_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
-  ) axi_rd_path_inst (
+  ) U_RD_PATH1 (
       .clock(clock),
       .reset(reset),
 
@@ -264,7 +264,7 @@ module ddr3_axi_ctrl #(
       .WIDTH (AXI_ID_WIDTH),
       .ABITS (CBITS),
       .OUTREG(CTRL_FIFO_BLOCK)
-  ) rd_resp_fifo_inst (
+  ) U_RD_RESP1 (
       .clock(clock),
       .reset(reset),
 

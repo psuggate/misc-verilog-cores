@@ -7,6 +7,8 @@
  * read-requests, and data-writes.
  */
 module ddr3_fsm (
+                 arst_n,
+
     clock,
     reset,
 
@@ -38,6 +40,8 @@ module ddr3_fsm (
     ddl_ba_o,
     ddl_adr_o
 );
+
+  parameter NEXT_GEN_FSM = 1;
 
   // DDR3 SRAM Timings
   parameter DDR_FREQ_MHZ = 100;
@@ -83,6 +87,7 @@ module ddr3_fsm (
   parameter ADDRS = 23;
   localparam ASB = ADDRS - 1;
 
+  input arst_n; // Global, asynchronous reset
 
   input clock;  // Shared clock domain for the memory-controller
   input reset;  // Synchronous reset
@@ -120,8 +125,8 @@ module ddr3_fsm (
   output [2:0] ddl_ba_o;
   output [RSB:0] ddl_adr_o;
 
-
-  // todo:
+  //
+  // Todo:
   //  - detect same bank+row, for subsequent commands
   //     + long-bursts that cross page boundaries ?
   //     + "coalesce" reads and/or writes to same pages ?
@@ -135,7 +140,7 @@ module ddr3_fsm (
   //    determined, and pushed to a FIFO well-ahead of their actual dispatch ?
   //  - refresh issuing, as this can be flexible ?
   //  - which part of the address should map to the bank bits?
-
+  //
 
   // -- Constants -- //
 
@@ -169,19 +174,33 @@ module ddr3_fsm (
   wire store_w, fetch_w;
 
 
+  // -- Next-Generation FSM Settings, Signals, and Registers -- //
+
+  // Todo: does not handle the x4 SDRAMs
+  localparam PBITS = DDR_ROW_BITS - DDR_COL_BITS;
+  localparam PZERO = {PBITS{1'b0}};
+  localparam PUNIT = {{PSB{1'b0}}, 1'b1};
+  localparam PSB   = PBITS - 1;
+
+  reg [RSB:0] adr_c, adr_r, row_c, row_q;
+  reg [CSB:0] col_c, col_q;
+  reg [2:0] ba_c, ba_r, cmd_c, cmd_r;
+  reg [PSB:0] pre_c, pre_q;
+  reg wak_c, wak_q, rak_c, rak_q, req_c, req_r;
+
   assign cfg_rdy_o = ddl_rdy_i;
 
-  assign mem_wrack_o = wrack;
+  assign mem_wrack_o = NEXT_GEN_FSM ? wak_q : wrack;
   assign mem_wrerr_o = 1'b0;
-  assign mem_rdack_o = rdack;
+  assign mem_rdack_o = NEXT_GEN_FSM ? rak_q : rdack;
   assign mem_rderr_o = 1'b0;
 
-  assign ddl_req_o = req_q;
-  assign ddl_seq_o = req_x;
-  assign ddl_cmd_o = cmd_q;
-  assign ddl_ba_o = ba_q;
-  assign ddl_adr_o = adr_q;
-
+  // assign ddl_req_o = NEXT_GEN_FSM ? (state != ST_IDLE) : req_q;
+  assign ddl_req_o = NEXT_GEN_FSM ? req_r : req_q;
+  assign ddl_seq_o = NEXT_GEN_FSM ? (pre_q == 0) : req_x;
+  assign ddl_cmd_o = NEXT_GEN_FSM ? cmd_r : cmd_q;
+  assign ddl_ba_o  = NEXT_GEN_FSM ? ba_r  : ba_q;
+  assign ddl_adr_o = NEXT_GEN_FSM ? adr_r : adr_q;
 
   // -- Address Logic -- //
 
@@ -206,6 +225,130 @@ module ddr3_fsm (
   assign wrsel = (state != ST_IDLE && store_w) || mem_wrreq_i && !mem_rdreq_i;
   assign adr_w = wrsel ? wrcol : rdcol;
 
+  // -- Next-Generation FSM Logics -- //
+
+  always @* begin
+    adr_c = adr_r;
+    row_c = row_q;
+    col_c = col_q;
+    ba_c  = ba_r;
+    pre_c = pre_q;
+    wak_c = 1'b0;
+    rak_c = 1'b0;
+    cmd_c = cmd_r;
+    req_c = req_r;
+
+    if (mem_rdreq_i || mem_wrreq_i || ddl_ref_i) begin
+      req_c = 1'b1;
+    end else if (ddl_rdy_i && snext == ST_IDLE) begin
+      req_c = 1'b0;
+    end
+
+    case (state)
+      ST_IDLE: begin
+        if (ddl_ref_i) begin
+          pre_c = PUNIT;
+          row_c = {pre_c, col_c};
+          cmd_c = CMD_REFR;
+        end else if (mem_rdreq_i) begin
+          {row_c, ba_c, col_c} = mem_rdadr_i;
+          pre_c = mem_rdlst_i ? PUNIT : PZERO;
+          rak_c = 1'b1;
+          cmd_c = CMD_ACTV;
+        end else if (mem_wrreq_i) begin
+          {row_c, ba_c, col_c} = mem_wradr_i;
+          pre_c = mem_wrlst_i ? PUNIT : PZERO;
+          wak_c = 1'b1;
+          cmd_c = CMD_ACTV;
+        end
+        adr_c = row_c;
+      end
+
+      ST_ACTV: begin
+        if (ddl_rdy_i) begin
+          adr_c = {pre_q, col_q};
+          cmd_c = fetch_w ? CMD_READ : CMD_WRIT;
+          /*
+          if (fetch_w && pre_q == 0 && mem_rdreq_i) begin
+            rak_c = 1'b1;
+            col_c = mem_rdadr_i[CSB:0];
+            pre_c = mem_rdlst_i ? PUNIT : PZERO;
+          end else if (store_w && pre_q == 0 && mem_wrreq_i) begin
+            wak_c = 1'b1;
+            col_c = mem_wradr_i[CSB:0];
+            pre_c = mem_wrlst_i ? PUNIT : PZERO;
+          end
+          */
+        end
+      end
+
+      ST_WRIT: begin
+        if (ddl_rdy_i) begin
+          if (pre_q == 0 && mem_wrreq_i) begin
+            wak_c = 1'b1;
+            col_c = mem_wradr_i[CSB:0];
+            pre_c = mem_wrlst_i ? PUNIT : PZERO;
+            cmd_c = CMD_WRIT;
+          end else begin
+            cmd_c = CMD_NOOP;
+          end
+          adr_c = {pre_c, col_c};
+        end
+      end
+
+      ST_READ: begin
+        if (ddl_rdy_i) begin
+          if (pre_q == 0 && mem_rdreq_i) begin
+            rak_c = 1'b1;
+            col_c = mem_rdadr_i[CSB:0];
+            pre_c = mem_rdlst_i ? PUNIT : PZERO;
+            cmd_c = CMD_READ;
+          end else begin
+            cmd_c = CMD_NOOP;
+          end
+          adr_c = {pre_c, col_c};
+        end
+      end
+
+      ST_REFR: begin
+        if (!ddl_ref_i || ddl_rdy_i) begin
+          cmd_c = CMD_NOOP;
+          req_c = snext == ST_IDLE ? 1'b0 : 1'b1;
+        end
+      end
+    endcase
+
+    if (reset) begin
+      adr_c = cfg_adr_i;
+      row_c = cfg_adr_i;
+      {pre_c, col_c} = cfg_adr_i;
+      ba_c  = cfg_ba_i;
+      wak_c = 1'b0;
+      rak_c = 1'b0;
+      cmd_c = cfg_cmd_i;
+      req_c = cfg_req_i;
+    end
+  end
+
+  always @(posedge clock or negedge arst_n) begin
+    if (!arst_n) begin
+      pre_q <= 0;
+      wak_q <= 1'b0;
+      rak_q <= 1'b0;
+      cmd_r <= CMD_NOOP;
+      req_r <= 1'b0;
+    end else begin
+      adr_r <= adr_c;
+      row_q <= row_c;
+      col_q <= col_c;
+      ba_r  <= ba_c;
+      pre_q <= pre_c;
+      wak_q <= wak_c;
+      rak_q <= rak_c;
+      cmd_r <= cmd_c;
+      req_r <= req_c;
+    end
+  end
 
   // -- Main State Machine -- //
 

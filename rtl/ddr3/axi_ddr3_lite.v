@@ -69,6 +69,8 @@ module axi_ddr3_lite #(
     localparam CTRL_FIFO_DEPTH = 16,
     localparam DATA_FIFO_DEPTH = 512
 ) (
+    input arst_n,
+
     input clock,
     input reset,
 
@@ -198,7 +200,7 @@ module axi_ddr3_lite #(
       .MEM_ID_WIDTH(MEM_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
-  ) ddr3_axi_ctrl_inst (
+  ) U_AXI_CTRL (
       .clock(clock),
       .reset(reset),
       // .reset(~en_q),
@@ -270,7 +272,9 @@ module axi_ddr3_lite #(
       .DDR_COL_BITS(DDR_COL_BITS),
       .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
       .ADDRS(FSM_ADDRS)
-  ) ddr3_fsm_inst (
+  ) U_DDR3_FSM (
+      .arst_n(arst_n),
+
       .clock(clock),
       .reset(~en_q),
 
@@ -311,7 +315,7 @@ module axi_ddr3_lite #(
       .ADDRS(FSM_ADDRS),
       .REQID(AXI_ID_WIDTH),
       .BYPASS_ENABLE(BYPASS_ENABLE)
-  ) ddr3_bypass_inst (
+  ) U_BYPASS (
       .clock(clock),
       .reset(~en_q),
 
@@ -370,7 +374,7 @@ module axi_ddr3_lite #(
       .LOW_LATENCY (LOW_LATENCY),
       .DFI_DQ_WIDTH(PHY_DAT_BITS),
       .DFI_DM_WIDTH(PHY_STB_BITS)
-  ) ddr3_ddl_inst (
+  ) U_DDL1 (
       .clock(clock),
       .reset(reset),
 
@@ -414,7 +418,7 @@ module axi_ddr3_lite #(
   ddr3_cfg #(
       .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
       .DDR_ROW_BITS(DDR_ROW_BITS)
-  ) ddr3_cfg_inst (
+  ) U_DDR3_CFG (
       .clock(clock),
       .reset(reset),
 

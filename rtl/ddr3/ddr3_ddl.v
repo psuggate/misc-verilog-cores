@@ -623,7 +623,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_ACTV'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -635,7 +635,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_READ'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -647,7 +647,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_WRIT'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -659,7 +659,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_PREC'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -674,7 +674,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_REFR'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -686,7 +686,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_MODE'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -698,7 +698,7 @@ module ddr3_ddl (
             end
             default: begin
               $error("%10t: DDL: Unexpected command (0x%1x) in 'ST_ZQCL'", $time, ctl_cmd_i);
-              $fatal;
+              #100 $fatal;
             end
           endcase
         end
@@ -712,7 +712,7 @@ module ddr3_ddl (
     if (!reset && ddr_cke_i && !ddr_cs_ni) begin
       if (busy && ready) begin
         $error("%10t: Can not by BUSY && READY at the same time!", $time);
-        $fatal;
+        #100 $fatal;
       end
     end
   end
