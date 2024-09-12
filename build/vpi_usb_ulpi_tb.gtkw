@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 12 03:14:04 2024
+[*] Thu Sep 12 07:34:34 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Sep 12 02:43:50 2024"
-[dumpfile_size] 24323346
+[dumpfile_mtime] "Thu Sep 12 07:32:42 2024"
+[dumpfile_size] 24309824
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 624811900
+[timestart] 623983800
 [size] 2560 1376
 [pos] -1 -1
-*-15.855694 625105000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 624610000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -38,9 +38,8 @@ vpi_usb_ulpi_tb.ulpi_data[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.configured
-@c00200
--USB Core
 @800200
+-USB Core
 -Decoder
 @820
 [color] 7
@@ -103,7 +102,7 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_ENC1.s_tdata[7:0]
 -Internal
 @1000200
 -Encoder
-@c00200
+@800200
 -USB EPs
 @820
 [color] 7
@@ -175,28 +174,29 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.m_tdata[7:0]
 @1401200
 -IO
 -IN3
-@c00200
+@800201
 -OUT4
-@24
+@25
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.level_w[10:0]
-@28
+@29
 [color] 2
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.selected_i
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tvalid
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tready
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tkeep
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tlast
-@22
+@23
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tdata[7:0]
-@28
+@29
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tvalid
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tready
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tlast
-@22
+@23
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tdata[7:0]
-@1401200
+@1000201
 -OUT4
+@1000200
 -USB EPs
 -USB Core
 @800200
@@ -219,6 +219,8 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awaddr_o[27:0]
 -MemReq
 @800200
 -MemCtrl
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.reset
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_state[39:0]
@@ -229,6 +231,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_snext[39:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_req_o
 [color] 3
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_rdy_i
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_ref_i
 @820
 [color] 2
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_cmd[39:0]
@@ -237,6 +240,15 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_seq_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_ba_o[2:0]
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_adr_o[12:0]
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.req_q
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.req_c
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.col_q[9:0]
+@24
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.pre_q[2:0]
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.cmd_q[2:0]
 @800200
 -WrReq
 @28

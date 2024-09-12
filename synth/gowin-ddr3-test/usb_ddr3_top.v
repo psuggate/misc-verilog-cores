@@ -221,7 +221,7 @@ module usb_ddr3_top (
              .WR_PREFETCH(WR_PREFETCH)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock
-      .rst_n (rst_n),   // 'S2' button for async-reset
+      .arst_n(rst_n),   // 'S2' button for async-reset
 
       .bus_clock(clock),
       .bus_reset(reset),

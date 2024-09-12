@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 12 06:39:55 2024
+[*] Thu Sep 12 07:27:53 2024
 [*]
 [dumpfile] "./axi_ddr3_lite_tb.vcd"
-[dumpfile_mtime] "Thu Sep 12 06:35:51 2024"
-[dumpfile_size] 15117942
+[dumpfile_mtime] "Thu Sep 12 07:26:58 2024"
+[dumpfile_size] 15115825
 [savefile] "./axi_ddr3_lite_tb.gtkw"
-[timestart] 66427600
+[timestart] 65985200
 [size] 2560 1376
 [pos] -1 -1
-*-16.354321 66870000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.354321 66870000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_ddr3_lite_tb.
 [treeopen] axi_ddr3_lite_tb.ddr_core_inst.
 [sst_width] 233
@@ -94,6 +94,10 @@ axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.ddl_rdy_i
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.ddl_req_o
 [color] 2
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.ddl_seq_o
+@29
+axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.req_q
+@28
+axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.req_c
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_wrreq_i
 [color] 3
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_wrack_o
@@ -104,12 +108,11 @@ axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_wradr_i[25:0]
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_rdreq_i
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_rdack_o
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_rdlst_i
-@23
+@22
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.mem_rdadr_i[25:0]
 @28
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.pre_q[2:0]
 axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.cmd_q[2:0]
-axi_ddr3_lite_tb.ddr_core_inst.U_DDR3_FSM.cmd_r[2:0]
 @c00200
 -Config
 @28
