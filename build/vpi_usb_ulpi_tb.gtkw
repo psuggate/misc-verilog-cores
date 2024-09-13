@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Sep 13 06:33:37 2024
+[*] Fri Sep 13 07:54:06 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Sep 13 06:33:18 2024"
-[dumpfile_size] 24673326
+[dumpfile_mtime] "Fri Sep 13 07:52:40 2024"
+[dumpfile_size] 22230450
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 639728800
+[timestart] 622054000
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 640355000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 622680000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -19,7 +19,7 @@
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 150
 [sst_expanded] 1
 [sst_vpaned_height] 695
 @28
@@ -177,7 +177,7 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.m_tdata[7:0]
 @1401200
 -IO
 -IN3
-@800200
+@c00200
 -OUT4
 @24
 [color] 7
@@ -197,14 +197,14 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tready
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tlast
 @22
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tdata[7:0]
-@1000200
+@1401200
 -OUT4
+@1000200
 -USB EPs
 @1401200
 -USB Core
-@c00200
--MemReq
 @800200
+-MemReq
 -IO
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tvalid
@@ -225,6 +225,12 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tdata[7:0]
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_state[39:0]
+@22
+[color] 3
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_sdata[7:0]
+[color] 3
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_mdata[7:0]
+@820
 [color] 6
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_wr[39:0]
 [color] 6
@@ -234,6 +240,19 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_cmd[47:0]
 [color] 2
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_res[47:0]
 @28
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.mux_q
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.sel_q
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.vld_q
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.lst_q
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.idx_q
+@800200
+-Internal
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.c_tvalid_w
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.c_tready_w
+@23
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.c_tdata_w[40:0]
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.tkeep_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_cmd_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_ack_w
@@ -241,7 +260,17 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_end_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_cmd_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_ack_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_end_w
-@800200
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.fvalid_w
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.fready_w
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.b_tvalid
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.b_tready
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.z_tvalid
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.z_tready
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.y_tvalid
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.y_tready
+@1000200
+-Internal
+@c00200
 -Write
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awvalid_o
@@ -265,9 +294,26 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bready_o
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bid_i[3:0]
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bresp_i[1:0]
-@1000200
--Write
 @1401200
+-Write
+@800200
+-Read
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.arvalid_o
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.arready_i
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.arlen_o[7:0]
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.arid_o[3:0]
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.araddr_o[27:0]
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rvalid_i
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rready_o
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rlast_i
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rid_i[3:0]
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rdata_i[31:0]
+@1000200
+-Read
 -MemReq
 @c00200
 -MemCtrl
@@ -283,11 +329,13 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_snext[39:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_req_o
 [color] 3
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_rdy_i
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_ref_i
 @820
 [color] 2
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_cmd[39:0]
+@c00200
+-Internal
 @28
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_ref_i
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_seq_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_ba_o[2:0]
 @22
@@ -301,7 +349,9 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.col_q[9:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.pre_q[2:0]
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.cmd_q[2:0]
-@800200
+@1401200
+-Internal
+@c00200
 -WrReq
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wrreq_o
@@ -313,9 +363,9 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wrlst_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wrtid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wradr_o[25:0]
-@1000200
+@1401200
 -WrReq
-@800200
+@c00200
 -WrDat
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.U_WR_PATH1.g_axis_fifo.s_tvalid
@@ -334,9 +384,9 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wlast_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wmask_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wdata_o[31:0]
-@1000200
+@1401200
 -WrDat
-@c00200
+@800200
 -RdReq
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdreq_o
@@ -348,7 +398,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdlst_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdtid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdadr_o[25:0]
-@1401200
+@1000200
 -RdReq
 @c00200
 -RdDat

@@ -7,15 +7,12 @@
 #include <vpi_user.h>
 
 
+#define NUM_ITER        (7)
+
 typedef enum __ddr3out_step {
-    DDR3Out0,
-    DDR3Out1,
-    DDR3Out2,
-    DDR3Out3,
-    DDR3Out4,
-    DDR3Out5,
-    DDR3Out6,
-    DDR3Done,
+    DDR3Out,
+    DDR3Res,
+    DDR3End,
 } ddr3out_step_t;
 
 typedef struct {
@@ -23,20 +20,16 @@ typedef struct {
     uint8_t step;
     uint8_t iter;
     uint8_t beat;
-    uint8_t ep;
+    uint8_t out;
+    uint8_t in;
     uint8_t id;
 } ddr3out_state_t;
 
 static const char tc_ddr3out_name[] = "BULK DDR3 OUT";
-static const char ddr3out_strings[8][16] = {
-    {"DDR3Out0"},
-    {"DDR3Out1"},
-    {"DDR3Out2"},
-    {"DDR3Out3"},
-    {"DDR3Out4"},
-    {"DDR3Out5"},
-    {"DDR3Out6"},
-    {"DDR3Done"},
+static const char ddr3out_strings[3][16] = {
+    {"DDR3Out"},
+    {"DDR3Res"},
+    {"DDR3End"},
 };
 static const int ddr3out_lengths[8] = { 4, 4, 8, 16, 20, 12, 24, 0 };
 
@@ -44,7 +37,7 @@ static const int ddr3out_lengths[8] = { 4, 4, 8, 16, 20, 12, 24, 0 };
 /**
  * DDR3 OUT transaction-initialisation routine.
  */
-static void tc_ddr3out_xfer(usb_host_t* host, int n, const ddr3out_state_t* st)
+static void tc_ddr3out_cmd(usb_host_t* host, int n, const ddr3out_state_t* st)
 {
     transfer_t* xfer = &host->xfer;
     host->op = HostBulkOUT;
@@ -52,10 +45,10 @@ static void tc_ddr3out_xfer(usb_host_t* host, int n, const ddr3out_state_t* st)
     xfer->type = OUT;
     xfer->stage = NoXfer;
     xfer->address = host->addr;
-    xfer->endpoint = st->ep;
+    xfer->endpoint = st->out;
 
     const uint16_t tok =
-        crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(st->ep & 0x0F) << 7));
+        crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(st->out & 0x0F) << 7));
     xfer->tok1 = tok & 0xFF;
     xfer->tok2 = (tok >> 8) & 0xFF;
 
@@ -81,15 +74,34 @@ static void tc_ddr3out_xfer(usb_host_t* host, int n, const ddr3out_state_t* st)
     xfer->crc2 = (crc >> 8) & 0xFF;
 }
 
+static void tc_ddr3out_res(usb_host_t* host, const ddr3out_state_t* st)
+{
+    transfer_t* xfer = &host->xfer;
+    host->op = HostBulkIN;
+
+    xfer->type = IN;
+    xfer->stage = NoXfer;
+    xfer->address = host->addr;
+    xfer->endpoint = st->in;
+
+    const uint16_t tok =
+        crc5_calc(((uint16_t)host->addr & 0x7F) | ((uint16_t)(st->in & 0x0F) << 7));
+    xfer->tok1 = tok & 0xFF;
+    xfer->tok2 = (tok >> 8) & 0xFF;
+
+    xfer->rx_ptr = 0;
+}
+
 static int tc_ddr3out_init(usb_host_t* host, void* data)
 {
     ddr3out_state_t* st = (ddr3out_state_t*)data;
-    st->step = DDR3Out0;
+    st->step = DDR3Out;
     st->beat = 4;
-    st->ep   = DDR3_OUT_EP;
+    st->out  = DDR3_OUT_EP;
+    st->in   = DDR3_IN_EP;
     st->id   = rand() & 0x0F;
 
-    tc_ddr3out_xfer(host, ddr3out_lengths[st->iter], st);
+    tc_ddr3out_cmd(host, ddr3out_lengths[st->iter], st);
     host->step = 0;
 
     return 0;
@@ -107,53 +119,32 @@ static int tc_ddr3out_step(usb_host_t* host, void* data)
     vpi_printf("\n[%s:%d] %s\n\n", __FILE__, __LINE__, str);
 
     switch (st->step) {
-    case DDR3Out0:
-        // DDR3Out0 completed, so move to DDR3Out1
-        tc_ddr3out_xfer(host, 4, st);
-        st->step = DDR3Out1;
+    case DDR3Out:
+        // DDR3Out completed, so move on to the next DDR3 'STORE' command
+	if (st->iter++ < NUM_ITER) {
+	    tc_ddr3out_cmd(host, ddr3out_lengths[st->iter], st);
+	    st->step = DDR3Out;
+	    return 0;
+	}
+        tc_ddr3out_res(host, st);
+	st->iter = 0;
+        st->step = DDR3Res;
         return 0;
 
-    case DDR3Out1:
-        // DDR3Out1 completed, so move to DDR3Out2
-        tc_ddr3out_xfer(host, 8, st);
-        st->step = DDR3Out2;
-        return 0;
-
-    case DDR3Out2:
-        // DDR3Out2 completed, so move to DDR3Out3
-	// Note: DDR3 OUT transfer of size=1, because DDR3 IN of this size used
-	//   to break the ULPI encoder.
-        tc_ddr3out_xfer(host, 16, st);
-        st->step = DDR3Out3;
-        return 0;
-
-    case DDR3Out3:
-        // DDR3Out3 completed, so move to DDR3Out4
-        tc_ddr3out_xfer(host, 20, st);
-        st->step = DDR3Out4;
-        return 0;
-
-    case DDR3Out4:
-        // DDR3Out4 completed, so move to DDR3Out5
-        tc_ddr3out_xfer(host, 12, st);
-        st->step = DDR3Out5;
-        return 0;
-
-    case DDR3Out5:
-        // DDR3Out5 completed, so move to DDR3Out6
-        tc_ddr3out_xfer(host, 24, st);
-        st->step = DDR3Out6;
-        return 0;
-
-    case DDR3Out6:
-        // DDR3Out6 completed, so move to DDR3Done
+    case DDR3Res:
+        // Fetch each of the DDR3 'STORE' responses
+	if (st->iter++ < NUM_ITER) {
+	    tc_ddr3out_res(host, st);
+	    st->step = DDR3Res;
+	    return 0;
+	}
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
-        st->step = DDR3Done;
+        st->step = DDR3End;
         return 1;
 
-    case DDR3Done:
+    case DDR3End:
         // DDR3 OUT transaction tests completed
         vpi_printf("[%s:%d] WARN => Invoked post-completion\n",
                    __FILE__, __LINE__);
@@ -172,11 +163,12 @@ testcase_t* test_ddr3out(const uint32_t addr)
 {
     testcase_t* tc = malloc(sizeof(testcase_t));
     ddr3out_state_t* st = malloc(sizeof(ddr3out_state_t));
-    st->step = DDR3Out0;
+    st->step = DDR3Out;
     st->iter = 0;
     st->addr = addr; // 16-byte-aligned address
     st->beat = 4; // Bytes per beat
-    st->ep   = DDR3_OUT_EP;
+    st->out  = DDR3_OUT_EP;
+    st->in   = DDR3_IN_EP;
     st->id   = 0x01; // Transaction ID
 
     tc->name = tc_ddr3out_name;

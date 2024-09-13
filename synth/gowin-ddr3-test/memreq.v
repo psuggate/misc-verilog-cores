@@ -17,8 +17,8 @@ module memreq #(
     localparam ASB = ADDRESS_WIDTH - 1,
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1,
-  parameter WR_FRAME_FIFO = 1, // Avoid "starvation," if slow upstream source
-  localparam RD_FRAME_FIFO = 0 // Not useful ??
+    parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
+    localparam RD_FRAME_FIFO = 0  // Not useful ??
 ) (
     input mem_clock,  // DDR3 controller domain
     input mem_reset,
@@ -75,9 +75,60 @@ module memreq #(
     input [MSB:0] rdata_i
 );
 
+  // -- Constants -- //
+
   `include "axi_defs.vh"
 
+  localparam [7:0] CMD_NOP = 8'h00;
+  localparam [7:0] CMD_STORE = 8'h01;
+  localparam [7:0] CMD_WDONE = 8'h02;
+  localparam [7:0] CMD_WFAIL = 8'h03;
+  localparam [7:0] CMD_FETCH = 8'h80;
+  localparam [7:0] CMD_RDATA = 8'h81;
+  localparam [7:0] CMD_RFAIL = 8'h82;
+
+  localparam CMD_FIFO_WIDTH = ID_WIDTH + ADDRESS_WIDTH + 8 + 1;
+  localparam CSB = CMD_FIFO_WIDTH - 1;
+
+  localparam ST_IDLE = 1;
+  localparam ST_WADR = 2;
+  localparam ST_WDAT = 4;
+  localparam ST_RESP = 8;
+  localparam ST_RADR = 16;
+  localparam ST_RDAT = 32;
+  localparam ST_SEND = 64;
+  localparam ST_DONE = 128;
+
+  localparam [3:0] WR_IDLE = 1;
+  localparam [3:0] WR_ADDR = 2;
+  localparam [3:0] WR_DATA = 4;
+  localparam [3:0] WR_RESP = 8;
+
+  localparam [3:0] RD_IDLE = 1;
+  localparam [3:0] RD_ADDR = 2;
+  localparam [3:0] RD_DATA = 4;
+  localparam [3:0] RD_SEND = 8;
+
   // -- Datapath Signals -- //
+
+  reg [7:0] state, snext;
+  reg [3:0] wr, rd;
+  reg [4:0] ptr_q, cmd_m, rd_m;
+  reg wen_q, stb_q;
+  reg [7:0] cmd_q, len_q, len_c, len_m;
+  reg [ISB:0] tid_m;
+  reg [ASB:0] adr_m;
+  reg [ISB:0] tid_q, tid_c;  // 4b
+  reg [ASB:0] adr_q, adr_c;  // 28b
+  wire svalid_w, sready_w;
+  wire tkeep_w, rvalid_w, cmd_end_w;
+  wire bokay_w, wfull_w, rokay_w;
+  wire cmd_w, ack_w, rd_w;
+  wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
+  wire [ISB:0] tid_w, rid_w;
+  wire [  7:0] len_w;
+  wire [ASB:0] adr_w;
+  wire [CSB:0] c_tdata_w;
 
   wire mux_enable_w, mux_select_w;
 
@@ -90,38 +141,7 @@ module memreq #(
   wire [7:0] y_tdata, z_tdata;
   wire [MSB:0] x_tdata, b_tdata, a_tdata;
 
-  // -- Finite State Machine (FSM) for Memory Requests -- //
-
-  localparam ST_IDLE = 1;
-  localparam ST_WADR = 2;
-  localparam ST_WDAT = 4;
-  localparam ST_RESP = 8;
-  localparam ST_RADR = 16;
-  localparam ST_RDAT = 32;
-  localparam ST_SEND = 64;
-
-  reg [6:0] state, snext;
-
   // -- Parser for Memory Transaction Requests -- //
-
-  localparam [7:0] CMD_NOP = 8'h00;
-  localparam [7:0] CMD_STORE = 8'h01;
-  localparam [7:0] CMD_WDONE = 8'h02;
-  localparam [7:0] CMD_WFAIL = 8'h03;
-  localparam [7:0] CMD_FETCH = 8'h80;
-  localparam [7:0] CMD_RDATA = 8'h81;
-  localparam [7:0] CMD_RFAIL = 8'h82;
-
-  reg wen_q, stb_q;
-  reg [4:0] ptr_q;
-  reg [7:0] cmd_q, len_q, len_c;
-  reg [ISB:0] tid_q, tid_c;  // 4b
-  reg [ASB:0] adr_q, adr_c;  // 28b
-  wire tkeep_w, rvalid_w, cmd_end_w;
-  wire bokay_w, wfull_w, rokay_w;
-  wire [ISB:0] rid_w;
-
-  assign cmd_end_w = ptr_q[4];
 
   // DeMUX for memory requests
   always @* begin
@@ -152,13 +172,17 @@ module memreq #(
       tid_q <= tid_c;
       adr_q <= adr_c;
     end
+  end
 
+  always @(posedge bus_clock) begin
     if (bus_reset || stb_q && c_tready_w) begin
       stb_q <= 1'b0;
     end else if (ptr_q[4]) begin
       stb_q <= 1'b1;
     end
+  end
 
+  always @(posedge bus_clock) begin
     if (bus_reset) begin
       wen_q <= 1'b0;
     end else begin
@@ -172,8 +196,7 @@ module memreq #(
 
   // -- FSM for Memory Requests -- //
 
-  wire svalid_w, sready_w;
-
+  assign cmd_end_w = ptr_q[4];
   assign svalid_w = s_tvalid & tkeep_w;
   assign s_tready = sready_w && state != ST_RESP;
 
@@ -191,42 +214,20 @@ module memreq #(
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
         ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
-        ST_RESP: state <= rvalid_w ? ST_IDLE : state;
+        ST_RESP: state <= rvalid_w ? ST_DONE : state;
+        // ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
         // Read States //
         ST_RADR: state <= cmd_end_w ? ST_RDAT : state;
         ST_RDAT: state <= b_tvalid && b_tready && b_tlast ? ST_SEND : state;
         ST_SEND: state <= m_tvalid && m_tready && m_tlast ? ST_IDLE : state;
+
+        ST_DONE: state <= mux_q || sel_q ? state : ST_IDLE;
       endcase
     end
   end
 
   // -- Memory-Domain Command & Address Synchronisation -- //
-
-  localparam CMD_FIFO_WIDTH = ID_WIDTH + ADDRESS_WIDTH + 8 + 1;
-  localparam CSB = CMD_FIFO_WIDTH - 1;
-
-  localparam [3:0] WR_IDLE = 1;
-  localparam [3:0] WR_ADDR = 2;
-  localparam [3:0] WR_DATA = 4;
-  localparam [3:0] WR_RESP = 8;
-
-  localparam [3:0] RD_IDLE = 1;
-  localparam [3:0] RD_ADDR = 2;
-  localparam [3:0] RD_DATA = 4;
-  localparam [3:0] RD_SEND = 8;
-
-  reg [3:0] wr, rd;
-  reg cmd_m, rd_m;
-  reg [  7:0] len_m;
-  reg [ISB:0] tid_m;
-  reg [ASB:0] adr_m;
-  wire cmd_w, ack_w, rd_w;
-  wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
-  wire [ISB:0] tid_w;
-  wire [  7:0] len_w;
-  wire [ASB:0] adr_w;
-  wire [CSB:0] c_tdata_w;
 
   assign c_tvalid_w = stb_q;
   assign c_tdata_w = {cmd_q[7], tid_q, len_q, adr_q};
@@ -318,7 +319,7 @@ module memreq #(
   // -- Read-Port, Memory-Domain FSM -- //
 
   localparam DBITS = $clog2(FIFO_DEPTH);
-  localparam DSB   = DBITS - 1;
+  localparam DSB = DBITS - 1;
 
   // Read-address assignments, to the DDR3 controller
   assign arvalid_o = cmd_m && rd_m;
@@ -378,6 +379,26 @@ module memreq #(
     end else begin
       case (state)
         ST_IDLE: begin
+          mux_q <= 1'b0;
+          sel_q <= 1'b0;
+          idx_q <= 1'b0;
+          vld_q <= 1'b0;
+          lst_q <= 1'b0;
+        end
+
+        ST_RESP: begin
+          if (rvalid_w) begin
+            mux_q <= 1'b1;
+            sel_q <= 1'b1;
+            idx_q <= 1'b0;
+            vld_q <= 1'b1;
+            lst_q <= 1'b0;
+            res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
+            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
+          end
+        end
+
+        ST_DONE: begin
           if (vld_q && !idx_q) begin
             // Send the 2nd byte of the write-response
             mux_q <= 1'b1;
@@ -391,18 +412,6 @@ module memreq #(
             idx_q <= 1'b0;
             vld_q <= 1'b0;
             lst_q <= 1'b0;
-          end
-        end
-
-        ST_RESP: begin
-          if (rvalid_w) begin
-            mux_q <= 1'b1;
-            sel_q <= 1'b1;
-            idx_q <= 1'b0;
-            vld_q <= 1'b1;
-            lst_q <= 1'b0;
-            res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
-            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
           end
         end
 
@@ -712,6 +721,9 @@ module memreq #(
   reg [39:0] dbg_state, dbg_wr, dbg_rd;
   reg [47:0] dbg_cmd, dbg_res;
 
+  wire [7:0] dbg_mdata = m_tvalid & m_tready & m_tkeep ? m_tdata : 8'bz;
+  wire [7:0] dbg_sdata = s_tvalid & s_tready & s_tkeep ? s_tdata : 8'bz;
+
   always @* begin
     case (state)
       ST_IDLE: dbg_state = "IDLE";
@@ -721,6 +733,7 @@ module memreq #(
       ST_RADR: dbg_state = "RADR";
       ST_RDAT: dbg_state = "RDAT";
       ST_SEND: dbg_state = "SEND";
+      ST_DONE: dbg_state = "DONE";
       default: dbg_state = " ?? ";
     endcase
   end
