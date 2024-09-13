@@ -33,6 +33,7 @@ module axi_wr_path #(
     parameter DATA_FIFO_BLOCK = 1,
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
 
+    parameter USE_PACKET_FIFOS = 1,
     parameter USE_SYNC_FIFO = 0
 ) (
     input clock,
@@ -67,9 +68,11 @@ module axi_wr_path #(
     output [MSB:0] mem_data_o
 );
 
-  // todo:
+  //
+  // Todo:
   //  - padding with empty-words for unaligned and/or small transfers
   //  - any advantage to accepting commands _before_ data ??
+  //
 
   // -- Constants -- //
 
@@ -81,12 +84,12 @@ module axi_wr_path #(
   localparam WSB = COMMAND_WIDTH - 1;
 
   // States for capturing write requests
-  localparam ST_IDLE = 4'b0000;
-  localparam ST_FILL = 4'b0001;
-  localparam ST_BUSY = 4'b0010;
+  localparam ST_IDLE = 1;
+  localparam ST_FILL = 2;
+  localparam ST_BUSY = 4;
 
   reg bvalid, aready, wready;
-  reg [  3:0] state;
+  reg [  2:0] state;
   reg [  1:0] bresp;
   reg [ISB:0] bwrid;
 
@@ -257,7 +260,7 @@ module axi_wr_path #(
   //  - pad end of bursts ??
   //
   generate
-    if (USE_SYNC_FIFO) begin : g_sync_fifo
+    if (USE_SYNC_FIFO && USE_PACKET_FIFOS) begin : g_sync_fifo
 
       packet_fifo #(
           .WIDTH(MASKS + WIDTH),
@@ -290,6 +293,8 @@ module axi_wr_path #(
 
     end else begin : g_axis_fifo
 
+      wire s_tvalid = axi_wvalid_i & wready;
+
       axis_fifo #(
           .DEPTH(DATA_FIFO_DEPTH),
           .DATA_WIDTH(WIDTH),
@@ -304,7 +309,7 @@ module axi_wr_path #(
           .USER_WIDTH(1),
           .RAM_PIPELINE(DATA_FIFO_BLOCK),
           .OUTPUT_FIFO_ENABLE(0),
-          .FRAME_FIFO(1),
+          .FRAME_FIFO(USE_PACKET_FIFOS),
           .USER_BAD_FRAME_VALUE(0),
           .USER_BAD_FRAME_MASK(0),
           .DROP_BAD_FRAME(0),
@@ -313,7 +318,7 @@ module axi_wr_path #(
           .clk(clock),
           .rst(reset),
 
-          .s_axis_tvalid(axi_wvalid_i & wready),
+          .s_axis_tvalid(s_tvalid),
           .s_axis_tready(wdf_ready),
           .s_axis_tkeep(axi_wstrb_i),
           .s_axis_tlast(axi_wlast_i),
@@ -344,10 +349,21 @@ module axi_wr_path #(
     end
   endgenerate  /* !SYNC_FIFO */
 
-
-  // -- More Simulation Assertions -- //
-
 `ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_FILL: dbg_state = "FILL";
+      ST_BUSY: dbg_state = "BUSY";
+      default: dbg_state = " ?? ";
+    endcase
+  end
 
   always @(posedge clock) begin
     if (reset);
@@ -370,7 +386,7 @@ module axi_wr_path #(
     end
   end
 
-`endif
+`endif  /* !__icarus */
 
 
-endmodule  // axi_wr_path
+endmodule  /* axi_wr_path */

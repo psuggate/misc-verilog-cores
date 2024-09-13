@@ -8,7 +8,7 @@ module ddr3_top #(
     parameter WR_PREFETCH = 1'b0   // 0 or 1
 ) (
     input clk_26,
-    input arst_n,   // 'S2' button for async-reset
+    input arst_n,  // 'S2' button for async-reset
 
     input bus_clock,
     input bus_reset,
@@ -65,10 +65,10 @@ module ddr3_top #(
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
-`else /* !__gowin_for_the_win */
+`else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
-`endif /* !__gowin_for_the_win */
+`endif  /* !__gowin_for_the_win */
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
@@ -145,7 +145,7 @@ module ddr3_top #(
     end
   end
 
-`else /* !__icarus */
+`else  /* !__icarus */
 
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(
@@ -238,20 +238,21 @@ module ddr3_top #(
   ///
 
   axi_ddr3_lite #(
-      .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
-      .DDR_ROW_BITS (DDR_ROW_BITS),
-      .DDR_COL_BITS (DDR_COL_BITS),
-      .DDR_DQ_WIDTH (DDR_DQ_WIDTH),
-      .PHY_WR_DELAY (PHY_WR_DELAY),
-      .PHY_RD_DELAY (PHY_RD_DELAY),
-      .WR_PREFETCH  (WR_PREFETCH),
-      .LOW_LATENCY  (LOW_LATENCY),
-      .AXI_ID_WIDTH (REQID),
-      .MEM_ID_WIDTH (REQID),
-      .BYPASS_ENABLE(0),
-      .TELEMETRY    (0)
+      .DDR_FREQ_MHZ    (DDR_FREQ_MHZ),
+      .DDR_ROW_BITS    (DDR_ROW_BITS),
+      .DDR_COL_BITS    (DDR_COL_BITS),
+      .DDR_DQ_WIDTH    (DDR_DQ_WIDTH),
+      .PHY_WR_DELAY    (PHY_WR_DELAY),
+      .PHY_RD_DELAY    (PHY_RD_DELAY),
+      .WR_PREFETCH     (WR_PREFETCH),
+      .LOW_LATENCY     (LOW_LATENCY),
+      .AXI_ID_WIDTH    (REQID),
+      .MEM_ID_WIDTH    (REQID),
+      .BYPASS_ENABLE   (0),
+      .TELEMETRY       (0),
+      .USE_PACKET_FIFOS(0)
   ) U_LITE (
-      .arst_n(arst_n), // Global, asynchronous reset
+      .arst_n(arst_n),  // Global, asynchronous reset
 
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset

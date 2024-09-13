@@ -228,7 +228,6 @@ module memreq #(
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
   //   out this way.
   assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE && (rd_w ? fready_w : x_tvalid);
-  // assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE;
 
   assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
   assign wr_ack_w = awvalid_o && awready_i;
@@ -282,7 +281,7 @@ module memreq #(
   assign wstrb_o  = {STROBES{x_tvalid}};
   assign wdata_o  = x_tdata;
 
-  assign x_tready  = wr == WR_DATA ? wready_i : 1'b0;
+  assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
 
   always @(posedge mem_clock) begin
     if (mem_reset) begin
@@ -297,9 +296,7 @@ module memreq #(
             wr <= WR_IDLE;
           end
         end
-        default: begin
-          wr <= 'bx;
-        end
+        default: wr <= 'bx;
       endcase
     end
   end
@@ -636,6 +633,7 @@ module memreq #(
             vld_q <= 1'b0;
             lst_q <= 1'b0;
           end else begin
+            // Todo: this is the same as the previous case !?
             mux_q <= 1'b1;
             sel_q <= 1'b0;
             idx_q <= 1'b1;
@@ -698,7 +696,7 @@ module memreq #(
 
 `ifdef __icarus
 
-  reg [39:0] dbg_state;
+  reg [39:0] dbg_state, dbg_wr, dbg_rd;
   reg [47:0] dbg_cmd, dbg_res;
 
   always @* begin
@@ -715,6 +713,23 @@ module memreq #(
   end
 
   always @* begin
+    case (wr)
+      WR_IDLE: dbg_wr = "IDLE";
+      WR_ADDR: dbg_wr = "ADDR";
+      WR_DATA: dbg_wr = "DATA";
+      WR_RESP: dbg_wr = "RESP";
+      default: dbg_wr = " ?? ";
+    endcase
+    case (rd)
+      RD_IDLE: dbg_rd = "IDLE";
+      RD_ADDR: dbg_rd = "ADDR";
+      RD_DATA: dbg_rd = "DATA";
+      RD_RESP: dbg_rd = "RESP";
+      default: dbg_rd = " ?? ";
+    endcase
+  end
+
+  always @* begin
     case (cmd_q)
       CMD_NOP:   dbg_cmd = " NOP ";
       CMD_STORE: dbg_cmd = "STORE";
@@ -725,9 +740,6 @@ module memreq #(
       CMD_RFAIL: dbg_cmd = "RFAIL";
       default:   dbg_cmd = " ??? ";
     endcase
-  end
-
-  always @* begin
     case (res_q)
       CMD_NOP:   dbg_res = " NOP ";
       CMD_STORE: dbg_res = "STORE";
@@ -741,6 +753,5 @@ module memreq #(
   end
 
 `endif  /* __icarus */
-
 
 endmodule  /* memreq */

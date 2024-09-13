@@ -50,6 +50,11 @@ module ddr3_axi_ctrl #(
     parameter DATA_FIFO_BLOCK = 1,  // Defaults to using SRAM hard-IP blocks
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
 
+    // Determines whether to wait for all of the write-data, before issuing a
+    // write command.
+    // Note: note required if upstream source is fast and reliable.
+    parameter USE_PACKET_FIFOS = 1,
+
     // If the memory controller is idle (and both datapaths), send any request
     // straight to the memory-controller (if 'FAST_PATH_ENABLE == 1')
     // todo: this will require combinational outputs, limiting frequency ??
@@ -132,10 +137,8 @@ module ddr3_axi_ctrl #(
   localparam RSB = REQ_ID_WIDTH - 1;
   localparam RZERO = {REQ_ID_WIDTH{1'b0}};
 
-
   reg [TSB:0] req_id;
   wire wr_accept, wr_seq, rd_accept, rd_seq, issued, rd_finish;
-
 
   assign mem_wrlst_o = ~wr_seq;
   assign mem_rdlst_o = ~rd_seq;
@@ -177,7 +180,9 @@ module ddr3_axi_ctrl #(
       .MASKS(MASKS),
       .AXI_ID_WIDTH(REQ_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
-      .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
+      .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH),
+      .USE_SYNC_FIFO(0),
+      .USE_PACKET_FIFOS(USE_PACKET_FIFOS)
   ) U_WR_PATH1 (
       .clock(clock),
       .reset(reset),
@@ -278,11 +283,11 @@ module ddr3_axi_ctrl #(
   );
 
 
+`ifdef __icarus
   //
   //  Simulation Configuation & Sanity Checks
   ///
 
-`ifdef __icarus
   wire [7:0] rlanes = 1 << axi_arsize_i;
   wire [7:0] wlanes = 1 << axi_awsize_i;
 
@@ -307,7 +312,8 @@ module ddr3_axi_ctrl #(
       end
     end
   end
-`endif
+
+`endif  /* !__icarus */
 
 
-endmodule  // ddr3_axi_ctrl
+endmodule  /* ddr3_axi_ctrl */

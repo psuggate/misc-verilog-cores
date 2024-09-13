@@ -67,7 +67,12 @@ module axi_ddr3_lite #(
 
     // todo: ...
     localparam CTRL_FIFO_DEPTH = 16,
-    localparam DATA_FIFO_DEPTH = 512
+    localparam DATA_FIFO_DEPTH = 512,
+
+    // Determines whether to wait for all of the write-data, before issuing a
+    // write command.
+    // Note: note required if upstream source is fast and reliable.
+    parameter USE_PACKET_FIFOS = 1
 ) (
     input arst_n,
 
@@ -199,11 +204,11 @@ module axi_ddr3_lite #(
       .AXI_ID_WIDTH(AXI_ID_WIDTH),
       .MEM_ID_WIDTH(MEM_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
-      .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
+      .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH),
+      .USE_PACKET_FIFOS(USE_PACKET_FIFOS)
   ) U_AXI_CTRL (
       .clock(clock),
       .reset(reset),
-      // .reset(~en_q),
 
       .axi_awvalid_i(axi_awvalid_i),  // AXI4 Write Address Port
       .axi_awready_o(axi_awready_o),
