@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Sep 13 02:49:18 2024
+[*] Fri Sep 13 06:33:37 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Sep 13 02:47:54 2024"
-[dumpfile_size] 24526614
+[dumpfile_mtime] "Fri Sep 13 06:33:18 2024"
+[dumpfile_size] 24673326
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 625888800
+[timestart] 639728800
 [size] 2560 1376
 [pos] -1 -1
-*-16.855694 626515000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.855694 640355000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -202,26 +202,27 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tdata[7:0]
 -USB EPs
 @1401200
 -USB Core
-@800201
+@c00200
 -MemReq
+@800200
 -IO
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tvalid
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tready
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tkeep
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tlast
-@23
+@22
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tdata[7:0]
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tvalid
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tready
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tkeep
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tlast
-@23
+@22
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.m_tdata[7:0]
-@1000201
+@1000200
 -IO
-@821
+@820
 [color] 7
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_state[39:0]
 [color] 6
@@ -232,36 +233,41 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_rd[39:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_cmd[47:0]
 [color] 2
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_res[47:0]
-@29
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.tkeep_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_cmd_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_ack_w
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wr_end_w
-@800201
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_cmd_w
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_ack_w
+vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rd_end_w
+@800200
 -Write
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awvalid_o
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awready_i
-@25
+@24
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awlen_o[7:0]
-@23
+@22
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.awaddr_o[27:0]
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wvalid_o
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wready_i
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wlast_o
-@23
+@22
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wstrb_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.wdata_o[31:0]
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bvalid_i
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bready_o
-@23
+@22
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bid_i[3:0]
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.bresp_i[1:0]
-@1000201
+@1000200
 -Write
+@1401200
 -MemReq
 @c00200
 -MemCtrl

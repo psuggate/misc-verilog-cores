@@ -16,7 +16,9 @@ module memreq #(
     localparam AZERO = {ADDRESS_WIDTH{1'b0}},
     localparam ASB = ADDRESS_WIDTH - 1,
     localparam ID_WIDTH = 4,
-    localparam ISB = ID_WIDTH - 1
+    localparam ISB = ID_WIDTH - 1,
+  parameter WR_FRAME_FIFO = 1, // Avoid "starvation," if slow upstream source
+  localparam RD_FRAME_FIFO = 0 // Not useful ??
 ) (
     input mem_clock,  // DDR3 controller domain
     input mem_reset,
@@ -170,6 +172,11 @@ module memreq #(
 
   // -- FSM for Memory Requests -- //
 
+  wire svalid_w, sready_w;
+
+  assign svalid_w = s_tvalid & tkeep_w;
+  assign s_tready = sready_w && state != ST_RESP;
+
   always @(posedge bus_clock) begin
     if (bus_reset) begin
       state <= ST_IDLE;
@@ -207,7 +214,7 @@ module memreq #(
   localparam [3:0] RD_IDLE = 1;
   localparam [3:0] RD_ADDR = 2;
   localparam [3:0] RD_DATA = 4;
-  localparam [3:0] RD_RESP = 8;
+  localparam [3:0] RD_SEND = 8;
 
   reg [3:0] wr, rd;
   reg cmd_m, rd_m;
@@ -232,6 +239,10 @@ module memreq #(
   assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
   assign wr_ack_w = awvalid_o && awready_i;
   assign wr_end_w = x_tvalid && x_tready && x_tlast;
+
+  assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
+  assign rd_ack_w = arvalid_o && arready_i;
+  assign rd_end_w = fvalid_w && fready_w && rlast_i;
 
   always @(posedge mem_clock) begin
     if (mem_reset || wr_ack_w || rd_ack_w) begin
@@ -283,6 +294,9 @@ module memreq #(
 
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
 
+  assign tkeep_w = wen_q;  // state == ST_WDAT;
+  assign bokay_w = bresp_i == RESP_OKAY;
+
   always @(posedge mem_clock) begin
     if (mem_reset) begin
       wr <= WR_IDLE;
@@ -301,132 +315,10 @@ module memreq #(
     end
   end
 
-  // -- Write Datapath -- //
-
-  assign tkeep_w = wen_q;  // state == ST_WDAT;
-  assign bokay_w = bresp_i == RESP_OKAY;
-
-  axis_adapter #(
-      .S_DATA_WIDTH(8),
-      .S_KEEP_ENABLE(1),
-      .S_KEEP_WIDTH(1),
-      .M_DATA_WIDTH(DATA_WIDTH),
-      .M_KEEP_ENABLE(1),
-      .M_KEEP_WIDTH(STROBES),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1)
-  ) U_ADAPT1 (
-      .clk(bus_clock),
-      .rst(bus_reset),
-
-      .s_axis_tvalid(s_tvalid & tkeep_w),
-      .s_axis_tready(s_tready),
-      .s_axis_tkeep(tkeep_w),
-      .s_axis_tlast(s_tlast),
-      .s_axis_tid(tid_q),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
-      .s_axis_tdata(s_tdata),  // AXI input
-
-      .m_axis_tvalid(a_tvalid),
-      .m_axis_tready(a_tready),
-      .m_axis_tkeep(a_tkeep),
-      .m_axis_tlast(a_tlast),
-      .m_axis_tid(a_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(),
-      .m_axis_tdata(a_tdata)  // AXI output
-  );
-
-  axis_async_fifo #(
-      .DEPTH(FIFO_DEPTH),
-      .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(STROBES),
-      .LAST_ENABLE(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1),
-      .RAM_PIPELINE(1),
-      .OUTPUT_FIFO_ENABLE(0),
-      .FRAME_FIFO(1),
-      .USER_BAD_FRAME_VALUE(0),
-      .USER_BAD_FRAME_MASK(0),
-      .DROP_BAD_FRAME(0),
-      .DROP_WHEN_FULL(0)
-  ) U_WRFIFO1 (
-      .s_clk(bus_clock),
-      .s_rst(bus_reset),
-
-      .s_axis_tvalid(a_tvalid),
-      .s_axis_tready(a_tready),
-      .s_axis_tkeep(a_tkeep),
-      .s_axis_tlast(a_tlast),
-      .s_axis_tdata(a_tdata),  // AXI input
-      .s_axis_tid(a_tid),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
-
-      .m_clk(mem_clock),
-      .m_rst(mem_reset),
-
-      .m_axis_tvalid(x_tvalid),
-      .m_axis_tready(x_tready),
-      .m_axis_tkeep(x_tkeep),
-      .m_axis_tlast(x_tlast),
-      .m_axis_tdata(x_tdata),  // AXI output
-      .m_axis_tid(x_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(),
-
-      .s_pause_req(1'b0),
-      .s_pause_ack(),
-      .m_pause_req(1'b0),
-      .m_pause_ack(),
-
-      .s_status_depth(),  // Status
-      .s_status_depth_commit(),
-      .s_status_overflow(),
-      .s_status_bad_frame(),
-      .s_status_good_frame(),
-      .m_status_depth(),  // Status
-      .m_status_depth_commit(),
-      .m_status_overflow(),
-      .m_status_bad_frame(),
-      .m_status_good_frame()
-  );
-
-  // Write-responses FIFO
-  axis_afifo #(
-      .WIDTH(ID_WIDTH + 1),
-      .TLAST(0),
-      .ABITS(4)
-  ) U_BFIFO1 (
-      .aresetn (~bus_reset),
-      .s_aclk  (mem_clock),
-      .s_tvalid(bvalid_i),
-      .s_tready(bready_o),
-      .s_tlast (1'b1),
-      .s_tdata ({bokay_w, bid_i}),
-      .m_aclk  (bus_clock),
-      .m_tvalid(rvalid_w),
-      .m_tready(state == ST_RESP),
-      .m_tlast (),
-      .m_tdata ({rokay_w, rid_w})
-  );
-
   // -- Read-Port, Memory-Domain FSM -- //
 
-  assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
-  assign rd_ack_w = arvalid_o && arready_i;
-  assign rd_end_w = fvalid_w && fready_w && rlast_i;
+  localparam DBITS = $clog2(FIFO_DEPTH);
+  localparam DSB   = DBITS - 1;
 
   // Read-address assignments, to the DDR3 controller
   assign arvalid_o = cmd_m && rd_m;
@@ -437,10 +329,12 @@ module memreq #(
 
   // Read-buffer (FIFO) 'ready' signal assignment, for DDR3 fetched-data
   // Todo: slow combinational signals !?!
-  wire fready_w, fvalid_w;
+  wire fready_w, fvalid_w, rd_mid_w;
+  wire [DBITS:0] rd_level_w;
 
   assign rready_o = rd == RD_DATA && fready_w;
   assign fvalid_w = rd == RD_DATA && rvalid_i;
+  assign rd_mid_w = rd_level_w[DSB];
 
   always @(posedge mem_clock) begin
     if (mem_reset) begin
@@ -449,111 +343,12 @@ module memreq #(
       case (rd)
         RD_IDLE: rd <= rd_cmd_w ? RD_ADDR : rd;
         RD_ADDR: rd <= rd_ack_w ? RD_DATA : rd;
-        RD_DATA: rd <= rd_end_w ? RD_IDLE : rd;
-        RD_RESP: rd <= bready_o ? RD_IDLE : rd;  // Todo: use resp. FIFO !?
+        RD_DATA: rd <= rd_end_w ? RD_SEND : rd;
+        RD_SEND: rd <= rd_mid_w ? rd : RD_IDLE;
         default: rd <= 'bx;
       endcase
     end
   end
-
-  // -- Read Datapath -- //
-
-  axis_async_fifo #(
-      .DEPTH(FIFO_DEPTH),
-      .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(STROBES),
-      .LAST_ENABLE(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(1),
-      .USER_WIDTH(2),
-      .RAM_PIPELINE(1),
-      .OUTPUT_FIFO_ENABLE(0),
-      .FRAME_FIFO(1),
-      .USER_BAD_FRAME_VALUE(0),
-      .USER_BAD_FRAME_MASK(0),
-      .DROP_BAD_FRAME(0),
-      .DROP_WHEN_FULL(0)
-  ) U_RDFIFO1 (
-      .s_clk(mem_clock),
-      .s_rst(mem_reset),
-
-      .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
-      .s_axis_tready(fready_w),
-      .s_axis_tkeep({STROBES{rvalid_i}}),
-      .s_axis_tlast(rlast_i),
-      .s_axis_tid(rid_i),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(rresp_i),
-      .s_axis_tdata(rdata_i),
-
-      .m_clk(bus_clock),
-      .m_rst(bus_reset),
-
-      .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
-      .m_axis_tready(b_tready),
-      .m_axis_tkeep(b_tkeep),
-      .m_axis_tlast(b_tlast),
-      .m_axis_tid(b_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(b_tuser),
-      .m_axis_tdata(b_tdata),
-
-      .s_pause_req(1'b0),
-      .s_pause_ack(),
-      .m_pause_req(1'b0),
-      .m_pause_ack(),
-
-      .s_status_depth(),  // Status
-      .s_status_depth_commit(),
-      .s_status_overflow(),
-      .s_status_bad_frame(),
-      .s_status_good_frame(),
-      .m_status_depth(),  // Status
-      .m_status_depth_commit(),
-      .m_status_overflow(),
-      .m_status_bad_frame(),
-      .m_status_good_frame()
-  );
-
-  axis_adapter #(
-      .S_DATA_WIDTH(DATA_WIDTH),
-      .S_KEEP_ENABLE(1),
-      .S_KEEP_WIDTH(STROBES),
-      .M_DATA_WIDTH(8),
-      .M_KEEP_ENABLE(1),
-      .M_KEEP_WIDTH(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(1),
-      .USER_WIDTH(2)
-  ) U_ADAPT2 (
-      .clk(bus_clock),
-      .rst(bus_reset),
-
-      .s_axis_tvalid(b_tvalid),  // AXI input: 32b
-      .s_axis_tready(b_tready),
-      .s_axis_tkeep({STROBES{b_tvalid}}),
-      .s_axis_tlast(b_tlast),
-      .s_axis_tdata(b_tdata),
-      .s_axis_tid(b_tid),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(b_tuser),
-
-      .m_axis_tvalid(y_tvalid),  // AXI output: 8b
-      .m_axis_tready(y_tready),
-      .m_axis_tkeep(y_tkeep),
-      .m_axis_tlast(y_tlast),
-      .m_axis_tid(y_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(y_tuser),
-      .m_axis_tdata(y_tdata)
-  );
 
   // -- Multiplexor to the SPI or USB Encoder -- //
 
@@ -657,6 +452,224 @@ module memreq #(
     end
   end
 
+  // -- Write Datapath -- //
+
+  axis_adapter #(
+      .S_DATA_WIDTH(8),
+      .S_KEEP_ENABLE(1),
+      .S_KEEP_WIDTH(1),
+      .M_DATA_WIDTH(DATA_WIDTH),
+      .M_KEEP_ENABLE(1),
+      .M_KEEP_WIDTH(STROBES),
+      .ID_ENABLE(1),
+      .ID_WIDTH(ID_WIDTH),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(0),
+      .USER_WIDTH(1)
+  ) U_ADAPT1 (
+      .clk(bus_clock),
+      .rst(bus_reset),
+
+      .s_axis_tvalid(svalid_w),
+      .s_axis_tready(sready_w),
+      .s_axis_tkeep(tkeep_w),
+      .s_axis_tlast(s_tlast),
+      .s_axis_tid(tid_q),
+      .s_axis_tdest(1'b0),
+      .s_axis_tuser(1'b0),
+      .s_axis_tdata(s_tdata),  // AXI input
+
+      .m_axis_tvalid(a_tvalid),
+      .m_axis_tready(a_tready),
+      .m_axis_tkeep(a_tkeep),
+      .m_axis_tlast(a_tlast),
+      .m_axis_tid(a_tid),
+      .m_axis_tdest(),
+      .m_axis_tuser(),
+      .m_axis_tdata(a_tdata)  // AXI output
+  );
+
+  axis_async_fifo #(
+      .DEPTH(FIFO_DEPTH),
+      .DATA_WIDTH(DATA_WIDTH),
+      .KEEP_ENABLE(1),
+      .KEEP_WIDTH(STROBES),
+      .LAST_ENABLE(1),
+      .ID_ENABLE(1),
+      .ID_WIDTH(ID_WIDTH),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(0),
+      .USER_WIDTH(1),
+      .RAM_PIPELINE(1),
+      .OUTPUT_FIFO_ENABLE(0),
+      .FRAME_FIFO(WR_FRAME_FIFO),
+      .USER_BAD_FRAME_VALUE(0),
+      .USER_BAD_FRAME_MASK(0),
+      .DROP_BAD_FRAME(0),
+      .DROP_WHEN_FULL(0)
+  ) U_WRFIFO1 (
+      .s_clk(bus_clock),
+      .s_rst(bus_reset),
+
+      .s_axis_tvalid(a_tvalid),
+      .s_axis_tready(a_tready),
+      .s_axis_tkeep(a_tkeep),
+      .s_axis_tlast(a_tlast),
+      .s_axis_tdata(a_tdata),  // AXI input
+      .s_axis_tid(a_tid),
+      .s_axis_tdest(1'b0),
+      .s_axis_tuser(1'b0),
+
+      .m_clk(mem_clock),
+      .m_rst(mem_reset),
+
+      .m_axis_tvalid(x_tvalid),
+      .m_axis_tready(x_tready),
+      .m_axis_tkeep(x_tkeep),
+      .m_axis_tlast(x_tlast),
+      .m_axis_tdata(x_tdata),  // AXI output
+      .m_axis_tid(x_tid),
+      .m_axis_tdest(),
+      .m_axis_tuser(),
+
+      .s_pause_req(1'b0),
+      .s_pause_ack(),
+      .m_pause_req(1'b0),
+      .m_pause_ack(),
+
+      .s_status_depth(),  // Status
+      .s_status_depth_commit(),
+      .s_status_overflow(),
+      .s_status_bad_frame(),
+      .s_status_good_frame(),
+      .m_status_depth(),  // Status
+      .m_status_depth_commit(),
+      .m_status_overflow(),
+      .m_status_bad_frame(),
+      .m_status_good_frame()
+  );
+
+  // Write-responses FIFO
+  axis_afifo #(
+      .WIDTH(ID_WIDTH + 1),
+      .TLAST(0),
+      .ABITS(4)
+  ) U_BFIFO1 (
+      .aresetn (~bus_reset),
+      .s_aclk  (mem_clock),
+      .s_tvalid(bvalid_i),
+      .s_tready(bready_o),
+      .s_tlast (1'b1),
+      .s_tdata ({bokay_w, bid_i}),
+      .m_aclk  (bus_clock),
+      .m_tvalid(rvalid_w),
+      .m_tready(state == ST_RESP),
+      .m_tlast (),
+      .m_tdata ({rokay_w, rid_w})
+  );
+
+  // -- Read Datapath -- //
+
+  axis_async_fifo #(
+      .DEPTH(FIFO_DEPTH),
+      .DATA_WIDTH(DATA_WIDTH),
+      .KEEP_ENABLE(1),
+      .KEEP_WIDTH(STROBES),
+      .LAST_ENABLE(1),
+      .ID_ENABLE(1),
+      .ID_WIDTH(ID_WIDTH),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(1),
+      .USER_WIDTH(2),
+      .RAM_PIPELINE(1),
+      .OUTPUT_FIFO_ENABLE(0),
+      .FRAME_FIFO(RD_FRAME_FIFO),
+      .USER_BAD_FRAME_VALUE(0),
+      .USER_BAD_FRAME_MASK(0),
+      .DROP_BAD_FRAME(0),
+      .DROP_WHEN_FULL(0)
+  ) U_RDFIFO1 (
+      .s_clk(mem_clock),
+      .s_rst(mem_reset),
+
+      .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
+      .s_axis_tready(fready_w),
+      .s_axis_tkeep({STROBES{rvalid_i}}),
+      .s_axis_tlast(rlast_i),
+      .s_axis_tid(rid_i),
+      .s_axis_tdest(1'b0),
+      .s_axis_tuser(rresp_i),
+      .s_axis_tdata(rdata_i),
+
+      .m_clk(bus_clock),
+      .m_rst(bus_reset),
+
+      .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
+      .m_axis_tready(b_tready),
+      .m_axis_tkeep(b_tkeep),
+      .m_axis_tlast(b_tlast),
+      .m_axis_tid(b_tid),
+      .m_axis_tdest(),
+      .m_axis_tuser(b_tuser),
+      .m_axis_tdata(b_tdata),
+
+      .s_pause_req(1'b0),
+      .s_pause_ack(),
+      .m_pause_req(1'b0),
+      .m_pause_ack(),
+
+      .s_status_depth(rd_level_w),  // Status
+      .s_status_depth_commit(),
+      .s_status_overflow(),
+      .s_status_bad_frame(),
+      .s_status_good_frame(),
+      .m_status_depth(),  // Status
+      .m_status_depth_commit(),
+      .m_status_overflow(),
+      .m_status_bad_frame(),
+      .m_status_good_frame()
+  );
+
+  axis_adapter #(
+      .S_DATA_WIDTH(DATA_WIDTH),
+      .S_KEEP_ENABLE(1),
+      .S_KEEP_WIDTH(STROBES),
+      .M_DATA_WIDTH(8),
+      .M_KEEP_ENABLE(1),
+      .M_KEEP_WIDTH(1),
+      .ID_ENABLE(1),
+      .ID_WIDTH(ID_WIDTH),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(1),
+      .USER_WIDTH(2)
+  ) U_ADAPT2 (
+      .clk(bus_clock),
+      .rst(bus_reset),
+
+      .s_axis_tvalid(b_tvalid),  // AXI input: 32b
+      .s_axis_tready(b_tready),
+      .s_axis_tkeep({STROBES{b_tvalid}}),
+      .s_axis_tlast(b_tlast),
+      .s_axis_tdata(b_tdata),
+      .s_axis_tid(b_tid),
+      .s_axis_tdest(1'b0),
+      .s_axis_tuser(b_tuser),
+
+      .m_axis_tvalid(y_tvalid),  // AXI output: 8b
+      .m_axis_tready(y_tready),
+      .m_axis_tkeep(y_tkeep),
+      .m_axis_tlast(y_tlast),
+      .m_axis_tid(y_tid),
+      .m_axis_tdest(),
+      .m_axis_tuser(y_tuser),
+      .m_axis_tdata(y_tdata)
+  );
+
+  // Multiplexor to the SPI or USB Encoder
   axis_mux #(
       .S_COUNT(2),
       .DATA_WIDTH(8),
@@ -724,7 +737,7 @@ module memreq #(
       RD_IDLE: dbg_rd = "IDLE";
       RD_ADDR: dbg_rd = "ADDR";
       RD_DATA: dbg_rd = "DATA";
-      RD_RESP: dbg_rd = "RESP";
+      RD_SEND: dbg_rd = "SEND";
       default: dbg_rd = " ?? ";
     endcase
   end

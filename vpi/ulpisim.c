@@ -4,6 +4,7 @@
 #include "tc_bulkin.h"
 #include "tc_bulkout.h"
 #include "tc_ddr3out.h"
+#include "tc_ddr3in.h"
 #include "tc_getdesc.h"
 #include "tc_getconf.h"
 #include "tc_getstrs.h"
@@ -509,26 +510,26 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_setaddr(0x23);
     state->tests[i++] = test_getconf();
     state->tests[i++] = test_setconf(0x01);
-    state->tests[i++] = test_waitsof(); // 15 us
+    state->tests[i++] = test_waitsof(); // 615 us
 
     // -- Read out all of the string descriptors, then OUT some data -- //
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_ddr3out(0x02A8F0);
-    // state->tests[i++] = test_ddr3out(0x0280F0);
-    state->tests[i++] = test_waitsof(); // 22.5 us
+    state->tests[i++] = test_waitsof(); // 630 us
 
     // -- Bidirectional transfers & queries -- //
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_bulkin(1);
     state->tests[i++] = test_bulkout();
     state->tests[i++] = test_getconf();
-    state->tests[i++] = test_bulkin(3);
-    state->tests[i++] = test_waitsof(); // 30 us
+    // state->tests[i++] = test_bulkin(3);
+    state->tests[i++] = test_ddr3in(0x02A8F0);
+    state->tests[i++] = test_waitsof(); // 645 us
 
     // -- Error-handling tests -- //
     state->tests[i++] = test_parity();
-    state->tests[i++] = test_waitsof(); // 37.5 us
+    state->tests[i++] = test_waitsof(); // 660 us
 
     state->test_num = i;
 

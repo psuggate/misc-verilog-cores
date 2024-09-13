@@ -21,6 +21,7 @@ typedef enum __ddr3out_step {
 typedef struct {
     uint32_t addr;
     uint8_t step;
+    uint8_t iter;
     uint8_t beat;
     uint8_t ep;
     uint8_t id;
@@ -37,6 +38,7 @@ static const char ddr3out_strings[8][16] = {
     {"DDR3Out6"},
     {"DDR3Done"},
 };
+static const int ddr3out_lengths[8] = { 4, 4, 8, 16, 20, 12, 24, 0 };
 
 
 /**
@@ -87,7 +89,7 @@ static int tc_ddr3out_init(usb_host_t* host, void* data)
     st->ep   = DDR3_OUT_EP;
     st->id   = rand() & 0x0F;
 
-    tc_ddr3out_xfer(host, 4, st);
+    tc_ddr3out_xfer(host, ddr3out_lengths[st->iter], st);
     host->step = 0;
 
     return 0;
@@ -171,6 +173,7 @@ testcase_t* test_ddr3out(const uint32_t addr)
     testcase_t* tc = malloc(sizeof(testcase_t));
     ddr3out_state_t* st = malloc(sizeof(ddr3out_state_t));
     st->step = DDR3Out0;
+    st->iter = 0;
     st->addr = addr; // 16-byte-aligned address
     st->beat = 4; // Bytes per beat
     st->ep   = DDR3_OUT_EP;
