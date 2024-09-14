@@ -37,7 +37,8 @@ module vpi_usb_ulpi_tb;
   end
 
   always #20 clk25 <= ~clk25;
-  always #5 clock <= ~clock;
+  always #6 clock <= ~clock;
+  // always #5 clock <= ~clock;
 
   assign usb_clock = clock;
 
@@ -49,10 +50,11 @@ module vpi_usb_ulpi_tb;
   // -- Simulation Data -- //
 
   initial begin
-    $dumpfile("vpi_usb_ulpi_tb.vcd");
+    #700000 $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
+  end
 
-    // #38000 $finish;
+  initial begin
     #3800000 $finish;
   end
 
@@ -171,10 +173,10 @@ module vpi_usb_ulpi_tb;
       .clk_26(clk25),
       .arst_n(arst_n),
 
-      .ulpi_clk(usb_clock),
-      .ulpi_dir  (ulpi_dir),
-      .ulpi_nxt  (ulpi_nxt),
-      .ulpi_stp  (ulpi_stp),
+      .ulpi_clk (usb_clock),
+      .ulpi_dir (ulpi_dir),
+      .ulpi_nxt (ulpi_nxt),
+      .ulpi_stp (ulpi_stp),
       .ulpi_data(ulpi_data),
 
       // Todo: debug UART signals ...
@@ -218,7 +220,7 @@ module vpi_usb_ulpi_tb;
 
 `ifdef __use_ddr3_because_reasons
 
-  reg drst_n = 1'b1;
+  reg  drst_n = 1'b1;
   wire drst_w = ~drst_n;
 
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
@@ -232,7 +234,7 @@ module vpi_usb_ulpi_tb;
 
   initial begin
     drst_n <= 1'b0;
-    #400000 drst_n <= 1'b1;
+    #500000 drst_n <= 1'b1;
   end
 
   ddr3_top #(
@@ -250,6 +252,11 @@ module vpi_usb_ulpi_tb;
       .ddr3_conf_o(ddr3_conf_w),
       .ddr_clock_o(sys_clk),
       .ddr_reset_o(sys_rst),
+
+      // Debug UART signals [optional]
+      .send_ni  (1'b1),
+      .uart_rx_i(1'b1),
+      .uart_tx_o(),
 
       // From USB or SPI
       .s_tvalid(y_tvalid),

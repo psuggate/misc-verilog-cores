@@ -42,12 +42,7 @@ module usb_ddr3_top (
 
   localparam DEBUG = 1;
   localparam LOOPBACK = 1;
-`ifdef __use_ddr3_because_reasons
-  // localparam LOOPBACK = 0;
   localparam USE_EP4_OUT = 1;
-`else
-  localparam USE_EP4_OUT = 0;
-`endif
 
   parameter [15:0] VENDOR_ID = 16'hF4CE;
   parameter integer VENDOR_LENGTH = 19;
@@ -77,7 +72,7 @@ module usb_ddr3_top (
 
   parameter DDR_FREQ_MHZ = 100;
   localparam LOW_LATENCY = 0;
-  localparam WR_PREFETCH = 1'b0;
+  localparam WR_PREFETCH = 0;
 
   // -- UART Settings -- //
 
@@ -144,7 +139,8 @@ module usb_ddr3_top (
       // Todo: debug UART signals ...
       .send_ni  (send_n),
       .uart_rx_i(uart_rx),
-      .uart_tx_o(uart_tx),
+      // .uart_tx_o(uart_tx),
+      .uart_tx_o(),
 
       .usb_clock_o(clock),
       .usb_reset_o(reset),
@@ -156,49 +152,49 @@ module usb_ddr3_top (
 
 `ifdef __use_ddr3_because_reasons
 
-      .blkx_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
-      .blkx_tready_o(s_tready),
-      .blkx_tlast_i (LOOPBACK ? m_tlast : s_tlast),
-      .blkx_tdata_i (LOOPBACK ? m_tdata : s_tdata),
-
       .blki_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
       .blki_tready_o(x_tready),
       .blki_tlast_i (x_tlast),
       .blki_tdata_i (x_tdata),
 
-      .blky_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
-      .blky_tready_i(LOOPBACK ? s_tready : m_tready),
-      .blky_tlast_o(m_tlast),
-      .blky_tdata_o(m_tdata),
-
       .blko_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(y_tready),
       .blko_tlast_o (y_tlast),
-      .blko_tdata_o (y_tdata)
+      .blko_tdata_o (y_tdata),
 
-`else /* !__use_ddr3_because_reasons */
+      .blkx_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
+      .blkx_tready_o(s_tready),
+      .blkx_tlast_i (LOOPBACK ? m_tlast : s_tlast),
+      .blkx_tdata_i (LOOPBACK ? m_tdata : s_tdata),
+
+      .blky_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(LOOPBACK ? s_tready : m_tready),
+      .blky_tlast_o(m_tlast),
+      .blky_tdata_o(m_tdata)
+
+`else  /* !__use_ddr3_because_reasons */
 
       .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
       .blki_tready_o(s_tready),
       .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
       .blki_tdata_i (LOOPBACK ? m_tdata : s_tdata),
 
-      .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
-      .blkx_tready_o(x_tready),
-      .blkx_tlast_i (x_tlast),
-      .blkx_tdata_i (x_tdata),
-
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(LOOPBACK ? s_tready : m_tready),
       .blko_tlast_o(m_tlast),
       .blko_tdata_o(m_tdata),
+
+      .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
+      .blkx_tready_o(x_tready),
+      .blkx_tlast_i (x_tlast),
+      .blkx_tdata_i (x_tdata),
 
       .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
       .blky_tready_i(y_tready),
       .blky_tlast_o (y_tlast),
       .blky_tdata_o (y_tdata)
 
-`endif /* !__use_ddr3_because_reasons */
+`endif  /* !__use_ddr3_because_reasons */
   );
 
   assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w ^ ddr3_conf_w;
@@ -218,7 +214,7 @@ module usb_ddr3_top (
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
       .LOW_LATENCY(LOW_LATENCY),
-             .WR_PREFETCH(WR_PREFETCH)
+      .WR_PREFETCH(WR_PREFETCH)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock
       .arst_n(rst_n),   // 'S2' button for async-reset
@@ -229,6 +225,11 @@ module usb_ddr3_top (
       .ddr3_conf_o(ddr3_conf_w),
       .ddr_clock_o(sys_clk),
       .ddr_reset_o(sys_rst),
+
+      // Debug UART signals [optional]
+      .send_ni  (send_n),
+      .uart_rx_i(uart_rx),
+      .uart_tx_o(uart_tx),
 
       // From USB or SPI
       .s_tvalid(y_tvalid),

@@ -9,6 +9,7 @@ BUILD	:= ../../build
 BENCH	:= ../../bench
 ARCH	:= ../arch
 AXIS	:= ../axis
+UART	:= ../uart
 
 IVC	?= iverilog
 OPT	:= -g2005-sv -D__icarus -Wall -I$(AXIS)/ -I$(BENCH)
@@ -16,7 +17,7 @@ INC	:= $(wildcard *.vh $(AXIS)/*.vh)
 
 AXIS	:= $(wildcard ../axis/*.v)
 FIFO	:= $(wildcard ../fifo/*.v)
-MISC	:= $(wildcard ../misc/*.v)
+MISC	:= $(wildcard ../misc/*.v) $(wildcard $(UART)/*.v)
 PHY	:= $(wildcard $(ARCH)/*.v) $(wildcard $(BENCH)/arch/*.v)
 LIB	:= $(AXIS) $(FIFO) $(MISC) $(PHY) $(BENCH)/ddr3.v
 

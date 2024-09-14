@@ -8,8 +8,10 @@ module axi_ddr3_lite #(
 
     // Capture telemetry for the DDR3 core state, if enabled
     parameter TELEMETRY = 1,
+    parameter USE_UART = 1,
     parameter TELE_SIZE = 1024,
-    parameter ENDPOINT  = 2,
+    localparam TBITS = $clog2(TELE_SIZE),
+    parameter ENDPOINT = 2,
 
     // These additional delays depend on how many registers are in the data-output
     // and data-capture paths, of the DDR3 PHY being used.
@@ -81,15 +83,22 @@ module axi_ddr3_lite #(
 
     output configured_o,
 
+    // Transaction Logger & Telemetry [optional]
     input tele_select_i,
     input tele_start_i,
-    output [$clog2(TELE_SIZE)-1:0] tele_level_o,
+    output [TBITS:0] tele_level_o,
     output tele_tvalid_o,
     input tele_tready_i,
     output tele_tlast_o,
     output tele_tkeep_o,
     output [7:0] tele_tdata_o,
 
+    // Debug UART signals [optional]
+    input  send_ni,
+    input  uart_rx_i,
+    output uart_tx_o,
+
+    // Memory-Controller AXI4 Interface
     input axi_awvalid_i,
     output axi_awready_o,
     input [ASB:0] axi_awaddr_i,
@@ -136,6 +145,7 @@ module axi_ddr3_lite #(
     output [ISB:0] byp_rid_o,
     output [MSB:0] byp_rdata_o,
 
+    // DDR3 PHY-Interface Signals
     output dfi_rst_no,
     output dfi_cke_o,
     output dfi_cs_no,
@@ -272,6 +282,8 @@ module axi_ddr3_lite #(
 
   // -- DDR3 Memory Controller FSM -- //
 
+  wire [4:0] fsm_state_w, fsm_snext_w;
+
   ddr3_fsm #(
       .DDR_ROW_BITS(DDR_ROW_BITS),
       .DDR_COL_BITS(DDR_COL_BITS),
@@ -282,6 +294,9 @@ module axi_ddr3_lite #(
 
       .clock(clock),
       .reset(~en_q),
+
+      .state_o(fsm_state_w),
+      .snext_o(fsm_snext_w),
 
       .mem_wrreq_i(fsm_wrreq),  // Bus -> Controller requests
       .mem_wrlst_i(fsm_wrlst),
@@ -445,12 +460,15 @@ module axi_ddr3_lite #(
   //
   //  [Optional] DDR3 Telemetry Capture
   ///
+  reg estart_q;
+  wire ecycle_w, estart_w, evalid_w, eready_w, elast_w, ekeep_w;
+  wire [TBITS:0] elevel_w;
+  wire [7:0] edata_w;
+
   generate
     if (TELEMETRY) begin : g_ddr3_telemetry
 
-      wire [4:0] fsm_state_w = ddr3_fsm_inst.state;
-      wire [4:0] fsm_snext_w = ddr3_fsm_inst.snext;
-      wire [2:0] ddl_state_w = ddr3_ddl_inst.state;
+      wire [2:0] ddl_state_w = U_DDL1.state;
 
       ddr3_telemetry #(
           .ENDPOINT(ENDPOINT),
@@ -461,10 +479,10 @@ module axi_ddr3_lite #(
           .reset(reset),
 
           .enable_i(1'b1),
-          .select_i(tele_select_i),
-          .start_i (tele_start_i),
+          .select_i(ecycle_w),
+          .start_i (estart_q),
           .endpt_i (ENDPOINT),
-          .level_o (tele_level_o),
+          .level_o (elevel_w),
 
           .fsm_state_i(fsm_state_w),
           .fsm_snext_i(fsm_snext_w),
@@ -475,23 +493,121 @@ module axi_ddr3_lite #(
           .cfg_ref_i  (cfg_ref),
           .cfg_cmd_i  (cfg_cmd),
 
-          .m_tvalid(tele_tvalid_o),
-          .m_tready(tele_tready_i),
-          .m_tlast (tele_tlast_o),
-          .m_tkeep (tele_tkeep_o),
-          .m_tdata (tele_tdata_o)
+          .m_tvalid(evalid_w),
+          .m_tready(eready_w),
+          .m_tlast (elast_w),
+          .m_tkeep (ekeep_w),
+          .m_tdata (edata_w)
       );
-
-    end else begin : g_ddr3_no_telem
-
-      assign tele_level_o  = 0;
-      assign tele_tvalid_o = 1'b0;
-      assign tele_tlast_o  = 1'b0;
-      assign tele_tkeep_o  = 1'b0;
-      assign tele_tdata_o  = 1'b0;
 
     end
   endgenerate
+
+  generate
+    if (!TELEMETRY || USE_UART) begin : g_ddr3_no_telem
+
+      assign tele_level_o  = TELEMETRY ? elevel_w : 0;
+      assign tele_tvalid_o = 1'b0;
+      assign tele_tkeep_o  = 1'b0;
+      assign tele_tlast_o  = 1'b0;
+      assign tele_tdata_o  = 1'b0;
+
+    end else begin : g_telem_no_uart
+
+      assign eready_w = tele_tready_i;
+      assign estart_w = tele_start_i;
+      assign ecycle_w = tele_select_i;
+
+      assign tele_level_o = elevel_w;
+      assign tele_tvalid_o = evalid_w;
+      assign tele_tkeep_o = ekeep_w;
+      assign tele_tlast_o = elast_w;
+      assign tele_tdata_o = edata_w;
+
+    end
+  endgenerate  /* g_telem_no_uart */
+
+  generate
+    if (TELEMETRY && USE_UART) begin : g_uart_telemetry
+      //
+      //  Telemetry Read-Back via UART
+      ///
+
+      // USB UART settings
+      // localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
+      localparam [15:0] UART_PRESCALE = 16'd54;  // For: 100.0 MHz / (230400 * 8)
+
+      reg send_q;
+      wire xvalid, xready, xlast, gvalid, gready, uvalid, uready, tx_busy_w;
+      wire [7:0] xdata, gdata, udata;
+
+      always @(posedge clock) begin
+        send_q <= ~send_ni & ~ecycle_w & ~tx_busy_w;
+
+        if (!ecycle_w && (send_q || uvalid && udata == "a")) begin
+          estart_q <= 1'b1;
+        end else begin
+          estart_q <= 1'b0;
+        end
+      end
+
+      // Convert 32b telemetry captures to ASCII hexadecimal //
+      hex_dump #(
+          .UNICODE(0),
+          .BLOCK_SRAM(1)
+      ) U_HEXDUMP1 (
+          .clock(clock),
+          .reset(reset),
+
+          .start_dump_i(estart_q),
+          .is_dumping_o(ecycle_w),
+          .fifo_level_o(),
+
+          .s_tvalid(evalid_w),
+          .s_tready(eready_w),
+          .s_tkeep (ekeep_w),
+          .s_tlast (elast_w),
+          .s_tdata (edata_w),
+
+          .m_tvalid(xvalid),
+          .m_tready(xready),
+          .m_tkeep (),
+          .m_tlast (xlast),
+          .m_tdata (xdata)
+      );
+
+      assign gvalid = xvalid && !tx_busy_w;
+      assign xready = gready;
+      assign gdata  = xdata;
+
+      // Use the FTDI USB UART for dumping the telemetry (as ASCII hex) //
+      uart #(
+          .DATA_WIDTH(8)
+      ) U_UART1 (
+          .clk(clock),
+          .rst(reset),
+
+          .s_axis_tvalid(gvalid),
+          .s_axis_tready(gready),
+          .s_axis_tdata (gdata),
+
+          .m_axis_tvalid(uvalid),
+          .m_axis_tready(uready),
+          .m_axis_tdata (udata),
+
+          .rxd(uart_rx_i),
+          .txd(uart_tx_o),
+
+          .rx_busy(),
+          .tx_busy(tx_busy_w),
+          .rx_overrun_error(),
+          .rx_frame_error(),
+
+          .prescale(UART_PRESCALE)
+      );
+
+    end
+  endgenerate  /* TELEMETRY && USE_UART */
 
 
 endmodule  /* axi_ddr3_lite */

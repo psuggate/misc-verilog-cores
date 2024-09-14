@@ -7,86 +7,89 @@
  * read-requests, and data-writes.
  */
 module ddr3_fsm #(
-  // Sets DDR3 SRAM Timings
-  parameter DDR_FREQ_MHZ = 100,
+    // Sets DDR3 SRAM Timings
+    parameter DDR_FREQ_MHZ = 100,
 
-  // If enabled, the {wrlst, rdlst} are used to decide when to ACTIVATE and
-  // PRECHARGE rows
-  // todo:
-  parameter WRLAST_ENABLE = 1'b1,
-  parameter RDLAST_ENABLE = 1'b1,
+    // If enabled, the {wrlst, rdlst} are used to decide when to ACTIVATE and
+    // PRECHARGE rows
+    // todo:
+    parameter WRLAST_ENABLE = 1'b1,
+    parameter RDLAST_ENABLE = 1'b1,
 
-  // Request ID's are represent the order that commands are accepted at the bus/
-  // transaction layer, and if used, the memory controller will respect this
-  // ordering, when reads and writes access overlapping areas of memory.
-  parameter REQID = 4,
-  localparam ISB = REQID - 1,
+    // Request ID's are represent the order that commands are accepted at the bus/
+    // transaction layer, and if used, the memory controller will respect this
+    // ordering, when reads and writes access overlapping areas of memory.
+    parameter  REQID = 4,
+    localparam ISB   = REQID - 1,
 
-  // Defaults for 1Gb, 16x SDRAM
-  parameter DDR_ROW_BITS = 13,
-  localparam RSB = DDR_ROW_BITS - 1,
-  parameter DDR_COL_BITS = 10,
-  localparam CSB = DDR_COL_BITS - 1,
+    // Defaults for 1Gb, 16x SDRAM
+    parameter DDR_ROW_BITS = 13,
+    localparam RSB = DDR_ROW_BITS - 1,
+    parameter DDR_COL_BITS = 10,
+    localparam CSB = DDR_COL_BITS - 1,
 
-  // Default is '{row, bank, col} <= addr_i;' -- this affects how often banks will
-  // need PRECHARGE commands. Enabling this alternate {bank, row, col} ordering
-  // may help for some workloads; e.g., when all but the upper (burst) addresses
-  // are not correlated in time?
-  // todo: ...
-  parameter BANK_ROW_COL = 0,
+    // Default is '{row, bank, col} <= addr_i;' -- this affects how often banks will
+    // need PRECHARGE commands. Enabling this alternate {bank, row, col} ordering
+    // may help for some workloads; e.g., when all but the upper (burst) addresses
+    // are not correlated in time?
+    // todo: ...
+    parameter BANK_ROW_COL = 0,
 
-  // Note: all addresses for requests must be word- and burst- aligned. Therefore,
-  //   for a x16 DDR3 device, each transfer is 16 bytes, so the lower 4-bits are
-  //   not passed to this controller.
-  // Note: a 1Gb, x16, DDR3 SDRAM has:
-  //    - 13b row address bits;
-  //    -  3b bank address bits;
-  //    - 10b column address bits; and
-  //    - 2kB page-size,
-  //   and the lower 3b of the column address are ignored by this module. So a 23b
-  //   address is required.
-  // Todo: in order to support wrapping-bursts; e.g., for a CPU cache, will need
-  //   the lower 3b ??
-  parameter ADDRS = 23,
-  localparam ASB = ADDRS - 1
+    // Note: all addresses for requests must be word- and burst- aligned. Therefore,
+    //   for a x16 DDR3 device, each transfer is 16 bytes, so the lower 4-bits are
+    //   not passed to this controller.
+    // Note: a 1Gb, x16, DDR3 SDRAM has:
+    //    - 13b row address bits;
+    //    -  3b bank address bits;
+    //    - 10b column address bits; and
+    //    - 2kB page-size,
+    //   and the lower 3b of the column address are ignored by this module. So a 23b
+    //   address is required.
+    // Todo: in order to support wrapping-bursts; e.g., for a CPU cache, will need
+    //   the lower 3b ??
+    parameter  ADDRS = 23,
+    localparam ASB   = ADDRS - 1
 ) (
-  input arst_n,  // Global, asynchronous reset
+    input arst_n,  // Global, asynchronous reset
 
-  input clock,  // Shared clock domain for the memory-controller
-  input reset,  // Synchronous reset
+    input clock,  // Shared clock domain for the memory-controller
+    input reset,  // Synchronous reset
 
-  // Write-request port
-  input mem_wrreq_i,
-  input mem_wrlst_i,  // If asserted, then LAST of burst
-  output mem_wrack_o,
-  output mem_wrerr_o,
-  input [ISB:0] mem_wrtid_i,
-  input [ASB:0] mem_wradr_i,
+    output [4:0] state_o,
+    output [4:0] snext_o,
 
-  // Read-request port
-  input mem_rdreq_i,
-  input mem_rdlst_i,  // If asserted, then LAST of burst
-  output mem_rdack_o,
-  output mem_rderr_o,
-  input [ISB:0] mem_rdtid_i,
-  input [ASB:0] mem_rdadr_i,
+    // Write-request port
+    input mem_wrreq_i,
+    input mem_wrlst_i,  // If asserted, then LAST of burst
+    output mem_wrack_o,
+    output mem_wrerr_o,
+    input [ISB:0] mem_wrtid_i,
+    input [ASB:0] mem_wradr_i,
 
-  // Configuration port
-  input cfg_req_i,
-  output cfg_rdy_o,
-  input [2:0] cfg_cmd_i,
-  input [2:0] cfg_ba_i,
-  input [RSB:0] cfg_adr_i,
+    // Read-request port
+    input mem_rdreq_i,
+    input mem_rdlst_i,  // If asserted, then LAST of burst
+    output mem_rdack_o,
+    output mem_rderr_o,
+    input [ISB:0] mem_rdtid_i,
+    input [ASB:0] mem_rdadr_i,
 
-  // DDR Data-Layer control signals
-  // Note: all state-transitions are gated by the 'ddl_rdy_i' signal
-  output ddl_req_o,
-  output ddl_seq_o,
-  input ddl_rdy_i,
-  input ddl_ref_i,
-  output [2:0] ddl_cmd_o,
-  output [2:0] ddl_ba_o,
-  output [RSB:0] ddl_adr_o
+    // Configuration port
+    input cfg_req_i,
+    output cfg_rdy_o,
+    input [2:0] cfg_cmd_i,
+    input [2:0] cfg_ba_i,
+    input [RSB:0] cfg_adr_i,
+
+    // DDR Data-Layer control signals
+    // Note: all state-transitions are gated by the 'ddl_rdy_i' signal
+    output ddl_req_o,
+    output ddl_seq_o,
+    input ddl_rdy_i,
+    input ddl_ref_i,
+    output [2:0] ddl_cmd_o,
+    output [2:0] ddl_ba_o,
+    output [RSB:0] ddl_adr_o
 );
 
   //
@@ -108,7 +111,7 @@ module ddr3_fsm #(
 
   // -- Constants -- //
 
-`include "ddr3_settings.vh"
+  `include "ddr3_settings.vh"
 
   // DDR3 controller states
   localparam [4:0] ST_IDLE = 5'b10000;
@@ -132,6 +135,9 @@ module ddr3_fsm #(
   reg [2:0] ba_c, ba_q, cmd_c, cmd_q;
   reg [PSB:0] pre_c, pre_q;
   reg wak_c, wrack, rak_c, rdack, req_c, req_q, wen_c, wen_q;
+
+  assign state_o = state;
+  assign snext_o = snext;
 
   assign cfg_rdy_o = ddl_rdy_i;
 
@@ -317,7 +323,7 @@ module ddr3_fsm #(
     endcase
   end
 
-`endif /* !__icarus */
+`endif  /* !__icarus */
 
 
 endmodule  /* ddr3_fsm */

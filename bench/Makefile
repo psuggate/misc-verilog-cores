@@ -12,6 +12,8 @@ RTLDIR	:= ../rtl
 USB_V	:= $(wildcard $(RTLDIR)/usb/*.v)
 USB	:= $(filter-out %_tb.v, $(USB_V)) $(wildcard usb/*.v)
 
+UART	:= $(wildcard $(RTLDIR)/uart/*.v)
+
 DDR3_V	:= $(wildcard $(RTLDIR)/ddr3/*.v)
 DDR3	:= $(filter-out %_tb.v, $(DDR3_V))
 
@@ -27,7 +29,7 @@ EXTRA	:= $(filter-out %_tb.v, $(EXTRA_V))
 SIMSRC	:= $(wildcard *.v)
 SRC	:= $(filter-out %_tb.v, $(SIMSRC))
 
-LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(EXTRA) $(SRC)
+LIB	:= $(MISC) $(FIFO) $(ARCH) $(USB) $(DDR3) $(UART) $(EXTRA) $(SRC)
 TOP	?= $(wildcard *_tb.v)
 OUT	?= $(TOP:%.v=../build/%.out)
 

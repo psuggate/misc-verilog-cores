@@ -13,6 +13,11 @@ module ddr3_top #(
     input bus_clock,
     input bus_reset,
 
+    // Debug UART signals [optional]
+    input  send_ni,
+    input  uart_rx_i,
+    output uart_tx_o,
+
     output ddr3_conf_o,
     output ddr_clock_o,
     output ddr_reset_o,
@@ -249,7 +254,9 @@ module ddr3_top #(
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
       .BYPASS_ENABLE   (0),
-      .TELEMETRY       (0),
+      .TELEMETRY       (1),
+      .ENDPOINT        (3),
+      .USE_UART        (1),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -258,6 +265,11 @@ module ddr3_top #(
       .reset(reset),  // synchronous reset
 
       .configured_o(ddr3_conf_o),
+
+      // Debug UART signals [optional]
+      .send_ni  (send_ni),
+      .uart_rx_i(uart_rx_i),
+      .uart_tx_o(uart_tx_o),
 
       .tele_select_i(1'b0),
       .tele_start_i (1'b0),
@@ -345,7 +357,7 @@ module ddr3_top #(
 `ifdef __gowin_for_the_win
 
   // GoWin Global System Reset signal tree.
-  GSR GSR (.GSRI(1'b1));
+  // GSR GSR (.GSRI(1'b1));
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),

@@ -19,6 +19,9 @@ struct Args {
     #[arg(long, default_value = "false")]
     read_twice: bool,
 
+    #[arg(long, default_value = "false")]
+    write_twice: bool,
+
     #[arg(short, long, default_value = "false")]
     no_read: bool,
 
@@ -134,6 +137,8 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
 
     info!("DDR3 WRITTEN (bytes = {}): {:?}", num, &wrdat);
 
+    spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
+
     // Each 'WRITE' should generate a single-byte response
     let bytes: Vec<u8> = match tart.try_read(None) {
         Ok(xs) => xs,
@@ -195,6 +200,9 @@ fn axis_usb(args: Args) -> Result<(), rusb::Error> {
     Ok(())
 }
 
+/**
+ * Store some data to DDR3 SDRAM, via USB, and then read it back.
+ */
 fn usb_ddr3(args: Args) -> Result<(), rusb::Error> {
     if args.verbose > 0 {
         info!("{:?}", &args);
@@ -222,6 +230,9 @@ fn usb_ddr3(args: Args) -> Result<(), rusb::Error> {
 
     if !args.writeless {
         let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+        if args.write_twice {
+            let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+        }
     }
 
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));

@@ -326,10 +326,10 @@ module usb_ulpi_wrapper #(
 
   // -- Telemetry Logger -- //
 
-  reg tstart, tready, send_q;
+  reg tstart, send_q;
   wire rx_busy_w, tx_busy_w;
   wire xvalid, xready, uvalid, uready;
-  wire terror, tcycle, tvalid, tlast, tkeep;
+  wire terror, tcycle, tvalid, tready, tlast, tkeep;
   wire [7:0] xdata, tdata, udata;
   wire [9:0] tlevel;
 
