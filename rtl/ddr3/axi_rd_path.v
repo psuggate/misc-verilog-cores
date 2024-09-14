@@ -17,6 +17,7 @@ module axi_rd_path #(
     parameter CTRL_FIFO_BLOCK = 0,
     localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
 
+    parameter DATA_FIFO_BYPASS = 0,
     parameter DATA_FIFO_DEPTH = 512,
     parameter DATA_FIFO_BLOCK = 1,
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
@@ -66,6 +67,11 @@ module axi_rd_path #(
   localparam ST_READ = 4'b0010;
   localparam ST_BUSY = 4'b0100;
 
+  localparam USELIB = USE_SYNC_FIFO == 0 && DATA_FIFO_BLOCK > 0;
+
+  wire rvalid_w, rlast_w;
+  wire [MSB:0] rdata_w;
+
   reg aready;
   reg [3:0] state;
   wire cmd_ready, rcf_valid, rdf_ready, rrf_ready;
@@ -77,8 +83,12 @@ module axi_rd_path #(
   assign axi_arready_o = cmd_ready;
   assign axi_rresp_o   = rrf_ready ? AXI_RESP_OKAY : 2'bxx;
 
+  assign axi_rvalid_o = DATA_FIFO_BYPASS ? mem_valid_i : rvalid_w;
+  assign axi_rlast_o  = DATA_FIFO_BYPASS ? mem_last_i : rlast_w;
+  assign axi_rdata_o  = DATA_FIFO_BYPASS ? mem_data_i : rdata_w;
+
   assign mem_fetch_o   = rcf_valid;
-  assign mem_ready_o   = rdf_ready;
+  assign mem_ready_o = DATA_FIFO_BYPASS ? axi_rready_i : rdf_ready;
 
   // -- Chunker for Large Bursts -- //
 
@@ -153,8 +163,6 @@ module axi_rd_path #(
 
   // -- Synchronous, 2 kB, Read-Data FIFO -- //
 
-  localparam USELIB = USE_SYNC_FIFO == 0 && DATA_FIFO_BLOCK > 0;
-
   //
   // Todo:
   //  - not required if the data flows directly to a 'Bulk EP IN' core, as these
@@ -181,11 +189,11 @@ module axi_rd_path #(
       .s_tlast (mem_last_i),
       .s_tdata (mem_data_i),
 
-      .m_tvalid(axi_rvalid_o),
-      .m_tready(axi_rready_i),
+      .m_tvalid(rvalid_w),
+      .m_tready(DATA_FIFO_BYPASS ? 1'b0 : axi_rready_i),
       .m_tkeep (),
-      .m_tlast (axi_rlast_o),
-      .m_tdata (axi_rdata_o)
+      .m_tlast (rlast_w),
+      .m_tdata (rdata_w)
   );
 
 `ifdef __icarus

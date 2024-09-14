@@ -202,18 +202,18 @@ module usb_ddr3_top (
   assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w ^ crc_error_w;
 
 
+`ifdef __use_ddr3_because_reasons
   //
   //  DDR3 Cores Under Next-generation Tests
   ///
 
-`ifdef __use_ddr3_because_reasons
-
   assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
-      .SRAM_BYTES (2048),
-      .DATA_WIDTH (32),
-      .TELEMETRY  (0),
+      .SRAM_BYTES(2048),
+      .DATA_WIDTH(32),
+      .DATA_FIFO_BYPASS(1),
+      .TELEMETRY(0),
       .LOW_LATENCY(LOW_LATENCY),
       .WR_PREFETCH(WR_PREFETCH)
   ) ddr_core_inst (
@@ -231,6 +231,15 @@ module usb_ddr3_top (
       .send_ni  (send_n),
       .uart_rx_i(uart_rx),
       .uart_tx_o(uart_tx),
+
+      .tele_select_i(1'b0),
+      .tele_start_i (1'b0),
+      .tele_level_o (),
+      .tele_tvalid_o(),
+      .tele_tready_i(1'b0),
+      .tele_tlast_o (),
+      .tele_tkeep_o (),
+      .tele_tdata_o (),
 
       // From USB or SPI
       .s_tvalid(y_tvalid),

@@ -29,6 +29,7 @@ module axi_wr_path #(
     parameter CTRL_FIFO_BLOCK = 0,
     localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
 
+    parameter DATA_FIFO_BYPASS = 0,
     parameter DATA_FIFO_DEPTH = 512,
     parameter DATA_FIFO_BLOCK = 1,
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
@@ -93,23 +94,29 @@ module axi_wr_path #(
   reg [  1:0] bresp;
   reg [ISB:0] bwrid;
 
-  wire wdf_ready, wdf_valid, wdf_last;
+  wire wdf_ready, wdf_valid, wdf_last, dat_ready;
   wire cmd_ready, cmd_valid, wcf_valid;
   wire [WSB:0] command_w;
+  wire [SSB:0] wdf_strb;
+  wire [MSB:0] wdf_data;
 
   wire xvalid, xready, xseq;
   wire [ISB:0] xid;
   wire [ASB:0] xaddr;
 
   assign axi_awready_o = aready;
-  assign axi_wready_o = wready;
+  assign axi_wready_o = DATA_FIFO_BYPASS ? mem_ready_i : wready;
   assign axi_bvalid_o = bvalid;
   assign axi_bresp_o = bresp;
   assign axi_bid_o = bwrid;
 
   assign mem_store_o = wcf_valid;
-  assign mem_valid_o = wdf_valid;
-  assign mem_last_o = wdf_last;
+  assign mem_valid_o = DATA_FIFO_BYPASS ? axi_wvalid_i : wdf_valid;
+  assign mem_last_o = DATA_FIFO_BYPASS ? axi_wlast_i : wdf_last;
+  assign mem_strb_o = DATA_FIFO_BYPASS ? axi_wstrb_i : wdf_strb;
+  assign mem_data_o = DATA_FIFO_BYPASS ? axi_wdata_i : wdf_data;
+
+  assign dat_ready = DATA_FIFO_BYPASS ? 1'b1 : wdf_ready;
 
   // Command- & data- FIFO signals
   assign cmd_valid = axi_awvalid_i & aready;
@@ -144,7 +151,7 @@ module axi_wr_path #(
           // Wait for the write-data to be stored
           if (axi_wvalid_i && wready && axi_wlast_i) begin
             wready <= 1'b0;
-            if (!cmd_ready || !wdf_ready) begin
+            if (!cmd_ready || !dat_ready) begin
               state <= ST_BUSY;
             end else begin
               state <= ST_IDLE;
@@ -157,7 +164,7 @@ module axi_wr_path #(
 
         ST_BUSY: begin
           // If either FIFO fills up, then wait for a bit
-          if (cmd_ready && wdf_ready) begin
+          if (cmd_ready && dat_ready) begin
             state  <= ST_IDLE;
             aready <= 1'b1;
           end else begin
@@ -195,7 +202,7 @@ module axi_wr_path #(
         bwrid <= bwrid;
       end
 
-      if (mem_ready_i && wdf_valid && wdf_last) begin
+      if (mem_ready_i && mem_valid_o && mem_last_o) begin
         bvalid <= 1'b1;
       end else if (bvalid && axi_bready_i) begin
         bvalid <= 1'b0;
@@ -288,7 +295,7 @@ module axi_wr_path #(
           .m_tvalid(wdf_valid),
           .m_tready(mem_ready_i),
           .m_tlast (wdf_last),
-          .m_tdata ({mem_strb_o, mem_data_o})
+          .m_tdata ({wdf_strb, wdf_data})
       );
 
     end else begin : g_axis_fifo
@@ -332,12 +339,12 @@ module axi_wr_path #(
 
           .m_axis_tvalid(wdf_valid),
           .m_axis_tready(mem_ready_i),
-          .m_axis_tkeep(mem_strb_o),
+          .m_axis_tkeep(wdf_strb),
           .m_axis_tlast(wdf_last),
           .m_axis_tid(),
           .m_axis_tdest(),
           .m_axis_tuser(),
-          .m_axis_tdata(mem_data_o),
+          .m_axis_tdata(wdf_data),
 
           .status_depth(),
           .status_depth_commit(),

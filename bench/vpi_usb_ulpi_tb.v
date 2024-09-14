@@ -243,7 +243,7 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
-      .TELEMETRY  (0),
+      .TELEMETRY  (1),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) U_DDRC1 (
@@ -261,6 +261,15 @@ module vpi_usb_ulpi_tb;
       .send_ni  (send_q),
       .uart_rx_i(1'b1),
       .uart_tx_o(),
+
+      .tele_select_i(1'b0),
+      .tele_start_i (1'b0),
+      .tele_level_o (),
+      .tele_tvalid_o(),
+      .tele_tready_i(1'b0),
+      .tele_tlast_o (),
+      .tele_tkeep_o (),
+      .tele_tdata_o (),
 
       // From USB or SPI
       .s_tvalid(y_tvalid),

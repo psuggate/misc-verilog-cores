@@ -46,6 +46,7 @@ module ddr3_axi_ctrl #(
     parameter CTRL_FIFO_BLOCK = 0,  // Defaults to using LUT-SRAM's
     localparam CBITS = $clog2(CTRL_FIFO_DEPTH),
 
+    parameter DATA_FIFO_BYPASS = 0,
     parameter DATA_FIFO_DEPTH = 512,  // Default: 2kB SRAM block
     parameter DATA_FIFO_BLOCK = 1,  // Defaults to using SRAM hard-IP blocks
     localparam DBITS = $clog2(DATA_FIFO_DEPTH),
@@ -180,6 +181,7 @@ module ddr3_axi_ctrl #(
       .MASKS(MASKS),
       .AXI_ID_WIDTH(REQ_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
+      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH),
       .USE_SYNC_FIFO(0),
       .USE_PACKET_FIFOS(USE_PACKET_FIFOS)
@@ -227,6 +229,7 @@ module ddr3_axi_ctrl #(
       .MASKS(MASKS),
       .AXI_ID_WIDTH(MEM_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
+      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH)
   ) U_RD_PATH1 (
       .clock(clock),

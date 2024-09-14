@@ -1,11 +1,19 @@
 `timescale 1ns / 100ps
+`ifndef __icarus
+// Slower simulation performance, as the IOB's have to be simulated
 `define __gowin_for_the_win
+`endif /* !__icarus */
 module ddr3_top #(
     parameter SRAM_BYTES = 2048,
     parameter DATA_WIDTH = 32,
+    parameter DATA_FIFO_BYPASS = 0,
 
+    // Capture telemetry for the DDR3 core state, if enabled
     parameter TELEMETRY = 1,
     parameter TELE_UART = 1,
+    parameter TELE_SIZE = 1024,
+    localparam TBITS = $clog2(TELE_SIZE),
+    parameter ENDPOINT = 2,
 
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,  // 0 or 1
@@ -16,6 +24,16 @@ module ddr3_top #(
 
     input bus_clock,
     input bus_reset,
+
+    // Transaction Logger & Telemetry [optional]
+    input tele_select_i,
+    input tele_start_i,
+    output [TBITS:0] tele_level_o,
+    output tele_tvalid_o,
+    input tele_tready_i,
+    output tele_tlast_o,
+    output tele_tkeep_o,
+    output [7:0] tele_tdata_o,
 
     // Debug UART signals [optional]
     input  send_ni,
@@ -109,15 +127,15 @@ module ddr3_top #(
   // -- DDR3 Core and AXI Interconnect Signals -- //
 
   // AXI4 Signals to/from the Memory Controller
-  wire awvalid, wvalid, wlast, bready, arvalid, rready;
-  wire awready, wready, bvalid, arready, rvalid, rlast;
-  wire [ISB:0] awid, arid, bid, rid;
+  wire awvalid, wvalid, wlast, bready, arvalid, rready_w;
+  wire awready, wready, bvalid, arready, rvalid_w, rlast_w;
+  wire [ISB:0] awid, arid, bid, rid_w;
   wire [7:0] awlen, arlen;
   wire [1:0] awburst, arburst;
   wire [ASB:0] awaddr, araddr;
   wire [BSB:0] wstrb;
-  wire [1:0] bresp, rresp;
-  wire [MSB:0] rdata, wdata;
+  wire [1:0] bresp, rresp_w;
+  wire [MSB:0] rdata_w, wdata;
 
   // DFI <-> PHY
   wire dfi_rst_n, dfi_cke, dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n;
@@ -184,7 +202,8 @@ module ddr3_top #(
   memreq #(
       .FIFO_DEPTH(SRAM_BYTES * 8 / DATA_WIDTH),
       .DATA_WIDTH(DATA_WIDTH),
-      .STROBES(DATA_WIDTH / 8)
+      .STROBES(DATA_WIDTH / 8),
+      .WR_FRAME_FIFO(1)
   ) U_MEMREQ1 (
       .mem_clock(clock),  // DDR3 controller domain
       .mem_reset(reset),
@@ -233,12 +252,12 @@ module ddr3_top #(
       .arlen_o(arlen),
       .arburst_o(arburst),
 
-      .rvalid_i(rvalid),
-      .rready_o(rready),
-      .rlast_i(rlast),
-      .rresp_i(rresp),
-      .rid_i(rid),
-      .rdata_i(rdata)
+      .rvalid_i(rvalid_w),
+      .rready_o(rready_w),
+      .rlast_i(rlast_w),
+      .rresp_i(rresp_w),
+      .rid_i(rid_w),
+      .rdata_i(rdata_w)
   );
 
 
@@ -257,10 +276,8 @@ module ddr3_top #(
       .LOW_LATENCY     (LOW_LATENCY),
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
+      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .BYPASS_ENABLE   (0),
-      .TELEMETRY       (TELEMETRY),
-      .ENDPOINT        (3),
-      .USE_UART        (TELE_UART),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -269,20 +286,6 @@ module ddr3_top #(
       .reset(reset),  // synchronous reset
 
       .configured_o(ddr3_conf_o),
-
-      // Debug UART signals [optional]
-      .send_ni  (send_ni),
-      .uart_rx_i(uart_rx_i),
-      .uart_tx_o(uart_tx_o),
-
-      .tele_select_i(1'b0),
-      .tele_start_i (1'b0),
-      .tele_level_o (),
-      .tele_tvalid_o(),
-      .tele_tready_i(1'b0),
-      .tele_tlast_o (),
-      .tele_tkeep_o (),
-      .tele_tdata_o (),
 
       .axi_awvalid_i(awvalid),
       .axi_awready_o(awready),
@@ -309,12 +312,12 @@ module ddr3_top #(
       .axi_arlen_i(arlen),
       .axi_arburst_i(arburst),
 
-      .axi_rvalid_o(rvalid),
-      .axi_rready_i(rready),
-      .axi_rlast_o(rlast),
-      .axi_rresp_o(rresp),
-      .axi_rid_o(rid),
-      .axi_rdata_o(rdata),
+      .axi_rvalid_o(rvalid_w),
+      .axi_rready_i(rready_w),
+      .axi_rlast_o(rlast_w),
+      .axi_rresp_o(rresp_w),
+      .axi_rid_o(rid_w),
+      .axi_rdata_o(rdata_w),
 
       .byp_arvalid_i(1'b0),  // [optional] fast-read port
       .byp_arready_o(),
@@ -455,6 +458,175 @@ module ddr3_top #(
   );
 
 `endif  /* !__gowin_for_the_win */
+
+
+  //
+  //  [Optional] DDR3 Telemetry Capture
+  ///
+  reg estart_q;
+  wire ecycle_w, estart_w, evalid_w, eready_w, elast_w, ekeep_w;
+  wire [TBITS:0] elevel_w;
+  wire [7:0] edata_w;
+
+  generate
+    if (TELEMETRY) begin : g_ddr3_telemetry
+
+      wire [2:0] ddl_state_w = U_LITE.U_DDL1.state;
+      wire [4:0] fsm_state_w = U_LITE.fsm_state_w;
+      wire [4:0] fsm_snext_w = U_LITE.fsm_snext_w;
+      wire cfg_run = U_LITE.cfg_run;
+      wire cfg_req = U_LITE.cfg_req;
+      wire cfg_ref = U_LITE.cfg_ref;
+      wire [2:0] cfg_cmd = U_LITE.cfg_cmd;
+
+      ddr3_telemetry #(
+          .ENDPOINT(ENDPOINT),
+          .FIFO_DEPTH(TELE_SIZE),
+          .PACKET_SIZE(8)  // Note: 8x 16b words per USB (BULK IN) packet
+      ) U_TELEMETRY3 (
+          .clock(clock),
+          .reset(reset),
+
+          .enable_i(1'b1),
+          .select_i(ecycle_w),
+          .start_i (estart_q),
+          .endpt_i (ENDPOINT),
+          .level_o (elevel_w),
+
+          .fsm_state_i(fsm_state_w),
+          .fsm_snext_i(fsm_snext_w),
+          .ddl_state_i(ddl_state_w),
+          .cfg_rst_ni (dfi_rst_n),
+          .cfg_run_i  (cfg_run),
+          .cfg_req_i  (cfg_req),
+          .cfg_ref_i  (cfg_ref),
+          .cfg_cmd_i  (cfg_cmd),
+
+          .m_tvalid(evalid_w),
+          .m_tready(eready_w),
+          .m_tlast (elast_w),
+          .m_tkeep (ekeep_w),
+          .m_tdata (edata_w)
+      );
+
+    end
+  endgenerate
+
+  generate
+    if (!TELEMETRY || TELE_UART) begin : g_ddr3_no_telem
+
+      assign tele_level_o  = TELEMETRY ? elevel_w : 0;
+      assign tele_tvalid_o = 1'b0;
+      assign tele_tkeep_o  = 1'b0;
+      assign tele_tlast_o  = 1'b0;
+      assign tele_tdata_o  = 1'b0;
+
+    end else begin : g_telem_no_uart
+
+      assign eready_w = tele_tready_i;
+      assign estart_w = tele_start_i;
+      assign ecycle_w = tele_select_i;
+
+      assign tele_level_o = elevel_w;
+      assign tele_tvalid_o = evalid_w;
+      assign tele_tkeep_o = ekeep_w;
+      assign tele_tlast_o = elast_w;
+      assign tele_tdata_o = edata_w;
+
+    end
+  endgenerate  /* g_telem_no_uart */
+
+  generate
+    if (TELEMETRY && TELE_UART) begin : g_uart_telemetry
+      //
+      //  Telemetry Read-Back via UART
+      ///
+
+      // USB UART settings
+      // localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
+      localparam [15:0] UART_PRESCALE = 16'd54;  // For: 100.0 MHz / (230400 * 8)
+
+      reg send_q, ecycle_q;
+      wire xvalid, xready, xlast, gvalid, gready, uvalid, uready, tx_busy_w, select_w;
+      wire [7:0] xdata, gdata, udata;
+
+      assign ecycle_w = ecycle_q;
+
+      always @(posedge clock) begin
+        if (reset) begin
+          estart_q <= 1'b0;
+          ecycle_q <= 1'b0;
+          send_q   <= 1'b0;
+        end else begin
+          send_q <= ~send_ni & ~ecycle_w & ~tx_busy_w;
+
+          if (!ecycle_w && (send_q || uvalid && udata == "a")) begin
+            estart_q <= 1'b1;
+            ecycle_q <= 1'b1;
+          end else begin
+            estart_q <= select_w ? 1'b0 : estart_q;
+            ecycle_q <= estart_q || select_w;
+          end
+        end
+      end
+
+      // Convert 32b telemetry captures to ASCII hexadecimal //
+      hex_dump #(
+          .UNICODE(0),
+          .BLOCK_SRAM(1)
+      ) U_HEXDUMP1 (
+          .clock(clock),
+          .reset(reset),
+
+          .start_dump_i(estart_q),
+          .is_dumping_o(select_w),
+          .fifo_level_o(),
+
+          .s_tvalid(evalid_w),
+          .s_tready(eready_w),
+          .s_tkeep (ekeep_w),
+          .s_tlast (elast_w),
+          .s_tdata (edata_w),
+
+          .m_tvalid(xvalid),
+          .m_tready(xready),
+          .m_tkeep (),
+          .m_tlast (xlast),
+          .m_tdata (xdata)
+      );
+
+      assign gvalid = xvalid && !tx_busy_w;
+      assign xready = gready;
+      assign gdata  = xdata;
+
+      // Use the FTDI USB UART for dumping the telemetry (as ASCII hex) //
+      uart #(
+          .DATA_WIDTH(8)
+      ) U_UART1 (
+          .clk(clock),
+          .rst(reset),
+
+          .s_axis_tvalid(gvalid),
+          .s_axis_tready(gready),
+          .s_axis_tdata (gdata),
+
+          .m_axis_tvalid(uvalid),
+          .m_axis_tready(uready),
+          .m_axis_tdata (udata),
+
+          .rxd(uart_rx_i),
+          .txd(uart_tx_o),
+
+          .rx_busy(),
+          .tx_busy(tx_busy_w),
+          .rx_overrun_error(),
+          .rx_frame_error(),
+
+          .prescale(UART_PRESCALE)
+      );
+
+    end
+  endgenerate  /* TELEMETRY && TELE_UART */
 
 
 endmodule  /* ddr3_top */
