@@ -1,25 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Sep 14 04:32:06 2024
+[*] Sat Sep 14 06:48:03 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sat Sep 14 04:30:52 2024"
-[dumpfile_size] 6509853
+[dumpfile_mtime] "Sat Sep 14 06:43:45 2024"
+[dumpfile_size] 6877660
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 741514800
+[timestart] 749291100
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 742236000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 750012000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
+[treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.U_WR_PATH1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.
 [sst_width] 233
-[signals_width] 150
+[signals_width] 166
 [sst_expanded] 1
 [sst_vpaned_height] 695
 @28
@@ -203,8 +204,9 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tdata[7:0]
 -USB EPs
 @1401200
 -USB Core
-@800200
+@c00200
 -MemReq
+@800200
 -IO
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.s_tvalid
@@ -312,9 +314,8 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rid_i[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.rdata_i[31:0]
 @1401200
 -Read
-@1000200
 -MemReq
-@c00200
+@800200
 -MemCtrl
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.reset
@@ -409,6 +410,36 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rlast_i
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdata_i[31:0]
 @1401200
 -RdDat
+@c00201
+-Telemetry
+@25
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.elevel_w[10:0]
+@29
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.send_ni
+vpi_usb_ulpi_tb.U_DDRC1.uart_tx_o
+[color] 3
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.estart_q
+[color] 2
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.ecycle_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.evalid_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.eready_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tvalid
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tready
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tlast
+@23
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tdata[15:0]
+@29
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tvalid_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tready_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tlast_w
+@23
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tdata_w[7:0]
+@29
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_uart_telemetry.tx_busy_w
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_uart_telemetry.send_q
+@1401201
+-Telemetry
+@1000200
 -MemCtrl
 @800200
 -DDR3

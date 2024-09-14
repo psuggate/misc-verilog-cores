@@ -537,17 +537,27 @@ module axi_ddr3_lite #(
       // localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
       localparam [15:0] UART_PRESCALE = 16'd54;  // For: 100.0 MHz / (230400 * 8)
 
-      reg send_q;
-      wire xvalid, xready, xlast, gvalid, gready, uvalid, uready, tx_busy_w;
+      reg send_q, ecycle_q;
+      wire xvalid, xready, xlast, gvalid, gready, uvalid, uready, tx_busy_w, select_w;
       wire [7:0] xdata, gdata, udata;
 
-      always @(posedge clock) begin
-        send_q <= ~send_ni & ~ecycle_w & ~tx_busy_w;
+      assign ecycle_w = ecycle_q;
 
-        if (!ecycle_w && (send_q || uvalid && udata == "a")) begin
-          estart_q <= 1'b1;
-        end else begin
+      always @(posedge clock) begin
+        if (reset) begin
           estart_q <= 1'b0;
+          ecycle_q <= 1'b0;
+          send_q   <= 1'b0;
+        end else begin
+          send_q <= ~send_ni & ~ecycle_w & ~tx_busy_w;
+
+          if (!ecycle_w && (send_q || uvalid && udata == "a")) begin
+            estart_q <= 1'b1;
+            ecycle_q <= 1'b1;
+          end else begin
+            estart_q <= select_w ? 1'b0 : estart_q;
+            ecycle_q <= estart_q || select_w;
+          end
         end
       end
 
@@ -560,7 +570,7 @@ module axi_ddr3_lite #(
           .reset(reset),
 
           .start_dump_i(estart_q),
-          .is_dumping_o(ecycle_w),
+          .is_dumping_o(select_w),
           .fifo_level_o(),
 
           .s_tvalid(evalid_w),

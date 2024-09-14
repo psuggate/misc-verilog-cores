@@ -1,4 +1,8 @@
 `timescale 1ns / 100ps
+/**
+ * Records the DDR3 core's state-changes, for debugging and logging of DDR3
+ * SDRAM initialisation and transactions.
+ */
 module ddr3_telemetry #(
     parameter [3:0] ENDPOINT = 4'd2,
     parameter PACKET_SIZE = 8,
@@ -38,11 +42,6 @@ module ddr3_telemetry #(
     output [7:0] m_tdata
 );
 
-  /**
-   * Records the DDR3 core's state-changes, for debugging and logging of DDR3
-   * SDRAM initialisation and transactions.
-   */
-
   // -- State and Signals -- //
 
   // Telemetry-core state //
@@ -61,7 +60,6 @@ module ddr3_telemetry #(
   reg [CSB:0] count;
   wire [CBITS:0] cnext = count + {{CBITS{1'b0}}, 1'b1};
 
-
   // -- Input & Output Assignments -- //
 
   assign m_tvalid = sel_q && a_tvalid_w;
@@ -72,7 +70,6 @@ module ddr3_telemetry #(
 
   assign valid_w = diff_w & ready_w;
   assign last_w = cnext[CBITS];
-
 
   // -- Conversions and Packing -- //
 
@@ -96,7 +93,6 @@ module ddr3_telemetry #(
       default: fsm_snext_x = 3'd7;
     endcase
   end
-
 
   // -- State-Change Detection and Telemetry Capture -- //
 
@@ -130,7 +126,6 @@ module ddr3_telemetry #(
     end
   end
 
-
   // -- Telemetry Framer -- //
 
   always @(posedge clock) begin
@@ -140,7 +135,6 @@ module ddr3_telemetry #(
       count <= cnext[CSB:0];
     end
   end
-
 
   // -- Chip Select -- //
 
@@ -156,88 +150,37 @@ module ddr3_telemetry #(
     end
   end
 
-
   // -- Block SRAM FIFO for Telemetry -- //
 
   wire x_tvalid, x_tready, x_tlast;
   wire [15:0] x_tdata;
 
-  generate
-    if (!SMALL_FIFO) begin : g_sync_fifo
+  axis_sfifo #(
+      .WIDTH (16),
+      .DEPTH (FIFO_DEPTH),
+      .TKEEP (0),
+      .TLAST (1),
+      .USELIB(SMALL_FIFO),
+      .OUTREG(3)
+  ) U_TFIFO1 (
+      .clock(clock),
+      .reset(reset),
 
-      sync_fifo #(
-          .WIDTH (17),
-          .ABITS (FBITS),
-          .OUTREG(3)
-      ) U_TELEMETRY0 (
-          .clock(clock),
-          .reset(reset),
+      .level_o(level_o),
 
-          .level_o(level_o),
+      .s_tvalid(valid_w),
+      .s_tready(ready_w),
+      .s_tkeep (2'h3),
+      .s_tlast (last_w),
+      .s_tdata (curr_w),
 
-          .valid_i(valid_w),
-          .ready_o(ready_w),
-          .data_i ({last_w, curr_w}),
+      .m_tvalid(x_tvalid),
+      .m_tready(x_tready),
+      .m_tlast (x_tlast),
+      .m_tdata (x_tdata)
+  );
 
-          .valid_o(x_tvalid),
-          .ready_i(x_tready),
-          .data_o ({x_tlast, x_tdata})
-      );
-
-    end else begin : g_axis_fifo
-
-      axis_fifo #(
-          .DEPTH(FIFO_DEPTH),
-          .DATA_WIDTH(16),
-          .KEEP_ENABLE(0),
-          .KEEP_WIDTH(2),
-          .LAST_ENABLE(1),
-          .ID_ENABLE(0),
-          .ID_WIDTH(1),
-          .DEST_ENABLE(0),
-          .DEST_WIDTH(1),
-          .USER_ENABLE(0),
-          .USER_WIDTH(1),
-          .RAM_PIPELINE(1),
-          .OUTPUT_FIFO_ENABLE(0),
-          .FRAME_FIFO(0),
-          .USER_BAD_FRAME_VALUE(0),
-          .USER_BAD_FRAME_MASK(0),
-          .DROP_BAD_FRAME(0),
-          .DROP_WHEN_FULL(0)
-      ) U_BULK_FIFO0 (
-          .clk(clock),
-          .rst(reset),
-
-          .s_axis_tdata(curr_w),  // AXI input
-          .s_axis_tkeep(2'd3),
-          .s_axis_tvalid(diff_w),
-          .s_axis_tready(ready_w),
-          .s_axis_tlast(last_w),
-          .s_axis_tid(1'b0),
-          .s_axis_tdest(1'b0),
-          .s_axis_tuser(1'b0),
-
-          .pause_req(1'b0),
-
-          .m_axis_tdata(x_tdata),  // AXI output
-          .m_axis_tkeep(),
-          .m_axis_tvalid(x_tvalid),
-          .m_axis_tready(x_tready),
-          .m_axis_tlast(x_tlast),
-          .m_axis_tid(),
-          .m_axis_tdest(),
-          .m_axis_tuser(),
-
-          .status_depth(level_o),  // Status
-          .status_overflow(),
-          .status_bad_frame(),
-          .status_good_frame()
-      );
-
-    end
-  endgenerate
-
+  // Change data-width from 16b to 8b
   axis_adapter #(
       .S_DATA_WIDTH(16),
       .S_KEEP_ENABLE(1),
@@ -274,5 +217,4 @@ module ddr3_telemetry #(
       .m_axis_tuser()
   );
 
-
-endmodule  // ddr3_telemetry
+endmodule  /* ddr3_telemetry */

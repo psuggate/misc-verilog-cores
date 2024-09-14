@@ -220,7 +220,7 @@ module vpi_usb_ulpi_tb;
 
 `ifdef __use_ddr3_because_reasons
 
-  reg  drst_n = 1'b1;
+  reg  drst_n = 1'b1, send_q = 1'b1;
   wire drst_w = ~drst_n;
 
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
@@ -234,7 +234,10 @@ module vpi_usb_ulpi_tb;
 
   initial begin
     drst_n <= 1'b0;
+    send_q <= 1'b1;
     #500000 drst_n <= 1'b1;
+    #250000 send_q <= 1'b0;
+    #30 send_q <= 1'b1;
   end
 
   ddr3_top #(
@@ -254,7 +257,7 @@ module vpi_usb_ulpi_tb;
       .ddr_reset_o(sys_rst),
 
       // Debug UART signals [optional]
-      .send_ni  (1'b1),
+      .send_ni  (send_q),
       .uart_rx_i(1'b1),
       .uart_tx_o(),
 
