@@ -7,6 +7,8 @@
 #include <vpi_user.h>
 
 
+#define NUM_ITER        (6)
+
 typedef enum __ddr3in_step {
     DDR3Cmd,
     DDR3Dat,
@@ -28,13 +30,14 @@ static const char ddr3in_strings[3][16] = {
     {"DDR3Dat"},
     {"DDR3End"},
 };
+static const int ddr3in_lengths[6] = { 4, 8, 16, 20, 12, 24 };
 
 
 /**
  * DDR3 IN transaction-initialisation routine, that first sends a FETCH command,
  * followed by a USB Bulk IN request.
  */
-static void tc_ddr3in_cmd(usb_host_t* host, const ddr3in_state_t* st)
+static void tc_ddr3in_cmd(usb_host_t* host, int n, const ddr3in_state_t* st)
 {
     transfer_t* xfer = &host->xfer;
     host->op = HostBulkOUT;
@@ -53,7 +56,8 @@ static void tc_ddr3in_cmd(usb_host_t* host, const ddr3in_state_t* st)
     xfer->tx_ptr = 0;
 
     xfer->tx[0] = 0x80; // FETCH
-    xfer->tx[1] = 0x03u; // Length := BYTES / 4 - 1
+    xfer->tx[1] = (uint8_t)(n - 1) | 0x03u; // Length - 1 (AXI4)
+    // xfer->tx[1] = 0x03u; // Length := BYTES / 4 - 1
     xfer->tx[2] = st->addr & 0xFF;
     xfer->tx[3] = (st->addr >> 8) & 0xFF;
     xfer->tx[4] = (st->addr >> 16) & 0xFF;
@@ -62,8 +66,6 @@ static void tc_ddr3in_cmd(usb_host_t* host, const ddr3in_state_t* st)
     uint16_t crc = crc16_calc(xfer->tx, xfer->tx_len);
     xfer->crc1 = crc & 0xFF;
     xfer->crc2 = (crc >> 8) & 0xFF;
-
-    xfer->rx_ptr = 0;
 }
 
 static void tc_ddr3in_dat(usb_host_t* host, const ddr3in_state_t* st)
@@ -91,8 +93,9 @@ static int tc_ddr3in_init(usb_host_t* host, void* data)
                tc_ddr3in_name, host->cycle);
 
     st->step = DDR3Cmd;
-    st->iter = 0;
-    tc_ddr3in_cmd(host, st);
+    st->out  = DDR3_OUT_EP;
+    st->in   = DDR3_IN_EP;
+    tc_ddr3in_cmd(host, ddr3in_lengths[st->iter], st);
     host->step = 0;
 
     return 0;
@@ -112,22 +115,27 @@ static int tc_ddr3in_step(usb_host_t* host, void* data)
     switch (st->step) {
     case DDR3Cmd:
         // DDR3Cmd completed, so move to DDR3Dat
+	if (++st->iter < NUM_ITER) {
+	    tc_ddr3in_cmd(host, ddr3in_lengths[st->iter], st);
+	    st->step = DDR3Cmd;
+	    return 0;
+	}
         tc_ddr3in_dat(host, st);
+	st->iter = 0;
         st->step = DDR3Dat;
         return 0;
 
     case DDR3Dat:
         // DDR3Dat completed, so move to DDR3End
         xfer->stage = NoXfer;
-	if (++st->iter >= 3) {
+	if (++st->iter >= NUM_ITER) {
 	    xfer->type = XferIdle;
 	    host->op = HostIdle;
 	    st->step = DDR3End;
 	    return 1;
-	} else {
-	    tc_ddr3in_cmd(host, st);
-	    st->step = DDR3Cmd;
 	}
+	tc_ddr3in_dat(host, st);
+	st->step = DDR3Dat;
 	return 0;
 
     case DDR3End:

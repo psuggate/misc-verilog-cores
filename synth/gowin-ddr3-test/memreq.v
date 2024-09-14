@@ -128,13 +128,13 @@ module memreq #(
   wire [ISB:0] tid_w, rid_w;
   wire [  7:0] len_w;
   wire [ASB:0] adr_w;
-  wire [CSB:0] c_tdata_w;
+  wire [CSB:0] cdata_w;
 
   wire mux_enable_w, mux_select_w;
 
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
   wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
-  wire z_tvalid, z_tready, z_tkeep, z_tlast, c_tvalid_w, c_tready_w;
+  wire z_tvalid, z_tready, z_tkeep, z_tlast, cvalid_w, cready_w;
   wire [SSB:0] a_tkeep, x_tkeep, b_tkeep;
   wire [1:0] b_tuser, y_tuser;
   wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
@@ -142,6 +142,24 @@ module memreq #(
   wire [MSB:0] x_tdata, b_tdata, a_tdata;
 
   // -- Parser for Memory Transaction Requests -- //
+
+  reg new_q, cyc_q;
+
+  // assign s_tready = sready_w && cready_w && state != ST_RESP;
+  assign s_tready = sready_w && cready_w && cyc_q;
+
+  always @(posedge bus_clock) begin
+    if (bus_reset) begin
+      new_q <= 1'b0;
+      cyc_q <= 1'b0;
+    end else if (!cyc_q && state == ST_IDLE && s_tvalid && s_tkeep) begin
+      new_q <= 1'b1;
+      cyc_q <= 1'b1;
+    end else begin
+      new_q <= 1'b0;
+      cyc_q <= s_tvalid && s_tready && s_tlast ? 1'b0 : cyc_q;
+    end
+  end
 
   // DeMUX for memory requests
   always @* begin
@@ -175,7 +193,7 @@ module memreq #(
   end
 
   always @(posedge bus_clock) begin
-    if (bus_reset || stb_q && c_tready_w) begin
+    if (bus_reset || stb_q && cready_w) begin
       stb_q <= 1'b0;
     end else if (ptr_q[4]) begin
       stb_q <= 1'b1;
@@ -198,7 +216,6 @@ module memreq #(
 
   assign cmd_end_w = ptr_q[4];
   assign svalid_w = s_tvalid & tkeep_w;
-  assign s_tready = sready_w && state != ST_RESP;
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
@@ -229,8 +246,8 @@ module memreq #(
 
   // -- Memory-Domain Command & Address Synchronisation -- //
 
-  assign c_tvalid_w = stb_q;
-  assign c_tdata_w = {cmd_q[7], tid_q, len_q, adr_q};
+  assign cvalid_w = stb_q;
+  assign cdata_w = {cmd_q[7], tid_q, len_q, adr_q};
 
   // Note: According to the AXI spec., not supposed to have combinational logic
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
@@ -266,10 +283,10 @@ module memreq #(
       .aresetn(~bus_reset),
 
       .s_aclk  (bus_clock),
-      .s_tvalid(c_tvalid_w),
-      .s_tready(c_tready_w),
+      .s_tvalid(cvalid_w),
+      .s_tready(cready_w),
       .s_tlast (1'b1),
-      .s_tdata (c_tdata_w),
+      .s_tdata (cdata_w),
 
       .m_aclk  (mem_clock),
       .m_tvalid(cmd_w),

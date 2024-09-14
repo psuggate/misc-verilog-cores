@@ -121,7 +121,7 @@ static int tc_ddr3out_step(usb_host_t* host, void* data)
     switch (st->step) {
     case DDR3Out:
         // DDR3Out completed, so move on to the next DDR3 'STORE' command
-	if (st->iter++ < NUM_ITER) {
+	if (++st->iter < NUM_ITER) {
 	    tc_ddr3out_cmd(host, ddr3out_lengths[st->iter], st);
 	    st->step = DDR3Out;
 	    return 0;
@@ -133,7 +133,7 @@ static int tc_ddr3out_step(usb_host_t* host, void* data)
 
     case DDR3Res:
         // Fetch each of the DDR3 'STORE' responses
-	if (st->iter++ < NUM_ITER) {
+	if (++st->iter < NUM_ITER) {
 	    tc_ddr3out_res(host, st);
 	    st->step = DDR3Res;
 	    return 0;

@@ -717,6 +717,6 @@ module usb_ulpi_top #(
       .m_tdata (blky_tdata_o)
   );
 
-  initial #623440 $finish;
+  // initial #626140 $finish;
 
 endmodule  /* usb_ulpi_top */
