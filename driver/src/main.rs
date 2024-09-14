@@ -77,11 +77,13 @@ fn tart_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
     let num = tart.write(&wrdat)?;
 
     info!("WRITTEN (bytes = {}): {:?}", num, &wrdat);
+
     Ok(wrdat)
 }
 
 fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
-    let rdcmd: [u8; 6] = [0xA0, 0x07, 0x80, 0xF0, 0x08, 0x80];
+    let rdcmd: [u8; 6] = [0xA0, 0x0B, 0x78, 0xF0, 0x08, 0x80];
+    // let rdcmd: [u8; 6] = [0xA0, 0x07, 0x80, 0xF0, 0x08, 0x80];
     let num = tart.write(&rdcmd)?;
     if num != 6 {
         error!("TART DDR3 CMD failed, num = {:?}", num);
@@ -91,6 +93,20 @@ fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Erro
 
     if args.no_read {
         return Ok(Vec::new());
+    }
+
+    if args.read_twice {
+        let mut bytes = Vec::new();
+
+        while let Ok(mut xs) = tart.try_read(None) {
+            if xs.is_empty() {
+                break;
+            }
+            bytes.append(&mut xs);
+        }
+
+        info!("DDR3 RECEIVED (bytes = {}): {:?}", bytes.len(), &bytes);
+        return Ok(bytes);
     }
 
     let bytes: Vec<u8> = match tart.try_read(None) {
@@ -117,6 +133,17 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
     let num = tart.write(&wrdat)?;
 
     info!("DDR3 WRITTEN (bytes = {}): {:?}", num, &wrdat);
+
+    // Each 'WRITE' should generate a single-byte response
+    let bytes: Vec<u8> = match tart.try_read(None) {
+        Ok(xs) => xs,
+        Err(e) => {
+            error!("TART DDR3 READ-RESPONSE failed: {:?}", e);
+            Vec::new()
+        }
+    };
+    info!("DDR3 RESPONSE (bytes = {}): {:?}", bytes.len(), &bytes);
+
     Ok(wrdat)
 }
 

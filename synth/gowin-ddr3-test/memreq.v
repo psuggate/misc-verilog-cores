@@ -90,6 +90,9 @@ module memreq #(
   localparam CMD_FIFO_WIDTH = ID_WIDTH + ADDRESS_WIDTH + 8 + 1;
   localparam CSB = CMD_FIFO_WIDTH - 1;
 
+  localparam DBITS = $clog2(FIFO_DEPTH);
+  localparam DSB = DBITS - 1;
+
   localparam ST_IDLE = 1;
   localparam ST_WADR = 2;
   localparam ST_WDAT = 4;
@@ -114,13 +117,18 @@ module memreq #(
   reg [7:0] state, snext;
   reg [3:0] wr, rd;
   reg [4:0] ptr_q, cmd_m, rd_m;
-  reg wen_q, stb_q;
+  reg wen_q, stb_q, new_q, cyc_q;
+  reg mux_q, sel_q, vld_q, lst_q, idx_q;
+  reg [  7:0] res_q;
+  reg [ISB:0] rid_q;
   reg [7:0] cmd_q, len_q, len_c, len_m;
   reg [ISB:0] tid_m;
   reg [ASB:0] adr_m;
   reg [ISB:0] tid_q, tid_c;  // 4b
   reg [ASB:0] adr_q, adr_c;  // 28b
-  wire svalid_w, sready_w;
+  wire mux_enable_w, mux_select_w;
+  wire svalid_w, sready_w, fready_w, fvalid_w, rd_mid_w;
+  wire [DBITS:0] rd_level_w;
   wire tkeep_w, rvalid_w, cmd_end_w;
   wire bokay_w, wfull_w, rokay_w;
   wire cmd_w, ack_w, rd_w;
@@ -129,8 +137,6 @@ module memreq #(
   wire [  7:0] len_w;
   wire [ASB:0] adr_w;
   wire [CSB:0] cdata_w;
-
-  wire mux_enable_w, mux_select_w;
 
   wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
   wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
@@ -141,25 +147,31 @@ module memreq #(
   wire [7:0] y_tdata, z_tdata;
   wire [MSB:0] x_tdata, b_tdata, a_tdata;
 
-  // -- Parser for Memory Transaction Requests -- //
-
-  reg new_q, cyc_q;
-
-  // assign s_tready = sready_w && cready_w && state != ST_RESP;
   assign s_tready = sready_w && cready_w && cyc_q;
 
-  always @(posedge bus_clock) begin
-    if (bus_reset) begin
-      new_q <= 1'b0;
-      cyc_q <= 1'b0;
-    end else if (!cyc_q && state == ST_IDLE && s_tvalid && s_tkeep) begin
-      new_q <= 1'b1;
-      cyc_q <= 1'b1;
-    end else begin
-      new_q <= 1'b0;
-      cyc_q <= s_tvalid && s_tready && s_tlast ? 1'b0 : cyc_q;
-    end
-  end
+  // Todo ...
+  assign awvalid_o = cmd_m && !rd_m;
+  assign awburst_o = BURST_TYPE_INCR;
+  assign awlen_o   = len_m;
+  assign awid_o    = tid_m;
+  assign awaddr_o  = adr_m;
+
+  // Write-buffer (FIFO) assignments, to the DDR3 controller
+  assign wvalid_o = wr == WR_DATA && x_tvalid;
+  assign wlast_o  = wr == WR_DATA && x_tlast;
+  assign wstrb_o  = {STROBES{x_tvalid}};
+  assign wdata_o  = x_tdata;
+
+  // Read-address assignments, to the DDR3 controller
+  assign arvalid_o = cmd_m && rd_m;
+  assign arburst_o = BURST_TYPE_INCR;
+  assign arlen_o   = len_m;
+  assign arid_o    = tid_m;
+  assign araddr_o  = adr_m;
+
+  assign rready_o = rd == RD_DATA && fready_w;
+
+  // -- Parser for Memory Transaction Requests -- //
 
   // DeMUX for memory requests
   always @* begin
@@ -174,6 +186,19 @@ module memreq #(
       5'h08: adr_c[23:16] = s_tdata;
       5'h10: {tid_c, adr_c[ASB:24]} = s_tdata;
     endcase
+  end
+
+  always @(posedge bus_clock) begin
+    if (bus_reset) begin
+      new_q <= 1'b0;
+      cyc_q <= 1'b0;
+    end else if (!cyc_q && state == ST_IDLE && s_tvalid && s_tkeep) begin
+      new_q <= 1'b1;
+      cyc_q <= 1'b1;
+    end else begin
+      new_q <= 1'b0;
+      cyc_q <= s_tvalid && s_tready && s_tlast ? 1'b0 : cyc_q;
+    end
   end
 
   always @(posedge bus_clock) begin
@@ -215,7 +240,7 @@ module memreq #(
   // -- FSM for Memory Requests -- //
 
   assign cmd_end_w = ptr_q[4];
-  assign svalid_w = s_tvalid & tkeep_w;
+  assign svalid_w  = s_tvalid & tkeep_w;
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
@@ -297,23 +322,10 @@ module memreq #(
 
   // -- Write-Port, Memory-Domain FSM -- //
 
-  // Todo ...
-  assign awvalid_o = cmd_m && !rd_m;
-  assign awburst_o = BURST_TYPE_INCR;
-  assign awlen_o   = len_m;
-  assign awid_o    = tid_m;
-  assign awaddr_o  = adr_m;
-
-  // Write-buffer (FIFO) assignments, to the DDR3 controller
-  assign wvalid_o = wr == WR_DATA && x_tvalid;
-  assign wlast_o  = wr == WR_DATA && x_tlast;
-  assign wstrb_o  = {STROBES{x_tvalid}};
-  assign wdata_o  = x_tdata;
-
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
 
-  assign tkeep_w = wen_q;  // state == ST_WDAT;
-  assign bokay_w = bresp_i == RESP_OKAY;
+  assign tkeep_w  = wen_q;  // state == ST_WDAT;
+  assign bokay_w  = bresp_i == RESP_OKAY;
 
   always @(posedge mem_clock) begin
     if (mem_reset) begin
@@ -335,22 +347,6 @@ module memreq #(
 
   // -- Read-Port, Memory-Domain FSM -- //
 
-  localparam DBITS = $clog2(FIFO_DEPTH);
-  localparam DSB = DBITS - 1;
-
-  // Read-address assignments, to the DDR3 controller
-  assign arvalid_o = cmd_m && rd_m;
-  assign arburst_o = BURST_TYPE_INCR;
-  assign arlen_o   = len_m;
-  assign arid_o    = tid_m;
-  assign araddr_o  = adr_m;
-
-  // Read-buffer (FIFO) 'ready' signal assignment, for DDR3 fetched-data
-  // Todo: slow combinational signals !?!
-  wire fready_w, fvalid_w, rd_mid_w;
-  wire [DBITS:0] rd_level_w;
-
-  assign rready_o = rd == RD_DATA && fready_w;
   assign fvalid_w = rd == RD_DATA && rvalid_i;
   assign rd_mid_w = rd_level_w[DSB];
 
@@ -369,15 +365,6 @@ module memreq #(
   end
 
   // -- Multiplexor to the SPI or USB Encoder -- //
-
-  //
-  // Todo:
-  //  - 3x sources: Write Response, Read Data, Read Response ??
-  //
-
-  reg mux_q, sel_q, vld_q, lst_q, idx_q;
-  reg [  7:0] res_q;
-  reg [ISB:0] rid_q;
 
   assign z_tvalid = vld_q;
   assign z_tkeep  = vld_q;
