@@ -213,6 +213,7 @@ module usb_ddr3_top (
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
+      .TELEMETRY  (0),
       .LOW_LATENCY(LOW_LATENCY),
       .WR_PREFETCH(WR_PREFETCH)
   ) ddr_core_inst (

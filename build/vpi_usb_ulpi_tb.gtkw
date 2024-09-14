@@ -1,19 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Sep 14 06:48:03 2024
+[*] Sat Sep 14 07:26:39 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sat Sep 14 06:43:45 2024"
-[dumpfile_size] 6877660
+[dumpfile_mtime] "Sat Sep 14 07:26:16 2024"
+[dumpfile_size] 23737960
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 749291100
+[timestart] 742974200
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 750012000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 743690000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
-[treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.U_WR_PATH1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
@@ -332,6 +331,8 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.ddl_rdy_i
 @820
 [color] 2
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_FSM.dbg_cmd[39:0]
+[color] 7
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dbg_state[79:0]
 @c00200
 -Internal
 @28
@@ -410,35 +411,6 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rlast_i
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdata_i[31:0]
 @1401200
 -RdDat
-@c00201
--Telemetry
-@25
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.elevel_w[10:0]
-@29
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.send_ni
-vpi_usb_ulpi_tb.U_DDRC1.uart_tx_o
-[color] 3
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.estart_q
-[color] 2
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.ecycle_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.evalid_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.eready_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tvalid
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tready
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tlast
-@23
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.x_tdata[15:0]
-@29
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tvalid_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tready_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tlast_w
-@23
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_ddr3_telemetry.U_TELEMETRY3.a_tdata_w[7:0]
-@29
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_uart_telemetry.tx_busy_w
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.g_uart_telemetry.send_q
-@1401201
--Telemetry
 @1000200
 -MemCtrl
 @800200

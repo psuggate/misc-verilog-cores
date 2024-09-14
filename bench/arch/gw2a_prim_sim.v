@@ -1,5 +1,5 @@
 `timescale 1ns / 100ps
-module GSR;
+module GSR (input GSRI);
 
   reg GSRO = 1'b0;
 

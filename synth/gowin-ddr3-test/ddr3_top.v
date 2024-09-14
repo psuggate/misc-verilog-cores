@@ -1,7 +1,11 @@
 `timescale 1ns / 100ps
+`define __gowin_for_the_win
 module ddr3_top #(
     parameter SRAM_BYTES = 2048,
     parameter DATA_WIDTH = 32,
+
+    parameter TELEMETRY = 1,
+    parameter TELE_UART = 1,
 
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,  // 0 or 1
@@ -254,9 +258,9 @@ module ddr3_top #(
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
       .BYPASS_ENABLE   (0),
-      .TELEMETRY       (1),
+      .TELEMETRY       (TELEMETRY),
       .ENDPOINT        (3),
-      .USE_UART        (1),
+      .USE_UART        (TELE_UART),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -350,14 +354,10 @@ module ddr3_top #(
 
   // -- DDR3 PHY -- //
 
-`ifndef __icarus
-  `define __gowin_for_the_win
-`endif  /* !__icarus */
-
 `ifdef __gowin_for_the_win
 
   // GoWin Global System Reset signal tree.
-  // GSR GSR (.GSRI(1'b1));
+  GSR GSR (.GSRI(1'b1));
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),

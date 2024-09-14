@@ -220,7 +220,7 @@ module vpi_usb_ulpi_tb;
 
 `ifdef __use_ddr3_because_reasons
 
-  reg  drst_n = 1'b1, send_q = 1'b1;
+  reg drst_n = 1'b1, send_q = 1'b1;
   wire drst_w = ~drst_n;
 
   wire ddr_rst_n, ddr_ck_p, ddr_ck_n, ddr_cke, ddr_odt;
@@ -243,6 +243,7 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
+      .TELEMETRY  (0),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) U_DDRC1 (
