@@ -126,10 +126,15 @@ static int tc_ddr3out_step(usb_host_t* host, void* data)
 	    st->step = DDR3Out;
 	    return 0;
 	}
-        tc_ddr3out_res(host, st);
 	st->iter = 0;
         st->step = DDR3Res;
+        tc_ddr3out_res(host, st);
         return 0;
+        // host->op = HostIdle;
+        // xfer->type = XferIdle;
+        // xfer->stage = NoXfer;
+        // st->step = DDR3End;
+        // return 1;
 
     case DDR3Res:
         // Fetch each of the DDR3 'STORE' responses

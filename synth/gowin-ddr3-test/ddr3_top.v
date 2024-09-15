@@ -2,7 +2,7 @@
 `ifndef __icarus
 // Slower simulation performance, as the IOB's have to be simulated
 `define __gowin_for_the_win
-`endif /* !__icarus */
+`endif  /* !__icarus */
 module ddr3_top #(
     parameter SRAM_BYTES = 2048,
     parameter DATA_WIDTH = 32,
@@ -16,8 +16,11 @@ module ddr3_top #(
     parameter ENDPOINT = 2,
 
     // Trims an additional clock-cycle of latency, if '1'
-    parameter LOW_LATENCY = 1'b0,  // 0 or 1
-    parameter WR_PREFETCH = 1'b0   // 0 or 1
+    parameter LOW_LATENCY = 1'b0,   // 0 or 1
+    parameter WR_PREFETCH = 1'b0,   // 0 or 1
+    parameter INVERT_MCLK = 0,
+    parameter INVERT_DCLK = 0,
+    parameter CLOCK_SHIFT = 3'b100
 ) (
     input clk_26,
     input arst_n,  // 'S2' button for async-reset
@@ -365,7 +368,10 @@ module ddr3_top #(
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
       .DDR3_WIDTH (16),
-      .ADDR_BITS  (DDR_ROW_BITS)
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .CLOCK_SHIFT(CLOCK_SHIFT)
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),

@@ -90,9 +90,9 @@ pub fn tart_logger(tart: &mut AxisUSB, verbose: u8) -> TartResult<Vec<u8>> {
     let mut result = Vec::new();
 
     loop {
-        let len =
-            tart.handle
-                .read_bulk(tart.telemetry.read_address(), &mut buf, DEFAULT_TIMEOUT)?;
+        let len = tart
+            .handle
+            .read_bulk(tart.ex_in.read_address(), &mut buf, DEFAULT_TIMEOUT)?;
         if len == 0 {
             break;
         }

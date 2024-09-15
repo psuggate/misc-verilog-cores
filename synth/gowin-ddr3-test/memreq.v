@@ -17,6 +17,7 @@ module memreq #(
     localparam ASB = ADDRESS_WIDTH - 1,
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1,
+    parameter WR_RESPONSES = 1,
     parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
     localparam RD_FRAME_FIFO = 0  // Not useful ??
 ) (
@@ -255,7 +256,8 @@ module memreq #(
 
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
-        ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
+        ST_WDAT:
+        state <= s_tvalid && s_tready && s_tlast ? (WR_RESPONSES ? ST_RESP : ST_IDLE) : state;
         ST_RESP: state <= rvalid_w ? ST_DONE : state;
         // ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
@@ -334,7 +336,7 @@ module memreq #(
       case (wr)
         WR_IDLE: wr <= wr_cmd_w ? WR_ADDR : wr;
         WR_ADDR: wr <= wr_ack_w ? WR_DATA : wr;
-        WR_DATA: wr <= wr_end_w ? WR_RESP : wr;
+        WR_DATA: wr <= wr_end_w ? (WR_RESPONSES ? WR_RESP : WR_IDLE) : wr;
         WR_RESP: begin
           if (bvalid_i && bready_o) begin
             wr <= WR_IDLE;
@@ -373,30 +375,18 @@ module memreq #(
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
-      mux_q <= 1'b0;
-      sel_q <= 1'b0;
-      idx_q <= 1'b0;
-      vld_q <= 1'b0;
-      lst_q <= 1'b0;
+      {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
       res_q <= 8'bx;
       rid_q <= 8'bx;
     end else begin
       case (state)
         ST_IDLE: begin
-          mux_q <= 1'b0;
-          sel_q <= 1'b0;
-          idx_q <= 1'b0;
-          vld_q <= 1'b0;
-          lst_q <= 1'b0;
+          {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
         end
 
         ST_RESP: begin
           if (rvalid_w) begin
-            mux_q <= 1'b1;
-            sel_q <= 1'b1;
-            idx_q <= 1'b0;
-            vld_q <= 1'b1;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
             res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
             rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
           end
@@ -405,62 +395,40 @@ module memreq #(
         ST_DONE: begin
           if (vld_q && !idx_q) begin
             // Send the 2nd byte of the write-response
-            mux_q <= 1'b1;
-            sel_q <= 1'b1;
-            idx_q <= 1'b1;
-            vld_q <= 1'b1;
-            lst_q <= 1'b1;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1f;
           end else begin
-            mux_q <= 1'b0;
-            sel_q <= 1'b0;
-            idx_q <= 1'b0;
-            vld_q <= 1'b0;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
           end
         end
 
         ST_RDAT: begin
           if (!idx_q && !vld_q && y_tvalid && y_tready) begin
-            mux_q <= 1'b1;
-            sel_q <= 1'b1;
-            idx_q <= 1'b0;
-            vld_q <= 1'b1;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
             res_q <= b_tuser == RESP_OKAY ? CMD_RDATA : CMD_RFAIL;
             rid_q <= {{(8 - ID_WIDTH) {1'b0}}, y_tid};
           end else if (!idx_q && vld_q) begin
-            mux_q <= 1'b1;
-            sel_q <= 1'b1;
-            idx_q <= 1'b1;
-            vld_q <= 1'b1;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1e;
           end else if (idx_q && vld_q) begin
-            mux_q <= 1'b1;
-            sel_q <= 1'b0;
-            idx_q <= 1'b1;
-            vld_q <= 1'b0;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h14;
           end else begin
             // Todo: this is the same as the previous case !?
-            mux_q <= 1'b1;
-            sel_q <= 1'b0;
-            idx_q <= 1'b1;
-            vld_q <= 1'b0;
-            lst_q <= 1'b0;
+            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h14;
           end
         end
 
         ST_SEND: begin
-          sel_q <= 1'b0;
-          idx_q <= 1'b0;
-          vld_q <= 1'b0;
-          lst_q <= 1'b0;
+          {sel_q, idx_q, vld_q, lst_q} <= 4'h4;
           if (m_tvalid && m_tready && m_tlast) begin
             mux_q <= 1'b0;
           end else begin
             mux_q <= 1'b1;
           end
         end
+
+        default: begin
+          {mux_q, sel_q, idx_q, vld_q, lst_q} <= {mux_q, sel_q, idx_q, vld_q, lst_q};
+        end
+
       endcase
     end
   end
@@ -564,7 +532,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-`define __use_potatio
+  `define __use_potatio
 `ifdef __use_potatio
 
   // Write-responses FIFO
@@ -575,7 +543,7 @@ module memreq #(
   ) U_BFIFO1 (
       .aresetn (~bus_reset),
       .s_aclk  (mem_clock),
-      .s_tvalid(bvalid_i),
+      .s_tvalid(WR_RESPONSES && bvalid_i),
       .s_tready(bready_o),
       .s_tlast (1'b1),
       .s_tdata ({bokay_w, bid_i}),
@@ -586,7 +554,7 @@ module memreq #(
       .m_tdata ({rokay_w, rid_w})
   );
 
-`else
+`else  /* !__use_potatio */
 
   axis_async_fifo #(
       .DEPTH(16),
@@ -649,7 +617,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-`endif
+`endif  /* !__use_potatio */
 
   // -- Read Datapath -- //
 

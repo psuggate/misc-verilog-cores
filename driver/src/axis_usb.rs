@@ -13,7 +13,8 @@ pub struct AxisUSB {
     interfaces: Vec<u8>,
     ep_in: Endpoint,
     ep_out: Endpoint,
-    pub telemetry: Endpoint,
+    pub ex_in: Endpoint,
+    pub ex_out: Endpoint,
     vendor: String,
     label: String,
     serial: String,
@@ -72,12 +73,21 @@ impl AxisUSB {
             has_driver: false,
         };
 
+        let ex_out = Endpoint {
+            config: ep_out.config,
+            interface: ep_out.interface,
+            setting: ep_out.setting,
+            address: 0x84u8,
+            has_driver: false,
+        };
+
         Ok(Self {
             handle,
             interfaces,
             ep_in,
             ep_out,
-            telemetry: ex_in,
+            ex_in,
+            ex_out,
             vendor,
             label,
             serial,

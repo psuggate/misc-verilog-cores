@@ -84,31 +84,46 @@ fn tart_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
     Ok(wrdat)
 }
 
+fn hex_array_string(dat: &[u8]) -> String {
+    let mut hs = Vec::with_capacity(dat.len());
+    for x in dat.iter() {
+        hs.push(format!("0x{:02X}", x));
+    }
+    let hs = hs.join(", ");
+    format!("[{}]", hs)
+}
+
 fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
-    let rdcmd: [u8; 6] = [0xA0, 0x0B, 0x78, 0xF0, 0x08, 0x80];
-    // let rdcmd: [u8; 6] = [0xA0, 0x07, 0x80, 0xF0, 0x08, 0x80];
+    // let rdcmd: [u8; 6] = [0xA0, 0x0B, 0x78, 0xF0, 0x08, 0x80];
+    let rdcmd: [u8; 6] = [0x80, 0x03, 0x80, 0xF0, 0x08, 0x81];
+    // let rdcmd: [u8; 6] = [0x80, 0x07, 0x80, 0xF0, 0x08, 0x81];
     let num = tart.write(&rdcmd)?;
     if num != 6 {
-        error!("TART DDR3 CMD failed, num = {:?}", num);
+        error!("TART DDR3 CMD failed, num = {}", num);
         return Ok(Vec::new());
     }
-    debug!("DDR3 WRITTEN (bytes = {}): {:?}", num, &rdcmd);
-
+    debug!(
+        "DDR3 WRITTEN (bytes = {}): {}",
+        num,
+        hex_array_string(&rdcmd)
+    );
     if args.no_read {
         return Ok(Vec::new());
     }
 
     if args.read_twice {
         let mut bytes = Vec::new();
-
         while let Ok(mut xs) = tart.try_read(None) {
             if xs.is_empty() {
                 break;
             }
             bytes.append(&mut xs);
         }
-
-        info!("DDR3 RECEIVED (bytes = {}): {:?}", bytes.len(), &bytes);
+        info!(
+            "DDR3 RECEIVED (bytes = {}): {}",
+            bytes.len(),
+            hex_array_string(&bytes)
+        );
         return Ok(bytes);
     }
 
@@ -120,23 +135,34 @@ fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Erro
         }
     };
 
-    info!("DDR3 RECEIVED (bytes = {}): {:?}", bytes.len(), &bytes);
-
+    info!(
+        "DDR3 RECEIVED (bytes = {}): {}",
+        bytes.len(),
+        hex_array_string(&bytes)
+    );
     Ok(bytes)
 }
 
 fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
+    let wrdat: [u8; 22] = [
+        0x01, 0x03, 0x80, 0xF0, 0x08, 0xB1, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+    ];
+    /*
     let wrdat: [u8; 38] = [
-        0xA0, 0x07, 0x80, 0xF0, 0x08, 0x01, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        0x01, 0x07, 0x80, 0xF0, 0x08, 0xD1, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
         0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0,
     ];
+    */
     let wrdat: Vec<u8> = wrdat.to_vec().repeat(args.chunks);
-
     let num = tart.write(&wrdat)?;
 
-    info!("DDR3 WRITTEN (bytes = {}): {:?}", num, &wrdat);
-
+    info!(
+        "DDR3 WRITTEN (bytes = {}): {}",
+        num,
+        hex_array_string(&wrdat)
+    );
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
 
     // Each 'WRITE' should generate a single-byte response
@@ -147,7 +173,11 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
             Vec::new()
         }
     };
-    info!("DDR3 RESPONSE (bytes = {}): {:?}", bytes.len(), &bytes);
+    info!(
+        "DDR3 RESPONSE (bytes = {}): {}",
+        bytes.len(),
+        hex_array_string(&bytes)
+    );
 
     Ok(wrdat)
 }

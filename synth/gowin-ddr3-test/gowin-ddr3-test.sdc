@@ -2,7 +2,7 @@ create_clock -name clk -period 37.037 -waveform {0 18.518} [get_ports {clk_26}]
 create_clock -name ulpi_clk -period 16.667 -waveform {0 8.333} [get_ports {ulpi_clk}]
 # create_clock -name ulpi_clk -period 16.667 -waveform {0 5.75} [get_ports {ulpi_clk}]
 
-create_clock -name ddr_clk -period 8.000 -waveform {0 4.000} [get_ports {ddr_ck*}]
+create_clock -name ddr_clk -period 10.000 -waveform {0 5.000} [get_ports {ddr_ck}]
 
 
 # What does this do ??

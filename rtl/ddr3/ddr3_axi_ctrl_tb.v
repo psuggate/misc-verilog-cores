@@ -370,7 +370,6 @@ module ddr3_axi_ctrl_tb;
     end
   endtask  // axi_fetch
 
-
   // -- Perform read transfer (128-bit) -- //
 
   task axi_fetch;
@@ -409,4 +408,4 @@ module ddr3_axi_ctrl_tb;
   endtask  // axi_fetch
 
 
-endmodule  // ddr3_axi_ctrl_tb
+endmodule  /* ddr3_axi_ctrl_tb */

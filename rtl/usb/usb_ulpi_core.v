@@ -13,7 +13,7 @@ module usb_ulpi_core #(
     parameter DEBUG = 0,
     parameter LOGGER = 0,
     parameter USE_UART = 1,
-    localparam USE_EP3_IN = LOGGER && USE_UART || USE_EP4_OUT ? 1 : 0,
+    localparam USE_EP3_IN = LOGGER && !USE_UART || USE_EP4_OUT ? 1 : 0,
     parameter [3:0] ENDPOINTD = 4'd3,
 
     parameter [15:0] VENDOR_ID = 16'hF4CE,

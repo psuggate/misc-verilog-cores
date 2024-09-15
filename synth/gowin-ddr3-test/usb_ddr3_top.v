@@ -73,6 +73,12 @@ module usb_ddr3_top (
   parameter DDR_FREQ_MHZ = 100;
   localparam LOW_LATENCY = 0;
   localparam WR_PREFETCH = 0;
+  localparam INVERT_MCLK = 0; // Default value
+  localparam INVERT_DCLK = 0;  // Todo ...
+  localparam CLOCK_SHIFT = 3'b100; // Default value
+  // localparam INVERT_MCLK = 1;
+  // localparam INVERT_DCLK = 0;  // Todo ...
+  // localparam CLOCK_SHIFT = 3'b101;
 
   // -- UART Settings -- //
 
@@ -104,7 +110,8 @@ module usb_ddr3_top (
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
-  assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
+  // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
+  assign cbits = {ep4_rdy, ep3_rdy, ep2_rdy, ep1_rdy};
 
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
@@ -197,10 +204,15 @@ module usb_ddr3_top (
 `endif  /* !__use_ddr3_because_reasons */
   );
 
+/*
   assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w ^ ddr3_conf_w;
   assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w ^ sys_rst;
   assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w ^ crc_error_w;
-
+*/
+  assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w;
+  assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w;
+  assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w;
+  assign ep4_rdy = U_USB1.U_TOP1.ep4_rdy_w;
 
 `ifdef __use_ddr3_because_reasons
   //
@@ -212,10 +224,13 @@ module usb_ddr3_top (
   ddr3_top #(
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
-      .DATA_FIFO_BYPASS(1),
+      .DATA_FIFO_BYPASS(0),
       .TELEMETRY(0),
       .LOW_LATENCY(LOW_LATENCY),
-      .WR_PREFETCH(WR_PREFETCH)
+      .WR_PREFETCH(WR_PREFETCH),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .CLOCK_SHIFT(CLOCK_SHIFT)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock
       .arst_n(rst_n),   // 'S2' button for async-reset

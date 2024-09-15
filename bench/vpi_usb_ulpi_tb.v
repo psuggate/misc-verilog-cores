@@ -8,6 +8,9 @@ module vpi_usb_ulpi_tb;
   // DDR3 settings
   localparam WR_PREFETCH = 0;
   localparam LOW_LATENCY = 0;
+  localparam INVERT_MCLK = 0;  // Default value
+  localparam INVERT_DCLK = 0;  // Default value
+  localparam CLOCK_SHIFT = 3'b100;  // Default value
 
   // USB settings
   localparam MAX_PACKET_LENGTH = 512;
@@ -244,6 +247,9 @@ module vpi_usb_ulpi_tb;
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
       .TELEMETRY  (1),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .CLOCK_SHIFT(CLOCK_SHIFT),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) U_DDRC1 (

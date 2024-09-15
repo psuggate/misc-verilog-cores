@@ -27,6 +27,8 @@ module gw2a_ddr3_phy #(
     parameter ADDR_BITS = 14,
     localparam ASB = ADDR_BITS - 1,
 
+    parameter INVERT_MCLK = 0,
+    parameter INVERT_DCLK = 0,
     parameter WR_PREFETCH = 1'b0,
     parameter CLOCK_SHIFT = 3'b100
 ) (
@@ -124,8 +126,8 @@ module gw2a_ddr3_phy #(
 
   // -- DDR3 Signal Assignments -- //
 
-  assign ddr_ck_po  = ~clock;
-  assign ddr_ck_no  = clock;
+  assign ddr_ck_po  = INVERT_MCLK ? clock : ~clock;
+  assign ddr_ck_no  = INVERT_MCLK ? ~clock : clock;
 
   assign ddr_cke_o  = cke_q;
   assign ddr_rst_no = rst_nq;
@@ -188,7 +190,7 @@ module gw2a_ddr3_phy #(
           .SHIFT(CLOCK_SHIFT)
       ) u_gw2a_dq_iob (
           .PCLK(clock),
-          .FCLK(~clk_ddr),
+          .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
           .RESET(reset),
           .OEN(~dfi_wren_i),
           .D0(data_w[ii]),
@@ -238,7 +240,7 @@ module gw2a_ddr3_phy #(
 `endif
       ) u_gw2a_dqs_iob (
           .PCLK(clock),
-          .FCLK(clk_ddr),
+          .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
           .RESET(reset),
           .OEN(dqs_w),
           .D0(1'b1),
@@ -249,8 +251,8 @@ module gw2a_ddr3_phy #(
           .IOB(ddr_dqs_nio[ii])
       );
 
-    end
+    end  // gen_dqs_iobs
   endgenerate
 
 
-endmodule  // gw2a_ddr3_phy
+endmodule  /* gw2a_ddr3_phy */

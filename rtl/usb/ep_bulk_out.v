@@ -8,6 +8,7 @@
 module ep_bulk_out #(
     parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     parameter PACKET_FIFO_DEPTH = 2048,
+    parameter DROP_ON_OVERFLOW = 0,
     parameter ENABLED = 1
 ) (
     input clock,
@@ -74,9 +75,9 @@ module ep_bulk_out #(
 
   always @(posedge clock) begin
     if (reset || set_conf_i) begin
-      rst_q <= 1'b1;
-      par_q <= 1'b0;
-      rdy_q <= 1'b0;
+      rst_q  <= 1'b1;
+      par_q  <= 1'b0;
+      rdy_q  <= 1'b0;
       full_q <= 1'bx;
     end else begin
       rst_q <= 1'b0;
@@ -103,29 +104,29 @@ module ep_bulk_out #(
     end else begin
       case (state)
         ST_HALT:
-          if (set_conf_i) begin
-            state <= ST_IDLE;
-          end
+        if (set_conf_i) begin
+          state <= ST_IDLE;
+        end
         ST_IDLE:
-          if (selected_i) begin
-            state <= ST_RECV;
-          end
+        if (selected_i) begin
+          state <= ST_RECV;
+        end
         ST_RECV:
-          if (!selected_i || rx_error_i) begin
-            state <= ST_HALT;
-          end else if (s_tvalid && s_tready && s_tlast) begin
-            state <= ST_SAVE;
-          end
+        if (!selected_i || rx_error_i) begin
+          state <= ST_HALT;
+        end else if (s_tvalid && s_tready && s_tlast) begin
+          state <= ST_SAVE;
+        end
         ST_SAVE:
-          if (ack_sent_i || rx_error_i) begin
-            state <= full_q ? ST_FULL : ST_IDLE;
-          end
+        if (ack_sent_i || rx_error_i) begin
+          state <= full_q ? ST_FULL : ST_IDLE;
+        end
         ST_FULL:
-          if (!full_q) begin
-            state <= ST_IDLE;
-          end else if (selected_i) begin
-            state <= ST_HALT;
-          end
+        if (!full_q) begin
+          state <= ST_IDLE;
+        end else if (!DROP_ON_OVERFLOW && selected_i) begin
+          state <= ST_HALT;
+        end
         default: state <= 'bx;
       endcase
     end
