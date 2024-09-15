@@ -17,7 +17,6 @@ module memreq #(
     localparam ASB = ADDRESS_WIDTH - 1,
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1,
-    parameter WR_RESPONSES = 1,
     parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
     localparam RD_FRAME_FIFO = 0  // Not useful ??
 ) (
@@ -256,8 +255,7 @@ module memreq #(
 
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
-        ST_WDAT:
-        state <= s_tvalid && s_tready && s_tlast ? (WR_RESPONSES ? ST_RESP : ST_IDLE) : state;
+        ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
         ST_RESP: state <= rvalid_w ? ST_DONE : state;
         // ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
@@ -336,7 +334,7 @@ module memreq #(
       case (wr)
         WR_IDLE: wr <= wr_cmd_w ? WR_ADDR : wr;
         WR_ADDR: wr <= wr_ack_w ? WR_DATA : wr;
-        WR_DATA: wr <= wr_end_w ? (WR_RESPONSES ? WR_RESP : WR_IDLE) : wr;
+        WR_DATA: wr <= wr_end_w ? WR_RESP : wr;
         WR_RESP: begin
           if (bvalid_i && bready_o) begin
             wr <= WR_IDLE;
@@ -393,10 +391,10 @@ module memreq #(
         end
 
         ST_DONE: begin
-          if (vld_q && !idx_q) begin
+          if (z_tready && vld_q && !idx_q) begin
             // Send the 2nd byte of the write-response
             {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1f;
-          end else begin
+          end else if (z_tready) begin
             {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
           end
         end
@@ -532,7 +530,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-  `define __use_potatio
+// `define __use_potatio
 `ifdef __use_potatio
 
   // Write-responses FIFO
@@ -543,7 +541,7 @@ module memreq #(
   ) U_BFIFO1 (
       .aresetn (~bus_reset),
       .s_aclk  (mem_clock),
-      .s_tvalid(WR_RESPONSES && bvalid_i),
+      .s_tvalid(bvalid_i),
       .s_tready(bready_o),
       .s_tlast (1'b1),
       .s_tdata ({bokay_w, bid_i}),

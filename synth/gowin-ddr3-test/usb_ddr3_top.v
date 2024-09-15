@@ -76,9 +76,8 @@ module usb_ddr3_top (
   localparam INVERT_MCLK = 0; // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
   localparam CLOCK_SHIFT = 3'b100; // Default value
-  // localparam INVERT_MCLK = 1;
-  // localparam INVERT_DCLK = 0;  // Todo ...
-  // localparam CLOCK_SHIFT = 3'b101;
+
+  localparam DATA_FIFO_BYPASS = 1;
 
   // -- UART Settings -- //
 
@@ -111,7 +110,8 @@ module usb_ddr3_top (
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
   // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
-  assign cbits = {ep4_rdy, ep3_rdy, ep2_rdy, ep1_rdy};
+  wire ep1_sel, ep2_sel;
+  assign cbits = {ep2_sel, ep2_rdy, ep1_sel, ep1_rdy};
 
   usb_ulpi_core #(
       .VENDOR_ID(VENDOR_ID),
@@ -210,9 +210,11 @@ module usb_ddr3_top (
   assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w ^ crc_error_w;
 */
   assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w;
+  assign ep1_sel = U_USB1.U_TOP1.ep1_sel_w && !U_USB1.U_TOP1.ep1_hlt_w;
   assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w;
-  assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w;
-  assign ep4_rdy = U_USB1.U_TOP1.ep4_rdy_w;
+  assign ep2_sel = U_USB1.U_TOP1.ep2_sel_w && !U_USB1.U_TOP1.ep2_hlt_w;
+  // assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w;
+  // assign ep4_rdy = U_USB1.U_TOP1.ep4_rdy_w;
 
 `ifdef __use_ddr3_because_reasons
   //
@@ -224,7 +226,7 @@ module usb_ddr3_top (
   ddr3_top #(
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
-      .DATA_FIFO_BYPASS(0),
+      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .TELEMETRY(0),
       .LOW_LATENCY(LOW_LATENCY),
       .WR_PREFETCH(WR_PREFETCH),

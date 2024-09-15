@@ -94,8 +94,8 @@ fn hex_array_string(dat: &[u8]) -> String {
 }
 
 fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
-    // let rdcmd: [u8; 6] = [0xA0, 0x0B, 0x78, 0xF0, 0x08, 0x80];
-    let rdcmd: [u8; 6] = [0x80, 0x03, 0x80, 0xF0, 0x08, 0x81];
+    let rdcmd: [u8; 6] = [0x80, 0x0B, 0x78, 0xF0, 0x08, 0x81];
+    // let rdcmd: [u8; 6] = [0x80, 0x03, 0x80, 0xF0, 0x08, 0x81];
     // let rdcmd: [u8; 6] = [0x80, 0x07, 0x80, 0xF0, 0x08, 0x81];
     let num = tart.write(&rdcmd)?;
     if num != 6 {
@@ -144,17 +144,17 @@ fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Erro
 }
 
 fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
+    /*
     let wrdat: [u8; 22] = [
         0x01, 0x03, 0x80, 0xF0, 0x08, 0xB1, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     ];
-    /*
+    */
     let wrdat: [u8; 38] = [
         0x01, 0x07, 0x80, 0xF0, 0x08, 0xD1, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
         0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0,
     ];
-    */
     let wrdat: Vec<u8> = wrdat.to_vec().repeat(args.chunks);
     let num = tart.write(&wrdat)?;
 
@@ -252,32 +252,35 @@ fn usb_ddr3(args: Args) -> Result<(), rusb::Error> {
     }
 
     if args.read_first {
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         let bytes: Vec<u8> = axis_usb.try_read(None).unwrap_or(Vec::new());
         info!("RECEIVED (bytes = {}): {:?}", bytes.len(), &bytes);
     }
 
-    spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
-
     if !args.writeless {
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         if args.write_twice {
             let _ = tart_ddr3_write(&args, &mut axis_usb)?;
         }
     }
 
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
-
     let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
 
     if args.read_twice {
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
     }
 
     if args.telemetry {
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         tart_telemetry(&mut axis_usb, args.verbose)?;
     }
 
     if args.logger {
+        spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         tart_logger(&mut axis_usb, args.verbose)?;
     }
 
