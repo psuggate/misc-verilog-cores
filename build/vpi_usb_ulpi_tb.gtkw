@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Sep 14 07:26:39 2024
+[*] Mon Sep 16 07:53:03 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sat Sep 14 07:26:16 2024"
-[dumpfile_size] 23737960
+[dumpfile_mtime] "Mon Sep 16 07:51:05 2024"
+[dumpfile_size] 24032013
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 742974200
+[timestart] 761402000
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 743690000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 762115000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -19,7 +19,7 @@
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.
 [sst_width] 233
-[signals_width] 166
+[signals_width] 174
 [sst_expanded] 1
 [sst_vpaned_height] 695
 @28
@@ -411,7 +411,19 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rlast_i
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdata_i[31:0]
 @1401200
 -RdDat
+@800200
+-DDL
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dfi_rden_o
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.rd_rdy_w
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dfi_data_i[31:0]
+@29
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rvalid_o
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rddata_o[31:0]
 @1000200
+-DDL
 -MemCtrl
 @800200
 -DDR3

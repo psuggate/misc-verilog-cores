@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 module gw2a_ddr_iob #(
     parameter [2:0] SHIFT = 3'b000,
-    parameter [2:0] WRDLY = 3'b000,
+    parameter [1:0] WRDLY = 2'b00,
     parameter TLVDS = 1'b0
 ) (
     input  PCLK,
@@ -18,11 +18,17 @@ module gw2a_ddr_iob #(
 );
 
   reg q0_r, q1_r, d0_q;
-  wire d_iw, di0_w, di1_w, di2_w, di3_w, d_ow, t_w;
+  wire d_iw, di0_w, di1_w, di2_w, di3_w, d_ow, t_w, Q0_w, Q1_w;
   wire CALIB = 1'b0;
 
-  assign Q0 = SHIFT[2] ? d0_q : q0_r;
-  assign Q1 = SHIFT[2] ? q0_r : q1_r;
+  // assign Q0 = SHIFT[2] ? d0_q : q0_r; // Orig
+  // assign Q1 = SHIFT[2] ? q0_r : q1_r; // Orig
+
+  assign Q0_w = SHIFT[2] ? d0_q : q0_r;
+  assign Q1_w = SHIFT[2] ? q0_r : q1_r;
+
+  assign Q0 = SHIFT[1] ? Q1_w : Q0_w;
+  assign Q1 = SHIFT[1] ? Q0_w : Q1_w;
 
   always @* begin
     case (SHIFT[1:0])
@@ -34,7 +40,7 @@ module gw2a_ddr_iob #(
   end
 
   always @(posedge PCLK) begin
-    d0_q <= q1_r;
+    d0_q <= q1_r; // Orig
   end
 
   IDES4 u_ides4 (

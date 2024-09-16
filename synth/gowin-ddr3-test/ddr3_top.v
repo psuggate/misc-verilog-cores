@@ -21,6 +21,7 @@ module ddr3_top #(
     parameter WR_PREFETCH = 1'b0,   // 0 or 1
     parameter INVERT_MCLK = 0,
     parameter INVERT_DCLK = 0,
+    parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 3'b100
 ) (
     input clk_26,
@@ -94,8 +95,14 @@ module ddr3_top #(
   parameter DDR_CWL = 6;
 
 `ifdef __gowin_for_the_win
+`ifdef __icarus
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
+`else
+  localparam PHY_WR_DELAY = 4;
+  localparam PHY_RD_DELAY = 3;
+`endif /* !__icarus */
+
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
@@ -372,6 +379,7 @@ module ddr3_top #(
       .ADDR_BITS  (DDR_ROW_BITS),
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
+                  .WRITE_DELAY(WRITE_DELAY),
       .CLOCK_SHIFT(CLOCK_SHIFT)
   ) U_PHY1 (
       .clock  (clock),

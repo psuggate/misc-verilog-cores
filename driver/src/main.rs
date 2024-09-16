@@ -20,6 +20,9 @@ struct Args {
     read_twice: bool,
 
     #[arg(long, default_value = "false")]
+    wide_range: bool,
+
+    #[arg(long, default_value = "false")]
     write_twice: bool,
 
     #[arg(short, long, default_value = "false")]
@@ -94,7 +97,13 @@ fn hex_array_string(dat: &[u8]) -> String {
 }
 
 fn tart_ddr3_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
-    let rdcmd: [u8; 6] = [0x80, 0x0B, 0x78, 0xF0, 0x08, 0x81];
+    let rdcmd: [u8; 6] = if args.wide_range {
+        [0x80, 0x0F, 0x70, 0xF0, 0x08, 0x81]
+    } else {
+        [0x80, 0x07, 0x80, 0xF0, 0x08, 0x81]
+    };
+
+    // let rdcmd: [u8; 6] = [0x80, 0x0B, 0x78, 0xF0, 0x08, 0x81];
     // let rdcmd: [u8; 6] = [0x80, 0x03, 0x80, 0xF0, 0x08, 0x81];
     // let rdcmd: [u8; 6] = [0x80, 0x07, 0x80, 0xF0, 0x08, 0x81];
     let num = tart.write(&rdcmd)?;

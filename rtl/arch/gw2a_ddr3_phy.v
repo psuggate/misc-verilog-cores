@@ -30,6 +30,7 @@ module gw2a_ddr3_phy #(
     parameter INVERT_MCLK = 0,
     parameter INVERT_DCLK = 0,
     parameter WR_PREFETCH = 1'b0,
+    parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 3'b100
 ) (
     input clock,
@@ -232,6 +233,7 @@ module gw2a_ddr3_phy #(
     for (genvar ii = 0; ii < DDR3_MASKS; ii++) begin : gen_dqs_iobs
 
       gw2a_ddr_iob #(
+          .WRDLY(WRITE_DELAY),
           .SHIFT(CLOCK_SHIFT),
 `ifdef __icarus
           .TLVDS(1'b1)

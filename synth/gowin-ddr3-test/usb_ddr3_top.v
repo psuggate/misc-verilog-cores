@@ -71,11 +71,14 @@ module usb_ddr3_top (
   // -- DDR3 Settings -- //
 
   parameter DDR_FREQ_MHZ = 100;
-  localparam LOW_LATENCY = 0;
-  localparam WR_PREFETCH = 0;
+  localparam LOW_LATENCY = 0; // Default value
+  localparam WR_PREFETCH = 0; // Default value
+  // localparam WR_PREFETCH = 1;
   localparam INVERT_MCLK = 0; // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
-  localparam CLOCK_SHIFT = 3'b100; // Default value
+  // localparam CLOCK_SHIFT = 3'b100; // Default value
+  localparam CLOCK_SHIFT = 3'b010;
+  localparam WRITE_DELAY = 2'b01;
 
   localparam DATA_FIFO_BYPASS = 1;
 
@@ -232,6 +235,7 @@ module usb_ddr3_top (
       .WR_PREFETCH(WR_PREFETCH),
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(WRITE_DELAY),
       .CLOCK_SHIFT(CLOCK_SHIFT)
   ) ddr_core_inst (
       .clk_26(clk_26),  // Dev-board clock

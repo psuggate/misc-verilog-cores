@@ -337,15 +337,22 @@ module OSER4 #(
 
 endmodule  // OSER4 (4 to 1 serializer)
 
-module IDES4 (Q0, Q1, Q2, Q3, D, CALIB, PCLK, FCLK, RESET);
+module IDES4 #(
+               parameter GSREN = "false", //"true"; "false"
+               parameter LSREN = "true"    //"true"; "false"
+) (
+  output Q0,
+  output Q1,
+  output Q2,
+  output Q3,
+  input D,
+  input CALIB,
+  input PCLK,
+  input FCLK,
+  input RESET
+);
 
-parameter GSREN = "false"; //"true"; "false"
-parameter LSREN = "true";    //"true"; "false"
-
-input D, FCLK, PCLK, CALIB, RESET;
-output Q0,Q1,Q2,Q3;
-wire grstn;
-wire lrstn; 
+wire grstn, lrstn; 
 //synthesis translate_off
 
 assign grstn = (GSREN == "true") ? GSR.GSRO : 1'b1;
@@ -370,23 +377,11 @@ initial begin
 end
 
 always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-        Dd0 <= 1'b0;
-    end else if (!lrstn) begin
-        Dd0 <= 1'b0;
-    end else begin
-        Dd0 <= D;
-    end
+  Dd0 <= grstn && lrstn ? D : 1'b0;
 end
 
 always @(negedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-        Dd1 <= 1'b0;
-    end else if (!lrstn) begin
-        Dd1 <= 1'b0;
-    end else begin
-        Dd1 <= D;
-    end
+  Dd1 <= grstn && lrstn ? D : 1'b0;
 end
 
 always @(posedge FCLK or negedge grstn or negedge lrstn) begin

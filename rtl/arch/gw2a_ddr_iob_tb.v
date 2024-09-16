@@ -20,7 +20,7 @@ module gw2a_ddr_iob_tb;
   end
 
   reg oe_nq = 1'b1;
-  reg [HSB:0] rnd_q;
+  reg [HSB:0] rnd_q, rnd_p;
   reg [MSB:0] dat_q;
   wire [MSB:0] sh0_w, sh1_w, sh2_w, sh3_w, sh4_w, sh5_w, sh6_w, sh7_w;
   wire [HSB:0] io0_w, io1_w, io2_w, io3_w, io4_w, io5_w, io6_w, io7_w;
@@ -44,11 +44,11 @@ module gw2a_ddr_iob_tb;
   wire oe_nw = count > 1 && count < 6;
   wire oe_nx = count > 7 && count < 12;
 
-  assign io0_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
+  assign io0_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
   assign io1_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
-  assign io2_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
+  assign io2_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
   assign io3_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
-  assign io4_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
+  assign io4_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
 
   always @(posedge clk_x1) begin
     if (reset) begin
@@ -71,7 +71,11 @@ module gw2a_ddr_iob_tb;
     // rnd_q <= oe_q2 ? $urandom : {HBITS{1'bz}};
     oe_q2 <= ~oe_qn;
     oe_q3 <= oe_q2;
-    rnd_q <= oe_q2 ? $urandom : {HBITS{1'bz}};
+    rnd_p <= oe_q2 ? $urandom : {HBITS{1'bz}};
+  end
+
+  always @(negedge clk_x2) begin
+    rnd_q <= rnd_p;
   end
 
   // -- Simulated Module Under Test -- //
