@@ -34,7 +34,7 @@ module ddr3_cfg #(
     output [RSB:0] ctl_adr_o
 );
 
-`include "ddr3_settings.vh"
+  `include "ddr3_settings.vh"
 
   // REFRESH settings
   localparam CREFI = (DDR_TREFI - 1) / TCK;  // cycles(tREFI) - 1
@@ -78,7 +78,7 @@ module ddr3_cfg #(
   // Clock cycles required for SDRAM to internal-RESET# (500 us)
   // Note: CKE has to be de-asserted (>= 5 cycles) prior to this phase
   localparam CYCLES_STARTUP = (500000 + TCK - 1) / TCK;
-`endif /* !__icarus */
+`endif  /* !__icarus */
 
   // Clock cycles required to set all four mode registers
   localparam CYCLES_MODE_SET = 4 * (DDR_CMRD + DDR_CMOD) + 2;
@@ -413,7 +413,7 @@ module ddr3_cfg #(
     endcase
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 
 endmodule  /* ddr3_cfg */

@@ -530,7 +530,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-// `define __use_potatio
+  // `define __use_potatio
 `ifdef __use_potatio
 
   // Write-responses FIFO

@@ -1,6 +1,4 @@
 `timescale 1ns / 100ps
-`define __use_ddr3_because_reasons
-
 module usb_ddr3_top (
     // Clock and reset from the dev-board
     input clk_26,
@@ -71,15 +69,15 @@ module usb_ddr3_top (
   // -- DDR3 Settings -- //
 
   parameter DDR_FREQ_MHZ = 100;
-  localparam LOW_LATENCY = 0; // Default value
-  localparam WR_PREFETCH = 0; // Default value
-  // localparam WR_PREFETCH = 1;
-  localparam INVERT_MCLK = 0; // Default value
+  localparam LOW_LATENCY = 0;  // Default value
+  localparam WR_PREFETCH = 0;  // Default value
+  localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
-  // localparam CLOCK_SHIFT = 3'b100; // Default value
-  localparam CLOCK_SHIFT = 3'b010;
+  localparam CLOCK_SHIFT = 3'b010;  // Default value
   localparam WRITE_DELAY = 2'b01;
 
+  // We only require the ASYNC FIFOs, because the USB End-Points provide packet
+  // FIFOs, for each direction
   localparam DATA_FIFO_BYPASS = 1;
 
   // -- UART Settings -- //
@@ -107,13 +105,13 @@ module usb_ddr3_top (
   // -- LEDs Stuffs -- //
 
   // Note: only 4 (of 6) LED's available in default config
-  assign leds  = {~cbits[3:0], 2'b11};
+  assign leds = {~cbits[3:0], 2'b11};
 
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
 
-  // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
   wire ep1_sel, ep2_sel;
+  // assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
   assign cbits = {ep2_sel, ep2_rdy, ep1_sel, ep1_rdy};
 
   usb_ulpi_core #(
@@ -135,7 +133,6 @@ module usb_ddr3_top (
       .ENDPOINT4(ENDPOINT4),
       .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
-      // .clk_26(clk_26),
       .clk_26(sys_clk),
       .arst_n(rst_n),
 
@@ -149,7 +146,6 @@ module usb_ddr3_top (
       // Todo: debug UART signals ...
       .send_ni  (send_n),
       .uart_rx_i(uart_rx),
-      // .uart_tx_o(uart_tx),
       .uart_tx_o(),
 
       .usb_clock_o(clock),
@@ -159,8 +155,6 @@ module usb_ddr3_top (
       .conf_event_o(),
       .conf_value_o(),
       .crc_error_o (crc_error_w),
-
-`ifdef __use_ddr3_because_reasons
 
       .blki_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
       .blki_tready_o(x_tready),
@@ -181,45 +175,13 @@ module usb_ddr3_top (
       .blky_tready_i(LOOPBACK ? s_tready : m_tready),
       .blky_tlast_o(m_tlast),
       .blky_tdata_o(m_tdata)
-
-`else  /* !__use_ddr3_because_reasons */
-
-      .blki_tvalid_i(LOOPBACK ? m_tvalid : s_tvalid),  // USB 'BULK IN' EP data-path
-      .blki_tready_o(s_tready),
-      .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
-      .blki_tdata_i (LOOPBACK ? m_tdata : s_tdata),
-
-      .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
-      .blko_tready_i(LOOPBACK ? s_tready : m_tready),
-      .blko_tlast_o(m_tlast),
-      .blko_tdata_o(m_tdata),
-
-      .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
-      .blkx_tready_o(x_tready),
-      .blkx_tlast_i (x_tlast),
-      .blkx_tdata_i (x_tdata),
-
-      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
-      .blky_tready_i(y_tready),
-      .blky_tlast_o (y_tlast),
-      .blky_tdata_o (y_tdata)
-
-`endif  /* !__use_ddr3_because_reasons */
   );
 
-/*
-  assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w ^ ddr3_conf_w;
-  assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w ^ sys_rst;
-  assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w ^ crc_error_w;
-*/
   assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w;
   assign ep1_sel = U_USB1.U_TOP1.ep1_sel_w && !U_USB1.U_TOP1.ep1_hlt_w;
   assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w;
   assign ep2_sel = U_USB1.U_TOP1.ep2_sel_w && !U_USB1.U_TOP1.ep2_hlt_w;
-  // assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w;
-  // assign ep4_rdy = U_USB1.U_TOP1.ep4_rdy_w;
 
-`ifdef __use_ddr3_because_reasons
   //
   //  DDR3 Cores Under Next-generation Tests
   ///
@@ -294,19 +256,5 @@ module usb_ddr3_top (
       .ddr_dq(ddr_dq)
   );
 
-`else  /* !__use_ddr3_because_reasons */
 
-  assign ddr3_conf_w = 1'b0;
-  assign sys_clk = clk_26;
-  assign sys_rst = 1'b0;
-
-  // Todo: use for control & logging ??
-  assign x_tvalid = 1'b0;
-  assign x_tkeep = 1'b0;
-  assign x_tlast = 1'b0;
-  assign x_tdata = 8'hA7;
-
-`endif  /* !__use_ddr3_because_reasons */
-
-
-endmodule  // usb_ddr3_top
+endmodule  /* usb_ddr3_top */

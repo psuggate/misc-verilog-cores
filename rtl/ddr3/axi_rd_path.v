@@ -83,12 +83,12 @@ module axi_rd_path #(
   assign axi_arready_o = cmd_ready;
   assign axi_rresp_o   = rrf_ready ? AXI_RESP_OKAY : 2'bxx;
 
-  assign axi_rvalid_o = DATA_FIFO_BYPASS ? mem_valid_i : rvalid_w;
-  assign axi_rlast_o  = DATA_FIFO_BYPASS ? mem_last_i : rlast_w;
-  assign axi_rdata_o  = DATA_FIFO_BYPASS ? mem_data_i : rdata_w;
+  assign axi_rvalid_o  = DATA_FIFO_BYPASS ? mem_valid_i : rvalid_w;
+  assign axi_rlast_o   = DATA_FIFO_BYPASS ? mem_last_i : rlast_w;
+  assign axi_rdata_o   = DATA_FIFO_BYPASS ? mem_data_i : rdata_w;
 
   assign mem_fetch_o   = rcf_valid;
-  assign mem_ready_o = DATA_FIFO_BYPASS ? axi_rready_i : rdf_ready;
+  assign mem_ready_o   = DATA_FIFO_BYPASS ? axi_rready_i : rdf_ready;
 
   // -- Chunker for Large Bursts -- //
 

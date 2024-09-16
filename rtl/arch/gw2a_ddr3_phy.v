@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 /**
  * Converts simple memory-controller commands into DFI commands.
- * 
+ *
  * Notes:
  *  - assumes that the AXI4 interface converts write-data into 128-bit chunks,
  *    (written as 4x 32-bit sequential transfers) padding as required;
@@ -10,9 +10,9 @@
  *    required;
  *  - assumes that the memory controller and the AXI4 bus are within the same
  *    clock-domain;
- * 
+ *
  * Copyright 2023, Patrick Suggate.
- * 
+ *
  */
 module gw2a_ddr3_phy #(
     parameter DDR3_WIDTH = 16,

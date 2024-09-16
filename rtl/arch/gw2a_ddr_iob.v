@@ -27,8 +27,8 @@ module gw2a_ddr_iob #(
   assign Q0_w = SHIFT[2] ? d0_q : q0_r;
   assign Q1_w = SHIFT[2] ? q0_r : q1_r;
 
-  assign Q0 = SHIFT[1] ? Q1_w : Q0_w;
-  assign Q1 = SHIFT[1] ? Q0_w : Q1_w;
+  assign Q0   = SHIFT[1] ? Q1_w : Q0_w;
+  assign Q1   = SHIFT[1] ? Q0_w : Q1_w;
 
   always @* begin
     case (SHIFT[1:0])
@@ -40,7 +40,7 @@ module gw2a_ddr_iob #(
   end
 
   always @(posedge PCLK) begin
-    d0_q <= q1_r; // Orig
+    d0_q <= q1_r;  // Orig
   end
 
   IDES4 u_ides4 (
@@ -58,25 +58,25 @@ module gw2a_ddr_iob #(
   wire D0_w, D1_w, D2_w, D3_w, TX0_w, TX1_w;
   reg D0_q, D1_q, D2_q, D3_q, OEN_q;
 
-  assign D0_w = WRDLY[0] ? D1_q : D0;
-  assign D1_w = D0;
-  assign D2_w = WRDLY[0] ? D0 : D1;
-  assign D3_w = D1;
+  assign D0_w  = WRDLY[0] ? D1_q : D0;
+  assign D1_w  = D0;
+  assign D2_w  = WRDLY[0] ? D0 : D1;
+  assign D3_w  = D1;
 
   assign TX0_w = WRDLY[0] ? OEN_q : OEN;
   assign TX1_w = OEN;
- 
+
   always @(posedge PCLK) begin
     {D3_q, D2_q, D1_q, D0_q} <= {D1_q, D0_q, D1, D0};
     OEN_q <= OEN;
   end
 
   OSER4 #(
-      .HWL(WRDLY[1] ? "true" : "false"), // Causes output to be delayed half-PCLK
-      .TXCLK_POL(WRDLY[0]) // Advances OE by PCLK quadrant
+      .HWL(WRDLY[1] ? "true" : "false"),  // Causes output to be delayed half-PCLK
+      .TXCLK_POL(WRDLY[0])  // Advances OE by PCLK quadrant
   ) u_oser4 (
-      .FCLK(FCLK), // Fast (x2) clock
-      .PCLK(PCLK), // Bus (x1) clock
+      .FCLK(FCLK),  // Fast (x2) clock
+      .PCLK(PCLK),  // Bus (x1) clock
       .RESET(RESET),
       .TX0(TX0_w),
       .TX1(TX1_w),

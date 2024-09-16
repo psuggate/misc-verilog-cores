@@ -232,7 +232,7 @@ module ep_bulk_in #(
   end
 
   always @(posedge clock) begin
-    send <= snxt;
+    send  <= snxt;
 
     rdy_q <= set_q && (tvalid_r || send == TX_NONE || zdp_q);
 

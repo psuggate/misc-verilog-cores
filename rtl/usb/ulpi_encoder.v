@@ -13,6 +13,8 @@
  * Todo:
  *  - after a packet is sent, only strobe (HI) 'usb_done_o' when EOP has been
  *    confirmed (via RX CMD, or EOP-elapsed timer) !?
+ *  - fails with LENGTH == 1 packets (the packet sends but then the encoder
+ *    locks-up) !!
  */
 module ulpi_encoder (
     input clock,
@@ -43,7 +45,7 @@ module ulpi_encoder (
     output s_tready,
     input s_tkeep,
     input s_tlast,
-    input [3:0] s_tuser, // USB PID
+    input [3:0] s_tuser,  // USB PID
     input [7:0] s_tdata,
 
     input ulpi_dir,
@@ -192,7 +194,7 @@ module ulpi_encoder (
           // Output PID has been accepted? If so, we can receive another byte.
           if (mvalid_w && hsk_send_i) begin
             xsend <= TX_STOP;
-          // end else if (end_q || s_tvalid && s_tready && s_tlast) begin
+            // end else if (end_q || s_tvalid && s_tready && s_tlast) begin
           end else if (end_q) begin
             xsend <= TX_CRC0;
           end else if (mvalid_w) begin

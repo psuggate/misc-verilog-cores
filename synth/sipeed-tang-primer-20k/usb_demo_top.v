@@ -44,6 +44,7 @@ module usb_demo_top (
   localparam ENDPOINT1 = 4'd1;
   localparam ENDPOINT2 = 4'd2;
   localparam ENDPOINT3 = 4'd3;
+  localparam ENDPOINT4 = 4'd4;
 
   localparam integer MAX_PACKET_LENGTH = 512;
   localparam integer MAX_CONFIG_LENGTH = 64;
@@ -67,8 +68,9 @@ module usb_demo_top (
   // Data-path //
   wire s_tvalid, s_tready, s_tlast, s_tkeep;
   wire x_tvalid, x_tready, x_tlast, x_tkeep;
+  wire y_tvalid, y_tready, y_tlast;
   wire m_tvalid, m_tready, m_tlast, m_tkeep;
-  wire [7:0] s_tdata, x_tdata, m_tdata;
+  wire [7:0] s_tdata, x_tdata, y_tdata, m_tdata;
 
   // -- Some Wiring Stuffs -- //
 
@@ -195,7 +197,6 @@ module usb_demo_top (
 
   // assign cbits = {conf_event, usb_config};
   assign cbits = {ep3_rdy, ep2_rdy, ep1_rdy, configured};
-  // assign cbits = {stout_w, configured};
 
   assign x_tvalid = 1'b0;
   assign x_tkeep = 1'b0;
@@ -213,11 +214,12 @@ module usb_demo_top (
       .PRODUCT_STRING(PRODUCT_STRING),
       .SERIAL_LENGTH(SERIAL_LENGTH),
       .SERIAL_STRING(SERIAL_STRING),
-      .ENDPOINT1(ENDPOINT1),
-      .ENDPOINT2(ENDPOINT2),
       .DEBUG(DEBUG),
       .USE_UART(0),
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2),
       .ENDPOINTD(ENDPOINT3),
+      .ENDPOINT4(ENDPOINT4),
       .USE_EP4_OUT(DEBUG)
   ) U_USB1 (
       .clk_26(clk_26),
@@ -248,27 +250,27 @@ module usb_demo_top (
       .blki_tlast_i (LOOPBACK ? m_tlast : s_tlast),
       .blki_tdata_i (LOOPBACK ? m_tdata : s_tdata),
 
-      .blkx_tvalid_i(x_tvalid),  // Extra 'BULK IN' EP data-path
+      .blkx_tvalid_i(LOOPBACK ? y_tvalid : x_tvalid),  // Extra 'BULK IN' EP data-path
       .blkx_tready_o(x_tready),
-      .blkx_tlast_i (x_tlast),
-      .blkx_tdata_i (x_tdata),
+      .blkx_tlast_i (LOOPBACK ? y_tlast : x_tlast),
+      .blkx_tdata_i (LOOPBACK ? y_tdata : x_tdata),
 
       .blko_tvalid_o(m_tvalid),  // USB 'BULK OUT' EP data-path
       .blko_tready_i(LOOPBACK ? s_tready : m_tready),
       .blko_tlast_o(m_tlast),
       .blko_tdata_o(m_tdata),
 
-      .blky_tvalid_o(),  // USB 'BULK OUT' EP data-path
-      .blky_tready_i(1'b0),
-      .blky_tlast_o(),
-      .blky_tdata_o()
+      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tready_i(LOOPBACK ? x_tready : 1'b0),
+      .blky_tlast_o(y_tlast),
+      .blky_tdata_o(y_tdata)
   );
 
-  assign ep1_rdy = U_USB1.U_USB1.ep1_rdy_w;
-  assign ep2_rdy = U_USB1.U_USB1.ep2_rdy_w;
-  assign ep3_rdy = U_USB1.U_USB1.ep3_rdy_w | crc_error_w;
+  assign ep1_rdy = U_USB1.U_TOP1.ep1_rdy_w;
+  assign ep2_rdy = U_USB1.U_TOP1.ep2_rdy_w;
+  assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w | crc_error_w;
 
-  assign stout_w = U_USB1.U_USB1.stout_w;
+  assign stout_w = U_USB1.U_TOP1.stout_w;
 
 `endif  /* !__use_legacy_usb_core */
 

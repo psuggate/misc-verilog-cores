@@ -545,7 +545,7 @@ module ddr3_ddl #(
       );
 
     end
-  endgenerate /* g_two_srl */
+  endgenerate  /* g_two_srl */
 
 
 `ifdef __icarus

@@ -98,10 +98,10 @@ module ddr3_top #(
 `ifdef __icarus
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 3;
-`else
+`else  /* !__icarus */
   localparam PHY_WR_DELAY = 4;
   localparam PHY_RD_DELAY = 3;
-`endif /* !__icarus */
+`endif  /* !__icarus */
 
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
@@ -379,7 +379,7 @@ module ddr3_top #(
       .ADDR_BITS  (DDR_ROW_BITS),
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
-                  .WRITE_DELAY(WRITE_DELAY),
+      .WRITE_DELAY(WRITE_DELAY),
       .CLOCK_SHIFT(CLOCK_SHIFT)
   ) U_PHY1 (
       .clock  (clock),
