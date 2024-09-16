@@ -6,7 +6,6 @@ module gw2a_ddr_iob_tb;
   localparam MSB = WIDTH - 1;
   localparam HSB = HBITS - 1;
 
-
   reg clk_x1 = 1'b1;
   reg clk_x2 = 1'b1;
   reg reset = 1'bx;
@@ -24,7 +23,7 @@ module gw2a_ddr_iob_tb;
   reg [MSB:0] dat_q;
   wire [MSB:0] sh0_w, sh1_w, sh2_w, sh3_w, sh4_w, sh5_w, sh6_w, sh7_w;
   wire [HSB:0] io0_w, io1_w, io2_w, io3_w, io4_w, io5_w, io6_w, io7_w;
-
+  wire [HSB:0] iq0_w, iq1_w, iq2_w, iq3_w, iq4_w, iq5_w, iq6_w, iq7_w;
 
   // -- Simulation Data -- //
 
@@ -34,7 +33,6 @@ module gw2a_ddr_iob_tb;
 
     #800 $finish;
   end
-
 
   // -- Stimulus -- //
 
@@ -49,6 +47,11 @@ module gw2a_ddr_iob_tb;
   assign io2_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
   assign io3_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
   assign io4_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
+
+  assign iq0_w = clk_x1 ? sh0_w[HSB:0] : sh0_w[MSB:HBITS];
+  assign iq1_w = clk_x1 ? sh1_w[HSB:0] : sh1_w[MSB:HBITS];
+  assign iq2_w = clk_x1 ? sh2_w[HSB:0] : sh2_w[MSB:HBITS];
+  assign iq3_w = clk_x1 ? sh3_w[HSB:0] : sh3_w[MSB:HBITS];
 
   always @(posedge clk_x1) begin
     if (reset) begin
@@ -67,8 +70,6 @@ module gw2a_ddr_iob_tb;
   end
 
   always @(posedge clk_x2) begin
-    // oe_q2 <= oe_pq;
-    // rnd_q <= oe_q2 ? $urandom : {HBITS{1'bz}};
     oe_q2 <= ~oe_qn;
     oe_q3 <= oe_q2;
     rnd_p <= oe_q2 ? $urandom : {HBITS{1'bz}};
@@ -161,5 +162,4 @@ module gw2a_ddr_iob_tb;
     end
   endgenerate
 
-
-endmodule  // gw2a_ddr_iob_tb
+endmodule  /* gw2a_ddr_iob_tb */

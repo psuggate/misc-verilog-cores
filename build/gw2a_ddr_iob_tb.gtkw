@@ -1,17 +1,16 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep 16 07:52:50 2024
+[*] Mon Sep 16 10:01:32 2024
 [*]
 [dumpfile] "./gw2a_ddr_iob_tb.vcd"
-[dumpfile_mtime] "Mon Sep 16 07:51:00 2024"
-[dumpfile_size] 318456
+[dumpfile_mtime] "Mon Sep 16 09:59:29 2024"
+[dumpfile_size] 321421
 [savefile] "./gw2a_ddr_iob_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-15.649872 135000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.649872 110000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] gw2a_ddr_iob_tb.
-[treeopen] gw2a_ddr_iob_tb.gen_iobs[0].
 [sst_width] 233
 [signals_width] 110
 [sst_expanded] 1
@@ -24,22 +23,39 @@ gw2a_ddr_iob_tb.oe_q3
 @22
 gw2a_ddr_iob_tb.rnd_q[3:0]
 gw2a_ddr_iob_tb.dat_q[7:0]
+@800200
+-Q0
+@22
 gw2a_ddr_iob_tb.sh0_w[7:0]
 gw2a_ddr_iob_tb.io0_w[3:0]
-@29
-gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.d_iw
-@28
-gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.di0_w
-gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.di1_w
-gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.di2_w
-gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.di3_w
+gw2a_ddr_iob_tb.iq0_w[3:0]
+@1000200
+-Q0
+@800200
+-Q1
 @22
 gw2a_ddr_iob_tb.sh1_w[7:0]
 gw2a_ddr_iob_tb.io1_w[3:0]
+gw2a_ddr_iob_tb.iq1_w[3:0]
+@1000200
+-Q1
+@800200
+-Q2
+@22
 gw2a_ddr_iob_tb.sh2_w[7:0]
 gw2a_ddr_iob_tb.io2_w[3:0]
+gw2a_ddr_iob_tb.iq2_w[3:0]
+@1000200
+-Q2
+@800200
+-Q3
+@23
 gw2a_ddr_iob_tb.sh3_w[7:0]
 gw2a_ddr_iob_tb.io3_w[3:0]
+gw2a_ddr_iob_tb.iq3_w[3:0]
+@1000200
+-Q3
+@22
 gw2a_ddr_iob_tb.sh4_w[7:0]
 gw2a_ddr_iob_tb.io4_w[3:0]
 [pattern_trace] 1
