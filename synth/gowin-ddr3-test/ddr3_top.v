@@ -1,4 +1,5 @@
 `timescale 1ns / 100ps
+`define __gowin_for_the_win
 `ifndef __icarus
 // Slower simulation performance, as the IOB's have to be simulated
 `define __gowin_for_the_win

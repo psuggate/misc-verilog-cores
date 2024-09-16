@@ -188,29 +188,24 @@ endmodule  // ODDR (ddr output)
 /**
  * Output serialiser, 4:1 .
  */
-module OSER4 (
-    Q0,
-    Q1,
-    D0,
-    D1,
-    D2,
-    D3,
-    TX0,
-    TX1,
-    PCLK,
-    FCLK,
-    RESET
+module OSER4 #(
+  parameter GSREN = "false",  //"true", "false"
+  parameter LSREN = "true",  //"true", "false"
+  parameter HWL = "false",  //"true", "false"
+  parameter TXCLK_POL = 1'b0  //1'b0:Rising edge output; 1'b1:Falling edge output
+) (
+  output Q0,
+  output Q1,
+  input D0,
+  input   D1,
+  input   D2,
+  input   D3,
+  input   TX0,
+  input   TX1,
+  input   PCLK,
+  input   FCLK,
+  input  RESET
 );
-
-  parameter GSREN = "false";  //"true"; "false"
-  parameter LSREN = "true";  //"true"; "false"
-  parameter HWL = "false";  //"true"; "false"
-  parameter TXCLK_POL = 1'b0;  //1'b0:Rising edge output; 1'b1:Falling edge output
-
-  input D3, D2, D1, D0;
-  input TX1, TX0;
-  input PCLK, FCLK, RESET;
-  output Q0, Q1;
 
   reg [3:0] Dd1, Dd2, Dd3;
   reg [1:0] Ttx1, Ttx2, Ttx3;
@@ -219,9 +214,7 @@ module OSER4 (
   reg Qq_n, Q_data_n, Qq_p, Q_data_p;
   wire grstn, lrstn;
 
-  initial begin
-    dsel = 1'b0;
-  end
+  initial dsel = 1'b0;
 
   assign grstn = GSREN == "true" ? GSR.GSRO : 1'b1;
   assign lrstn = LSREN == "true" ? (~RESET) : 1'b1;
@@ -240,13 +233,7 @@ module OSER4 (
   end
 
   always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-      rstn_dsel <= 1'b0;
-    end else if (!lrstn) begin
-      rstn_dsel <= 1'b0;
-    end else begin
-      rstn_dsel <= 1'b1;
-    end
+    rstn_dsel <= grstn & lrstn;
   end
 
   always @(posedge FCLK or negedge rstn_dsel) begin
@@ -335,26 +322,18 @@ module OSER4 (
   always @(posedge FCLK or negedge grstn or negedge lrstn) begin
     if (!grstn) begin
       Qq_p <= 1'b0;
+      Q_data_p <= 1'b0;
     end else if (!lrstn) begin
       Qq_p <= 1'b0;
+      Q_data_p <= 1'b0;
     end else begin
       Qq_p <= Dd3[1];
-    end
-  end
-
-  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-      Q_data_p <= 1'b0;
-    end else if (!lrstn) begin
-      Q_data_p <= 1'b0;
-    end else begin
       Q_data_p <= Q_data_n;
     end
   end
 
   assign Q0 = FCLK ? Qq_n : Qq_p;
   assign Q1 = (TXCLK_POL == 1'b0) ? Q_data_p : Q_data_n;
-
 
 endmodule  // OSER4 (4 to 1 serializer)
 
