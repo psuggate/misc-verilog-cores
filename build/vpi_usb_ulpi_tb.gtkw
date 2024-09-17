@@ -1,18 +1,17 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep 16 07:53:03 2024
+[*] Tue Sep 17 08:07:56 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Mon Sep 16 07:51:05 2024"
-[dumpfile_size] 24032013
+[dumpfile_mtime] "Tue Sep 17 08:07:22 2024"
+[dumpfile_size] 21419067
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 761402000
-[size] 2560 1376
+[timestart] 756546900
+[size] 1920 1043
 [pos] -1 -1
-*-17.048487 762115000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.048487 756795000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
-[treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.U_WR_PATH1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
@@ -21,7 +20,7 @@
 [sst_width] 233
 [signals_width] 174
 [sst_expanded] 1
-[sst_vpaned_height] 695
+[sst_vpaned_height] 500
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -387,7 +386,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wmask_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_wdata_o[31:0]
 @1401200
 -WrDat
-@800200
+@c00200
 -RdReq
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdreq_o
@@ -399,7 +398,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdlst_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdtid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdadr_o[25:0]
-@1000200
+@1401200
 -RdReq
 @c00200
 -RdDat
@@ -418,13 +417,23 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dfi_rden_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.rd_rdy_w
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dfi_data_i[31:0]
-@29
+@28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rvalid_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rddata_o[31:0]
 @1000200
 -DDL
 -MemCtrl
+@800200
+-DDR PHY
+@28
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.clock
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.dfi_dqs_po[1:0]
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.dfi_dqs_no[1:0]
+@22
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.preamble_w[3:0]
+@1000200
+-DDR PHY
 @800200
 -DDR3
 @28

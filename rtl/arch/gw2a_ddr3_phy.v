@@ -196,7 +196,6 @@ module gw2a_ddr3_phy #(
           .WRDLY(2'd0)
       ) u_gw2a_dq_iob (
           .PCLK(clock),
-          // .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
           .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
           .RESET(reset),
           .OEN(~dfi_wren_i),
@@ -249,10 +248,9 @@ module gw2a_ddr3_phy #(
       ) u_gw2a_dqs_iob (
           .PCLK(clock),
           .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
-          // .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
           .RESET(reset),
           .OEN(dqs_w),
-          .SHIFT(2'd0),
+          .SHIFT(CLOCK_SHIFT),
           .D0(1'b1),
           .D1(1'b0),
           .Q0(dfi_dqs_po[ii]),
@@ -266,19 +264,32 @@ module gw2a_ddr3_phy #(
 
   // -- WRITE- & READ- CALIBRATION -- //
 
-/*
+`ifdef __icarus
+
   reg [1:0] wcal;
   reg [2:0] rcal;
   reg [3:0] preamble;
+  wire [3:0] preamble_w;
 
+  assign preamble_w = {dfi_dqs_no[0], dfi_dqs_po[0], preamble[3:2]};
+
+  //
+  // Todo:
+  //  - 2/4 of the registers can be removed, so that the phase matches that of
+  //    the data ??
+  //  - compute a "phase adjustment" from the bits;
+  //  - figure out the transaction framing, as many reads can be concatenated;
+  //
   always @(posedge clock) begin
     if (reset) begin
       wcal <= 2'd1;
       rcal <= 3'd2;
+      preamble <= 4'd0;
     end else begin
-      preamble <= {preamble[2:0], dfi_dqs_po[0]};
+      preamble <= {dfi_dqs_no[0], dfi_dqs_po[0], preamble[3:2]};
     end
   end
-*/
+
+`endif /* __icarus */
 
 endmodule  /* gw2a_ddr3_phy */
