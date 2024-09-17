@@ -1,5 +1,7 @@
 `timescale 1ns / 100ps
-module GSR (input GSRI);
+module GSR (
+    input GSRI
+);
 
   reg GSRO = 1'b0;
 
@@ -23,23 +25,21 @@ module TBUF (
 endmodule  // TBUF (output buffer with tri-state control)
 
 module TLVDS_IOBUF (
-    O,
-    IO,
-    IOB,
-    I,
-    OEN
+    output reg O,
+    inout IO,
+    inout IOB,
+    input I,
+    input OEN
 );
-  output O;
-  inout IO, IOB;
-  input I, OEN;
-  reg O;
   bufif0 IB (IO, I, OEN);
   notif0 YB (IOB, I, OEN);
+
   always @(IO or IOB) begin
     if (IO == 1'b1 && IOB == 1'b0) O <= IO;
     else if (IO == 1'b0 && IOB == 1'b1) O <= IO;
     else if (IO == 1'bx || IOB == 1'bx) O <= 1'bx;
   end
+
 endmodule
 
 module IDDR (
@@ -189,22 +189,22 @@ endmodule  // ODDR (ddr output)
  * Output serialiser, 4:1 .
  */
 module OSER4 #(
-  parameter GSREN = "false",  //"true", "false"
-  parameter LSREN = "true",  //"true", "false"
-  parameter HWL = "false",  //"true", "false"
-  parameter TXCLK_POL = 1'b0  //1'b0:Rising edge output; 1'b1:Falling edge output
+    parameter GSREN = "false",  //"true", "false"
+    parameter LSREN = "true",  //"true", "false"
+    parameter HWL = "false",  //"true", "false"
+    parameter TXCLK_POL = 1'b0  //1'b0:Rising edge output; 1'b1:Falling edge output
 ) (
-  output Q0,
-  output Q1,
-  input D0,
-  input   D1,
-  input   D2,
-  input   D3,
-  input   TX0,
-  input   TX1,
-  input   PCLK,
-  input   FCLK,
-  input  RESET
+    output Q0,
+    output Q1,
+    input  D0,
+    input  D1,
+    input  D2,
+    input  D3,
+    input  TX0,
+    input  TX1,
+    input  PCLK,
+    input  FCLK,
+    input  RESET
 );
 
   reg [3:0] Dd1, Dd2, Dd3;
@@ -252,27 +252,17 @@ module OSER4 #(
       d_up0 <= 1'b0;
       d_up1 <= 1'b0;
     end else begin
-      if (d_en0) begin
-        d_up0 <= 1'b1;
-      end else begin
-        d_up0 <= 1'b0;
-      end
-
-      if (d_en1) begin
-        d_up1 <= 1'b1;
-      end else begin
-        d_up1 <= 1'b0;
-      end
+      d_up0 <= d_en0;
+      d_up1 <= d_en1;
     end
   end
 
   always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
+    if (!grstn || !lrstn) begin
       Dd2  <= 4'b0;
       Ttx2 <= 2'b0;
-    end else if (!lrstn) begin
-      Dd2  <= 4'b0;
-      Ttx2 <= 2'b0;
+      Dd3  <= 4'b0;
+      Ttx3 <= 2'b0;
     end else begin
       if (d_up0) begin
         Dd2  <= Dd1;
@@ -281,36 +271,18 @@ module OSER4 #(
         Dd2  <= Dd2;
         Ttx2 <= Ttx2;
       end
-    end
-  end
-
-  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-      Dd3  <= 4'b0;
-      Ttx3 <= 2'b0;
-    end else if (!lrstn) begin
-      Dd3  <= 4'b0;
-      Ttx3 <= 2'b0;
-    end else begin
       if (d_up1) begin
         Dd3  <= Dd2;
         Ttx3 <= Ttx2;
       end else begin
-        Dd3[0]  <= Dd3[2];
-        Dd3[2]  <= 1'b0;
-        Dd3[1]  <= Dd3[3];
-        Dd3[3]  <= 1'b0;
-        Ttx3[0] <= Ttx3[1];
-        Ttx3[1] <= 1'b0;
+        Dd3  <= {2'b00, Dd3[3:2]};
+        Ttx3 <= {1'b0, Ttx3[1]};
       end
     end
   end
 
   always @(negedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-      Qq_n <= 1'b0;
-      Q_data_n <= 1'b0;
-    end else if (!lrstn) begin
+    if (!grstn || !lrstn) begin
       Qq_n <= 1'b0;
       Q_data_n <= 1'b0;
     end else begin
@@ -320,10 +292,7 @@ module OSER4 #(
   end
 
   always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-      Qq_p <= 1'b0;
-      Q_data_p <= 1'b0;
-    end else if (!lrstn) begin
+    if (!grstn || !lrstn) begin
       Qq_p <= 1'b0;
       Q_data_p <= 1'b0;
     end else begin
@@ -338,162 +307,167 @@ module OSER4 #(
 endmodule  // OSER4 (4 to 1 serializer)
 
 module IDES4 #(
-               parameter GSREN = "false", //"true"; "false"
-               parameter LSREN = "true"    //"true"; "false"
+    parameter GSREN = "false",  //"true"; "false"
+    parameter LSREN = "true"    //"true"; "false"
 ) (
-  output Q0,
-  output Q1,
-  output Q2,
-  output Q3,
-  input D,
-  input CALIB,
-  input PCLK,
-  input FCLK,
-  input RESET
+    output Q0,
+    output Q1,
+    output Q2,
+    output Q3,
+    input  D,
+    input  CALIB,
+    input  PCLK,
+    input  FCLK,
+    input  RESET
 );
 
-wire grstn, lrstn; 
-//synthesis translate_off
+  wire grstn, lrstn;
+  //synthesis translate_off
 
-assign grstn = (GSREN == "true") ? GSR.GSRO : 1'b1;
-assign lrstn = (LSREN == "true") ? (~RESET) : 1'b1;
+  assign grstn = (GSREN == "true") ? GSR.GSRO : 1'b1;
+  assign lrstn = (LSREN == "true") ? (~RESET) : 1'b1;
 
-reg Dd0,Dd1;
-reg [3:0] D_data,data;
-reg D_en1,D_en;
-reg Dd_sel,calib_state;
-reg [3:0] Q_data;
-reg reset_delay;
-wire CALIBdata_rising_p;
-reg [2:0] CALIBdata;
-wire dcnt_en;
-reg Dd0_reg0,Dd0_reg1,Dd1_reg0,Dd1_reg1;
+  reg Dd0, Dd1;
+  reg [3:0] D_data, data;
+  reg D_en1, D_en;
+  reg Dd_sel, calib_state;
+  reg [3:0] Q_data;
+  reg reset_delay;
+  wire CALIBdata_rising_p;
+  reg [2:0] CALIBdata;
+  wire dcnt_en;
+  reg Dd0_reg0, Dd0_reg1, Dd1_reg0, Dd1_reg1;
 
-initial begin
+  initial begin
     calib_state = 1'b0;
     D_en1 = 1'b0;
     D_en = 1'b0;
     Dd_sel = 1'b0;
-end
+  end
 
-always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-  Dd0 <= grstn && lrstn ? D : 1'b0;
-end
-
-always @(negedge FCLK or negedge grstn or negedge lrstn) begin
-  Dd1 <= grstn && lrstn ? D : 1'b0;
-end
-
-always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-        Dd0_reg0 <= 1'b0;
-        Dd0_reg1 <= 1'b0;
-        Dd1_reg0 <= 1'b0;
-        Dd1_reg1 <= 1'b0;
-    end else if (!lrstn) begin
-        Dd0_reg0 <= 1'b0;
-        Dd0_reg1 <= 1'b0;
-        Dd1_reg0 <= 1'b0;
-        Dd1_reg1 <= 1'b0;
+  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
+    // Dd0 <= grstn && lrstn ? D : 1'b0;
+    if (!grstn || !lrstn) begin
+      Dd0 <= 1'b0;
     end else begin
-        Dd0_reg0 <= Dd0;
-        Dd0_reg1 <= Dd0_reg0;
-        Dd1_reg0 <= Dd1;
-        Dd1_reg1 <= Dd1_reg0;
+      Dd0 <= D;
     end
-end
+  end
 
-always @(posedge FCLK or negedge grstn or negedge lrstn) begin
-    if (!grstn) begin
-        reset_delay <= 1'b0;
-    end else if (!lrstn) begin
-        reset_delay <= 1'b0;
+  always @(negedge FCLK or negedge grstn or negedge lrstn) begin
+    // Dd1 <= grstn && lrstn ? D : 1'b0;
+    if (!grstn || !lrstn) begin
+      Dd1 <= 1'b0;
     end else begin
-        reset_delay <= 1'b1;
+      Dd1 <= D;
     end
-end
+  end
 
-always @(posedge FCLK or negedge reset_delay) begin
+  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
+    if (!grstn || !lrstn) begin
+      Dd0_reg0 <= 1'b0;
+      Dd0_reg1 <= 1'b0;
+      Dd1_reg0 <= 1'b0;
+      Dd1_reg1 <= 1'b0;
+    end else begin
+      Dd0_reg0 <= Dd0;
+      Dd0_reg1 <= Dd0_reg0;
+      Dd1_reg0 <= Dd1;
+      Dd1_reg1 <= Dd1_reg0;
+    end
+  end
+
+  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
+    // reset_delay <= !grstn || !lrstn ? 1'b0 : 1'b1;
+    if (!grstn || !lrstn) begin
+      reset_delay <= 1'b0;
+    end else begin
+      reset_delay <= 1'b1;
+    end
+  end
+
+  always @(posedge FCLK or negedge reset_delay) begin
     if (!reset_delay) begin
-        CALIBdata <= 3'b0;
+      CALIBdata <= 3'b0;
     end else begin
-        CALIBdata <= {CALIBdata[1:0], CALIB};
+      CALIBdata <= {CALIBdata[1:0], CALIB};
     end
-end
+  end
 
-assign CALIBdata_rising_p =  CALIBdata[1] && (~CALIBdata[2]);
-assign dcnt_en = ~(CALIBdata_rising_p && calib_state);
+  assign CALIBdata_rising_p = CALIBdata[1] && (~CALIBdata[2]);
+  assign dcnt_en = ~(CALIBdata_rising_p && calib_state);
 
-always @(posedge FCLK or negedge reset_delay) begin
+  always @(posedge FCLK or negedge reset_delay) begin
     if (!reset_delay) begin
-        calib_state <= 1'b0;
-        D_en1 <= 1'b0;
-        D_en  <= 1'b0;
-        Dd_sel <= 1'b0;
+      calib_state <= 1'b0;
+      D_en1 <= 1'b0;
+      D_en <= 1'b0;
+      Dd_sel <= 1'b0;
     end else begin
-        D_en <= ~D_en1;
-        if (CALIBdata_rising_p) begin
-            calib_state <= ~calib_state;
-            Dd_sel <= ~Dd_sel;
-        end else begin
-            calib_state <= calib_state;
-            Dd_sel <= Dd_sel;
-        end
-        
-        if (dcnt_en) begin
-            D_en1 <= ~D_en1;
-        end else begin
-            D_en1 <= D_en1;
-        end
-    end
-end
+      D_en <= ~D_en1;
+      if (CALIBdata_rising_p) begin
+        calib_state <= ~calib_state;
+        Dd_sel <= ~Dd_sel;
+      end else begin
+        calib_state <= calib_state;
+        Dd_sel <= Dd_sel;
+      end
 
-always @(Dd_sel or Dd0 or Dd0_reg0 or Dd0_reg1 or Dd1_reg0 or Dd1_reg1) begin
-    if(Dd_sel) begin
-        D_data[3] = Dd0;
-        D_data[2] = Dd1_reg0;
-        D_data[1] = Dd0_reg0;
-        D_data[0] = Dd1_reg1;
+      if (dcnt_en) begin
+        D_en1 <= ~D_en1;
+      end else begin
+        D_en1 <= D_en1;
+      end
+    end
+  end
+
+  always @(Dd_sel or Dd0 or Dd0_reg0 or Dd0_reg1 or Dd1_reg0 or Dd1_reg1) begin
+    if (Dd_sel) begin
+      D_data[3] = Dd0;
+      D_data[2] = Dd1_reg0;
+      D_data[1] = Dd0_reg0;
+      D_data[0] = Dd1_reg1;
     end else begin
-        D_data[3] = Dd1_reg0;
-        D_data[2] = Dd0_reg0;
-        D_data[1] = Dd1_reg1;
-        D_data[0] = Dd0_reg1;
+      D_data[3] = Dd1_reg0;
+      D_data[2] = Dd0_reg0;
+      D_data[1] = Dd1_reg1;
+      D_data[0] = Dd0_reg1;
     end
-end
+  end
 
-always @(posedge FCLK or negedge grstn or negedge lrstn) begin
+  always @(posedge FCLK or negedge grstn or negedge lrstn) begin
     if (!grstn) begin
-        data <= 4'b0;
+      data <= 4'b0;
     end else if (!lrstn) begin
-        data <= 4'b0;
+      data <= 4'b0;
     end else if (D_en) begin
-        data <= D_data;
+      data <= D_data;
     end
-end
+  end
 
-always @(posedge PCLK or negedge grstn or negedge lrstn) begin
+  always @(posedge PCLK or negedge grstn or negedge lrstn) begin
     if (!grstn) begin
-        Q_data <= 4'b0;
+      Q_data <= 4'b0;
     end else if (!lrstn) begin
-        Q_data <= 4'b0;
+      Q_data <= 4'b0;
     end else begin
-        Q_data <= data;
+      Q_data <= data;
     end
-end
+  end
 
-assign {Q3,Q2,Q1,Q0} = Q_data;
-//synthesis translate_on
+  assign {Q3, Q2, Q1, Q0} = Q_data;
+  //synthesis translate_on
 
-endmodule // IDES4 (4 to 1 deserializer)
+endmodule  // IDES4 (4 to 1 deserializer)
 
-module IOBUF (O, IO, I, OEN);
+module IOBUF (
+    output O,
+    inout IO,
+    input I,
+    input OEN
+);
 
-input I,OEN;
-output O;
-inout IO;
+  buf OB (O, IO);
+  bufif0 IB (IO, I, OEN);
 
-buf OB (O, IO);
-bufif0 IB (IO,I,OEN);
-    
-endmodule //IOBUF (inout buffer)
+endmodule  //IOBUF (inout buffer)

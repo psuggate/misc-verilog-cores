@@ -8,10 +8,12 @@ module gw2a_ddr_iob_tb;
 
   reg clk_x1 = 1'b1;
   reg clk_x2 = 1'b1;
+  reg clk_x4 = 1'b1;
   reg reset = 1'bx;
 
-  always #2.5 clk_x2 <= ~clk_x2;
-  always #5.0 clk_x1 <= ~clk_x1;
+  always #1.25 clk_x4 <= ~clk_x4;
+  always #2.50 clk_x2 <= ~clk_x2;
+  always #5.00 clk_x1 <= ~clk_x1;
 
   initial begin
     #10 reset <= 1'b1;
@@ -31,22 +33,22 @@ module gw2a_ddr_iob_tb;
     $dumpfile("gw2a_ddr_iob_tb.vcd");
     $dumpvars;
 
-    #800 $finish;
+    #1600 $finish;
   end
 
   // -- Stimulus -- //
 
   reg [3:0] count;
-  reg oe_pq, oe_qn, oe_q2, oe_q3;
+  reg oe_pq, oe_qn, oe_q2, oe_q3, oe_q4;
   wire [3:0] cnext = count + 1;
   wire oe_nw = count > 1 && count < 6;
   wire oe_nx = count > 7 && count < 12;
 
-  assign io0_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
-  assign io1_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
-  assign io2_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
-  assign io3_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_q;
-  assign io4_w = ~oe_q3 ? {HBITS{1'bz}} : rnd_p;
+  assign io0_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_p;
+  assign io1_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_q;
+  assign io2_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_p;
+  assign io3_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_q;
+  assign io4_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_p;
 
   assign iq0_w = clk_x1 ? sh0_w[HSB:0] : sh0_w[MSB:HBITS];
   assign iq1_w = clk_x1 ? sh1_w[HSB:0] : sh1_w[MSB:HBITS];
@@ -72,7 +74,8 @@ module gw2a_ddr_iob_tb;
   always @(posedge clk_x2) begin
     oe_q2 <= ~oe_qn;
     oe_q3 <= oe_q2;
-    rnd_p <= oe_q2 ? $urandom : {HBITS{1'bz}};
+    oe_q4 <= oe_q3;
+    rnd_p <= oe_q3 ? $urandom : {HBITS{1'bz}};
   end
 
   always @(negedge clk_x2) begin
@@ -161,5 +164,122 @@ module gw2a_ddr_iob_tb;
 
     end
   endgenerate
+
+  reg D_q, D_p, CALIB, en_q;
+  wire CLK_w, D_w, D_x, Q3_w, Q2_w, Q1_w, Q0_w, R1_w, R0_w, S1_w, S0_w;
+  wire en_w, U1_w, U0_w, T1_w, T0_w;
+
+  initial begin
+    #10 CALIB = 1'b0;
+    /*
+    #20 CALIB = 1'b1;
+    #10 CALIB = 1'b0;
+    #10 CALIB = 1'b1;
+    #10 CALIB = 1'b0;
+    #10 CALIB = 1'b1;
+    #10 CALIB = 1'b0;
+    */
+    // #10 CALIB = 1'b1; // Wraps back to 0-offset
+    // #10 CALIB = 1'b0;
+  end
+
+  assign CLK_w = clk_x2 ^ clk_x1;
+  assign #1 D_w = CLK_w ? D_q : D_p;
+  // assign en_w = count[3] | count[2];
+  assign en_w = oe_q3;
+  assign D_x = ~D_w;
+
+  always @(posedge clk_x2) begin
+    if (en_w) begin
+      D_p <= $urandom;
+    end else begin
+      D_p <= 1'bz;
+    end
+  end
+
+  always @(negedge clk_x2) begin
+    en_q <= en_w;
+    if (en_w) begin
+      D_q <= $urandom;
+    end else begin
+      D_q <= 1'bz;
+    end
+  end
+
+  IDES4 U_IDES1 (
+      .PCLK(clk_x1),
+      .FCLK(clk_x2),
+      .RESET(reset),
+      .CALIB(CALIB),
+      .D(D_w),
+      .Q0(Q0_w),
+      .Q1(Q1_w),
+      .Q2(Q2_w),
+      .Q3(Q3_w)
+  );
+
+  gw2a_ddr_iob #(
+      .WRDLY(0),
+      .SHIFT(0)
+  ) U_DDR0 (
+      .PCLK(clk_x1),
+      .FCLK(clk_x2),
+      .RESET(reset),
+      .OEN(1'b1),
+      .D0(1'b0),
+      .D1(1'b0),
+      .Q0(R0_w),
+      .Q1(R1_w),
+      .IO(D_w),
+      .IOB(D_x)
+  );
+
+  gw2a_ddr_iob #(
+      .WRDLY(0),
+      .SHIFT(1)
+  ) U_DDR1 (
+      .PCLK(clk_x1),
+      .FCLK(clk_x2),
+      .RESET(reset),
+      .OEN(1'b1),
+      .D0(1'b0),
+      .D1(1'b0),
+      .Q0(S0_w),
+      .Q1(S1_w),
+      .IO(D_w),
+      .IOB(D_x)
+  );
+
+  gw2a_ddr_iob #(
+      .WRDLY(0),
+      .SHIFT(2)
+  ) U_DDR2 (
+      .PCLK(clk_x1),
+      .FCLK(clk_x2),
+      .RESET(reset),
+      .OEN(1'b1),
+      .D0(1'b0),
+      .D1(1'b0),
+      .Q0(T0_w),
+      .Q1(T1_w),
+      .IO(D_w),
+      .IOB(D_x)
+  );
+
+  gw2a_ddr_iob #(
+      .WRDLY(0),
+      .SHIFT(3)
+  ) U_DDR3 (
+      .PCLK(clk_x1),
+      .FCLK(clk_x2),
+      .RESET(reset),
+      .OEN(1'b1),
+      .D0(1'b0),
+      .D1(1'b0),
+      .Q0(U0_w),
+      .Q1(U1_w),
+      .IO(D_w),
+      .IOB(D_x)
+  );
 
 endmodule  /* gw2a_ddr_iob_tb */

@@ -17,6 +17,8 @@ module gw2a_ddr_iob #(
     inout  IOB
 );
 
+`ifdef __use_gross_yucky
+
   reg q0_r, q1_r, d0_q;
   wire d_iw, di0_w, di1_w, di2_w, di3_w, d_ow, t_w, Q0_w, Q1_w;
   wire CALIB = 1'b0;
@@ -112,5 +114,106 @@ module gw2a_ddr_iob #(
 
     end  // !g_tlvds
   endgenerate
+
+`else /* !__use_gross_yucky */
+
+  wire d_iw, d_ow, t_w, Q0_w, Q1_w, Q2_w, Q3_w;
+  reg CALIB;
+  reg [2:0] shift;
+
+  wire D0_w, D1_w, D2_w, D3_w, TX0_w, TX1_w;
+  reg D0_q, D1_q, D2_q, D3_q, OEN_q;
+
+  assign D0_w  = WRDLY[0] ? D1_q : D0;
+  assign D1_w  = D0;
+  assign D2_w  = WRDLY[0] ? D0 : D1;
+  assign D3_w  = D1;
+
+  assign TX0_w = WRDLY[0] ? OEN_q : OEN;
+  assign TX1_w = OEN;
+
+  always @(posedge PCLK) begin
+    {D3_q, D2_q, D1_q, D0_q} <= {D1_q, D0_q, D1, D0};
+    OEN_q <= OEN;
+  end
+
+  OSER4 #(
+      .HWL(WRDLY[1] ? "true" : "false"),  // Causes output to be delayed half-PCLK
+      .TXCLK_POL(WRDLY[0])  // Advances OE by PCLK quadrant
+  ) u_oser4 (
+      .FCLK(FCLK),  // Fast (x2) clock
+      .PCLK(PCLK),  // Bus (x1) clock
+      .RESET(RESET),
+      .TX0(TX0_w),
+      .TX1(TX1_w),
+      .D0(D0_w),
+      .D1(D1_w),
+      .D2(D2_w),
+      .D3(D3_w),
+      .Q0(d_ow),
+      .Q1(t_w)
+  );
+
+  //
+  // Todo:
+  //  - allow 1/4-wave shift to be tuned at during READ CALIBRATION ??
+  //  - is realtime adjustment of 1/2-wave shift ever required ??
+  //
+  assign Q0 = Q0_w;
+  assign Q1 = Q2_w;
+  // assign Q0 = SHIFT[0] ? Q1_w : Q0_w;
+  // assign Q1 = SHIFT[0] ? Q3_w : Q2_w;
+
+  always @(posedge PCLK or posedge RESET) begin
+    if (RESET) begin
+      CALIB <= 1'b0;
+      shift <= 3'd0;
+    end else if (CALIB) begin
+      CALIB <= 1'b0;
+      shift <= shift + 1;
+    end else if (shift < SHIFT[2:0]) begin
+      CALIB <= 1'b1;
+      shift <= shift;
+    end
+  end
+
+  IDES4 u_ides4 (
+      .FCLK(FCLK),
+      .PCLK(PCLK),
+      .RESET(RESET),
+      .CALIB(CALIB),
+      .D(d_iw),
+      .Q0(Q0_w),
+      .Q1(Q1_w),
+      .Q2(Q2_w),
+      .Q3(Q3_w)
+  );
+
+  generate
+    if (TLVDS == 1'b1) begin : g_tlvds
+
+      TLVDS_IOBUF u_tlvds (
+          .I  (d_ow),
+          .OEN(t_w),
+          .O  (d_iw),
+          .IO (IO),
+          .IOB(IOB)
+      );
+
+    end else begin
+
+      assign IOB = 1'bz;
+
+      IOBUF u_iobuf (
+          .I  (d_ow),
+          .OEN(t_w),
+          .IO (IO),
+          .O  (d_iw)
+      );
+
+    end  // !g_tlvds
+  endgenerate
+
+`endif /* !__use_gross_yucky */
 
 endmodule  /* gw2a_ddr_iob */

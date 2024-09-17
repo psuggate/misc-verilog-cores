@@ -1,62 +1,130 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Sep 16 10:01:32 2024
+[*] Tue Sep 17 03:31:34 2024
 [*]
 [dumpfile] "./gw2a_ddr_iob_tb.vcd"
-[dumpfile_mtime] "Mon Sep 16 09:59:29 2024"
-[dumpfile_size] 321421
+[dumpfile_mtime] "Tue Sep 17 03:22:32 2024"
+[dumpfile_size] 563217
 [savefile] "./gw2a_ddr_iob_tb.gtkw"
 [timestart] 0
 [size] 1920 1043
 [pos] -1 -1
-*-15.649872 110000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.649872 160000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] gw2a_ddr_iob_tb.
+[treeopen] gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.
+[treeopen] gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh2.
 [sst_width] 233
-[signals_width] 110
+[signals_width] 118
 [sst_expanded] 1
 [sst_vpaned_height] 298
 @28
 gw2a_ddr_iob_tb.clk_x1
 gw2a_ddr_iob_tb.clk_x2
 gw2a_ddr_iob_tb.oe_nq
-gw2a_ddr_iob_tb.oe_q3
+gw2a_ddr_iob_tb.oe_q4
 @22
+gw2a_ddr_iob_tb.rnd_p[3:0]
 gw2a_ddr_iob_tb.rnd_q[3:0]
 gw2a_ddr_iob_tb.dat_q[7:0]
-@800200
+@c00200
 -Q0
 @22
 gw2a_ddr_iob_tb.sh0_w[7:0]
 gw2a_ddr_iob_tb.io0_w[3:0]
 gw2a_ddr_iob_tb.iq0_w[3:0]
-@1000200
+@28
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_oser4.lrstn
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_oser4.d_en0
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_oser4.d_up0
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_oser4.d_en1
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_oser4.d_up1
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_ides4.reset_delay
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_ides4.grstn
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh0.u_ides4.lrstn
+@1401200
 -Q0
-@800200
+@c00200
 -Q1
 @22
 gw2a_ddr_iob_tb.sh1_w[7:0]
 gw2a_ddr_iob_tb.io1_w[3:0]
 gw2a_ddr_iob_tb.iq1_w[3:0]
-@1000200
+@1401200
 -Q1
-@800200
+@c00200
 -Q2
 @22
 gw2a_ddr_iob_tb.sh2_w[7:0]
 gw2a_ddr_iob_tb.io2_w[3:0]
 gw2a_ddr_iob_tb.iq2_w[3:0]
-@1000200
+@28
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh2.u_oser4.d_en0
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh2.u_oser4.d_up0
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh2.u_oser4.d_en1
+gw2a_ddr_iob_tb.gen_iobs[0].u_ddr_sh2.u_oser4.d_up1
+@1401200
 -Q2
-@800200
+@c00200
 -Q3
-@23
+@22
 gw2a_ddr_iob_tb.sh3_w[7:0]
 gw2a_ddr_iob_tb.io3_w[3:0]
 gw2a_ddr_iob_tb.iq3_w[3:0]
-@1000200
+@1401200
 -Q3
+@c00200
+-Q4
 @22
 gw2a_ddr_iob_tb.sh4_w[7:0]
 gw2a_ddr_iob_tb.io4_w[3:0]
+@1401200
+-Q4
+@800200
+-IDES4
+@28
+gw2a_ddr_iob_tb.en_w
+gw2a_ddr_iob_tb.D_w
+gw2a_ddr_iob_tb.Q0_w
+gw2a_ddr_iob_tb.Q1_w
+gw2a_ddr_iob_tb.Q2_w
+gw2a_ddr_iob_tb.Q3_w
+@1000200
+-IDES4
+@800200
+-SH[0]
+@28
+gw2a_ddr_iob_tb.R0_w
+gw2a_ddr_iob_tb.R1_w
+@24
+gw2a_ddr_iob_tb.U_DDR0.shift[2:0]
+@1000200
+-SH[0]
+@800200
+-SH[1]
+@28
+gw2a_ddr_iob_tb.S0_w
+gw2a_ddr_iob_tb.S1_w
+@24
+gw2a_ddr_iob_tb.U_DDR1.shift[2:0]
+@1000200
+-SH[1]
+@800200
+-SH[2]
+@28
+gw2a_ddr_iob_tb.T0_w
+gw2a_ddr_iob_tb.T1_w
+@24
+gw2a_ddr_iob_tb.U_DDR2.shift[2:0]
+@1000200
+-SH[2]
+@800201
+-SH[3]
+@29
+gw2a_ddr_iob_tb.U0_w
+gw2a_ddr_iob_tb.U1_w
+@25
+gw2a_ddr_iob_tb.U_DDR3.shift[2:0]
+@1000201
+-SH[3]
 [pattern_trace] 1
 [pattern_trace] 0
