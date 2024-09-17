@@ -13,7 +13,9 @@
 module ddr3_cfg #(
     parameter DDR_FREQ_MHZ = 100,
     parameter DDR_ROW_BITS = 13,
-    localparam RSB = DDR_ROW_BITS - 1
+    localparam RSB = DDR_ROW_BITS - 1,
+    parameter STROBE_BITS = 2,
+    localparam SSB = STROBE_BITS - 1
 ) (
     input clock,
     input reset,
@@ -23,6 +25,11 @@ module ddr3_cfg #(
     output dfi_cke_o,
     output dfi_cs_no,
     output dfi_odt_o,
+
+    input  [SSB:0] dfi_dqs_pi,
+    input  [SSB:0] dfi_dqs_ni,
+    output [  1:0] dfi_wdly_o,  // In 1/4 clock-steps
+    output [  2:0] dfi_rdly_o,  // In 1/4 clock-steps
 
     // From/to DDR3 Controller
     output ctl_req_o,  // Memory controller signals
@@ -63,6 +70,10 @@ module ddr3_cfg #(
   assign dfi_cke_o  = cke_q;
   assign dfi_cs_no  = cs_nq;
   assign dfi_odt_o  = 1'b0;
+
+  // Write- & read- delays to the DDR3 PHY
+  assign dfi_wdly_o = 2'd0;
+  assign dfi_rdly_o = 3'd0;
 
   // -- Initialisation and Refresh Counter -- //
 

@@ -16,11 +16,11 @@ module ddr3_top #(
     localparam TBITS = $clog2(TELE_SIZE),
     parameter ENDPOINT = 2,
 
-  // Settings for DLL=off mode
-  parameter DDR_CL = 6,
-  parameter DDR_CWL = 6,
-  parameter PHY_WR_DELAY = 3,
-  parameter PHY_RD_DELAY = 3,
+    // Settings for DLL=off mode
+    parameter DDR_CL = 6,
+    parameter DDR_CWL = 6,
+    parameter PHY_WR_DELAY = 3,
+    parameter PHY_RD_DELAY = 3,
 
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,   // 0 or 1
@@ -265,6 +265,10 @@ module ddr3_top #(
   //  DDR Core Under New Test
   ///
 
+  wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
+  wire [1:0] dfi_wrdly;
+  wire [2:0] dfi_rddly;
+
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ    (DDR_FREQ_MHZ),
       .DDR_ROW_BITS    (DDR_ROW_BITS),
@@ -351,7 +355,12 @@ module ddr3_top #(
       .dfi_rden_o(dfi_rden),
       .dfi_rvld_i(dfi_valid),
       .dfi_last_i(dfi_last),
-      .dfi_data_i(dfi_rdata)
+      .dfi_data_i(dfi_rdata),
+
+      .dfi_dqs_pi(dfi_dqs_p),
+      .dfi_dqs_ni(dfi_dqs_n),
+      .dfi_wdly_o(dfi_wrdly),
+      .dfi_rdly_o(dfi_rddly)
   );
 
 
@@ -394,6 +403,12 @@ module ddr3_top #(
       .dfi_rvld_o(dfi_valid),
       .dfi_last_o(dfi_last),
       .dfi_data_o(dfi_rdata),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_dqs_po(dfi_dqs_p),
+      .dfi_dqs_no(dfi_dqs_n),
+      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
+      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
 
       .ddr_ck_po(ddr_ck),
       .ddr_ck_no(ddr_ck_n),

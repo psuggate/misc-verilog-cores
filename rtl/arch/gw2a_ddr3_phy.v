@@ -59,6 +59,12 @@ module gw2a_ddr3_phy #(
     output dfi_last_o,
     output [DSB:0] dfi_data_o,
 
+    // For WRITE- & READ- CALIBRATION
+    output [QSB:0] dfi_dqs_po,
+    output [QSB:0] dfi_dqs_no,
+    input  [  1:0] dfi_wdly_i,  // In 1/4 clock-steps
+    input  [  2:0] dfi_rdly_i,  // In 1/4 clock-steps
+
     output ddr_ck_po,
     output ddr_ck_no,
     output ddr_cke_o,
@@ -75,7 +81,6 @@ module gw2a_ddr3_phy #(
     inout [QSB:0] ddr_dqs_nio,
     inout [MSB:0] ddr_dq_io
 );
-
 
   // -- DDR3 PHY State & Signals -- //
 
@@ -246,11 +251,10 @@ module gw2a_ddr3_phy #(
           .RESET(reset),
           .OEN(dqs_w),
           .SHIFT(2'd0),
-          // .SHIFT(CLOCK_SHIFT),
           .D0(1'b1),
           .D1(1'b0),
-          .Q0(),
-          .Q1(),
+          .Q0(dfi_dqs_po[ii]),
+          .Q1(dfi_dqs_no[ii]),
           .IO(ddr_dqs_pio[ii]),
           .IOB(ddr_dqs_nio[ii])
       );

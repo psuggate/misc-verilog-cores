@@ -23,9 +23,9 @@ module gw2a_ddr_iob_tb;
   reg oe_nq = 1'b1;
   reg [HSB:0] rnd_q, rnd_p;
   reg [MSB:0] dat_q;
-  wire [MSB:0] sh0_w, sh1_w, sh2_w, sh3_w, sh4_w, sh5_w, sh6_w, sh7_w;
-  wire [HSB:0] io0_w, io1_w, io2_w, io3_w, io4_w, io5_w, io6_w, io7_w;
-  wire [HSB:0] iq0_w, iq1_w, iq2_w, iq3_w, iq4_w, iq5_w, iq6_w, iq7_w;
+  wire [MSB:0] sh0_w, sh1_w, sh2_w, sh3_w;
+  wire [HSB:0] io0_w, io1_w, io2_w, io3_w;
+  wire [HSB:0] iq0_w, iq1_w, iq2_w, iq3_w;
 
   // -- Simulation Data -- //
 
@@ -48,7 +48,6 @@ module gw2a_ddr_iob_tb;
   assign io1_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_q;
   assign io2_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_p;
   assign io3_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_q;
-  assign io4_w = ~oe_q4 ? {HBITS{1'bz}} : rnd_p;
 
   assign iq0_w = clk_x1 ? sh0_w[HSB:0] : sh0_w[MSB:HBITS];
   assign iq1_w = clk_x1 ? sh1_w[HSB:0] : sh1_w[MSB:HBITS];
@@ -145,21 +144,6 @@ module gw2a_ddr_iob_tb;
           .Q0(sh3_w[ii]),
           .Q1(sh3_w[HBITS+ii]),
           .IO(io3_w[ii])
-      );
-
-      gw2a_ddr_iob #(
-          .WRDLY(4)
-      ) u_ddr_sh4 (
-          .PCLK(clk_x1),
-          .FCLK(clk_x2),
-          .RESET(reset),
-          .OEN(oe_nq),
-          .SHIFT(2'd4),
-          .D0(dat_q[ii]),
-          .D1(dat_q[HBITS+ii]),
-          .Q0(sh4_w[ii]),
-          .Q1(sh4_w[HBITS+ii]),
-          .IO(io4_w[ii])
       );
 
     end

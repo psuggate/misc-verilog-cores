@@ -81,7 +81,7 @@ module usb_ddr3_top (
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
 `else  /* !__icarus */
-  localparam PHY_WR_DELAY = 4;
+  localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
 `endif  /* !__icarus */
 
@@ -208,8 +208,8 @@ module usb_ddr3_top (
       .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .TELEMETRY(0),
 
-.PHY_WR_DELAY(PHY_WR_DELAY),
-.PHY_RD_DELAY(PHY_RD_DELAY),
+      .PHY_WR_DELAY(PHY_WR_DELAY),
+      .PHY_RD_DELAY(PHY_RD_DELAY),
 
       .LOW_LATENCY(LOW_LATENCY),
       .WR_PREFETCH(WR_PREFETCH),
