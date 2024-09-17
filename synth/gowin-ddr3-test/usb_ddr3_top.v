@@ -74,17 +74,12 @@ module usb_ddr3_top (
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
 
-  localparam CLOCK_SHIFT = 2'b00;  // Default value
+  // localparam CLOCK_SHIFT = 2'b01;  // Default value
+  localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
 `ifdef __gowin_for_the_win
-`ifdef __icarus
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
-`else  /* !__icarus */
-  localparam PHY_WR_DELAY = 3;
-  localparam PHY_RD_DELAY = 2;
-`endif  /* !__icarus */
-
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;

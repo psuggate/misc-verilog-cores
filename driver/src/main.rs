@@ -25,6 +25,9 @@ struct Args {
     #[arg(long, default_value = "false")]
     write_twice: bool,
 
+    #[arg(long, default_value = "false")]
+    invert: bool,
+
     #[arg(short, long, default_value = "false")]
     no_read: bool,
 
@@ -164,7 +167,19 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
         0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0,
     ];
-    let wrdat: Vec<u8> = wrdat.to_vec().repeat(args.chunks);
+
+    let wrdat: Vec<u8> = if args.invert {
+        let mut tmp: Vec<u8> = Vec::with_capacity(wrdat.len());
+        for x in wrdat[0..6].iter() {
+            tmp.push(*x);
+        }
+        for x in wrdat[6..].iter() {
+            tmp.push(!(*x));
+        }
+        tmp.repeat(args.chunks)
+    } else {
+        wrdat.to_vec().repeat(args.chunks)
+    };
     let num = tart.write(&wrdat)?;
 
     info!(

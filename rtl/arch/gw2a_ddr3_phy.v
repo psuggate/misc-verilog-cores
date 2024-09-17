@@ -196,7 +196,8 @@ module gw2a_ddr3_phy #(
           .WRDLY(2'd0)
       ) u_gw2a_dq_iob (
           .PCLK(clock),
-          .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
+          // .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
+          .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
           .RESET(reset),
           .OEN(~dfi_wren_i),
           .SHIFT(CLOCK_SHIFT),
@@ -248,6 +249,7 @@ module gw2a_ddr3_phy #(
       ) u_gw2a_dqs_iob (
           .PCLK(clock),
           .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
+          // .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
           .RESET(reset),
           .OEN(dqs_w),
           .SHIFT(2'd0),
@@ -262,5 +264,21 @@ module gw2a_ddr3_phy #(
     end  // gen_dqs_iobs
   endgenerate
 
+  // -- WRITE- & READ- CALIBRATION -- //
+
+/*
+  reg [1:0] wcal;
+  reg [2:0] rcal;
+  reg [3:0] preamble;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      wcal <= 2'd1;
+      rcal <= 3'd2;
+    end else begin
+      preamble <= {preamble[2:0], dfi_dqs_po[0]};
+    end
+  end
+*/
 
 endmodule  /* gw2a_ddr3_phy */
