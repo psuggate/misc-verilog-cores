@@ -10,7 +10,7 @@ module vpi_usb_ulpi_tb;
   localparam LOW_LATENCY = 0;
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Default value
-  localparam CLOCK_SHIFT = 3'b100;  // Default value
+  localparam CLOCK_SHIFT = 2'b010;  // Default value
 
   // USB settings
   localparam MAX_PACKET_LENGTH = 512;
@@ -225,6 +225,15 @@ module vpi_usb_ulpi_tb;
 
 `ifdef __use_ddr3_because_reasons
 
+`define __gowin_for_the_win
+`ifdef __gowin_for_the_win
+  localparam PHY_WR_DELAY = 3;
+  localparam PHY_RD_DELAY = 2;
+`else  /* !__gowin_for_the_win */
+  localparam PHY_WR_DELAY = 1;
+  localparam PHY_RD_DELAY = 1;
+`endif  /* !__gowin_for_the_win */
+
   reg drst_n = 1'b1, send_q = 1'b1;
   wire drst_w = ~drst_n;
 
@@ -248,7 +257,11 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES (2048),
       .DATA_WIDTH (32),
-      .TELEMETRY  (1),
+      .TELEMETRY  (0),
+
+.PHY_WR_DELAY(PHY_WR_DELAY),
+.PHY_RD_DELAY(PHY_RD_DELAY),
+
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
       .CLOCK_SHIFT(CLOCK_SHIFT),

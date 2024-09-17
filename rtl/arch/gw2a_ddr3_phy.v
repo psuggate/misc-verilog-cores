@@ -31,7 +31,7 @@ module gw2a_ddr3_phy #(
     parameter INVERT_DCLK = 0,
     parameter WR_PREFETCH = 1'b0,
     parameter WRITE_DELAY = 2'b00,
-    parameter CLOCK_SHIFT = 3'b100
+    parameter CLOCK_SHIFT = 2'b10
 ) (
     input clock,
     input reset,
@@ -188,12 +188,13 @@ module gw2a_ddr3_phy #(
     for (genvar ii = 0; ii < DDR3_WIDTH; ii++) begin : gen_dq_iobs
 
       gw2a_ddr_iob #(
-          .SHIFT(CLOCK_SHIFT)
+          .WRDLY(2'd0)
       ) u_gw2a_dq_iob (
           .PCLK(clock),
           .FCLK(INVERT_DCLK ? clk_ddr : ~clk_ddr),
           .RESET(reset),
           .OEN(~dfi_wren_i),
+          .SHIFT(CLOCK_SHIFT),
           .D0(data_w[ii]),
           .D1(data_w[DDR3_WIDTH+ii]),
           .Q0(dfi_data_o[ii]),
@@ -234,7 +235,6 @@ module gw2a_ddr3_phy #(
 
       gw2a_ddr_iob #(
           .WRDLY(WRITE_DELAY),
-          .SHIFT(CLOCK_SHIFT),
 `ifdef __icarus
           .TLVDS(1'b1)
 `else
@@ -245,6 +245,8 @@ module gw2a_ddr3_phy #(
           .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
           .RESET(reset),
           .OEN(dqs_w),
+          .SHIFT(2'd0),
+          // .SHIFT(CLOCK_SHIFT),
           .D0(1'b1),
           .D1(1'b0),
           .Q0(),

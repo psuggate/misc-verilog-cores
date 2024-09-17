@@ -73,8 +73,22 @@ module usb_ddr3_top (
   localparam WR_PREFETCH = 0;  // Default value
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
-  localparam CLOCK_SHIFT = 3'b010;  // Default value
+
+  localparam CLOCK_SHIFT = 2'b00;  // Default value
   localparam WRITE_DELAY = 2'b01;
+`ifdef __gowin_for_the_win
+`ifdef __icarus
+  localparam PHY_WR_DELAY = 3;
+  localparam PHY_RD_DELAY = 2;
+`else  /* !__icarus */
+  localparam PHY_WR_DELAY = 4;
+  localparam PHY_RD_DELAY = 2;
+`endif  /* !__icarus */
+
+`else  /* !__gowin_for_the_win */
+  localparam PHY_WR_DELAY = 1;
+  localparam PHY_RD_DELAY = 1;
+`endif  /* !__gowin_for_the_win */
 
   // We only require the ASYNC FIFOs, because the USB End-Points provide packet
   // FIFOs, for each direction
@@ -193,6 +207,10 @@ module usb_ddr3_top (
       .DATA_WIDTH(32),
       .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
       .TELEMETRY(0),
+
+.PHY_WR_DELAY(PHY_WR_DELAY),
+.PHY_RD_DELAY(PHY_RD_DELAY),
+
       .LOW_LATENCY(LOW_LATENCY),
       .WR_PREFETCH(WR_PREFETCH),
       .INVERT_MCLK(INVERT_MCLK),

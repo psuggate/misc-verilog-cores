@@ -88,13 +88,13 @@ module gw2a_ddr_iob_tb;
     for (genvar ii = 0; ii < HBITS; ii++) begin : gen_iobs
 
       gw2a_ddr_iob #(
-          .WRDLY(0),
-          .SHIFT(0)
+          .WRDLY(0)
       ) u_ddr_sh0 (
           .PCLK(clk_x1),
           .FCLK(clk_x2),
           .RESET(reset),
           .OEN(oe_nq),
+          .SHIFT(2'd0),
           .D0(dat_q[ii]),
           .D1(dat_q[HBITS+ii]),
           .Q0(sh0_w[ii]),
@@ -103,13 +103,13 @@ module gw2a_ddr_iob_tb;
       );
 
       gw2a_ddr_iob #(
-          .WRDLY(1),
-          .SHIFT(1)
+          .WRDLY(1)
       ) u_ddr_sh1 (
           .PCLK(clk_x1),
           .FCLK(clk_x2),
           .RESET(reset),
           .OEN(oe_nq),
+          .SHIFT(2'd1),
           .D0(dat_q[ii]),
           .D1(dat_q[HBITS+ii]),
           .Q0(sh1_w[ii]),
@@ -118,13 +118,13 @@ module gw2a_ddr_iob_tb;
       );
 
       gw2a_ddr_iob #(
-          .WRDLY(2),
-          .SHIFT(2)
+          .WRDLY(2)
       ) u_ddr_sh2 (
           .PCLK(clk_x1),
           .FCLK(clk_x2),
           .RESET(reset),
           .OEN(oe_nq),
+          .SHIFT(2'd2),
           .D0(dat_q[ii]),
           .D1(dat_q[HBITS+ii]),
           .Q0(sh2_w[ii]),
@@ -133,13 +133,13 @@ module gw2a_ddr_iob_tb;
       );
 
       gw2a_ddr_iob #(
-          .WRDLY(3),
-          .SHIFT(3)
+          .WRDLY(3)
       ) u_ddr_sh3 (
           .PCLK(clk_x1),
           .FCLK(clk_x2),
           .RESET(reset),
           .OEN(oe_nq),
+          .SHIFT(2'd3),
           .D0(dat_q[ii]),
           .D1(dat_q[HBITS+ii]),
           .Q0(sh3_w[ii]),
@@ -148,13 +148,13 @@ module gw2a_ddr_iob_tb;
       );
 
       gw2a_ddr_iob #(
-          .WRDLY(4),
-          .SHIFT(4)
+          .WRDLY(4)
       ) u_ddr_sh4 (
           .PCLK(clk_x1),
           .FCLK(clk_x2),
           .RESET(reset),
           .OEN(oe_nq),
+          .SHIFT(2'd4),
           .D0(dat_q[ii]),
           .D1(dat_q[HBITS+ii]),
           .Q0(sh4_w[ii]),
@@ -185,7 +185,6 @@ module gw2a_ddr_iob_tb;
 
   assign CLK_w = clk_x2 ^ clk_x1;
   assign #1 D_w = CLK_w ? D_q : D_p;
-  // assign en_w = count[3] | count[2];
   assign en_w = oe_q3;
   assign D_x = ~D_w;
 
@@ -219,13 +218,13 @@ module gw2a_ddr_iob_tb;
   );
 
   gw2a_ddr_iob #(
-      .WRDLY(0),
-      .SHIFT(0)
+      .WRDLY(0)
   ) U_DDR0 (
       .PCLK(clk_x1),
       .FCLK(clk_x2),
       .RESET(reset),
       .OEN(1'b1),
+      .SHIFT(2'd0),
       .D0(1'b0),
       .D1(1'b0),
       .Q0(R0_w),
@@ -235,13 +234,13 @@ module gw2a_ddr_iob_tb;
   );
 
   gw2a_ddr_iob #(
-      .WRDLY(0),
-      .SHIFT(1)
+      .WRDLY(0)
   ) U_DDR1 (
       .PCLK(clk_x1),
       .FCLK(clk_x2),
       .RESET(reset),
       .OEN(1'b1),
+      .SHIFT(2'd1),
       .D0(1'b0),
       .D1(1'b0),
       .Q0(S0_w),
@@ -251,13 +250,13 @@ module gw2a_ddr_iob_tb;
   );
 
   gw2a_ddr_iob #(
-      .WRDLY(0),
-      .SHIFT(2)
+      .WRDLY(0)
   ) U_DDR2 (
       .PCLK(clk_x1),
       .FCLK(clk_x2),
       .RESET(reset),
       .OEN(1'b1),
+      .SHIFT(2'd2),
       .D0(1'b0),
       .D1(1'b0),
       .Q0(T0_w),
@@ -267,13 +266,13 @@ module gw2a_ddr_iob_tb;
   );
 
   gw2a_ddr_iob #(
-      .WRDLY(0),
-      .SHIFT(3)
+      .WRDLY(0)
   ) U_DDR3 (
       .PCLK(clk_x1),
       .FCLK(clk_x2),
       .RESET(reset),
       .OEN(1'b1),
+      .SHIFT(2'd3),
       .D0(1'b0),
       .D1(1'b0),
       .Q0(U0_w),

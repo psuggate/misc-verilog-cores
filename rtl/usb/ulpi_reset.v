@@ -74,10 +74,11 @@ module ulpi_reset #(
           .ODIV_SEL(8),  // div 8
           .DYN_SDIV_SEL(2)  // div 2
       ) U_RPLL0 (
-          .clockp(clockp),   // 120 MHz
-          .clockd(clockd),   // 60 MHz
+          .clockp(clockp),    // 120 MHz
+          .clockd(clockd),    // 60 MHz
           .lock  (locked),
-          .clkin (ulpi_clk)
+          .clkin (ulpi_clk),
+          .reset (1'b0)
       );
 
     end

@@ -16,13 +16,19 @@ module ddr3_top #(
     localparam TBITS = $clog2(TELE_SIZE),
     parameter ENDPOINT = 2,
 
+  // Settings for DLL=off mode
+  parameter DDR_CL = 6,
+  parameter DDR_CWL = 6,
+  parameter PHY_WR_DELAY = 3,
+  parameter PHY_RD_DELAY = 3,
+
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,   // 0 or 1
     parameter WR_PREFETCH = 1'b0,   // 0 or 1
     parameter INVERT_MCLK = 0,
     parameter INVERT_DCLK = 0,
     parameter WRITE_DELAY = 2'b00,
-    parameter CLOCK_SHIFT = 3'b100
+    parameter CLOCK_SHIFT = 2'b10
 ) (
     input clk_26,
     input arst_n,  // 'S2' button for async-reset
@@ -89,24 +95,6 @@ module ddr3_top #(
   localparam SDIV_SEL = 2;
 
   // -- Constants -- //
-
-  // Settings for DLL=off mode
-  parameter DDR_CL = 6;
-  parameter DDR_CWL = 6;
-
-`ifdef __gowin_for_the_win
-`ifdef __icarus
-  localparam PHY_WR_DELAY = 3;
-  localparam PHY_RD_DELAY = 3;
-`else  /* !__icarus */
-  localparam PHY_WR_DELAY = 4;
-  localparam PHY_RD_DELAY = 3;
-`endif  /* !__icarus */
-
-`else  /* !__gowin_for_the_win */
-  localparam PHY_WR_DELAY = 1;
-  localparam PHY_RD_DELAY = 1;
-`endif  /* !__gowin_for_the_win */
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
@@ -196,7 +184,8 @@ module ddr3_top #(
       .clkout(clk_200),  // 200 MHz
       .clockd(clk_100),  // 100 MHz
       .lock  (locked),
-      .clkin (clk_26)
+      .clkin (clk_26),
+      .reset (~arst_n)
   );
 
 `endif  /* !__icarus */
