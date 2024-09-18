@@ -7,7 +7,7 @@ module gw2a_ddr3_phy_tb;
   localparam INVERT_MCLK = 0; // Default value
   localparam INVERT_DCLK = 0; // Default value
   localparam WRITE_DELAY = 2'b01;
-  localparam CLOCK_SHIFT = 2'b01;
+  localparam CLOCK_SHIFT = 2'b00;
 
   // Data-path widths
   localparam DDR_DQ_WIDTH = 16;
@@ -79,25 +79,16 @@ module gw2a_ddr3_phy_tb;
   wire [SSB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
 
-  // -- Stimulus -- //
+  // -- Start-Up Stimulus -- //
 
   integer count = 0;
-  reg oen_q = 1'b1, stb_q = 1'b0, cyc_q = 1'b0;
-  reg [1:0] dqs_pq = 2'bz, dqs_nq = 2'bz;
 
-  initial begin
-    #10 dqs_pq = 2'bz; oen_q = 1'b1;
-    #80 stb_q = 1'b1;
-    #2.5 dqs_pq = 2'd0; stb_q = 1'b1; oen_q = 1'b0;
-    #10 dqs_pq = 2'd3;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = 2'bz; oen_q = 1'b1;
+  always @(posedge clock) begin
+    if (reset) begin
+      count <= 0;
+    end else begin
+      count <= count + 1;
+    end
   end
 
   assign #1 dfi_rst_n = count > 1;
@@ -114,36 +105,67 @@ module gw2a_ddr3_phy_tb;
   assign dfi_wstb = 1'b0;
   assign dfi_wren = 1'b0;
   assign dfi_mask = {MASKS{1'b0}};
-  assign dfi_rden = 1'b0;
   assign dfi_wdata = {WIDTH{1'bx}};
+
+  // -- Data-Capture Stimulus -- //
+
+  reg oen_q = 1'b1, vld_q = 1'b0, rdy_q;
+  reg [QSB:0] dqs_pq = 2'bz, dqs_nq = 2'bz;
+  reg [DSB:0] dat_q;
+  wire [QSB:0] dqs_p90, dqs_180, dqs_m90;
+  wire [QSB:0] dqs_n90, dqs_360, dqs_q90;
+  wire [DSB:0] dqp90_w, dq180_w, dqm90_w;
+
+  wire vld_p90, vld_180, vld_m90;
+  wire [MSB:0] dat_p90, dat_180, dat_m90;
+
+  initial begin
+    #10 dqs_pq = 2'bz; oen_q = 1'b1;
+    #92.5 dqs_pq = 2'd0; oen_q = 1'b0;
+    #10 dqs_pq = 2'd3;
+    vld_q = 1'b1;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = 2'bz; oen_q = 1'b1;
+    vld_q = 1'b0;
+  end
+
+  assign dfi_rden = rdy_q; // vld_q;
 
   assign ddr_dqs_p = oen_q ? 2'bz : dqs_pq;
   assign ddr_dqs_n = oen_q ? 2'bz : ~dqs_pq;
+  assign ddr_dq = vld_q ? dat_q : {DDR_DQ_WIDTH{1'bz}};
 
-  always @(posedge clock) begin
-    if (reset) begin
-      count <= 0;
-    end else begin
-      count <= count + 1;
-    end
-  end
+  assign #2.5 dqs_p90 = ddr_dqs_p;
+  assign #2.5 dqs_n90 = ddr_dqs_n;
+  assign #2.5 dqp90_w = ddr_dq;
+
+  assign #2.5 dqs_180 = dqs_p90;
+  assign #2.5 dqs_360 = dqs_n90;
+  assign #2.5 dq180_w = dqp90_w;
+
+  assign #2.5 dqs_m90 = dqs_180;
+  assign #2.5 dqs_q90 = dqs_360;
+  assign #2.5 dqm90_w = dq180_w;
 
   always @(negedge clk_x2) begin
     if (reset) begin
       oen_q <= 1'b1;
-      stb_q <= 1'b0;
-      cyc_q <= 1'b0;
     end else begin
-      if (stb_q && !cyc_q) begin
-        cyc_q  <= #7.5 1'b1;
-        dqs_nq <= 2'd3;
-      end else if (!oen_q && cyc_q) begin
-        stb_q  <= 1'b0;
-        dqs_nq <= ~dqs_nq;
-      end else begin
-        cyc_q  <= 1'b0;
-        dqs_nq <= 2'bz;
-      end
+      dat_q <= $urandom;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      rdy_q <= 1'b0;
+    end else begin
+      rdy_q <= vld_q;
     end
   end
 
@@ -160,9 +182,65 @@ module gw2a_ddr3_phy_tb;
       .ADDR_BITS  (DDR_ROW_BITS),
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
-      .WRITE_DELAY(WRITE_DELAY),
-      .CLOCK_SHIFT(CLOCK_SHIFT)
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd0)
   ) U_PHY1 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(dfi_valid),
+      .dfi_last_o(dfi_last),
+      .dfi_data_o(dfi_rdata),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_dqs_po(dfi_dqs_p),
+      .dfi_dqs_no(dfi_dqs_n),
+      .dfi_data_i(dfi_wdata),
+      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
+      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+
+      .ddr_ck_po(ddr_ck_p),
+      .ddr_ck_no(ddr_ck_n),
+      .ddr_rst_no(ddr_rst_n),
+      .ddr_cke_o(ddr_cke),
+      .ddr_cs_no(ddr_cs_n),
+      .ddr_ras_no(ddr_ras_n),
+      .ddr_cas_no(ddr_cas_n),
+      .ddr_we_no(ddr_we_n),
+      .ddr_odt_o(ddr_odt),
+      .ddr_ba_o(ddr_ba),
+      .ddr_a_o(ddr_a),
+      .ddr_dm_o(ddr_dm),
+      .ddr_dqs_pio(ddr_dqs_p),
+      .ddr_dqs_nio(ddr_dqs_n),
+      .ddr_dq_io(ddr_dq)
+  );
+
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd1)
+  ) U_PHY2 (
       .clock  (clk_x1),
       .reset  (rst_x1),
       .clk_ddr(clk_x2),
@@ -183,31 +261,143 @@ module gw2a_ddr3_phy_tb;
       .dfi_data_i(dfi_wdata),
 
       .dfi_rden_i(dfi_rden),
-      .dfi_rvld_o(dfi_valid),
-      .dfi_last_o(dfi_last),
-      .dfi_data_o(dfi_rdata),
+      .dfi_rvld_o(vld_p90),
+      .dfi_last_o(),
+      .dfi_data_o(dat_p90),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(dfi_dqs_p),
-      .dfi_dqs_no(dfi_dqs_n),
+      .dfi_dqs_po(),
+      .dfi_dqs_no(),
       .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
       .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
 
-      .ddr_ck_po(ddr_ck_p),
-      .ddr_ck_no(ddr_ck_n),
-      .ddr_rst_no(ddr_rst_n),
-      .ddr_cke_o(ddr_cke),
-      .ddr_cs_no(ddr_cs_n),
-      .ddr_ras_no(ddr_ras_n),
-      .ddr_cas_no(ddr_cas_n),
-      .ddr_we_no(ddr_we_n),
-      .ddr_odt_o(ddr_odt),
-      .ddr_ba_o(ddr_ba),
-      .ddr_a_o(ddr_a),
-      .ddr_dm_o(ddr_dm),
-      .ddr_dqs_pio(ddr_dqs_p),
-      .ddr_dqs_nio(ddr_dqs_n),
-      .ddr_dq_io(ddr_dq)
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_p90),
+      .ddr_dqs_nio(dqs_n90),
+      .ddr_dq_io(dqp90_w)
+  );
+
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd2)
+  ) U_PHY3 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(vld_180),
+      .dfi_last_o(),
+      .dfi_data_o(dat_180),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_dqs_po(),
+      .dfi_dqs_no(),
+      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
+      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_180),
+      .ddr_dqs_nio(dqs_360),
+      .ddr_dq_io(dq180_w)
+  );
+
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd3)
+  ) U_PHY4 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(vld_m90),
+      .dfi_last_o(),
+      .dfi_data_o(dat_m90),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_dqs_po(),
+      .dfi_dqs_no(),
+      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
+      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_m90),
+      .ddr_dqs_nio(dqs_q90),
+      .ddr_dq_io(dqm90_w)
   );
 
 

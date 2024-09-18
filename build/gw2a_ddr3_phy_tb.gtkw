@@ -1,18 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep 18 03:58:38 2024
+[*] Wed Sep 18 07:49:08 2024
 [*]
 [dumpfile] "./gw2a_ddr3_phy_tb.vcd"
-[dumpfile_mtime] "Wed Sep 18 03:58:07 2024"
-[dumpfile_size] 320405
+[dumpfile_mtime] "Wed Sep 18 07:48:58 2024"
+[dumpfile_size] 1289153
 [savefile] "./gw2a_ddr3_phy_tb.gtkw"
 [timestart] 0
 [size] 2560 1376
 [pos] -1 -1
-*-15.195505 92500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.195505 115000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] gw2a_ddr3_phy_tb.
+[treeopen] gw2a_ddr3_phy_tb.U_PHY2.gen_dqs_iobs[0].
 [sst_width] 233
-[signals_width] 177
+[signals_width] 150
 [sst_expanded] 1
 [sst_vpaned_height] 414
 @28
@@ -34,28 +35,83 @@ gw2a_ddr3_phy_tb.ddr_ba[2:0]
 gw2a_ddr3_phy_tb.ddr_a[12:0]
 @28
 gw2a_ddr3_phy_tb.ddr_dm[1:0]
-gw2a_ddr3_phy_tb.ddr_dqs_p[1:0]
-gw2a_ddr3_phy_tb.ddr_dqs_n[1:0]
-@22
-gw2a_ddr3_phy_tb.ddr_dq[15:0]
 @1000200
 -DDR3
-@28
-gw2a_ddr3_phy_tb.stb_q
-@29
-gw2a_ddr3_phy_tb.cyc_q
-@22
-gw2a_ddr3_phy_tb.U_PHY1.preamble_w[3:0]
 @800200
 -Strobes
 @28
 gw2a_ddr3_phy_tb.clk_x2
 [color] 2
 gw2a_ddr3_phy_tb.oen_q
-[color] 7
-gw2a_ddr3_phy_tb.dqs_pq[1:0]
-gw2a_ddr3_phy_tb.dqs_nq[1:0]
+[color] 3
+gw2a_ddr3_phy_tb.vld_q
+@29
+[color] 3
+gw2a_ddr3_phy_tb.rdy_q
 @1000200
 -Strobes
+@800200
+-DQS_0
+@28
+gw2a_ddr3_phy_tb.dfi_rden
+[color] 7
+gw2a_ddr3_phy_tb.ddr_dqs_p[1:0]
+gw2a_ddr3_phy_tb.ddr_dqs_n[1:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY1.preamble_w[3:0]
+gw2a_ddr3_phy_tb.ddr_dq[15:0]
+@28
+[color] 3
+gw2a_ddr3_phy_tb.dfi_valid
+gw2a_ddr3_phy_tb.dfi_last
+@22
+gw2a_ddr3_phy_tb.dfi_rdata[31:0]
+@1000200
+-DQS_0
+@800200
+-DQS_90
+@28
+[color] 7
+gw2a_ddr3_phy_tb.dqs_p90[1:0]
+gw2a_ddr3_phy_tb.dqs_n90[1:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY2.preamble_w[3:0]
+@28
+[color] 3
+gw2a_ddr3_phy_tb.vld_p90
+@22
+gw2a_ddr3_phy_tb.dat_p90[31:0]
+@1000200
+-DQS_90
+@800200
+-DQS_180
+@28
+[color] 7
+gw2a_ddr3_phy_tb.dqs_180[1:0]
+gw2a_ddr3_phy_tb.dqs_360[1:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY3.preamble_w[3:0]
+@28
+[color] 3
+gw2a_ddr3_phy_tb.vld_180
+@22
+gw2a_ddr3_phy_tb.dat_180[31:0]
+@1000200
+-DQS_180
+@800200
+-DQS_270
+@28
+[color] 7
+gw2a_ddr3_phy_tb.dqs_m90[1:0]
+gw2a_ddr3_phy_tb.dqs_q90[1:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY4.preamble_w[3:0]
+@28
+[color] 3
+gw2a_ddr3_phy_tb.vld_m90
+@22
+gw2a_ddr3_phy_tb.dat_m90[31:0]
+@1000200
+-DQS_270
 [pattern_trace] 1
 [pattern_trace] 0
