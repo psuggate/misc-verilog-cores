@@ -82,6 +82,23 @@ module gw2a_ddr3_phy_tb;
   // -- Stimulus -- //
 
   integer count = 0;
+  reg oen_q = 1'b1, stb_q = 1'b0, cyc_q = 1'b0;
+  reg [1:0] dqs_pq = 2'bz, dqs_nq = 2'bz;
+
+  initial begin
+    #10 dqs_pq = 2'bz; oen_q = 1'b1;
+    #80 stb_q = 1'b1;
+    #2.5 dqs_pq = 2'd0; stb_q = 1'b1; oen_q = 1'b0;
+    #10 dqs_pq = 2'd3;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = ~dqs_pq;
+    #5 dqs_pq = 2'bz; oen_q = 1'b1;
+  end
 
   assign #1 dfi_rst_n = count > 1;
   assign #1 dfi_cke   = count > 2;
@@ -100,6 +117,9 @@ module gw2a_ddr3_phy_tb;
   assign dfi_rden = 1'b0;
   assign dfi_wdata = {WIDTH{1'bx}};
 
+  assign ddr_dqs_p = oen_q ? 2'bz : dqs_pq;
+  assign ddr_dqs_n = oen_q ? 2'bz : ~dqs_pq;
+
   always @(posedge clock) begin
     if (reset) begin
       count <= 0;
@@ -108,47 +128,24 @@ module gw2a_ddr3_phy_tb;
     end
   end
 
-  reg oe_nq = 1'b0;
-  reg stb_q = 1'b1;
-  reg [1:0] dqs_pq = 2'bz;
-  wire [1:0] U1_w, U0_w, DQS_nw, DQS_pw;
-
-  // Start-strobe for a READ
-  initial begin
-    #20 @(negedge reset) oe_nq = 1'b1;
-    #60 oe_nq = 1'b0; stb_q = 1'b0;
-    #40 oe_nq = 1'b1; stb_q = 1'b1;
+  always @(negedge clk_x2) begin
+    if (reset) begin
+      oen_q <= 1'b1;
+      stb_q <= 1'b0;
+      cyc_q <= 1'b0;
+    end else begin
+      if (stb_q && !cyc_q) begin
+        cyc_q  <= #7.5 1'b1;
+        dqs_nq <= 2'd3;
+      end else if (!oen_q && cyc_q) begin
+        stb_q  <= 1'b0;
+        dqs_nq <= ~dqs_nq;
+      end else begin
+        cyc_q  <= 1'b0;
+        dqs_nq <= 2'bz;
+      end
+    end
   end
-
-  initial begin
-    #10 dqs_pq = 2'bz;
-    #82.5 dqs_pq = 2'd0;
-    #10 dqs_pq = 2'd3;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = 2'bz;
-  end
-
-  gw2a_ddr_iob #(
-      .WRDLY(2'd1)
-  ) U_DQS1 [1:0] (
-      .PCLK(clk_x1),
-      .FCLK(clk_x2),
-      .RESET(rst_x1),
-      .OEN(oe_nq),
-      .SHIFT(2'd2),
-      .D0(stb_q),
-      .D1(~stb_q),
-      .Q0(U0_w),
-      .Q1(U1_w),
-      .IO(DQS_pw),
-      .IOB(DQS_nw)
-  );
 
   //
   //  Cores Under Notable Tests
