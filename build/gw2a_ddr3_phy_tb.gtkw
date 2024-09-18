@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Sep 18 01:27:47 2024
+[*]
+[dumpfile] "./gw2a_ddr3_phy_tb.vcd"
+[dumpfile_mtime] "Wed Sep 18 01:27:01 2024"
+[dumpfile_size] 318942
+[savefile] "./gw2a_ddr3_phy_tb.gtkw"
+[timestart] 0
+[size] 2560 1376
+[pos] -1 -1
+*-17.195505 330000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] gw2a_ddr3_phy_tb.
+[sst_width] 233
+[signals_width] 142
+[sst_expanded] 1
+[sst_vpaned_height] 414
+@28
+gw2a_ddr3_phy_tb.clock
+gw2a_ddr3_phy_tb.reset
+gw2a_ddr3_phy_tb.ddr_ck_p
+gw2a_ddr3_phy_tb.ddr_rst_n
+gw2a_ddr3_phy_tb.ddr_cke
+gw2a_ddr3_phy_tb.ddr_cs_n
+gw2a_ddr3_phy_tb.ddr_ras_n
+gw2a_ddr3_phy_tb.ddr_cas_n
+gw2a_ddr3_phy_tb.ddr_we_n
+gw2a_ddr3_phy_tb.ddr_ba[2:0]
+@22
+gw2a_ddr3_phy_tb.ddr_a[12:0]
+@28
+gw2a_ddr3_phy_tb.ddr_dm[1:0]
+gw2a_ddr3_phy_tb.ddr_dqs_p[1:0]
+@29
+gw2a_ddr3_phy_tb.ddr_dqs_n[1:0]
+@22
+gw2a_ddr3_phy_tb.ddr_dq[15:0]
+[pattern_trace] 1
+[pattern_trace] 0

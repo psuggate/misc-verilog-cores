@@ -82,6 +82,14 @@ module gw2a_ddr3_phy #(
     inout [MSB:0] ddr_dq_io
 );
 
+`ifdef __icarus
+  // The GoWin GW2A TLVDS instance is not directly available/visible, for the
+  // DQS/DQS# signals, but we use them in simulations.
+  localparam USE_TLVDS = 1'b1;
+`else  /* !__icarus */
+  localparam USE_TLVDS = 1'b0;
+`endif  /* !__icarus */
+
   // -- DDR3 PHY State & Signals -- //
 
   reg cke_q, rst_nq, cs_nq;
@@ -240,11 +248,7 @@ module gw2a_ddr3_phy #(
 
       gw2a_ddr_iob #(
           .WRDLY(WRITE_DELAY),
-`ifdef __icarus
-          .TLVDS(1'b1)
-`else
-          .TLVDS(1'b0)
-`endif
+          .TLVDS(USE_TLVDS)
       ) u_gw2a_dqs_iob (
           .PCLK(clock),
           .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
@@ -266,12 +270,13 @@ module gw2a_ddr3_phy #(
 
 `ifdef __icarus
 
-  reg [1:0] wcal;
-  reg [2:0] rcal;
-  reg [3:0] preamble;
-  wire [3:0] preamble_w;
+  reg  [1:0] wcal;
+  reg  [2:0] rcal;
+  reg  [3:0] preamble;
+  wire [3:0] preamble_w, preamble_x;
 
   assign preamble_w = {dfi_dqs_no[0], dfi_dqs_po[0], preamble[3:2]};
+  assign preamble_x = preamble_w ^ preamble;
 
   //
   // Todo:
@@ -286,10 +291,10 @@ module gw2a_ddr3_phy #(
       rcal <= 3'd2;
       preamble <= 4'd0;
     end else begin
-      preamble <= {dfi_dqs_no[0], dfi_dqs_po[0], preamble[3:2]};
+      preamble <= preamble_w;
     end
   end
 
-`endif /* __icarus */
+`endif  /* __icarus */
 
 endmodule  /* gw2a_ddr3_phy */
