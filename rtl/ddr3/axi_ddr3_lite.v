@@ -141,11 +141,7 @@ module axi_ddr3_lite #(
     output dfi_rden_o,
     input dfi_rvld_i,
     input dfi_last_i,
-    input [SSB:0] dfi_dqs_pi,
-    input [SSB:0] dfi_dqs_ni,
-    input [MSB:0] dfi_data_i,
-    output [1:0] dfi_wdly_o,  // In 1/4 clock-steps
-    output [2:0] dfi_rdly_o  // In 1/4 clock-steps
+    input [MSB:0] dfi_data_i
 );
 
   `include "axi_defs.vh"
@@ -430,11 +426,6 @@ module axi_ddr3_lite #(
       .dfi_cke_o (dfi_cke_o),
       .dfi_cs_no (dfi_cs_no),
       .dfi_odt_o (dfi_odt_o),
-
-      .dfi_dqs_pi(dfi_dqs_pi),
-      .dfi_dqs_ni(dfi_dqs_ni),
-      .dfi_wdly_o(dfi_wdly_o),
-      .dfi_rdly_o(dfi_rdly_o),
 
       .ctl_req_o(cfg_req),  // Memory controller signals
       .ctl_run_o(cfg_run),  // When initialisation has completed

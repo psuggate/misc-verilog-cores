@@ -355,12 +355,7 @@ module ddr3_top #(
       .dfi_rden_o(dfi_rden),
       .dfi_rvld_i(dfi_valid),
       .dfi_last_i(dfi_last),
-      .dfi_data_i(dfi_rdata),
-
-      .dfi_dqs_pi(dfi_dqs_p),
-      .dfi_dqs_ni(dfi_dqs_n),
-      .dfi_wdly_o(dfi_wrdly),
-      .dfi_rdly_o(dfi_rddly)
+      .dfi_data_i(dfi_rdata)
   );
 
 
@@ -370,6 +365,11 @@ module ddr3_top #(
 
   // GoWin Global System Reset signal tree.
   GSR GSR (.GSRI(1'b1));
+
+  wire dfi_calib, dfi_align;
+  wire [2:0] dfi_shift;
+
+  assign dfi_align = 1'b0;
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),
@@ -405,10 +405,9 @@ module ddr3_top #(
       .dfi_data_o(dfi_rdata),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(dfi_dqs_p),
-      .dfi_dqs_no(dfi_dqs_n),
-      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
-      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_calib),
+      .dfi_shift_o(dfi_shift),  // In 1/4 clock-steps
 
       .ddr_ck_po(ddr_ck),
       .ddr_ck_no(ddr_ck_n),

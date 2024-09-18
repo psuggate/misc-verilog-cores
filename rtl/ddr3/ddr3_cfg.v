@@ -7,6 +7,10 @@
  * Notes:
  *  - handles device- and mode- specific timings;
  *
+ * Todo:
+ *  - issue a few READ and WRITE commands, post-initialisation, with calibration
+ *    enabled, to perform READ- & WRITE- CALIBRATION;
+ *
  * Copyright 2023, Patrick Suggate.
  *
  */
@@ -25,11 +29,6 @@ module ddr3_cfg #(
     output dfi_cke_o,
     output dfi_cs_no,
     output dfi_odt_o,
-
-    input  [SSB:0] dfi_dqs_pi,
-    input  [SSB:0] dfi_dqs_ni,
-    output [  1:0] dfi_wdly_o,  // In 1/4 clock-steps
-    output [  2:0] dfi_rdly_o,  // In 1/4 clock-steps
 
     // From/to DDR3 Controller
     output ctl_req_o,  // Memory controller signals
@@ -70,10 +69,6 @@ module ddr3_cfg #(
   assign dfi_cke_o  = cke_q;
   assign dfi_cs_no  = cs_nq;
   assign dfi_odt_o  = 1'b0;
-
-  // Write- & read- delays to the DDR3 PHY
-  assign dfi_wdly_o = 2'd0;
-  assign dfi_rdly_o = 3'd0;
 
   // -- Initialisation and Refresh Counter -- //
 

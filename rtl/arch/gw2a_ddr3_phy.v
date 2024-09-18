@@ -60,10 +60,9 @@ module gw2a_ddr3_phy #(
     output [DSB:0] dfi_data_o,
 
     // For WRITE- & READ- CALIBRATION
-    output [QSB:0] dfi_dqs_po,
-    output [QSB:0] dfi_dqs_no,
-    input  [  1:0] dfi_wdly_i,  // In 1/4 clock-steps
-    input  [  2:0] dfi_rdly_i,  // In 1/4 clock-steps
+    input  dfi_align_i,
+    output dfi_calib_o,
+    output [2:0] dfi_shift_o,
 
     output ddr_ck_po,
     output ddr_ck_no,
@@ -101,6 +100,11 @@ module gw2a_ddr3_phy #(
   wire [SSB:0] mask_w;
   wire [DSB:0] data_w;
 
+  reg phase_q, calib_q;
+  reg  [2:0] rcal;
+
+  assign dfi_calib_o = calib_q;
+  assign dfi_shift_o = rcal;
 
   // -- Write-Data Prefetch and Registering -- //
 
@@ -240,6 +244,7 @@ module gw2a_ddr3_phy #(
   // -- Read- & Write- Data Strobes -- //
 
   wire dqs_w;
+  wire [QSB:0] dqs_pw, dqs_nw;
 
   assign dqs_w = ~dfi_wstb_i & ~dfi_wren_i;
 
@@ -257,8 +262,8 @@ module gw2a_ddr3_phy #(
           .SHIFT(CLOCK_SHIFT),
           .D0(1'b1),
           .D1(1'b0),
-          .Q0(dfi_dqs_po[ii]),
-          .Q1(dfi_dqs_no[ii]),
+          .Q0(dqs_pw[ii]),
+          .Q1(dqs_nw[ii]),
           .IO(ddr_dqs_pio[ii]),
           .IOB(ddr_dqs_nio[ii])
       );
@@ -270,13 +275,16 @@ module gw2a_ddr3_phy #(
 
 `ifdef __icarus
 
-  reg  [1:0] wcal;
-  reg  [2:0] rcal;
-  reg  [3:0] preamble;
-  wire [3:0] preamble_w, preamble_x;
+  reg  [1:0] wcal, pre_q;
+  reg  [3:0] error_q, align_q;
+  wire align_w, shift_w, error_w;
+  wire [3:0] preamble_w;
 
-  assign preamble_w = {dfi_dqs_no[0], dfi_dqs_po[0], preamble[3:2]};
-  assign preamble_x = preamble_w ^ preamble;
+  assign preamble_w = {dqs_nw[0], dqs_pw[0], pre_q};
+
+  assign align_w = align_q == 4'h5 && error_q == 4'h1;
+  assign shift_w = align_q == 4'hA && error_q == 4'h2;
+  assign error_w = (^dqs_nw) | (^dqs_pw);
 
   //
   // Todo:
@@ -287,11 +295,36 @@ module gw2a_ddr3_phy #(
   //
   always @(posedge clock) begin
     if (reset) begin
-      wcal <= 2'd1;
-      rcal <= 3'd2;
-      preamble <= 4'd0;
+      wcal <= WRITE_DELAY;
+      rcal <= {1'b0, CLOCK_SHIFT};
+      phase_q <= 1'b0;
+      calib_q <= 1'b0;
+    end else if (dfi_align_i) begin
+      phase_q <= valid_q;
+      pre_q <= preamble_w[3:2];
+
+      if (valid_q) begin
+        error_q <= error_q ^ preamble_w;
+        align_q <= align_q | preamble_w;
+      end else begin
+        error_q <= 4'd0;
+        align_q <= 4'd0;
+      end
+
+      if (!valid_q && phase_q) begin
+        if (shift_w || error_w) begin
+          rcal <= rcal + 1;
+        end else begin
+          calib_q <= 1'b1;
+        end
+      end
     end else begin
-      preamble <= preamble_w;
+      rcal <= rcal;
+      wcal <= wcal;
+      phase_q <= 1'b0;
+      calib_q <= calib_q;
+      error_q <= 'bx;
+      align_q <= 'bx;
     end
   end
 

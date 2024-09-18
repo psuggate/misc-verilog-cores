@@ -74,7 +74,6 @@ module gw2a_ddr3_phy_tb;
   wire dfi_odt, dfi_wstb, dfi_wren, dfi_rden, dfi_valid, dfi_last;
   wire [  2:0] dfi_bank, dfi_rddly;
   wire [1:0] dfi_wrdly;
-  wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
   wire [RSB:0] dfi_addr;
   wire [SSB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
@@ -173,6 +172,20 @@ module gw2a_ddr3_phy_tb;
   //  Cores Under Notable Tests
   ///
 
+  reg dfi_align = 1'b0;
+  wire dfi_cal_w, dfi_calib, dfi_cal_p90, dfi_cal_180, dif_cal_m90;
+  wire [2:0] dfi_shift, dfi_sht_p90, dfi_sht_180, dfi_sht_m90;
+
+  assign dfi_cal_w = dfi_calib && dfi_cal_p90 && dfi_cal_180 && dfi_cal_m90;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      dfi_align <= 1'b1;
+    end else if (dfi_cal_w) begin
+      dfi_align <= 1'b0;
+    end
+  end
+
   // GoWin Global System Reset signal tree.
   GSR GSR (.GSRI(1'b1));
 
@@ -202,6 +215,7 @@ module gw2a_ddr3_phy_tb;
       .dfi_wstb_i(dfi_wstb),
       .dfi_wren_i(dfi_wren),
       .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
 
       .dfi_rden_i(dfi_rden),
       .dfi_rvld_o(dfi_valid),
@@ -209,11 +223,9 @@ module gw2a_ddr3_phy_tb;
       .dfi_data_o(dfi_rdata),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(dfi_dqs_p),
-      .dfi_dqs_no(dfi_dqs_n),
-      .dfi_data_i(dfi_wdata),
-      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
-      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_calib),
+      .dfi_shift_o(dfi_shift),  // In 1/4 clock-steps
 
       .ddr_ck_po(ddr_ck_p),
       .ddr_ck_no(ddr_ck_n),
@@ -266,10 +278,9 @@ module gw2a_ddr3_phy_tb;
       .dfi_data_o(dat_p90),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(),
-      .dfi_dqs_no(),
-      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
-      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_cal_p90),
+      .dfi_shift_o(dfi_sht_p90),  // In 1/4 clock-steps
 
       .ddr_ck_po(),
       .ddr_ck_no(),
@@ -322,10 +333,9 @@ module gw2a_ddr3_phy_tb;
       .dfi_data_o(dat_180),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(),
-      .dfi_dqs_no(),
-      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
-      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_cal_180),
+      .dfi_shift_o(dfi_sht_180),  // In 1/4 clock-steps
 
       .ddr_ck_po(),
       .ddr_ck_no(),
@@ -378,10 +388,9 @@ module gw2a_ddr3_phy_tb;
       .dfi_data_o(dat_m90),
 
       // For WRITE- & READ- CALIBRATION
-      .dfi_dqs_po(),
-      .dfi_dqs_no(),
-      .dfi_wdly_i(dfi_wrdly),  // In 1/4 clock-steps
-      .dfi_rdly_i(dfi_rddly),  // In 1/4 clock-steps
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_cal_m90),
+      .dfi_shift_o(dfi_sht_m90),  // In 1/4 clock-steps
 
       .ddr_ck_po(),
       .ddr_ck_no(),
