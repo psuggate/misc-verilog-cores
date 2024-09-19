@@ -1,17 +1,16 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 19 03:25:27 2024
+[*] Thu Sep 19 03:51:38 2024
 [*]
 [dumpfile] "./gw2a_ddr3_phy_tb.vcd"
-[dumpfile_mtime] "Thu Sep 19 03:22:08 2024"
-[dumpfile_size] 2881902
+[dumpfile_mtime] "Thu Sep 19 03:51:24 2024"
+[dumpfile_size] 2889273
 [savefile] "./gw2a_ddr3_phy_tb.gtkw"
 [timestart] 152400
 [size] 2560 1376
 [pos] -1 -1
 *-16.195505 540000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] gw2a_ddr3_phy_tb.
-[treeopen] gw2a_ddr3_phy_tb.U_PHY2.gen_dqs_iobs[0].
 [sst_width] 233
 [signals_width] 150
 [sst_expanded] 1
@@ -64,7 +63,6 @@ gw2a_ddr3_phy_tb.rdy_q
 gw2a_ddr3_phy_tb.ddr_dqs_p[1:0]
 gw2a_ddr3_phy_tb.ddr_dqs_n[1:0]
 @22
-gw2a_ddr3_phy_tb.U_PHY1.preamble_w[3:0]
 gw2a_ddr3_phy_tb.ddr_dq[15:0]
 @28
 [color] 3
@@ -86,8 +84,6 @@ gw2a_ddr3_phy_tb.U_PHY1.cnt_q[3:0]
 gw2a_ddr3_phy_tb.U_PHY1.dfi_calib_o
 [color] 1
 gw2a_ddr3_phy_tb.U_PHY1.err_q
-@24
-gw2a_ddr3_phy_tb.U_PHY1.rcal[2:0]
 @1000200
 -Align
 -DQS_0
@@ -97,9 +93,6 @@ gw2a_ddr3_phy_tb.U_PHY1.rcal[2:0]
 [color] 7
 gw2a_ddr3_phy_tb.dqs_p90[1:0]
 gw2a_ddr3_phy_tb.dqs_n90[1:0]
-@22
-gw2a_ddr3_phy_tb.U_PHY2.preamble_w[3:0]
-@28
 [color] 3
 gw2a_ddr3_phy_tb.vld_p90
 @22
@@ -112,9 +105,6 @@ gw2a_ddr3_phy_tb.dat_p90[31:0]
 [color] 7
 gw2a_ddr3_phy_tb.dqs_180[1:0]
 gw2a_ddr3_phy_tb.dqs_360[1:0]
-@22
-gw2a_ddr3_phy_tb.U_PHY3.preamble_w[3:0]
-@28
 [color] 3
 gw2a_ddr3_phy_tb.vld_180
 @22
@@ -127,19 +117,12 @@ gw2a_ddr3_phy_tb.dat_180[31:0]
 [color] 7
 gw2a_ddr3_phy_tb.dqs_m90[1:0]
 gw2a_ddr3_phy_tb.dqs_q90[1:0]
-@22
-gw2a_ddr3_phy_tb.U_PHY4.preamble_w[3:0]
-@28
 [color] 3
 gw2a_ddr3_phy_tb.vld_m90
 @22
 gw2a_ddr3_phy_tb.dat_m90[31:0]
 @28
 [color] 1
-gw2a_ddr3_phy_tb.U_PHY4.error_w
-@24
-gw2a_ddr3_phy_tb.U_PHY4.rcal[2:0]
-@28
 gw2a_ddr3_phy_tb.dfi_cal_m90
 @24
 gw2a_ddr3_phy_tb.U_PHY4.cnt_q[3:0]

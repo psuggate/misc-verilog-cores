@@ -22,7 +22,7 @@ module vpi_usb_ulpi_tb;
   localparam PHY_RD_DELAY = 1;
 `endif  /* !__gowin_for_the_win */
 
-  // initial #758300 $finish;
+  // initial #759360 $finish;
 
   // USB settings
   localparam MAX_PACKET_LENGTH = 512;

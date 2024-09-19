@@ -11,6 +11,10 @@
  *  - assumes that the memory controller and the AXI4 bus are within the same
  *    clock-domain;
  *
+ * Todo:
+ *  - extend the CLOCK_SHIFT range (via parameter or AUTO-READ-CALIBRATION), to
+ *    use 3-bits (requiring an extra layer of pipeline registers) ??
+ *
  * Copyright 2023, Patrick Suggate.
  *
  */
@@ -196,27 +200,20 @@ module gw2a_ddr3_phy #(
     end
   end
 
-  // -- IOBs for the DDR3 Data Paths & Write-Data Masks -- //
+  //
+  //  WRITE Datapath, Masks, and Strobes
+  ///
 
   wire [MSB:0] wdat_lo_w, wdat_hi_w, rdat_lo_w, rdat_hi_w;
-  wire [QSB:0] mask_hi_w, mask_lo_w, dm_w, en_w;
+  wire [QSB:0] mask_hi_w, mask_lo_w, dm_w, en_w, dqs_pw, dqs_nw;
+  wire dqs_en_nw;
 
   assign {mask_hi_w, mask_lo_w} = mask_w;
   assign dfi_data_o = {rdat_hi_w, rdat_lo_w};
   assign {wdat_hi_w, wdat_lo_w} = data_w;
-
-`ifdef __scared_of_snakes_on_planes
-
-  ODDR u_gw2a_dm_oddr[QSB:0] (
-      .CLK(~clock),
-      .TX (1'b0),
-      .D0 (mask_lo_w),
-      .D1 (mask_hi_w),
-      .Q0 (ddr_dm_o),
-      .Q1 ()
-  );
-
-`else  /* !__scared_of_snakes_on_planes */
+  assign dqs_en_nw = ~dfi_wstb_i & ~dfi_wren_i;
+  
+  // -- IOBs for the DDR3 WRITE Data -- //
 
   OSER4 u_gw2a_dm_oddr[QSB:0] (
       .PCLK(clock),
@@ -232,7 +229,7 @@ module gw2a_ddr3_phy #(
       .Q1()
   );
 
-`endif  /* !__scared_of_snakes_on_planes */
+  // -- IOBs for the DDR3 WRITE Data-Masks -- //
 
   gw2a_ddr_iob #(
       .WRDLY(2'd0)
@@ -249,12 +246,7 @@ module gw2a_ddr3_phy #(
       .IO(ddr_dq_io)
   );
 
-  // -- Read- & Write- Data Strobes -- //
-
-  wire dqs_w;
-  wire [QSB:0] dqs_pw, dqs_nw;
-
-  assign dqs_w = ~dfi_wstb_i & ~dfi_wren_i;
+  // -- READ- & WRITE- Data Strobes -- //
 
   gw2a_ddr_iob #(
       .WRDLY(WRITE_DELAY),
@@ -263,7 +255,7 @@ module gw2a_ddr3_phy #(
       .PCLK(clock),
       .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
       .RESET(reset),
-      .OEN(dqs_w),
+      .OEN(dqs_en_nw),
       .SHIFT(READ_CALIB ? rdcal[1:0] : CLOCK_SHIFT),
       .D0(1'b1),
       .D1(1'b0),
@@ -273,24 +265,27 @@ module gw2a_ddr3_phy #(
       .IOB(ddr_dqs_nio)
   );
 
-  // -- WRITE- & READ- CALIBRATION -- //
+  // -- READ-CALIBRATION -- //
 
   reg rcv_q, err_q;
   reg [2:0] pat_q;
   reg [1:0] wcal, pre_q;
-  wire error_w;
-  wire [3:0] preamble_w;
+  wire [2:0] pat_w;
+  wire err_w;
 
-  assign preamble_w = {dqs_nw[0], dqs_pw[0], pre_q};
-  assign error_w = (^dqs_nw) | (^dqs_pw);
+  assign pat_w = {dqs_nw[0], dqs_pw[0], pat_q[2]};
+  assign err_w = (^dqs_nw) | (^dqs_pw);
 
   always @(posedge clock) begin
+    // Bit-pattern representing the last 3x DQS/DQS# values
+    pat_q <= pat_w;
+
     if (reset || !cyc_q) begin
       rcv_q <= 1'b0;
       err_q <= 1'b0;
     end else if (cyc_q) begin
       rcv_q <= pat_q == 3'd2 && !err_q;
-      err_q <= pat_q != 3'd2 || err_q || error_w;
+      err_q <= pat_q != 3'd2 || err_q || err_w;
     end
 
     if (reset || err_q) begin
@@ -310,9 +305,7 @@ module gw2a_ddr3_phy #(
         rdcal <= rdcal + 1;
       end
     end
-
-    pre_q <= preamble_w[3:2];  // Todo ...
-    pat_q <= preamble_w[3:1];
   end
+
 
 endmodule  /* gw2a_ddr3_phy */

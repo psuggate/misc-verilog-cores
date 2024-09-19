@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 19 03:40:31 2024
+[*] Thu Sep 19 04:01:36 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Sep 19 03:38:49 2024"
-[dumpfile_size] 22498545
+[dumpfile_mtime] "Thu Sep 19 04:01:07 2024"
+[dumpfile_size] 22498210
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 741419500
+[timestart] 757592000
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 742132500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 758305000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -430,13 +430,19 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rddata_o[31:0]
 -DDR PHY
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.clock
-@29
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.dfi_align_i
-@28
 [color] 3
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.dfi_calib_o
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.pat_q[2:0]
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.rcv_q
 [color] 1
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.err_q
+@24
+[color] 6
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.cnt_q[3:0]
+@25
+[color] 7
+vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.rdcal[2:0]
 @1000200
 -DDR PHY
 @800200
