@@ -18,7 +18,7 @@ module gw2a_ddr_iob #(
 
   wire D0_w, D1_w, D2_w, D3_w, TX0_w, TX1_w;
   wire d_iw, d_ow, t_w;
-  reg CALIB, D0_q, D1_q, D2_q, D3_q, OEN_q;
+  reg CALIB, D1_q, OEN_q;
   reg [1:0] shift;
 
   assign D0_w  = WRDLY[0] ? D1_q : D0;
@@ -30,7 +30,6 @@ module gw2a_ddr_iob #(
   assign TX1_w = OEN;
 
   always @(posedge PCLK) begin
-    // {D3_q, D2_q, D1_q, D0_q} <= {D1_q, D0_q, D1, D0};
     D1_q  <= D1;
     OEN_q <= OEN;
   end
@@ -52,6 +51,8 @@ module gw2a_ddr_iob #(
       .Q1(t_w)
   );
 
+  // Advance the internal shifter of the IDES4 until it matches the desired
+  // SHIFT-value.
   always @(posedge PCLK or posedge RESET) begin
     if (RESET) begin
       CALIB <= 1'b0;

@@ -124,6 +124,9 @@ module axi_ddr3_lite #(
     output [ISB:0] byp_rid_o,
     output [MSB:0] byp_rdata_o,
 
+    output dfi_align_o,
+    input  dfi_calib_i,
+
     // DDR3 PHY-Interface Signals
     output dfi_rst_no,
     output dfi_cke_o,
@@ -338,9 +341,9 @@ module axi_ddr3_lite #(
       .ddl_rlast_i (by_last),
       .ddl_rdata_i (by_data),
 
-      .byp_run_i(ctl_run),  // Connects to the DDL
+      .byp_run_i(cfg_run),  // Connects to the DDL
       .byp_req_o(ctl_req),
-      .byp_seq_o(ctl_seq),
+      .byp_seq_o(ctl_seq),  // Todo ...
       .byp_ref_i(cfg_ref),
       .byp_rdy_i(ctl_rdy),
       .byp_cmd_o(ctl_cmd),
@@ -381,9 +384,7 @@ module axi_ddr3_lite #(
       .ddr_cke_i(dfi_cke_o),
       .ddr_cs_ni(dfi_cs_no),
 
-      .ctl_run_o(ctl_run),
       .ctl_req_i(ctl_req),
-      .ctl_seq_i(ctl_seq),
       .ctl_rdy_o(ctl_rdy),
       .ctl_cmd_i(ctl_cmd),
       .ctl_ba_i (ctl_ba),
@@ -426,6 +427,9 @@ module axi_ddr3_lite #(
       .dfi_cke_o (dfi_cke_o),
       .dfi_cs_no (dfi_cs_no),
       .dfi_odt_o (dfi_odt_o),
+
+      .dfi_align_o(dfi_align_o),
+      .dfi_calib_i(dfi_calib_i),
 
       .ctl_req_o(cfg_req),  // Memory controller signals
       .ctl_run_o(cfg_run),  // When initialisation has completed

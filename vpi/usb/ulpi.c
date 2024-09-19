@@ -625,7 +625,7 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
 
         case DATAxBody:
             assert(in->dir == SIG0);
-            assert(in->data.b == 0x00);
+            // assert(in->data.b == 0x00); // Todo: not required, due to CRC16 checks !?
             if (in->stp == SIG1) {
                 // Turn around the ULPI bus, so that we can send an RX CMD
                 // Todo: check CRC

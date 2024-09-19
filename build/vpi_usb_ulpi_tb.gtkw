@@ -1,23 +1,25 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 19 04:01:36 2024
+[*] Thu Sep 19 05:32:30 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Sep 19 04:01:07 2024"
-[dumpfile_size] 22498210
+[dumpfile_mtime] "Thu Sep 19 05:28:42 2024"
+[dumpfile_size] 61593132
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 757592000
+[timestart] 757492000
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 758305000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 758205000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.
-[treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.U_WR_PATH1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
+[treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.
+[treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.
+[treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.
 [sst_width] 233
 [signals_width] 174
 [sst_expanded] 1
@@ -127,7 +129,7 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.ep_ready_o
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.level_w[10:0]
 @1401200
 -IN2
-@c00200
+@800200
 -IN3
 @24
 [color] 7
@@ -176,6 +178,7 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.m_tkeep
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.m_tdata[7:0]
 @1401200
 -IO
+@1000200
 -IN3
 @c00200
 -OUT4
@@ -401,7 +404,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdtid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdadr_o[25:0]
 @1401200
 -RdReq
-@c00200
+@800200
 -RdDat
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_valid_i
@@ -409,7 +412,11 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_ready_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rlast_i
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdata_i[31:0]
-@1401200
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.paddr[11:0]
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.waddr[11:0]
+@23
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.waddr[11:0]
+@1000200
 -RdDat
 @800200
 -DDL
@@ -425,6 +432,13 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rlast_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rddata_o[31:0]
 @1000200
 -DDL
+@800200
+-CFG
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_CFG.dbg_state[79:0]
+@1000200
+-CFG
 -MemCtrl
 @800200
 -DDR PHY
@@ -440,7 +454,6 @@ vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.err_q
 @24
 [color] 6
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.cnt_q[3:0]
-@25
 [color] 7
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.rdcal[2:0]
 @1000200

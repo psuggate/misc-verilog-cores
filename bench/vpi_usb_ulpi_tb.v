@@ -6,6 +6,8 @@ module vpi_usb_ulpi_tb;
   localparam DEBUG = 1;
   localparam LOGGER = 0;
 
+  localparam DATA_FIFO_BYPASS = 1;
+
   // DDR3 settings
   localparam WR_PREFETCH = 0;
   localparam LOW_LATENCY = 0;
@@ -22,7 +24,7 @@ module vpi_usb_ulpi_tb;
   localparam PHY_RD_DELAY = 1;
 `endif  /* !__gowin_for_the_win */
 
-  // initial #759360 $finish;
+  // initial #759010 $finish;
 
   // USB settings
   localparam MAX_PACKET_LENGTH = 512;
@@ -53,7 +55,6 @@ module vpi_usb_ulpi_tb;
 
   always #20 clk25 <= ~clk25;
   always #6 clock <= ~clock;
-  // always #5 clock <= ~clock;
 
   assign usb_clock = clock;
 
@@ -65,7 +66,8 @@ module vpi_usb_ulpi_tb;
   // -- Simulation Data -- //
 
   initial begin
-    #700000 $dumpfile("vpi_usb_ulpi_tb.vcd");
+    // #700000 $dumpfile("vpi_usb_ulpi_tb.vcd");
+    $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
   end
 
@@ -258,7 +260,8 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
-      .TELEMETRY (0),
+      .TELEMETRY(0),
+      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
 
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),

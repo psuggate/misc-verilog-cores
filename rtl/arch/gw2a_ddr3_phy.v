@@ -212,7 +212,7 @@ module gw2a_ddr3_phy #(
   assign dfi_data_o = {rdat_hi_w, rdat_lo_w};
   assign {wdat_hi_w, wdat_lo_w} = data_w;
   assign dqs_en_nw = ~dfi_wstb_i & ~dfi_wren_i;
-  
+
   // -- IOBs for the DDR3 WRITE Data -- //
 
   OSER4 u_gw2a_dm_oddr[QSB:0] (

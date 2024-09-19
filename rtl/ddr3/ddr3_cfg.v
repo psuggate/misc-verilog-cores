@@ -30,6 +30,10 @@ module ddr3_cfg #(
     output dfi_cs_no,
     output dfi_odt_o,
 
+    // input ddl_idle_i,
+    output dfi_align_o,
+    input  dfi_calib_i,
+
     // From/to DDR3 Controller
     output ctl_req_o,  // Memory controller signals
     output ctl_run_o,  // When initialisation has completed
@@ -52,23 +56,25 @@ module ddr3_cfg #(
   reg [2:0] refresh_pending, cmd_q, ba_q;
   reg [RSB:0] adr_q;
 
-  reg req_q, ref_q, run_q;
+  reg req_q, ref_q, run_q, aln_q;
   reg rst_nq, cke_q, cs_nq;
 
   reg [3:0] cmd_prev_q, cmd_curr_q;
   wire [3:0] cmd_next_w;
 
-  assign ctl_run_o  = run_q;
-  assign ctl_req_o  = req_q;
-  assign ctl_ref_o  = ref_q;
-  assign ctl_cmd_o  = cmd_q;
-  assign ctl_ba_o   = ba_q;
-  assign ctl_adr_o  = adr_q;
+  assign ctl_run_o = run_q;
+  assign ctl_req_o = req_q;
+  assign ctl_ref_o = ref_q;
+  assign ctl_cmd_o = cmd_q;
+  assign ctl_ba_o = ba_q;
+  assign ctl_adr_o = adr_q;
+
+  assign dfi_align_o = aln_q;
 
   assign dfi_rst_no = rst_nq;  // toods ...
-  assign dfi_cke_o  = cke_q;
-  assign dfi_cs_no  = cs_nq;
-  assign dfi_odt_o  = 1'b0;
+  assign dfi_cke_o = cke_q;
+  assign dfi_cs_no = cs_nq;
+  assign dfi_odt_o = 1'b0;
 
   // -- Initialisation and Refresh Counter -- //
 
@@ -163,6 +169,8 @@ module ddr3_cfg #(
   localparam [3:0] ST_ZQCL = 4'b0011;  // calibration
   localparam [3:0] ST_PREA = 4'b0100;  // PRECHARGE all
   localparam [3:0] ST_REFR = 4'b0110;  // REFRESH
+  localparam [3:0] ST_ACTV = 4'b1100;  // Part of READ-CALIB.
+  localparam [3:0] ST_READ = 4'b1101;  // Part of READ-CALIB.
   localparam [3:0] ST_DONE = 4'b0101;  // hand over to mem. ctrl.
 
   reg [3:0] state;
@@ -180,6 +188,7 @@ module ddr3_cfg #(
       cs_nq <= 1'b1;
       cmd_q <= CMD_NOOP;
       {ba_q, adr_q} <= {(DDR_ROW_BITS + 3) {1'bx}};
+      aln_q <= 1'b0;
     end else begin
       case (state)
         ST_RSTN: begin
@@ -349,17 +358,61 @@ module ddr3_cfg #(
 
           // Wait until timer has elapsed
           if (ctl_rdy_i) begin
+            state <= ST_ACTV;
+            req_q <= 1'b1;
+            cmd_q <= CMD_ACTV;
+            run_q <= 1'b0;
+            {ba_q, adr_q} <= 0;
+            aln_q <= 1'b1;
+            /*
             state <= ST_DONE;
             req_q <= 1'b0;
             cmd_q <= CMD_NOOP;
             run_q <= 1'b1;
+            */
           end else begin
             state <= ST_REFR;
             req_q <= 1'b1;
             cmd_q <= CMD_REFR;
             run_q <= 1'b0;
+            {ba_q, adr_q} <= {(DDR_ROW_BITS + 3) {1'bx}};
           end
-          {ba_q, adr_q} <= {(DDR_ROW_BITS + 3) {1'bx}};
+          // {ba_q, adr_q} <= {(DDR_ROW_BITS + 3) {1'bx}};
+        end
+
+        ST_ACTV: begin
+          rst_nq <= 1'b1;
+          cke_q  <= 1'b1;
+          cs_nq  <= 1'b0;
+          run_q  <= 1'b0;
+
+          if (ctl_rdy_i) begin
+            state <= ST_READ;
+            cmd_q <= CMD_READ;
+            adr_q <= 1024;  // AP
+          end
+        end
+
+        ST_READ: begin
+          rst_nq <= 1'b1;
+          cke_q  <= 1'b1;
+          cs_nq  <= 1'b0;
+
+          if (dfi_calib_i && ctl_rdy_i) begin
+            state <= ST_DONE;
+            req_q <= 1'b0;
+            cmd_q <= CMD_NOOP;
+            run_q <= 1'b1;
+            {ba_q, adr_q} <= {(DDR_ROW_BITS + 3) {1'bx}};
+            aln_q <= 1'b0;
+          end else if (ctl_rdy_i) begin
+            state <= ST_ACTV;
+            req_q <= 1'b1;
+            cmd_q <= CMD_ACTV;
+            run_q <= 1'b0;
+            {ba_q, adr_q} <= 0;
+            aln_q <= 1'b1;
+          end
         end
 
         ST_DONE: begin
@@ -414,6 +467,8 @@ module ddr3_cfg #(
       ST_ZQCL: dbg_state = "ZQCL";
       ST_PREA: dbg_state = "PRECHARGE";
       ST_REFR: dbg_state = "REFRESH";
+      ST_ACTV: dbg_state = "ACTIVATE";
+      ST_READ: dbg_state = "READ-CAL";
       ST_DONE: dbg_state = "DONE";
       default: dbg_state = "UNKNOWN";
     endcase

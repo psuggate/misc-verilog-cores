@@ -51,9 +51,8 @@ module ddr3_ddl #(
 
     // From/to DDR3 Controller
     // Note: all state-transitions are gated by the 'ctl_rdy_o' signal
-    output ctl_run_o,
     input ctl_req_i,
-    input ctl_seq_i,  // Burst-sequence indicator
+    input ctl_seq_i,  // Todo: Burst-sequence indicator, use to assert 'AP' ??
     output ctl_rdy_o,
     input [2:0] ctl_cmd_i,
     input [2:0] ctl_ba_i,
@@ -141,7 +140,7 @@ module ddr3_ddl #(
 
   reg [WSB:0] wr_delay, rd_delay;
   reg wr_strob, wr_ready, rd_ready;
-  reg run_q, ready, busy;
+  reg ready, busy;
   reg [XSB:0] count;
   reg [DSB:0] delay;
 
@@ -150,7 +149,6 @@ module ddr3_ddl #(
 
   // -- Connect to Upstream Controller & Data-paths -- //
 
-  assign ctl_run_o = run_q;
   assign ctl_rdy_o = ready;
   assign precharge = ctl_adr_i[10];
 
@@ -210,15 +208,6 @@ module ddr3_ddl #(
 
     end
   endgenerate
-
-
-  // -- Upstream-enable Logic -- //
-
-  // todo: this can be used to bring a SDRAM out of power-down mode ??
-  always @(posedge clock) begin
-    run_q <= run_q | delay[0] & ~ddr_cke_i;
-  end
-
 
   // -- Main DDR3 PHY-control State Machine -- //
 
