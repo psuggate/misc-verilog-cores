@@ -84,6 +84,7 @@ module axi_ddr3_lite_tb;
   wire [RSB:0] dfi_addr;
   wire [SSB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
+  wire dfi_align, dfi_calib;
 
   // PHY <-> DDR3
   wire ddr_ck_p, ddr_ck_n;
@@ -216,7 +217,7 @@ module axi_ddr3_lite_tb;
 `ifdef __gowin_for_the_win
 
   // GoWin Global System Reset signal tree.
-  GSR GSR ();
+  GSR GSR (.GSRI(1'b1));
 
   gw2a_ddr3_phy #(
       .DDR3_WIDTH(16),  // (default)
@@ -246,6 +247,10 @@ module axi_ddr3_lite_tb;
       .dfi_last_o(dfi_last),
       .dfi_data_o(dfi_rdata),
 
+      // For WRITE- & READ- CALIBRATION
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(dfi_calib),
+
       .ddr_ck_po(ddr_ck_p),
       .ddr_ck_no(ddr_ck_n),
       .ddr_rst_no(ddr_rst_n),
@@ -263,7 +268,7 @@ module axi_ddr3_lite_tb;
       .ddr_dq_io(ddr_dq)
   );
 
-`else
+`else  /* !__gowin_for_the_win */
 
   // Generic PHY -- that probably won't synthesise correctly, due to how the
   // (read-)data is registered ...
@@ -313,7 +318,7 @@ module axi_ddr3_lite_tb;
       .ddr3_dq_io(ddr_dq)
   );
 
-`endif
+`endif  /* !__gowin_for_the_win */
 
 
   //
@@ -331,20 +336,11 @@ module axi_ddr3_lite_tb;
       .LOW_LATENCY(LOW_LATENCY),
       .AXI_ID_WIDTH(REQID),
       .MEM_ID_WIDTH(REQID),
-      .BYPASS_ENABLE(BYPASS_ENABLE),
-      .TELEMETRY(0)
+      .BYPASS_ENABLE(BYPASS_ENABLE)
   ) ddr_core_inst (
       .clock(clock),  // system clock
       .reset(reset),  // synchronous reset
-
-      .tele_select_i(1'b0),
-      .tele_start_i (1'b0),
-      .tele_level_o (),
-      .tele_tvalid_o(),
-      .tele_tready_i(1'b0),
-      .tele_tlast_o (),
-      .tele_tkeep_o (),
-      .tele_tdata_o (),
+                   .arst_n(1'b1),
 
       .axi_awvalid_i(awvalid),
       .axi_awready_o(awready),
@@ -391,6 +387,9 @@ module axi_ddr3_lite_tb;
       .byp_rresp_o(dbresp),
       .byp_rid_o(dbid),
       .byp_rdata_o(bdata),
+
+      .dfi_align_o(dfi_align),
+      .dfi_calib_i(dfi_calib),
 
       .dfi_rst_no(dfi_rst_n),
       .dfi_cke_o (dfi_cke),

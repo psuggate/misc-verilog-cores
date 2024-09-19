@@ -384,6 +384,7 @@ module axi_ddr3_lite #(
       .ddr_cke_i(dfi_cke_o),
       .ddr_cs_ni(dfi_cs_no),
 
+      .ctl_seq_i(1'b0), // Todo ...
       .ctl_req_i(ctl_req),
       .ctl_rdy_o(ctl_rdy),
       .ctl_cmd_i(ctl_cmd),

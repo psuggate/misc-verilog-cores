@@ -16,4 +16,3 @@ set_output_delay -min -clock ulpi_clk -5 [get_ports {ulpi_data ulpi_stp}]
 
 # set_output_delay -max -clock ulpi_clk -clock_fall 5 [get_ports {ulpi_data ulpi_stp}]
 # set_output_delay -min -clock ulpi_clk -clock_fall -5 [get_ports {ulpi_data ulpi_stp}]
-

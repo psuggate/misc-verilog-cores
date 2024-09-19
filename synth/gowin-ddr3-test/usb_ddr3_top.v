@@ -115,6 +115,7 @@ module usb_ddr3_top (
 
   // Note: only 4 (of 6) LED's available in default config
   assign leds = {~cbits[3:0], 2'b11};
+  assign uart_tx = 1'b1;
 
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
@@ -201,7 +202,6 @@ module usb_ddr3_top (
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
       .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-      .TELEMETRY(0),
 
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
@@ -222,20 +222,6 @@ module usb_ddr3_top (
       .ddr3_conf_o(ddr3_conf_w),
       .ddr_clock_o(sys_clk),
       .ddr_reset_o(sys_rst),
-
-      // Debug UART signals [optional]
-      .send_ni  (send_n),
-      .uart_rx_i(uart_rx),
-      .uart_tx_o(uart_tx),
-
-      .tele_select_i(1'b0),
-      .tele_start_i (1'b0),
-      .tele_level_o (),
-      .tele_tvalid_o(),
-      .tele_tready_i(1'b0),
-      .tele_tlast_o (),
-      .tele_tkeep_o (),
-      .tele_tdata_o (),
 
       // From USB or SPI
       .s_tvalid(y_tvalid),

@@ -283,20 +283,6 @@ module vpi_usb_ulpi_tb;
       .ddr_clock_o(sys_clk),
       .ddr_reset_o(sys_rst),
 
-      // Debug UART signals [optional]
-      .send_ni  (send_q),
-      .uart_rx_i(1'b1),
-      .uart_tx_o(),
-
-      .tele_select_i(1'b0),
-      .tele_start_i (1'b0),
-      .tele_level_o (),
-      .tele_tvalid_o(),
-      .tele_tready_i(1'b0),
-      .tele_tlast_o (),
-      .tele_tkeep_o (),
-      .tele_tdata_o (),
-
       // From USB or SPI
       .s_tvalid(y_tvalid),
       .s_tready(y_tready),
