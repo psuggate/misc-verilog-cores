@@ -62,7 +62,7 @@ module ddr3_cfg_tb;
 
   // -- DDR3 Configurator for a Memory Controller -- //
 
-  wire ddl_run, ddl_req, ddl_seq, ddl_rdy, ddl_ref;
+  wire ddl_req, ddl_seq, ddl_rdy, ddl_ref;
   wire [2:0] ddl_cmd, ddl_ba;
   wire [RSB:0] ddl_adr;
 
@@ -172,7 +172,7 @@ module ddr3_cfg_tb;
     end
 
     @(posedge clock);
-    while (!cfg_run || !ddl_run || !fsm_run) begin
+    while (!cfg_run || !fsm_run) begin
       @(posedge clock);
     end
 
@@ -315,7 +315,6 @@ module ddr3_cfg_tb;
       .ddr_cke_i(dfi_cke),
       .ddr_cs_ni(dfi_cs_n),
 
-      .ctl_run_o(ddl_run),
       .ctl_req_i(ddl_req),
       .ctl_seq_i(ddl_seq),
       .ctl_rdy_o(ddl_rdy),

@@ -15,6 +15,9 @@
  *
  */
 module ddr3_axi_ctrl #(
+    // DDR3 SDRAM Timings and Parameters //
+    parameter DDR_FREQ_MHZ = 100,
+
     // Sets the number of (full-width) AXI4 transfers for a burst transaction
     // to/from the memory-controller
     parameter MEM_BURST_LEN = 4,
@@ -126,6 +129,7 @@ module ddr3_axi_ctrl #(
 );
 
   // -- Constants -- //
+  `include "ddr3_settings.vh"
 
   localparam [1:0] BURST_INCR = 2'b01;
 

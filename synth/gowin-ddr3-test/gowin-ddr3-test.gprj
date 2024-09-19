@@ -26,7 +26,6 @@
         <File path="../../rtl/ddr3/ddr3_cfg.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_ddl.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_fsm.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_telemetry.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/afifo_gray.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_afifo.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_sfifo.v" type="file.verilog" enable="1"/>

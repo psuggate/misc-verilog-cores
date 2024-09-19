@@ -12,7 +12,7 @@ AXIS	:= ../axis
 UART	:= ../uart
 
 IVC	?= iverilog
-OPT	:= -g2005-sv -D__icarus -Wall -I$(AXIS)/ -I$(BENCH)
+OPT	:= -g2005-sv -D__icarus -Wall -I. -I$(AXIS)/ -I$(BENCH)
 INC	:= $(wildcard *.vh $(AXIS)/*.vh)
 
 AXIS	:= $(wildcard ../axis/*.v)
@@ -28,5 +28,5 @@ OUT	:= $(TOP:%.v=$(BUILD)/%.out)
 
 build:	$(OUT) $(INC)
 
-../../build/%.out: %.v $(RTL) $(LIB) $(INC)
+../../build/%.out: %.v $(RTL) $(LIB)
 	$(IVC) $(OPT) -o $@ -s $(*F) $^

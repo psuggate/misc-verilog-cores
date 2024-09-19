@@ -260,7 +260,6 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
-      .TELEMETRY(0),
       .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
 
       .PHY_WR_DELAY(PHY_WR_DELAY),
