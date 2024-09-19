@@ -118,20 +118,37 @@ module gw2a_ddr3_phy_tb;
   wire vld_p90, vld_180, vld_m90;
   wire [MSB:0] dat_p90, dat_180, dat_m90;
 
+  task send_data;
+    begin
+      #40 dqs_pq = 2'd0; oen_q = 1'b0;
+      #10 dqs_pq = 2'd3;
+      vld_q = 1'b1;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = ~dqs_pq;
+      #5 dqs_pq = 2'bz; oen_q = 1'b1;
+      vld_q = 1'b0;
+    end
+  endtask  /* send_data */
+
   initial begin
     #10 dqs_pq = 2'bz; oen_q = 1'b1;
-    #92.5 dqs_pq = 2'd0; oen_q = 1'b0;
-    #10 dqs_pq = 2'd3;
-    vld_q = 1'b1;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = ~dqs_pq;
-    #5 dqs_pq = 2'bz; oen_q = 1'b1;
-    vld_q = 1'b0;
+    #52.5 dfi_align = 1'b1;
+
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
+    send_data();
   end
 
   assign dfi_rden = rdy_q; // vld_q;
@@ -180,7 +197,7 @@ module gw2a_ddr3_phy_tb;
 
   always @(posedge clock) begin
     if (reset) begin
-      dfi_align <= 1'b1;
+      dfi_align <= 1'b0;
     end else if (dfi_cal_w) begin
       dfi_align <= 1'b0;
     end
@@ -391,6 +408,176 @@ module gw2a_ddr3_phy_tb;
       .dfi_align_i(dfi_align),
       .dfi_calib_o(dfi_cal_m90),
       .dfi_shift_o(dfi_sht_m90),  // In 1/4 clock-steps
+
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_m90),
+      .ddr_dqs_nio(dqs_q90),
+      .ddr_dq_io(dqm90_w)
+  );
+
+  // -- Invalid Capturing of DDR3 Read Data -- //
+
+  // 90-degrees out-of-phase
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd2)
+  ) U_PHY5 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(),
+      .dfi_last_o(),
+      .dfi_data_o(),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(),
+      .dfi_shift_o(),  // In 1/4 clock-steps
+
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_m90),
+      .ddr_dqs_nio(dqs_q90),
+      .ddr_dq_io(dqm90_w)
+  );
+
+  // 180-degrees out-of-phase
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd1)
+  ) U_PHY6 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(),
+      .dfi_last_o(),
+      .dfi_data_o(),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(),
+      .dfi_shift_o(),  // In 1/4 clock-steps
+
+      .ddr_ck_po(),
+      .ddr_ck_no(),
+      .ddr_rst_no(),
+      .ddr_cke_o(),
+      .ddr_cs_no(),
+      .ddr_ras_no(),
+      .ddr_cas_no(),
+      .ddr_we_no(),
+      .ddr_odt_o(),
+      .ddr_ba_o(),
+      .ddr_a_o(),
+      .ddr_dm_o(),
+      .ddr_dqs_pio(dqs_m90),
+      .ddr_dqs_nio(dqs_q90),
+      .ddr_dq_io(dqm90_w)
+  );
+
+  // 270-degrees out-of-phase
+  gw2a_ddr3_phy #(
+      .WR_PREFETCH(WR_PREFETCH),
+      .DDR3_WIDTH (DDR_DQ_WIDTH),
+      .ADDR_BITS  (DDR_ROW_BITS),
+      .INVERT_MCLK(INVERT_MCLK),
+      .INVERT_DCLK(INVERT_DCLK),
+      .WRITE_DELAY(2'd1),
+      .CLOCK_SHIFT(2'd0)
+  ) U_PHY7 (
+      .clock  (clk_x1),
+      .reset  (rst_x1),
+      .clk_ddr(clk_x2),
+
+      .dfi_rst_ni(dfi_rst_n),
+      .dfi_cke_i (dfi_cke),
+      .dfi_cs_ni (dfi_cs_n),
+      .dfi_ras_ni(dfi_ras_n),
+      .dfi_cas_ni(dfi_cas_n),
+      .dfi_we_ni (dfi_we_n),
+      .dfi_odt_i (dfi_odt),
+      .dfi_bank_i(dfi_bank),
+      .dfi_addr_i(dfi_addr),
+
+      .dfi_wstb_i(dfi_wstb),
+      .dfi_wren_i(dfi_wren),
+      .dfi_mask_i(dfi_mask),
+      .dfi_data_i(dfi_wdata),
+
+      .dfi_rden_i(dfi_rden),
+      .dfi_rvld_o(),
+      .dfi_last_o(),
+      .dfi_data_o(),
+
+      // For WRITE- & READ- CALIBRATION
+      .dfi_align_i(dfi_align),
+      .dfi_calib_o(),
+      .dfi_shift_o(),  // In 1/4 clock-steps
 
       .ddr_ck_po(),
       .ddr_ck_no(),

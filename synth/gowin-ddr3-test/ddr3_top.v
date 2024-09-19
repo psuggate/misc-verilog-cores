@@ -369,7 +369,7 @@ module ddr3_top #(
   wire dfi_calib, dfi_align;
   wire [2:0] dfi_shift;
 
-  assign dfi_align = 1'b0;
+  assign dfi_align = ddr3_conf_o;
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),

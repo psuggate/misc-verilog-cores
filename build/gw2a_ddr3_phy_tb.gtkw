@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep 18 09:09:15 2024
+[*] Thu Sep 19 00:55:11 2024
 [*]
 [dumpfile] "./gw2a_ddr3_phy_tb.vcd"
-[dumpfile_mtime] "Wed Sep 18 09:06:59 2024"
-[dumpfile_size] 1290524
+[dumpfile_mtime] "Thu Sep 19 00:53:03 2024"
+[dumpfile_size] 2748598
 [savefile] "./gw2a_ddr3_phy_tb.gtkw"
-[timestart] 0
+[timestart] 140700
 [size] 2560 1376
 [pos] -1 -1
-*-15.195505 190000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.195505 540000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] gw2a_ddr3_phy_tb.
 [treeopen] gw2a_ddr3_phy_tb.U_PHY2.gen_dqs_iobs[0].
 [sst_width] 233
@@ -72,12 +72,14 @@ gw2a_ddr3_phy_tb.dfi_valid
 gw2a_ddr3_phy_tb.dfi_last
 @22
 gw2a_ddr3_phy_tb.dfi_rdata[31:0]
-@800200
+@c00201
 -Align
 @28
 gw2a_ddr3_phy_tb.U_PHY1.delay_q
 gw2a_ddr3_phy_tb.U_PHY1.valid_q
 gw2a_ddr3_phy_tb.U_PHY4.phase_q
+@24
+gw2a_ddr3_phy_tb.U_PHY1.pre3_q[2:0]
 @22
 gw2a_ddr3_phy_tb.U_PHY1.align_q[3:0]
 gw2a_ddr3_phy_tb.U_PHY1.error_q[3:0]
@@ -90,8 +92,9 @@ gw2a_ddr3_phy_tb.U_PHY1.shift_w
 gw2a_ddr3_phy_tb.U_PHY1.error_w
 @24
 gw2a_ddr3_phy_tb.U_PHY1.rcal[2:0]
-@1000200
+@1401201
 -Align
+@1000200
 -DQS_0
 @c00200
 -DQS_90
@@ -123,7 +126,7 @@ gw2a_ddr3_phy_tb.vld_180
 gw2a_ddr3_phy_tb.dat_180[31:0]
 @1401200
 -DQS_180
-@800200
+@c00200
 -DQS_270
 @28
 [color] 7
@@ -136,6 +139,9 @@ gw2a_ddr3_phy_tb.U_PHY4.preamble_w[3:0]
 gw2a_ddr3_phy_tb.vld_m90
 @22
 gw2a_ddr3_phy_tb.dat_m90[31:0]
+@24
+gw2a_ddr3_phy_tb.U_PHY4.pre3_q[2:0]
+@22
 gw2a_ddr3_phy_tb.U_PHY4.align_q[3:0]
 gw2a_ddr3_phy_tb.U_PHY4.error_q[3:0]
 @28
@@ -143,14 +149,52 @@ gw2a_ddr3_phy_tb.U_PHY4.error_q[3:0]
 gw2a_ddr3_phy_tb.U_PHY4.align_w
 [color] 2
 gw2a_ddr3_phy_tb.U_PHY4.shift_w
-@29
 [color] 1
 gw2a_ddr3_phy_tb.U_PHY4.error_w
 @24
 gw2a_ddr3_phy_tb.U_PHY4.rcal[2:0]
 @28
 gw2a_ddr3_phy_tb.dfi_cal_m90
-@1000200
+gw2a_ddr3_phy_tb.U_PHY4.recv_q
+@24
+gw2a_ddr3_phy_tb.U_PHY4.cnt_q[3:0]
+@1401200
 -DQS_270
+@800200
+-ERR_270_90
+@28
+gw2a_ddr3_phy_tb.U_PHY5.phase_q
+@24
+gw2a_ddr3_phy_tb.U_PHY5.pre3_q[2:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY5.align_q[3:0]
+@28
+gw2a_ddr3_phy_tb.U_PHY5.dfi_calib_o
+@1000200
+-ERR_270_90
+@800200
+-ERR_270_180
+@28
+gw2a_ddr3_phy_tb.U_PHY6.phase_q
+@24
+gw2a_ddr3_phy_tb.U_PHY6.pre3_q[2:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY6.align_q[3:0]
+@28
+gw2a_ddr3_phy_tb.U_PHY6.dfi_calib_o
+@1000200
+-ERR_270_180
+@800200
+-ERR_270_270
+@28
+gw2a_ddr3_phy_tb.U_PHY7.phase_q
+@24
+gw2a_ddr3_phy_tb.U_PHY7.pre3_q[2:0]
+@22
+gw2a_ddr3_phy_tb.U_PHY7.align_q[3:0]
+@28
+gw2a_ddr3_phy_tb.U_PHY7.dfi_calib_o
+@1000200
+-ERR_270_270
 [pattern_trace] 1
 [pattern_trace] 0

@@ -103,7 +103,7 @@ module gw2a_ddr3_phy #(
   reg phase_q, calib_q;
   reg  [2:0] rcal;
 
-  assign dfi_calib_o = calib_q;
+  // assign dfi_calib_o = calib_q;
   assign dfi_shift_o = rcal;
 
   // -- Write-Data Prefetch and Registering -- //
@@ -135,12 +135,10 @@ module gw2a_ddr3_phy #(
     end
   endgenerate
 
-
   // -- DFI Read-Data Signal Assignments -- //
 
   assign dfi_rvld_o = valid_q;
   assign dfi_last_o = last_q;
-
 
   // -- DDR3 Signal Assignments -- //
 
@@ -156,7 +154,6 @@ module gw2a_ddr3_phy #(
   assign ddr_odt_o  = odt_q;
   assign ddr_ba_o   = ba_q;
   assign ddr_a_o    = addr_q;
-
 
   // -- DDR3 Command Signals -- //
 
@@ -184,7 +181,6 @@ module gw2a_ddr3_phy #(
     end
   end
 
-
   // -- Read Data Valid Signals -- //
 
   always @(posedge clock) begin
@@ -197,7 +193,6 @@ module gw2a_ddr3_phy #(
       last_q <= delay_q & ~dfi_rden_i;
     end
   end
-
 
   // -- DDR3 Data Path IOBs -- //
 
@@ -222,7 +217,6 @@ module gw2a_ddr3_phy #(
     end
   endgenerate
 
-
   // -- Write-Data Masks Outputs -- //
 
   generate
@@ -239,7 +233,6 @@ module gw2a_ddr3_phy #(
 
     end
   endgenerate
-
 
   // -- Read- & Write- Data Strobes -- //
 
@@ -285,6 +278,30 @@ module gw2a_ddr3_phy #(
   assign align_w = align_q == 4'h5 && error_q == 4'h1;
   assign shift_w = align_q == 4'hA && error_q == 4'h2;
   assign error_w = (^dqs_nw) | (^dqs_pw);
+
+  assign dfi_calib_o = cnt_q[3];
+
+  reg rcv_q;
+  reg [2:0] pre3_q;
+  reg [3:0] cnt_q;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      rcv_q <= 1'b0;
+    end else if (phase_q && pre3_q == 3'd2) begin
+      rcv_q <= 1'b1;
+    end else if (!phase_q) begin
+      rcv_q <= 1'b0;
+    end
+
+    if (reset || shift_w || error_w) begin
+      cnt_q <= 4'd0;
+    end else if (rcv_q && !phase_q && !cnt_q[3]) begin
+      cnt_q <= cnt_q + 1;
+    end
+
+    pre3_q <= preamble_w[3:1];
+  end
 
   //
   // Todo:
