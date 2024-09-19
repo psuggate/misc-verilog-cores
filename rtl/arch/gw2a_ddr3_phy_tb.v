@@ -3,9 +3,9 @@ module gw2a_ddr3_phy_tb;
 
   // -- Constants -- //
 
-  localparam WR_PREFETCH = 0; // Default value
-  localparam INVERT_MCLK = 0; // Default value
-  localparam INVERT_DCLK = 0; // Default value
+  localparam WR_PREFETCH = 0;  // Default value
+  localparam INVERT_MCLK = 0;  // Default value
+  localparam INVERT_DCLK = 0;  // Default value
   localparam WRITE_DELAY = 2'b01;
   localparam CLOCK_SHIFT = 2'b00;
 
@@ -38,7 +38,7 @@ module gw2a_ddr3_phy_tb;
   reg rst_x1 = 1'bx;
   reg clk_x2 = 1'b1;
   wire clock, reset;
-  
+
   always #2.50 clk_x2 <= ~clk_x2;
   always #5.00 clk_x1 <= ~clk_x1;
 
@@ -64,7 +64,7 @@ module gw2a_ddr3_phy_tb;
   // PHY <-> DDR3
   wire ddr_ck_p, ddr_ck_n, ddr_cke, ddr_rst_n, ddr_cs_n, ddr_odt;
   wire ddr_ras_n, ddr_cas_n, ddr_we_n;
-  wire [2:0] ddr_ba;
+  wire [  2:0] ddr_ba;
   wire [RSB:0] ddr_a;
   wire [QSB:0] ddr_dqs_p, ddr_dqs_n, ddr_dm;
   wire [DSB:0] ddr_dq;
@@ -72,8 +72,8 @@ module gw2a_ddr3_phy_tb;
   // DFI <-> PHY
   wire dfi_rst_n, dfi_cke, dfi_cs_n, dfi_ras_n, dfi_cas_n, dfi_we_n;
   wire dfi_odt, dfi_wstb, dfi_wren, dfi_rden, dfi_valid, dfi_last;
-  wire [  2:0] dfi_bank, dfi_rddly;
-  wire [1:0] dfi_wrdly;
+  wire [2:0] dfi_bank, dfi_rddly;
+  wire [  1:0] dfi_wrdly;
   wire [RSB:0] dfi_addr;
   wire [SSB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
@@ -91,12 +91,12 @@ module gw2a_ddr3_phy_tb;
   end
 
   assign #1 dfi_rst_n = count > 1;
-  assign #1 dfi_cke   = count > 2;
-  assign #1 dfi_cs_n  = count < 4;
+  assign #1 dfi_cke = count > 2;
+  assign #1 dfi_cs_n = count < 4;
   assign #1 dfi_ras_n = count < 5 ? 1'bx : 1'b1;
   assign #1 dfi_cas_n = count < 5 ? 1'bx : 1'b1;
-  assign #1 dfi_we_n  = count < 5 ? 1'bx : 1'b1;
-  assign #1 dfi_odt   = 1'b0;
+  assign #1 dfi_we_n = count < 5 ? 1'bx : 1'b1;
+  assign #1 dfi_odt = 1'b0;
 
   assign dfi_bank = 3'd0;
   assign dfi_addr = {DDR_ROW_BITS{1'b0}};
@@ -120,7 +120,8 @@ module gw2a_ddr3_phy_tb;
 
   task send_data;
     begin
-      #40 dqs_pq = 2'd0; oen_q = 1'b0;
+      #40 dqs_pq = 2'd0;
+      oen_q = 1'b0;
       #10 dqs_pq = 2'd3;
       vld_q = 1'b1;
       #5 dqs_pq = ~dqs_pq;
@@ -130,13 +131,15 @@ module gw2a_ddr3_phy_tb;
       #5 dqs_pq = ~dqs_pq;
       #5 dqs_pq = ~dqs_pq;
       #5 dqs_pq = ~dqs_pq;
-      #5 dqs_pq = 2'bz; oen_q = 1'b1;
+      #5 dqs_pq = 2'bz;
+      oen_q = 1'b1;
       vld_q = 1'b0;
     end
   endtask  /* send_data */
 
   initial begin
-    #10 dqs_pq = 2'bz; oen_q = 1'b1;
+    #10 dqs_pq = 2'bz;
+    oen_q = 1'b1;
     #52.5 dfi_align = 1'b1;
 
     send_data();
@@ -151,7 +154,7 @@ module gw2a_ddr3_phy_tb;
     send_data();
   end
 
-  assign dfi_rden = rdy_q; // vld_q;
+  assign dfi_rden = rdy_q;  // vld_q;
 
   assign ddr_dqs_p = oen_q ? 2'bz : dqs_pq;
   assign ddr_dqs_n = oen_q ? 2'bz : ~dqs_pq;
@@ -190,7 +193,7 @@ module gw2a_ddr3_phy_tb;
   ///
 
   reg dfi_align = 1'b0;
-  wire dfi_cal_w, dfi_calib, dfi_cal_p90, dfi_cal_180, dif_cal_m90;
+  wire dfi_cal_w, dfi_calib, dfi_cal_p90, dfi_cal_180, dfi_cal_m90;
   wire [2:0] dfi_shift, dfi_sht_p90, dfi_sht_180, dfi_sht_m90;
 
   assign dfi_cal_w = dfi_calib && dfi_cal_p90 && dfi_cal_180 && dfi_cal_m90;

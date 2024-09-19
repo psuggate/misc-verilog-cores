@@ -30,7 +30,8 @@ module gw2a_ddr_iob #(
   assign TX1_w = OEN;
 
   always @(posedge PCLK) begin
-    {D3_q, D2_q, D1_q, D0_q} <= {D1_q, D0_q, D1, D0};
+    // {D3_q, D2_q, D1_q, D0_q} <= {D1_q, D0_q, D1, D0};
+    D1_q  <= D1;
     OEN_q <= OEN;
   end
 

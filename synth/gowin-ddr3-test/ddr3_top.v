@@ -366,10 +366,19 @@ module ddr3_top #(
   // GoWin Global System Reset signal tree.
   GSR GSR (.GSRI(1'b1));
 
+  reg cal_q;
   wire dfi_calib, dfi_align;
   wire [2:0] dfi_shift;
 
-  assign dfi_align = ddr3_conf_o;
+  assign dfi_align = cal_q; // ddr3_conf_o;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      cal_q <= 1'b0;
+    end else if (ddr3_conf_o && !dfi_calib) begin
+      cal_q <= 1'b1;
+    end
+  end
 
   gw2a_ddr3_phy #(
       .WR_PREFETCH(WR_PREFETCH),

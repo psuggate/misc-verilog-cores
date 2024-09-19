@@ -140,7 +140,7 @@ module usb_core_tb;
       .ulpi_data (ulpi_data)
   );
 
-/*
+  /*
   // Check the output from the Control PIPE0 //
   wire ctl0_tvalid_w = U_USB_BRIDGE1.U_CFG_PIPE0.get_desc_q;
   wire ctl0_tready_w = U_USB_BRIDGE1.U_CFG_PIPE0.chop_ready_w;

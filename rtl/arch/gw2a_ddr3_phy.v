@@ -29,6 +29,7 @@ module gw2a_ddr3_phy #(
 
     parameter INVERT_MCLK = 0,
     parameter INVERT_DCLK = 0,
+    parameter READ_CALIB  = 1,
     parameter WR_PREFETCH = 1'b0,
     parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 2'b10
@@ -60,7 +61,7 @@ module gw2a_ddr3_phy #(
     output [DSB:0] dfi_data_o,
 
     // For WRITE- & READ- CALIBRATION
-    input  dfi_align_i,
+    input dfi_align_i,
     output dfi_calib_o,
     output [2:0] dfi_shift_o,
 
@@ -100,11 +101,12 @@ module gw2a_ddr3_phy #(
   wire [SSB:0] mask_w;
   wire [DSB:0] data_w;
 
-  reg phase_q, calib_q;
-  reg  [2:0] rcal;
+  reg cyc_q, cal_q;
+  reg [3:0] cnt_q;
+  reg [2:0] rdcal;
 
-  // assign dfi_calib_o = calib_q;
-  assign dfi_shift_o = rcal;
+  assign dfi_calib_o = cnt_q[3];
+  assign dfi_shift_o = rdcal;
 
   // -- Write-Data Prefetch and Registering -- //
 
@@ -194,45 +196,58 @@ module gw2a_ddr3_phy #(
     end
   end
 
-  // -- DDR3 Data Path IOBs -- //
+  // -- IOBs for the DDR3 Data Paths & Write-Data Masks -- //
 
-  generate
-    for (genvar ii = 0; ii < DDR3_WIDTH; ii++) begin : gen_dq_iobs
+  wire [MSB:0] wdat_lo_w, wdat_hi_w, rdat_lo_w, rdat_hi_w;
+  wire [QSB:0] mask_hi_w, mask_lo_w, dm_w, en_w;
 
-      gw2a_ddr_iob #(
-          .WRDLY(2'd0)
-      ) u_gw2a_dq_iob (
-          .PCLK(clock),
-          .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
-          .RESET(reset),
-          .OEN(~dfi_wren_i),
-          .SHIFT(CLOCK_SHIFT),
-          .D0(data_w[ii]),
-          .D1(data_w[DDR3_WIDTH+ii]),
-          .Q0(dfi_data_o[ii]),
-          .Q1(dfi_data_o[DDR3_WIDTH+ii]),
-          .IO(ddr_dq_io[ii])
-      );
+  assign {mask_hi_w, mask_lo_w} = mask_w;
+  assign dfi_data_o = {rdat_hi_w, rdat_lo_w};
+  assign {wdat_hi_w, wdat_lo_w} = data_w;
 
-    end
-  endgenerate
+`ifdef __scared_of_snakes_on_planes
 
-  // -- Write-Data Masks Outputs -- //
+  ODDR u_gw2a_dm_oddr[QSB:0] (
+      .CLK(~clock),
+      .TX (1'b0),
+      .D0 (mask_lo_w),
+      .D1 (mask_hi_w),
+      .Q0 (ddr_dm_o),
+      .Q1 ()
+  );
 
-  generate
-    for (genvar ii = 0; ii < DDR3_MASKS; ii++) begin : gen_dm_iobs
+`else  /* !__scared_of_snakes_on_planes */
 
-      ODDR u_gw2a_dm_oddr (
-          .CLK(~clock),
-          .TX (1'b0),
-          .D0 (mask_w[ii]),
-          .D1 (mask_w[DDR3_MASKS+ii]),
-          .Q0 (ddr_dm_o[ii]),
-          .Q1 ()
-      );
+  OSER4 u_gw2a_dm_oddr[QSB:0] (
+      .PCLK(clock),
+      .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
+      .RESET(reset),
+      .TX0(~dfi_wren_i),
+      .TX1(~dfi_wren_i),
+      .D0(mask_lo_w),
+      .D1(mask_lo_w),
+      .D2(mask_hi_w),
+      .D3(mask_hi_w),
+      .Q0(ddr_dm_o),
+      .Q1()
+  );
 
-    end
-  endgenerate
+`endif  /* !__scared_of_snakes_on_planes */
+
+  gw2a_ddr_iob #(
+      .WRDLY(2'd0)
+  ) u_gw2a_dq_iob[MSB:0] (
+      .PCLK(clock),
+      .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
+      .RESET(reset),
+      .OEN(~dfi_wren_i),
+      .SHIFT(READ_CALIB ? rdcal[1:0] : CLOCK_SHIFT),
+      .D0(wdat_lo_w),
+      .D1(wdat_hi_w),
+      .Q0(rdat_lo_w),
+      .Q1(rdat_hi_w),
+      .IO(ddr_dq_io)
+  );
 
   // -- Read- & Write- Data Strobes -- //
 
@@ -241,110 +256,63 @@ module gw2a_ddr3_phy #(
 
   assign dqs_w = ~dfi_wstb_i & ~dfi_wren_i;
 
-  generate
-    for (genvar ii = 0; ii < DDR3_MASKS; ii++) begin : gen_dqs_iobs
-
-      gw2a_ddr_iob #(
-          .WRDLY(WRITE_DELAY),
-          .TLVDS(USE_TLVDS)
-      ) u_gw2a_dqs_iob (
-          .PCLK(clock),
-          .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
-          .RESET(reset),
-          .OEN(dqs_w),
-          .SHIFT(CLOCK_SHIFT),
-          .D0(1'b1),
-          .D1(1'b0),
-          .Q0(dqs_pw[ii]),
-          .Q1(dqs_nw[ii]),
-          .IO(ddr_dqs_pio[ii]),
-          .IOB(ddr_dqs_nio[ii])
-      );
-
-    end  // gen_dqs_iobs
-  endgenerate
+  gw2a_ddr_iob #(
+      .WRDLY(WRITE_DELAY),
+      .TLVDS(USE_TLVDS)
+  ) u_gw2a_dqs_iob[QSB:0] (
+      .PCLK(clock),
+      .FCLK(INVERT_DCLK ? ~clk_ddr : clk_ddr),
+      .RESET(reset),
+      .OEN(dqs_w),
+      .SHIFT(READ_CALIB ? rdcal[1:0] : CLOCK_SHIFT),
+      .D0(1'b1),
+      .D1(1'b0),
+      .Q0(dqs_pw),
+      .Q1(dqs_nw),
+      .IO(ddr_dqs_pio),
+      .IOB(ddr_dqs_nio)
+  );
 
   // -- WRITE- & READ- CALIBRATION -- //
 
-`ifdef __icarus
-
-  reg  [1:0] wcal, pre_q;
-  reg  [3:0] error_q, align_q;
-  wire align_w, shift_w, error_w;
+  reg rcv_q, err_q;
+  reg [2:0] pat_q;
+  reg [1:0] wcal, pre_q;
+  wire error_w;
   wire [3:0] preamble_w;
 
   assign preamble_w = {dqs_nw[0], dqs_pw[0], pre_q};
-
-  assign align_w = align_q == 4'h5 && error_q == 4'h1;
-  assign shift_w = align_q == 4'hA && error_q == 4'h2;
   assign error_w = (^dqs_nw) | (^dqs_pw);
 
-  assign dfi_calib_o = cnt_q[3];
-
-  reg rcv_q;
-  reg [2:0] pre3_q;
-  reg [3:0] cnt_q;
-
   always @(posedge clock) begin
-    if (reset) begin
+    if (reset || !cyc_q) begin
       rcv_q <= 1'b0;
-    end else if (phase_q && pre3_q == 3'd2) begin
-      rcv_q <= 1'b1;
-    end else if (!phase_q) begin
-      rcv_q <= 1'b0;
+      err_q <= 1'b0;
+    end else if (cyc_q) begin
+      rcv_q <= pat_q == 3'd2 && !err_q;
+      err_q <= pat_q != 3'd2 || err_q || error_w;
     end
 
-    if (reset || shift_w || error_w) begin
+    if (reset || err_q) begin
       cnt_q <= 4'd0;
-    end else if (rcv_q && !phase_q && !cnt_q[3]) begin
+    end else if (rcv_q && !cyc_q && !cnt_q[3]) begin
       cnt_q <= cnt_q + 1;
     end
 
-    pre3_q <= preamble_w[3:1];
-  end
-
-  //
-  // Todo:
-  //  - 2/4 of the registers can be removed, so that the phase matches that of
-  //    the data ??
-  //  - compute a "phase adjustment" from the bits;
-  //  - figure out the transaction framing, as many reads can be concatenated;
-  //
-  always @(posedge clock) begin
     if (reset) begin
-      wcal <= WRITE_DELAY;
-      rcal <= {1'b0, CLOCK_SHIFT};
-      phase_q <= 1'b0;
-      calib_q <= 1'b0;
-    end else if (dfi_align_i) begin
-      phase_q <= valid_q;
-      pre_q <= preamble_w[3:2];
-
-      if (valid_q) begin
-        error_q <= error_q ^ preamble_w;
-        align_q <= align_q | preamble_w;
-      end else begin
-        error_q <= 4'd0;
-        align_q <= 4'd0;
-      end
-
-      if (!valid_q && phase_q) begin
-        if (shift_w || error_w) begin
-          rcal <= rcal + 1;
-        end else begin
-          calib_q <= 1'b1;
-        end
-      end
+      cyc_q <= 1'b0;
+      cal_q <= 1'b0;
+      rdcal <= {1'b0, CLOCK_SHIFT};
     end else begin
-      rcal <= rcal;
-      wcal <= wcal;
-      phase_q <= 1'b0;
-      calib_q <= calib_q;
-      error_q <= 'bx;
-      align_q <= 'bx;
+      cyc_q <= valid_q;
+      if (!cyc_q && err_q) begin
+        // Rx. error occurred, so advance the clock-shift value
+        rdcal <= rdcal + 1;
+      end
     end
-  end
 
-`endif  /* __icarus */
+    pre_q <= preamble_w[3:2];  // Todo ...
+    pat_q <= preamble_w[3:1];
+  end
 
 endmodule  /* gw2a_ddr3_phy */
