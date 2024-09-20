@@ -5,10 +5,6 @@
     <Version>5</Version>
     <Device name="GW2A-18C" pn="GW2A-LV18PG256C8/I7">gw2a18c-011</Device>
     <FileList>
-        <File path="../../rtl/arch/arch_cdc_array.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/arch/generic_ddr3_phy.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/arch/gowin_clkdiv.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/arch/gowin_rpll.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/arch/gw2a_ddr3_phy.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/arch/gw2a_ddr_iob.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/arch/gw2a_rpll.v" type="file.verilog" enable="1"/>
@@ -30,7 +26,6 @@
         <File path="../../rtl/ddr3/ddr3_cfg.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_ddl.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_fsm.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_telemetry.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/afifo_gray.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_afifo.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_sfifo.v" type="file.verilog" enable="1"/>

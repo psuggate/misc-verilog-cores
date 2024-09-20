@@ -19,6 +19,8 @@ module ddr3_axi_ctrl_tb;
   parameter MEM_ID_WIDTH = 4;
   localparam TSB = AXI_ID_WIDTH - 1;
 
+  // parameter DDR_FREQ_MHZ = 100;
+  // `include "ddr3_settings.vh"
 
   // -- Simulation Data -- //
 

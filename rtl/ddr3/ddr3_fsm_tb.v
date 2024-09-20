@@ -97,7 +97,7 @@ module ddr3_fsm_tb;
   // -- DDR3 Memory Controller FSM -- //
 
   reg ddl_cke;
-  wire ddl_run, ddl_rdy, ddl_req, ddl_seq, ddl_ref;
+  wire ddl_rdy, ddl_req, ddl_seq, ddl_ref;
   wire [2:0] ddl_cmd, ddl_ba;
   wire [RSB:0] ddl_adr;
 
@@ -140,7 +140,7 @@ module ddr3_fsm_tb;
     end
 
     @(posedge clock);
-    while (!cfg_run || !ddl_run) begin
+    while (!cfg_run) begin
       @(posedge clock);
     end
 
@@ -263,7 +263,6 @@ module ddr3_fsm_tb;
       .ddr_cke_i(ddl_cke),
       .ddr_cs_ni(~ddl_cke),
 
-      .ctl_run_o(ddl_run),
       .ctl_req_i(ddl_req),
       .ctl_seq_i(ddl_seq),
       .ctl_rdy_o(ddl_rdy),
@@ -308,8 +307,9 @@ module ddr3_fsm_tb;
       .REQID(REQID),
       .ADDRS(ADDRS)
   ) ddr3_fsm_inst (
-      .clock(clock),
-      .reset(~cfg_run),
+      .clock (clock),
+      .reset (~cfg_run),
+      .arst_n(1'b1),
 
       .mem_wrreq_i(fsm_wrreq),  // Bus -> Controller requests
       .mem_wrlst_i(fsm_wrlst),

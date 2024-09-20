@@ -2,6 +2,8 @@
 `define __gowin_for_the_win
 module ddr3_ddl_tb;
 
+  localparam DDR_FREQ_MHZ = 100;
+
   // -- Simulation Settings -- //
 
   parameter ADDRS = 32;

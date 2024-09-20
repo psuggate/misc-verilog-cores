@@ -77,121 +77,6 @@ module usb_demo_top (
   assign leds = {~cbits[3:0], 2'b11};
   assign s_tkeep = s_tvalid;
 
-  // `define __use_legacy_usb_core
-`ifdef __use_legacy_usb_core
-
-  // FIFO state //
-  wire [FSB:0] level_w;
-  reg bulk_in_ready_q, bulk_out_ready_q;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      bulk_in_ready_q  <= 1'b0;
-      bulk_out_ready_q <= 1'b0;
-    end else begin
-      bulk_in_ready_q  <= configured && level_w > 4;
-      bulk_out_ready_q <= configured && level_w < 1024;
-    end
-  end
-
-  //
-  // Core Under New Tests
-  ///
-
-  usb_ulpi_wrapper #(
-      .DEBUG(1)
-  ) U_USB1 (
-      .clk_26(clk_26),
-      .rst_n (rst_n),
-
-      // USB ULPI pins on the dev-board
-      .ulpi_clk (ulpi_clk),
-      .ulpi_rst (ulpi_rst),
-      .ulpi_dir (ulpi_dir),
-      .ulpi_nxt (ulpi_nxt),
-      .ulpi_stp (ulpi_stp),
-      .ulpi_data(ulpi_data),
-
-      // Debug UART signals
-      .send_ni  (send_n),
-      .uart_rx_i(uart_rx),
-      .uart_tx_o(uart_tx),
-
-      .configured_o(configured),
-      .status_o(cbits),
-
-      // Same clock-domain as the AXI4-Stream ports
-      .usb_clk_o(clock),
-      .usb_rst_o(reset),
-
-      // USB BULK endpoint #1 //
-      .ep1_in_ready_i (bulk_in_ready_q),
-      .ep1_out_ready_i(bulk_out_ready_q),
-
-      .m1_tvalid(m_tvalid),
-      .m1_tready(m_tready),
-      .m1_tlast (m_tlast),
-      .m1_tkeep (m_tkeep),
-      .m1_tdata (m_tdata),
-
-      .s1_tvalid(s_tvalid),
-      .s1_tready(s_tready),
-      .s1_tlast (s_tlast),
-      .s1_tkeep (s_tkeep),
-      .s1_tdata (s_tdata),
-
-      // USB BULK endpoint #2 //
-      .ep2_in_ready_i (1'b0),
-      .ep2_out_ready_i(1'b0),
-
-      .m2_tvalid(),
-      .m2_tready(1'b0),
-      .m2_tlast (),
-      .m2_tkeep (),
-      .m2_tdata (),
-
-      .s2_tvalid(1'b0),
-      .s2_tready(),
-      .s2_tlast (1'b0),
-      .s2_tkeep (1'b0),
-      .s2_tdata (8'bx)
-  );
-
-  // -- Packet FIFO to Echo OUT -> IN -- //
-
-  packet_fifo #(
-      .WIDTH(8),
-      .DEPTH(BULK_FIFO_SIZE),
-      .STORE_LASTS(1),
-      .SAVE_ON_LAST(1),
-      .NEXT_ON_LAST(1),
-      .USE_LENGTH(1),
-      .MAX_LENGTH(MAX_PACKET_LENGTH),
-      .OUTREG(2)
-  ) U_FIFO1 (
-      .clock(clock),
-      .reset(reset),
-
-      .level_o(level_w),
-      .drop_i (1'b0),
-      .save_i (1'b0),
-      .redo_i (1'b0),
-      .next_i (1'b0),
-
-      .s_tvalid(m_tvalid),
-      .s_tready(m_tready),
-      .s_tkeep (m_tvalid),
-      .s_tlast (m_tlast),
-      .s_tdata (m_tdata),
-
-      .m_tvalid(s_tvalid),
-      .m_tready(s_tready),
-      .m_tlast (s_tlast),
-      .m_tdata (s_tdata)
-  );
-
-`else  /* !__use_legacy_usb_core */
-
   wire crc_error_w, conf_event, ep1_rdy, ep2_rdy, ep3_rdy;
   wire [2:0] usb_config, stout_w;
 
@@ -271,8 +156,6 @@ module usb_demo_top (
   assign ep3_rdy = U_USB1.U_TOP1.ep3_rdy_w | crc_error_w;
 
   assign stout_w = U_USB1.U_TOP1.stout_w;
-
-`endif  /* !__use_legacy_usb_core */
 
 
 endmodule  /* usb_demo_top */

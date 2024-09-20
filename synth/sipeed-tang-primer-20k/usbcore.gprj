@@ -24,12 +24,8 @@
         <File path="../../rtl/ddr3/ddr3_axi_ctrl.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_bypass.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_cfg.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_cfg_tb.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_ddl.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_ddl_tb.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_fsm.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_fsm_tb.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/ddr3/ddr3_telemetry.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/afifo_gray.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/axis_afifo.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/fifo/packet_fifo.v" type="file.verilog" enable="1"/>
@@ -44,24 +40,19 @@
         <File path="../../rtl/uart/uart.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/uart/uart_rx.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/uart/uart_tx.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/usb/bulk_telemetry.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ctl_pipe0.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ep_bulk_in.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ep_bulk_out.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/line_state.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/protocol.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/stdreq.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/usb/transactor.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/usb/ulpi_axis_bridge.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ulpi_decoder.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ulpi_encoder.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/ulpi_reset.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/usb_ulpi_core.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/usb/usb_ulpi_top.v" type="file.verilog" enable="1"/>
-        <File path="../../rtl/usb/usb_ulpi_wrapper.v" type="file.verilog" enable="1"/>
-        <File path="axis_ddr3_ctrl.v" type="file.verilog" enable="1"/>
-        <File path="usb_demo_top.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/axis/axis_fifo.v" type="file.verilog" enable="1"/>
+        <File path="usb_demo_top.v" type="file.verilog" enable="1"/>
         <File path="gw2a-tang-primer.cst" type="file.cst" enable="1"/>
         <File path="gw2a-tang-primer.sdc" type="file.sdc" enable="1"/>
     </FileList>
