@@ -160,19 +160,21 @@ module ddr3_bypass #(
   reg [3:0] state, snext;
   reg burst;
 
+  // Don't drive the AXI4 interface (in-case it is connected)
+  assign axi_arready_o = BYPASS_ENABLE ? arack : 1'b0;
+
+  assign axi_rvalid_o = BYPASS_ENABLE ? rdy_q & ddl_rvalid_i : 1'b0;
+  assign axi_rlast_o  = BYPASS_ENABLE ? ddl_rlast_i : 1'b0;
+  assign axi_rresp_o  = BYPASS_ENABLE ? RESP_OKAY : 2'bx;
+  assign axi_rid_o    = BYPASS_ENABLE ? axi_arid_i : {REQID{1'bx}};
+  assign axi_rdata_o  = BYPASS_ENABLE ? ddl_rdata_i : {WIDTH{1'bx}};
+
+  assign ddl_rready_o = ctl_rready_i | (BYPASS_ENABLE & rdy_q & axi_rready_i);
+
   generate
     if (BYPASS_ENABLE) begin : g_bypass
 
       // -- Use the Bypass Port -- //
-
-      assign axi_arready_o = arack;
-      assign axi_rvalid_o = rdy_q & ddl_rvalid_i;
-      assign axi_rlast_o  = ddl_rlast_i;
-      assign axi_rresp_o  = 2'b00;
-      assign axi_rid_o    = axi_arid_i;
-      assign axi_rdata_o  = ddl_rdata_i;
-
-      assign ddl_rready_o = rdy_q & axi_rready_i | ctl_rready_i;
 
       assign ctl_rvalid_o = ~rdy_q & ddl_rvalid_i;
       assign ctl_rlast_o = req_q ? 1'bx : ddl_rlast_i;
@@ -191,15 +193,6 @@ module ddr3_bypass #(
 
       // -- Bypass is Disabled -- //
 
-      // Don't drive the AXI4 interface (in-case it is connected)
-      assign axi_arready_o = 1'b0;
-
-      assign axi_rvalid_o = 1'b0;
-      assign axi_rlast_o = 1'b0;
-      assign axi_rresp_o = 2'bx;
-      assign axi_rid_o = {REQID{1'bx}};
-      assign axi_rdata_o = {WIDTH{1'bx}};
-
       // Forward all signals directly to/from the memory controller
       assign ctl_run_o = byp_run_i;
       assign ctl_rdy_o = byp_rdy_i;
@@ -215,11 +208,8 @@ module ddr3_bypass #(
       assign ctl_rlast_o = ddl_rlast_i;
       assign ctl_rdata_o = ddl_rdata_i;
 
-      assign ddl_rready_o = ctl_rready_i;
-
     end
   endgenerate
-
 
   assign bypass = axi_arvalid_i & arack | req_q;
 
@@ -232,7 +222,6 @@ module ddr3_bypass #(
                : precharge_w ? CMD_PREC
                : fast_read_w ? CMD_READ
                : CMD_ACTV ;
-
 
   // -- Address Logic -- //
 
@@ -249,7 +238,6 @@ module ddr3_bypass #(
   assign bank_w = axi_araddr_i[DDR_COL_BITS+2:DDR_COL_BITS];
   assign row_w = axi_araddr_i[ASB:DDR_COL_BITS+3];
   assign col_w = {{ADR_PAD_BITS{1'b0}}, auto_w, axi_araddr_i[CSB:0]};
-
 
   // -- PRECHARGE Detection -- //
 

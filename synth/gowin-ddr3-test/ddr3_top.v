@@ -20,6 +20,7 @@ module ddr3_top #(
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,   // 0 or 1
     parameter WR_PREFETCH = 1'b0,   // 0 or 1
+    parameter RD_FASTPATH = 1'b0,   // 0 or 1
     parameter INVERT_MCLK = 0,
     parameter INVERT_DCLK = 0,
     parameter WRITE_DELAY = 2'b00,
@@ -248,7 +249,7 @@ module ddr3_top #(
   //  DDR Core Under New Test
   ///
 
-  localparam BYPASS_ENABLE = 0;
+  localparam BYPASS_ENABLE = RD_FASTPATH;
 
   wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
   wire [1:0] dfi_wrdly;

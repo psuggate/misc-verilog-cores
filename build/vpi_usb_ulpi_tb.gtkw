@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Sep 19 05:32:30 2024
+[*] Fri Sep 20 09:24:04 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Thu Sep 19 05:28:42 2024"
-[dumpfile_size] 61593132
+[dumpfile_mtime] "Fri Sep 20 09:19:40 2024"
+[dumpfile_size] 61594928
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 757492000
+[timestart] 755352000
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 758205000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.048487 758205000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -404,7 +404,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdtid_o[3:0]
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdadr_o[25:0]
 @1401200
 -RdReq
-@800200
+@c00200
 -RdDat
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_valid_i
@@ -414,11 +414,16 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rlast_i
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.mem_rdata_i[31:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.paddr[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.waddr[11:0]
-@23
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.waddr[11:0]
-@1000200
+@1401200
 -RdDat
-@800200
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_state[39:0]
+@821
+[color] 2
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_cmd[39:0]
+@c00200
 -DDL
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.dfi_rden_o
@@ -430,7 +435,7 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rvalid_o
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rlast_o
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDL1.mem_rddata_o[31:0]
-@1000200
+@1401200
 -DDL
 @800200
 -CFG

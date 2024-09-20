@@ -10,6 +10,7 @@ module vpi_usb_ulpi_tb;
 
   // DDR3 settings
   localparam WR_PREFETCH = 0;
+  localparam RD_FASTPATH = 0;
   localparam LOW_LATENCY = 0;
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Default value
@@ -269,6 +270,7 @@ module vpi_usb_ulpi_tb;
 
       .INVERT_MCLK(INVERT_MCLK),
       .INVERT_DCLK(INVERT_DCLK),
+      .RD_FASTPATH(RD_FASTPATH),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) U_DDRC1 (
