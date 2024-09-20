@@ -126,12 +126,12 @@ module ddr3_top #(
   // -- DDR3 Core and AXI Interconnect Signals -- //
 
   // AXI4 Signals to/from the Memory Controller
-  wire awvalid, wvalid, wlast, bready, arvalid, rready_w;
-  wire awready, wready, bvalid, arready, rvalid_w, rlast_w;
-  wire [ISB:0] awid, arid, bid, rid_w;
-  wire [7:0] awlen, arlen;
-  wire [1:0] awburst, arburst;
-  wire [ASB:0] awaddr, araddr;
+  wire awvalid, wvalid, wlast, bready, arvalid_w, rready_w;
+  wire awready, wready, bvalid, arready_w, rvalid_w, rlast_w;
+  wire [ISB:0] awid, arid_w, bid, rid_w;
+  wire [7:0] awlen, arlen_w;
+  wire [1:0] awburst, arburst_w;
+  wire [ASB:0] awaddr, araddr_w;
   wire [BSB:0] wstrb;
   wire [1:0] bresp, rresp_w;
   wire [MSB:0] rdata_w, wdata;
@@ -248,12 +248,12 @@ module ddr3_top #(
       .bid_i(bid),
 
       // Read -address & -data ports(), to/from the DDR3 controller
-      .arvalid_o(arvalid),
-      .arready_i(arready),
-      .araddr_o(araddr),
-      .arid_o(arid),
-      .arlen_o(arlen),
-      .arburst_o(arburst),
+      .arvalid_o(arvalid_w),
+      .arready_i(arready_w),
+      .araddr_o(araddr_w),
+      .arid_o(arid_w),
+      .arlen_o(arlen_w),
+      .arburst_o(arburst_w),
 
       .rvalid_i(rvalid_w),
       .rready_o(rready_w),
@@ -268,9 +268,42 @@ module ddr3_top #(
   //  DDR Core Under New Test
   ///
 
+  localparam BYPASS_ENABLE = 0;
+
   wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
   wire [1:0] dfi_wrdly;
   wire [2:0] dfi_rddly;
+
+  wire crvalid, crready, cvalid, cready, clast;
+  wire [1:0] crburst, cresp;
+  wire [7:0] crlen;
+  wire [ASB:0] craddr;
+  wire [ISB:0] crid, cid;
+  wire [MSB:0] cdata;
+
+  wire arvalid, arready, rvalid, rready, rlast;
+  wire [1:0] arburst, rresp;
+  wire [7:0] arlen;
+  wire [ASB:0] araddr;
+  wire [ISB:0] arid, rid;
+  wire [MSB:0] rdata;
+
+  assign crvalid = BYPASS_ENABLE ? arvalid_w : 1'b0;
+  assign crid    = BYPASS_ENABLE ? arid_w : {REQID{1'bx}};
+  assign crlen   = BYPASS_ENABLE ? arlen_w : 8'bx;
+  assign crburst = BYPASS_ENABLE ? arburst_w : 2'bx;
+  assign craddr  = BYPASS_ENABLE ? araddr_w : {ADDRS{1'bx}};
+
+  assign arvalid = BYPASS_ENABLE ? 1'b0 : arvalid_w;
+  assign arid    = BYPASS_ENABLE ? {REQID{1'bx}} : arid_w;
+  assign arlen   = BYPASS_ENABLE ? 8'bx : arlen_w;
+  assign arburst = BYPASS_ENABLE ? 2'bx : arburst_w;
+  assign araddr  = BYPASS_ENABLE ? {ADDRS{1'bx}} : araddr_w;
+
+  assign arready_w = BYPASS_ENABLE ? crready : arready;
+
+  assign rready  = BYPASS_ENABLE ? 1'b0 : rready_w;
+  assign cready  = BYPASS_ENABLE ? rready_w : 1'b0;
 
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ    (DDR_FREQ_MHZ),
@@ -284,7 +317,7 @@ module ddr3_top #(
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
       .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-      .BYPASS_ENABLE   (0),
+      .BYPASS_ENABLE   (BYPASS_ENABLE),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -326,19 +359,19 @@ module ddr3_top #(
       .axi_rid_o(rid_w),
       .axi_rdata_o(rdata_w),
 
-      .byp_arvalid_i(1'b0),  // [optional] fast-read port
-      .byp_arready_o(),
-      .byp_araddr_i('bx),
-      .byp_arid_i('bx),
-      .byp_arlen_i('bx),
-      .byp_arburst_i('bx),
+      .byp_arvalid_i(crvalid),  // [optional] fast-read port
+      .byp_arready_o(crready),
+      .byp_araddr_i(craddr),
+      .byp_arid_i(crid),
+      .byp_arlen_i(crlen),
+      .byp_arburst_i(crburst),
 
-      .byp_rready_i(1'b0),
-      .byp_rvalid_o(),
-      .byp_rlast_o(),
-      .byp_rresp_o(),
-      .byp_rid_o(),
-      .byp_rdata_o(),
+      .byp_rready_i(cready),
+      .byp_rvalid_o(cvalid),
+      .byp_rlast_o(clast),
+      .byp_rresp_o(cresp),
+      .byp_rid_o(cid),
+      .byp_rdata_o(cdata),
 
       .dfi_align_o(dfi_align),
       .dfi_calib_i(dfi_calib),

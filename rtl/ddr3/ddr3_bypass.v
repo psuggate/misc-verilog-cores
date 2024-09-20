@@ -16,161 +16,125 @@
  *    the transaction completes);
  *  - address alignment must be correct, and the AXI4 burst-size must be BL8;
  */
-module ddr3_bypass (
-    clock,
-    reset,
+module ddr3_bypass #(
+    // DDR3 SRAM Timings
+    parameter DDR_FREQ_MHZ = 100,
 
-    axi_arvalid_i,  // AXI4 fast-path, read-only port
-    axi_arready_o,
-    axi_araddr_i,
-    axi_arid_i,
-    axi_arlen_i,
-    axi_arburst_i,
+    parameter BYPASS_ENABLE = 1'b1,
 
-    axi_rready_i,
-    axi_rvalid_o,
-    axi_rlast_o,
-    axi_rresp_o,
-    axi_rid_o,
-    axi_rdata_o,
+    // Data-path and address settings
+    parameter  WIDTH = 32,
+    localparam MSB   = WIDTH - 1,
 
-    ddl_rvalid_i,  // DDL READ data-path
-    ddl_rready_o,
-    ddl_rlast_i,
-    ddl_rdata_i,
+    parameter  MASKS = WIDTH / 8,
+    localparam SSB   = MASKS - 1,
 
-    byp_run_i,  // Connects to the DDL
-    byp_req_o,
-    byp_seq_o,
-    byp_ref_i,
-    byp_rdy_i,
-    byp_cmd_o,
-    byp_ba_o,
-    byp_adr_o,
+    // Request ID's are represent the order that commands are accepted at the bus/
+    // transaction layer, and if used, the memory controller will respect this
+    // ordering, when reads and writes access overlapping areas of memory.
+    parameter  REQID = 4,
+    localparam ISB   = REQID - 1,
 
-    ctl_run_o,  // Intercepts these memory controller -> DDL signals
-    ctl_req_i,
-    ctl_seq_i,
-    ctl_ref_o,
-    ctl_rdy_o,
-    ctl_cmd_i,
-    ctl_ba_i,
-    ctl_adr_i,
+    // Defaults for 1Gb, 16x SDRAM
+    parameter DDR_ROW_BITS = 13,
+    localparam RSB = DDR_ROW_BITS - 1,
+    parameter DDR_COL_BITS = 10,
+    localparam CSB = DDR_COL_BITS - 1,
+    localparam ADR_PAD_BITS = DDR_ROW_BITS - DDR_COL_BITS - 1,
 
-    ctl_rvalid_o,  // READ data from DDL -> memory controller data-path
-    ctl_rready_i,
-    ctl_rlast_o,
-    ctl_rdata_o
+    // Default is '{row, bank, col} <= addr_i,' -- this affects how often banks will
+    // need PRECHARGE commands. Enabling this alternate {bank, row, col} ordering
+    // may help for some workloads, e.g., when all but the upper (burst) addresses
+    // are not correlated in time?
+    // todo: ...
+    parameter BANK_ROW_COL = 0,
+
+    // Note: all addresses for requests must be word- and burst- aligned. Therefore,
+    //   for a x16 DDR3 device, each transfer is 16 bytes, so the lower 4-bits are
+    //   not passed to this controller.
+    // Note: a 1Gb, x16, DDR3 SDRAM has:
+    //    - 13b row address bits,
+    //    -  3b bank address bits,
+    //    - 10b column address bits, and
+    //    - 2kB page-size,
+    //   and the lower 3b of the column address are ignored by this module. So a 23b
+    //   address is required.
+    // Todo: in order to support wrapping-bursts, e.g., for a CPU cache, will need
+    //   the lower 3b ??
+    parameter  ADDRS = 23,
+    localparam ASB   = ADDRS - 1
+) (
+    input clock,  // Shared clock domain for the memory-controller
+    input reset,  // Synchronous reset
+
+    // AXI4 Fast-Read-Path Address Port
+    input axi_arvalid_i,
+    output axi_arready_o,
+    input [ASB:0] axi_araddr_i,
+    input [ISB:0] axi_arid_i,
+    input [7:0] axi_arlen_i,
+    input [1:0] axi_arburst_i,
+
+    // AXI4 Fast-Read-Path Data Port
+    input axi_rready_i,
+    output axi_rvalid_o,
+    output [MSB:0] axi_rdata_o,
+    output [1:0] axi_rresp_o,
+    output [ISB:0] axi_rid_o,
+    output axi_rlast_o,
+
+    // DDL READ data-path
+    input ddl_rvalid_i,
+    output ddl_rready_o,
+    input ddl_rlast_i,
+    input [MSB:0] ddl_rdata_i,
+
+    // DDR Data-Layer control signals
+    // Note: 
+    //  - all state-transitions are gated by the 'byp_rdy_i' signal
+    //   - connects to the DDL
+    input byp_run_i,
+    output byp_req_o,
+    output byp_seq_o,
+    input byp_rdy_i,
+    input byp_ref_i,
+    output [2:0] byp_cmd_o,
+    output [2:0] byp_ba_o,
+    output [RSB:0] byp_adr_o,
+
+    // From/to DDR3 Controller
+    // Note:
+    //  - all state-transitions are gated by the 'ctl_rdy_o' signal
+    //  - intercepts these memory controller -> DDL signals
+    output ctl_run_o,
+    input ctl_req_i,
+    input ctl_seq_i,  // Todo: burst-sequence indicator ...
+    output ctl_rdy_o,
+    output ctl_ref_o,
+    input [2:0] ctl_cmd_i,
+    input [2:0] ctl_ba_i,
+    input [RSB:0] ctl_adr_i,
+
+    // READ data from DDL -> memory controller data-path
+    output ctl_rvalid_o,
+    input ctl_rready_i,
+    output ctl_rlast_o,
+    output [MSB:0] ctl_rdata_o
 );
 
-  // todo:
+  //
+  // Todo:
   //  1. ~~disabled-mode works~~
   //  2. ~~enabled-mode and no bypass-requests works~~
   //  3. works as read-only, single-BL8 AXI4 interface (ignores slow-path requests)
   //  4. multi-BL8 reads
   //  5. row & bank detection ??
-
-  // DDR3 SRAM Timings
-  parameter DDR_FREQ_MHZ = 100;
-  `include "ddr3_settings.vh"
-
-  parameter BYPASS_ENABLE = 1'b1;
-
-  // Data-path and address settings
-  parameter WIDTH = 32;
-  localparam MSB = WIDTH - 1;
-
-  parameter MASKS = WIDTH / 8;
-  localparam SSB = MASKS - 1;
-
-  // Request ID's are represent the order that commands are accepted at the bus/
-  // transaction layer, and if used, the memory controller will respect this
-  // ordering, when reads and writes access overlapping areas of memory.
-  parameter REQID = 4;
-  localparam ISB = REQID - 1;
-
-  // Defaults for 1Gb, 16x SDRAM
-  parameter DDR_ROW_BITS = 13;
-  localparam RSB = DDR_ROW_BITS - 1;
-  parameter DDR_COL_BITS = 10;
-  localparam CSB = DDR_COL_BITS - 1;
-
-  // Default is '{row, bank, col} <= addr_i;' -- this affects how often banks will
-  // need PRECHARGE commands. Enabling this alternate {bank, row, col} ordering
-  // may help for some workloads; e.g., when all but the upper (burst) addresses
-  // are not correlated in time?
-  // todo: ...
-  parameter BANK_ROW_COL = 0;
-
-  // Note: all addresses for requests must be word- and burst- aligned. Therefore,
-  //   for a x16 DDR3 device, each transfer is 16 bytes, so the lower 4-bits are
-  //   not passed to this controller.
-  // Note: a 1Gb, x16, DDR3 SDRAM has:
-  //    - 13b row address bits;
-  //    -  3b bank address bits;
-  //    - 10b column address bits; and
-  //    - 2kB page-size,
-  //   and the lower 3b of the column address are ignored by this module. So a 23b
-  //   address is required.
-  // Todo: in order to support wrapping-bursts; e.g., for a CPU cache, will need
-  //   the lower 3b ??
-  parameter ADDRS = 23;
-  localparam ASB = ADDRS - 1;
-
-
-  input clock;  // Shared clock domain for the memory-controller
-  input reset;  // Synchronous reset
-
-  input axi_arvalid_i;  // AXI4 Fast-Read Address Port
-  output axi_arready_o;
-  input [ASB:0] axi_araddr_i;
-  input [ISB:0] axi_arid_i;
-  input [7:0] axi_arlen_i;
-  input [1:0] axi_arburst_i;
-
-  input axi_rready_i;  // AXI4 Fast-Read Data Port
-  output axi_rvalid_o;
-  output [MSB:0] axi_rdata_o;
-  output [1:0] axi_rresp_o;
-  output [ISB:0] axi_rid_o;
-  output axi_rlast_o;
-
-  input ddl_rvalid_i;
-  output ddl_rready_o;
-  input ddl_rlast_i;
-  input [MSB:0] ddl_rdata_i;
-
-  // DDR Data-Layer control signals
-  // Note: all state-transitions are gated by the 'byp_rdy_i' signal
-  input byp_run_i;
-  output byp_req_o;
-  output byp_seq_o;
-  input byp_rdy_i;
-  input byp_ref_i;
-  output [2:0] byp_cmd_o;
-  output [2:0] byp_ba_o;
-  output [RSB:0] byp_adr_o;
-
-  // From/to DDR3 Controller
-  // Note: all state-transitions are gated by the 'ctl_rdy_o' signal
-  output ctl_run_o;
-  input ctl_req_i;
-  input ctl_seq_i;  // Burst-sequence indicator
-  output ctl_rdy_o;
-  output ctl_ref_o;
-  input [2:0] ctl_cmd_i;
-  input [2:0] ctl_ba_i;
-  input [RSB:0] ctl_adr_i;
-
-  output ctl_rvalid_o;  // Read port, back to memory controller
-  input ctl_rready_i;
-  output ctl_rlast_o;
-  output [MSB:0] ctl_rdata_o;
-
+  //
 
   // -- Constants -- //
 
-  localparam ADR_PAD_BITS = DDR_ROW_BITS - DDR_COL_BITS - 1;
+  `include "ddr3_settings.vh"
+  `include "axi_defs.vh"
 
   // Subset of DDR3 controller commands/states
   localparam [2:0] ST_IDLE = 3'b111;
@@ -178,6 +142,7 @@ module ddr3_bypass (
   localparam [2:0] ST_ACTV = 3'b011;
   localparam [2:0] ST_PREC = 3'b010;
 
+  // -- Internal Signals & State -- //
 
   reg arack, req_q, rdy_q;
   reg [2:0] cmd_q, ba_q;
@@ -193,7 +158,7 @@ module ddr3_bypass (
   reg [  2:0] actv_ba;
 
   reg [3:0] state, snext;
-
+  reg burst;
 
   generate
     if (BYPASS_ENABLE) begin : g_bypass
@@ -344,12 +309,7 @@ module ddr3_bypass (
     end
   end
 
-
   // -- Burst-Sequence Detection -- //
-
-  localparam [1:0] BURST_INCR = 2'b01;
-
-  reg burst;
 
   // For AXI4 incrementing bursts, perform multiple, sequential (DDR3 SDRAM) BL8
   // reads.
@@ -359,7 +319,7 @@ module ddr3_bypass (
     if (reset) begin
       burst <= 1'b0;
     end else if (axi_arvalid_i && axi_rready_i) begin
-      burst <= axi_arlen_i > 3 && axi_arburst_i == BURST_INCR;
+      burst <= axi_arlen_i > 3 && axi_arburst_i == BURST_TYPE_INCR;
     end else if (axi_rvalid_o && axi_rready_i && axi_rlast_o) begin
       burst <= 1'b0;
     end else begin
@@ -367,10 +327,10 @@ module ddr3_bypass (
     end
   end
 
-
   // -- Main State Machine -- //
 
-  // todo:
+  //
+  // Todo:
   //  - detect same bank+row, for subsequent commands
   //     + long-bursts that cross page boundaries ?
   //     + "coalesce" reads and/or writes to same pages ?
@@ -378,6 +338,7 @@ module ddr3_bypass (
   //  - track the active row for each bank
   //  - overflow registers for when commands are accepted on both inputs
   //  - implement address-bits -> bank selection
+  //
 
   always @(posedge clock) begin
     if (!byp_run_i) begin
@@ -481,9 +442,14 @@ module ddr3_bypass (
   end
 
 
-  // -- Simulation Only -- //
-
 `ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+
+  reg [39:0] dbg_state, dbg_snext, dbg_cmd;
+  wire [2:0] dbg_cmd_w;
+
   always @(posedge clock or posedge reset) begin
     if (!reset && axi_arvalid_i && axi_arready_o) begin
       if (axi_arburst_i != 2'b01) begin
@@ -494,8 +460,6 @@ module ddr3_bypass (
       end
     end
   end
-
-  reg [39:0] dbg_state, dbg_snext;
 
   always @* begin
     case (state)
@@ -514,8 +478,7 @@ module ddr3_bypass (
     endcase
   end
 
-  wire [ 2:0] dbg_cmd_w = byp_rdy_i ? cmd_q : CMD_NOOP;
-  reg  [39:0] dbg_cmd;
+  assign dbg_cmd_w = byp_rdy_i ? cmd_q : CMD_NOOP;
 
   always @* begin
     case (dbg_cmd_w)
@@ -530,7 +493,7 @@ module ddr3_bypass (
       default:  dbg_cmd = "XXX";
     endcase
   end
-`endif
 
+`endif  /* !__icarus */
 
-endmodule  // ddr3_bypass
+endmodule  /* ddr3_bypass */
