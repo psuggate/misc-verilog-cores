@@ -1,4 +1,11 @@
 `timescale 1ns / 100ps
+/**
+ * Connects a USB ULPI PHY to a DDR3 SRAM, and this top-level module is mostly
+ * just a demo, and for testing the DDR3 controller.
+ *
+ * Copyright 2024, Patrick Suggate.
+ *
+ */
 
 // With the DDR3 clock at 250 MHz, this slows down simulations
 `ifndef __icarus
@@ -76,36 +83,34 @@ module usb_ddr3_top (
 
   // -- DDR3 Settings -- //
 
-`ifdef DDR3_250_MHZ
-  // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
-  localparam DDR_FREQ_MHZ = 125;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 36;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`else  /* !DDR_FREQ_MHZ */
-  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
-  localparam DDR_FREQ_MHZ = 100;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`endif  /* !DDR_FREQ_MHZ */
-
   localparam LOW_LATENCY = 0;  // Default value
   localparam WR_PREFETCH = 0;  // Default value
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
 
 `ifdef __gowin_for_the_win
+  localparam CLK_IN_FREQ  = "27";
+
 `ifdef DDR3_250_MHZ
+  // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
+  localparam DDR_FREQ_MHZ = 125;
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 36;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
 `else  /* !DDR_FREQ_MHZ */
+  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
+  localparam DDR_FREQ_MHZ = 100;
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 28;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 3;
@@ -113,10 +118,13 @@ module usb_ddr3_top (
 `endif  /* !DDR_FREQ_MHZ */
 
 `else  /* !__gowin_for_the_win */
+
+  // Uses simulation-only clocks, and a "generic" DDR3 PHY
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
+
 `endif  /* !__gowin_for_the_win */
 
   // We only require the ASYNC FIFOs, because the USB End-Points provide packet

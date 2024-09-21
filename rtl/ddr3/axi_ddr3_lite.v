@@ -1,4 +1,12 @@
 `timescale 1ns / 100ps
+/**
+ * DDR3 controller with a simple AXI4 interface, and an optional read-only AXI4-
+ * style interface, for "fast-path reads" (though this latter inferface is not
+ * yet working).
+ *
+ * Copyright 2023, Patrick Suggate.
+ *
+ */
 module axi_ddr3_lite #(
     // Settings for DLL=off mode
     parameter DDR_FREQ_MHZ = 100,

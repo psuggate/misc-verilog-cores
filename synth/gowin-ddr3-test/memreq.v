@@ -5,6 +5,10 @@
  *
  * Todo:
  *  - read/write the status registers of other endpoints ??
+ *  - make more general-purpose, for AXI-S <-> AXI4(-Lite) ??
+ *
+ * Copyright 2023, Patrick Suggate.
+ *
  */
 module memreq #(
     parameter FIFO_DEPTH = 512,
