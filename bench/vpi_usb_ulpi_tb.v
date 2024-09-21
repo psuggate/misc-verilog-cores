@@ -14,14 +14,14 @@ module vpi_usb_ulpi_tb;
   localparam RD_FASTPATH = 1;
 `else  /* !__spaghetti_concatenate */
   localparam RD_FASTPATH = 0;
-`endif /* !__spaghetti_concatenate */
+`endif  /* !__spaghetti_concatenate */
   localparam LOW_LATENCY = 0;
   localparam WRITE_DELAY = 2'b01;  // Default value (sim)
   localparam CLOCK_SHIFT = 2'b01;  // Default value
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   // localparam PHY_RD_DELAY = 2; // Default (100 MHz)
-  localparam PHY_RD_DELAY = 3; // 125 MHz
+  localparam PHY_RD_DELAY = 3;  // 125 MHz
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
@@ -263,16 +263,16 @@ module vpi_usb_ulpi_tb;
   end
 
   ddr3_top #(
-      .SRAM_BYTES(2048),
-      .DATA_WIDTH(32),
+      .SRAM_BYTES  (2048),
+      .DATA_WIDTH  (32),
       .DFIFO_BYPASS(DATA_FIFO_BYPASS),
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
       .WRITE_DELAY (WRITE_DELAY),
       .CLOCK_SHIFT (CLOCK_SHIFT),
-      .RD_FASTPATH(RD_FASTPATH),
-      .WR_PREFETCH(WR_PREFETCH),
-      .LOW_LATENCY(LOW_LATENCY)
+      .RD_FASTPATH (RD_FASTPATH),
+      .WR_PREFETCH (WR_PREFETCH),
+      .LOW_LATENCY (LOW_LATENCY)
   ) U_DDRC1 (
       .osc_in(clk25),  // Dev-board clock
       .arst_n(drst_n), // 'S2' button for async-reset

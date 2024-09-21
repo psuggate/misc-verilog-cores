@@ -233,20 +233,20 @@ module usb_ddr3_top (
   assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
-      .SRAM_BYTES(SRAM_BYTES),
-      .DATA_WIDTH(DDR3_WIDTH),
+      .SRAM_BYTES  (SRAM_BYTES),
+      .DATA_WIDTH  (DDR3_WIDTH),
       .DFIFO_BYPASS(DFIFO_BYPASS),
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
-             .CLK_IDIV_SEL(IDIV_SEL),
-             .CLK_FBDV_SEL(FBDIV_SEL),
-             .CLK_ODIV_SEL(ODIV_SEL),
-             .CLK_SDIV_SEL(SDIV_SEL),
-             .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
-      .LOW_LATENCY(LOW_LATENCY),
-      .WR_PREFETCH(WR_PREFETCH),
-      .WRITE_DELAY(WRITE_DELAY),
-      .CLOCK_SHIFT(CLOCK_SHIFT)
+      .CLK_IDIV_SEL(IDIV_SEL),
+      .CLK_FBDV_SEL(FBDIV_SEL),
+      .CLK_ODIV_SEL(ODIV_SEL),
+      .CLK_SDIV_SEL(SDIV_SEL),
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
+      .LOW_LATENCY (LOW_LATENCY),
+      .WR_PREFETCH (WR_PREFETCH),
+      .WRITE_DELAY (WRITE_DELAY),
+      .CLOCK_SHIFT (CLOCK_SHIFT)
   ) ddr_core_inst (
       .osc_in(clk_26),  // Dev-board clock
       .arst_n(rst_n),   // 'S2' button for async-reset

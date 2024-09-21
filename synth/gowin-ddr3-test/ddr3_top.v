@@ -7,16 +7,16 @@
 `define __gowin_for_the_win
 `endif  /* !__icarus */
 module ddr3_top #(
-    parameter SRAM_BYTES = 2048,
-    parameter DATA_WIDTH = 32,
+    parameter SRAM_BYTES   = 2048,
+    parameter DATA_WIDTH   = 32,
     parameter DFIFO_BYPASS = 0,
 
-                  // Default clock-setup for 125 MHz DDR3 clock, from 27 MHz source
-                  parameter CLK_IDIV_SEL = 3,  // in  / 4
-                  parameter CLK_FBDV_SEL = 36, //     x37
-                  parameter CLK_ODIV_SEL = 4,  // out / 4 (x2 DDR3 clock)
-                  parameter CLK_SDIV_SEL = 2,  //     / 2
-                  parameter DDR_FREQ_MHZ = 125, // out: 249.75 / 2 MHz
+    // Default clock-setup for 125 MHz DDR3 clock, from 27 MHz source
+    parameter CLK_IDIV_SEL = 3,   // in  / 4
+    parameter CLK_FBDV_SEL = 36,  //     x37
+    parameter CLK_ODIV_SEL = 4,   // out / 4 (x2 DDR3 clock)
+    parameter CLK_SDIV_SEL = 2,   //     / 2
+    parameter DDR_FREQ_MHZ = 125, // out: 249.75 / 2 MHz
 
     // Settings for DLL=off mode
     parameter DDR_CL = 6,
@@ -25,11 +25,11 @@ module ddr3_top #(
     parameter PHY_RD_DELAY = 3,
 
     // Trims an additional clock-cycle of latency, if '1'
-    parameter LOW_LATENCY = 1'b0,   // 0 or 1
-    parameter WR_PREFETCH = 1'b0,   // 0 or 1
-    parameter RD_FASTPATH = 1'b0,   // 0 or 1
-    parameter INVERT_MCLK = 0, // Todo: unfinished, and to allow extra shifts
-    parameter INVERT_DCLK = 0, // Todo: unfinished, and to allow extra shifts
+    parameter LOW_LATENCY = 1'b0,  // 0 or 1
+    parameter WR_PREFETCH = 1'b0,  // 0 or 1
+    parameter RD_FASTPATH = 1'b0,  // 0 or 1
+    parameter INVERT_MCLK = 0,  // Todo: unfinished, and to allow extra shifts
+    parameter INVERT_DCLK = 0,  // Todo: unfinished, and to allow extra shifts
     parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 2'b10
 ) (
@@ -301,7 +301,7 @@ module ddr3_top #(
       .LOW_LATENCY     (LOW_LATENCY),
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
-      .DFIFO_BYPASS(DFIFO_BYPASS),
+      .DFIFO_BYPASS    (DFIFO_BYPASS),
       .BYPASS_ENABLE   (BYPASS_ENABLE),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (

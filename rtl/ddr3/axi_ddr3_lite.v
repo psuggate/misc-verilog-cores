@@ -61,9 +61,9 @@ module axi_ddr3_lite #(
     localparam AXI_STB_BITS = PHY_STB_BITS,
 
     // todo: ...
-    parameter  DFIFO_BYPASS = 0,
-    localparam CTRL_FIFO_DEPTH  = 16,
-    localparam DATA_FIFO_DEPTH  = 512,
+    parameter DFIFO_BYPASS = 0,
+    localparam CTRL_FIFO_DEPTH = 16,
+    localparam DATA_FIFO_DEPTH = 512,
 
     // Determines whether to wait for all of the write-data, before issuing a
     // write command.
