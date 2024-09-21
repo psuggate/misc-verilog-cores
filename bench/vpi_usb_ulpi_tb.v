@@ -10,7 +10,11 @@ module vpi_usb_ulpi_tb;
 
   // DDR3 settings
   localparam WR_PREFETCH = 0;
+`ifdef __spaghetti_concatenate
+  localparam RD_FASTPATH = 1;
+`else  /* !__spaghetti_concatenate */
   localparam RD_FASTPATH = 0;
+`endif /* !__spaghetti_concatenate */
   localparam LOW_LATENCY = 0;
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Default value
@@ -19,7 +23,8 @@ module vpi_usb_ulpi_tb;
   localparam CLOCK_SHIFT = 2'b01;  // Default value
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
-  localparam PHY_RD_DELAY = 2;
+  // localparam PHY_RD_DELAY = 2; // Default (100 MHz)
+  localparam PHY_RD_DELAY = 3; // 125 MHz
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
@@ -67,10 +72,12 @@ module vpi_usb_ulpi_tb;
   // -- Simulation Data -- //
 
   initial begin
-    // #700000 $dumpfile("vpi_usb_ulpi_tb.vcd");
-    $dumpfile("vpi_usb_ulpi_tb.vcd");
+    #659000 $dumpfile("vpi_usb_ulpi_tb.vcd");
+    // $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
   end
+
+  // initial #670000 $finish;
 
   initial begin
     #3800000 $finish;

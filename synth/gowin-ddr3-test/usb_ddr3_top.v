@@ -68,19 +68,32 @@ module usb_ddr3_top (
 
   // -- DDR3 Settings -- //
 
-  parameter DDR_FREQ_MHZ = 100;
+`define DDR3_250_MHZ
+`ifdef DDR3_250_MHZ
+  localparam DDR_FREQ_MHZ = 125;
+`else /* !DDR_FREQ_MHZ */
+  localparam DDR_FREQ_MHZ = 100;
+`endif /* !DDR_FREQ_MHZ */
   localparam LOW_LATENCY = 0;  // Default value
   localparam WR_PREFETCH = 0;  // Default value
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
 
-  // localparam CLOCK_SHIFT = 2'b01;  // Default value
-  localparam CLOCK_SHIFT = 2'b11;
-  localparam WRITE_DELAY = 2'b01;
 `ifdef __gowin_for_the_win
+`ifdef DDR3_250_MHZ
+  localparam CLOCK_SHIFT = 2'b00;
+  localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
+`else /* !DDR_FREQ_MHZ */
+  localparam CLOCK_SHIFT = 2'b11;
+  localparam WRITE_DELAY = 2'b01;
+  localparam PHY_WR_DELAY = 3;
+  localparam PHY_RD_DELAY = 2;
+`endif /* !DDR_FREQ_MHZ */
 `else  /* !__gowin_for_the_win */
+  localparam CLOCK_SHIFT = 2'b11;
+  localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
 `endif  /* !__gowin_for_the_win */

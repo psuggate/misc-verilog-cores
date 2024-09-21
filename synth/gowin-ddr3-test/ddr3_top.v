@@ -68,12 +68,24 @@ module ddr3_top #(
     inout [15:0] ddr_dq
 );
 
+`define DDR3_250_MHZ
+`ifdef DDR3_250_MHZ
+  // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
+  localparam DDR_FREQ_MHZ = 125;
+
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 36;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+`else
+  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   localparam DDR_FREQ_MHZ = 100;
 
   localparam IDIV_SEL = 3;
   localparam FBDIV_SEL = 28;
   localparam ODIV_SEL = 4;
   localparam SDIV_SEL = 2;
+`endif
 
   // -- Constants -- //
 
@@ -143,8 +155,10 @@ module ddr3_top #(
   assign clk_100 = mclk;
   assign locked  = lock_q;
 
-  always #2.5 dclk <= ~dclk;
-  always #5.0 mclk <= ~mclk;
+  always #2 dclk <= ~dclk;
+  always #4 mclk <= ~mclk;
+  // always #2.5 dclk <= ~dclk;
+  // always #5.0 mclk <= ~mclk;
   initial #20 lock_q = 0;
 
   always @(posedge mclk or negedge arst_n) begin
