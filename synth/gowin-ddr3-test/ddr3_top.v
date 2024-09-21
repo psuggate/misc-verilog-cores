@@ -9,7 +9,14 @@
 module ddr3_top #(
     parameter SRAM_BYTES = 2048,
     parameter DATA_WIDTH = 32,
-    parameter DATA_FIFO_BYPASS = 0,
+    parameter DFIFO_BYPASS = 0,
+
+                  // Default clock-setup for 125 MHz DDR3 clock, from 27 MHz source
+                  parameter CLK_IDIV_SEL = 3,  // in  / 4
+                  parameter CLK_FBDV_SEL = 36, //     x37
+                  parameter CLK_ODIV_SEL = 4,  // out / 4 (x2 DDR3 clock)
+                  parameter CLK_SDIV_SEL = 2,  //     / 2
+                  parameter DDR_FREQ_MHZ = 125, // out: 249.75 / 2 MHz
 
     // Settings for DLL=off mode
     parameter DDR_CL = 6,
@@ -21,20 +28,21 @@ module ddr3_top #(
     parameter LOW_LATENCY = 1'b0,   // 0 or 1
     parameter WR_PREFETCH = 1'b0,   // 0 or 1
     parameter RD_FASTPATH = 1'b0,   // 0 or 1
-    parameter INVERT_MCLK = 0,
-    parameter INVERT_DCLK = 0,
+    parameter INVERT_MCLK = 0, // Todo: unfinished, and to allow extra shifts
+    parameter INVERT_DCLK = 0, // Todo: unfinished, and to allow extra shifts
     parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 2'b10
 ) (
-    input clk_26,
+    input osc_in,  // Default: 27.0 MHz
     input arst_n,  // 'S2' button for async-reset
 
     input bus_clock,
     input bus_reset,
 
     output ddr3_conf_o,
-    output ddr_clock_o,
     output ddr_reset_o,
+    output ddr_clock_o,
+    output ddr_clkx2_o,
 
     // From USB or SPI
     input s_tvalid,
@@ -67,25 +75,6 @@ module ddr3_top #(
     inout [1:0] ddr_dqs_n,
     inout [15:0] ddr_dq
 );
-
-`define DDR3_250_MHZ
-`ifdef DDR3_250_MHZ
-  // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
-  localparam DDR_FREQ_MHZ = 125;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 36;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`else
-  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
-  localparam DDR_FREQ_MHZ = 100;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
-`endif
 
   // -- Constants -- //
 
@@ -140,8 +129,8 @@ module ddr3_top #(
   wire dfi_calib, dfi_align;
   wire [2:0] dfi_shift;
 
-  wire clk_200, clk_100, locked;
-  wire ddr_clk, clock, reset;
+  wire clk_x2, clk_x1, locked;
+  wire clock, reset;
 
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
@@ -151,9 +140,9 @@ module ddr3_top #(
   ///
   reg dclk = 1, mclk = 0, lock_q = 0;
 
-  assign clk_200 = dclk;
-  assign clk_100 = mclk;
-  assign locked  = lock_q;
+  assign clk_x2 = dclk;
+  assign clk_x1 = mclk;
+  assign locked = lock_q;
 
   always #2 dclk <= ~dclk;
   always #4 mclk <= ~mclk;
@@ -174,25 +163,26 @@ module ddr3_top #(
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(
       .FCLKIN("27"),
-      .IDIV_SEL(IDIV_SEL),
-      .FBDIV_SEL(FBDIV_SEL),
-      .ODIV_SEL(ODIV_SEL),
-      .DYN_SDIV_SEL(SDIV_SEL)
+      .IDIV_SEL(CLK_IDIV_SEL),
+      .FBDIV_SEL(CLK_FBDV_SEL),
+      .ODIV_SEL(CLK_ODIV_SEL),
+      .DYN_SDIV_SEL(CLK_SDIV_SEL)
   ) U_rPLL1 (
-      .clkout(clk_200),  // 200 MHz
-      .clockd(clk_100),  // 100 MHz
+      .clkout(clk_x2),  // Default: 249.75  MHz
+      .clockd(clk_x1),  // Default: 124.875 MHz
       .lock  (locked),
-      .clkin (clk_26),
+      .clkin (osc_in),
       .reset (~arst_n)
   );
 
 `endif  /* !__icarus */
 
-  assign ddr_clock_o = clock;
-  assign ddr_reset_o = reset;
+  assign ddr_reset_o = ~locked;
+  assign ddr_clock_o = clk_x1;
+  assign ddr_clkx2_o = clk_x2;
 
-  assign ddr_clk = clk_200;
-  assign clock = clk_100;
+  // Internal clock assigments
+  assign clock = clk_x1;
   assign reset = ~locked;
 
   // -- Processes & Dispatches Memory Requests -- //
@@ -271,14 +261,14 @@ module ddr3_top #(
 
   wire crvalid, crready, cvalid, cready, clast;
   wire [1:0] crburst, cresp;
-  wire [7:0] crlen;
+  wire [  7:0] crlen;
   wire [ASB:0] craddr;
   wire [ISB:0] crid, cid;
   wire [MSB:0] cdata;
 
   wire arvalid, arready, rvalid, rready, rlast;
   wire [1:0] arburst, rresp;
-  wire [7:0] arlen;
+  wire [  7:0] arlen;
   wire [ASB:0] araddr;
   wire [ISB:0] arid, rid;
   wire [MSB:0] rdata;
@@ -311,7 +301,7 @@ module ddr3_top #(
       .LOW_LATENCY     (LOW_LATENCY),
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
+      .DFIFO_BYPASS(DFIFO_BYPASS),
       .BYPASS_ENABLE   (BYPASS_ENABLE),
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
@@ -411,7 +401,7 @@ module ddr3_top #(
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
-      .clk_ddr(ddr_clk),
+      .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),
       .dfi_cke_i (dfi_cke),
@@ -465,7 +455,7 @@ module ddr3_top #(
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
-      .clk_ddr(ddr_clk),
+      .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),
       .dfi_cke_i (dfi_cke),

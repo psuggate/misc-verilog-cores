@@ -9,10 +9,11 @@
  *    cannot guarantee that the read-data will be accepted (without wait-
  *    states);
  *  - intended for low-latency, high-priority reads; e.g., to service fetch-
- *    requests from a processor (i.e., one of its caches);
+ *    requests from a processor (i.e., to fetch a cache-line for one of its
+ *    caches);
  *  - handles only a subset of the SDRAM functionality;
  *  - throws an exception if the requesting core does not accept the returned
- *    read-data in time (so 'axirready_i' should be asserted, and held, until
+ *    read-data in time (so 'axi_rready_i' should be asserted, and held, until
  *    the transaction completes);
  *  - address alignment must be correct, and the AXI4 burst-size must be BL8;
  */
@@ -173,6 +174,11 @@ module ddr3_bypass #(
 
   generate
     if (BYPASS_ENABLE) begin : g_bypass
+
+      initial begin
+        $error("Not yet functional");
+        #10 $fatal;
+      end
 
       // -- Use the Bypass Port -- //
 

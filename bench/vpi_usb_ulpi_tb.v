@@ -16,9 +16,6 @@ module vpi_usb_ulpi_tb;
   localparam RD_FASTPATH = 0;
 `endif /* !__spaghetti_concatenate */
   localparam LOW_LATENCY = 0;
-  localparam INVERT_MCLK = 0;  // Default value
-  localparam INVERT_DCLK = 0;  // Default value
-
   localparam WRITE_DELAY = 2'b01;  // Default value (sim)
   localparam CLOCK_SHIFT = 2'b01;  // Default value
 `ifdef __gowin_for_the_win
@@ -195,7 +192,7 @@ module vpi_usb_ulpi_tb;
       .LOGGER           (LOGGER),
       .USE_UART         (0)
   ) U_USB1 (
-      .clk_26(clk25),
+      .osc_in(clk25),
       .arst_n(arst_n),
 
       .ulpi_clk (usb_clock),
@@ -268,20 +265,16 @@ module vpi_usb_ulpi_tb;
   ddr3_top #(
       .SRAM_BYTES(2048),
       .DATA_WIDTH(32),
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-
+      .DFIFO_BYPASS(DATA_FIFO_BYPASS),
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
       .WRITE_DELAY (WRITE_DELAY),
       .CLOCK_SHIFT (CLOCK_SHIFT),
-
-      .INVERT_MCLK(INVERT_MCLK),
-      .INVERT_DCLK(INVERT_DCLK),
       .RD_FASTPATH(RD_FASTPATH),
       .WR_PREFETCH(WR_PREFETCH),
       .LOW_LATENCY(LOW_LATENCY)
   ) U_DDRC1 (
-      .clk_26(clk25),  // Dev-board clock
+      .osc_in(clk25),  // Dev-board clock
       .arst_n(drst_n), // 'S2' button for async-reset
 
       .bus_clock(clock),

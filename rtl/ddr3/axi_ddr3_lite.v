@@ -61,7 +61,7 @@ module axi_ddr3_lite #(
     localparam AXI_STB_BITS = PHY_STB_BITS,
 
     // todo: ...
-    parameter  DATA_FIFO_BYPASS = 0,
+    parameter  DFIFO_BYPASS = 0,
     localparam CTRL_FIFO_DEPTH  = 16,
     localparam DATA_FIFO_DEPTH  = 512,
 
@@ -196,7 +196,7 @@ module axi_ddr3_lite #(
       .AXI_ID_WIDTH(AXI_ID_WIDTH),
       .MEM_ID_WIDTH(MEM_ID_WIDTH),
       .CTRL_FIFO_DEPTH(CTRL_FIFO_DEPTH),
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
+      .DATA_FIFO_BYPASS(DFIFO_BYPASS),
       .DATA_FIFO_DEPTH(DATA_FIFO_DEPTH),
       .USE_PACKET_FIFOS(USE_PACKET_FIFOS)
   ) U_AXI_CTRL (
@@ -384,11 +384,11 @@ module axi_ddr3_lite #(
       .ddr_cke_i(dfi_cke_o),
       .ddr_cs_ni(dfi_cs_no),
 
-      .ctl_seq_i(1'b0), // Todo ...
+      .ctl_seq_i(1'b0),  // Todo ...
       .ctl_req_i(ctl_req),
       .ctl_rdy_o(ctl_rdy),
       .ctl_cmd_i(ctl_cmd),
-      .ctl_ba_i (ctl_ba),
+      .ctl_ba_i(ctl_ba),
       .ctl_adr_i(ctl_adr),
 
       .mem_wvalid_i(wr_valid),
