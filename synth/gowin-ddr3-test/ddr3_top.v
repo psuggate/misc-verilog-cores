@@ -150,12 +150,15 @@ module ddr3_top #(
   ///
   reg dclk = 1, mclk = 0, lock_q = 0;
 
+  localparam HCLK_DELAY = DDR_FREQ_MHZ > 100 ? 4.0 : 5.0;
+  localparam QCLK_DELAY = DDR_FREQ_MHZ > 100 ? 2.0 : 2.5;
+
   assign clk_x2 = dclk;
   assign clk_x1 = mclk;
   assign locked = lock_q;
 
-  always #2 dclk <= ~dclk;
-  always #4 mclk <= ~mclk;
+  always #QCLK_DELAY dclk <= ~dclk;
+  always #HCLK_DELAY mclk <= ~mclk;
   // always #2.5 dclk <= ~dclk;
   // always #5.0 mclk <= ~mclk;
   initial #20 lock_q = 0;

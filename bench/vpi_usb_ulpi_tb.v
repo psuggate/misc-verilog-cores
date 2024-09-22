@@ -7,6 +7,7 @@ module vpi_usb_ulpi_tb;
   localparam LOGGER = 0;
 
   localparam DATA_FIFO_BYPASS = 1;
+  localparam DDR_FREQ_MHZ = 100;
 
   // DDR3 settings
   localparam WR_PREFETCH = 0;
@@ -105,40 +106,7 @@ module vpi_usb_ulpi_tb;
     end
   end
 
-  //
-  //  Some Logics
-  ///
-
-  reg tvalid_q, tlast_q, tstart_q;
-  reg [7:0] tdata_q;
-
-  assign blki_tvalid_w = tvalid_q;
-  assign blki_tlast_w  = tlast_q;
-  assign blki_tdata_w  = tdata_q;
-
-  assign blko_tready_w = 1'b1;  // Todo ...
-
-  always @(posedge usb_clock) begin
-    if (!usb_rst_n) begin
-      tvalid_q <= 1'b0;
-      tstart_q <= 1'b0;
-      tlast_q  <= 1'b0;
-    end else begin
-      tstart_q <= configured && usb_config != 3'd0;
-
-      if (blki_tready_w && tvalid_q && !tlast_q) begin
-        tlast_q <= 1'b1;
-        tdata_q <= $random;
-      end else if (blki_tready_w && tvalid_q && tlast_q) begin
-        tvalid_q <= 1'b0;
-        tlast_q  <= 1'b0;
-      end else if (tstart_q && blki_tready_w) begin
-        tvalid_q <= 1'b1;
-        tlast_q  <= 1'b0;
-        tdata_q  <= $random;
-      end
-    end
-  end
+  // -- Simulation Stimulus -- //
 
   /**
    * Wrapper to the VPI model of a USB host, for providing the stimulus.
@@ -151,25 +119,6 @@ module vpi_usb_ulpi_tb;
       .stp  (ulpi_stp),
       .data (ulpi_data)
   );
-
-  // -- System Clocks & Resets -- //
-
-  ulpi_reset #(
-      .PHASE("0000"),  // Note: timing-constraints used instead
-      .PLLEN(0)
-  ) U_RESET1 (
-      .areset_n (arst_n),
-      .ulpi_clk (clock),
-      .sys_clock(clk25),
-
-      .ulpi_rst_n(usb_rst_n),  // Active LO
-      .pll_locked(locked),
-
-      // .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
-      .usb_reset(reset),  // Active HI
-      .ddr_clock()        // 120 MHz, PLL output, phase-shifted
-  );
-
 
   //
   // Cores Under New Tests
@@ -196,6 +145,7 @@ module vpi_usb_ulpi_tb;
       .arst_n(arst_n),
 
       .ulpi_clk (usb_clock),
+      .ulpi_rst (usb_rst_n),
       .ulpi_dir (ulpi_dir),
       .ulpi_nxt (ulpi_nxt),
       .ulpi_stp (ulpi_stp),
@@ -263,6 +213,7 @@ module vpi_usb_ulpi_tb;
   end
 
   ddr3_top #(
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
       .SRAM_BYTES  (2048),
       .DATA_WIDTH  (32),
       .DFIFO_BYPASS(DATA_FIFO_BYPASS),
