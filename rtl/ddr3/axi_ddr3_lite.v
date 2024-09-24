@@ -310,6 +310,8 @@ module axi_ddr3_lite #(
       .ddl_adr_o(ddl_adr)
   );
 
+`ifdef __use_crusty_old_bypass
+
   ddr3_bypass #(
       .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
       .DDR_ROW_BITS(DDR_ROW_BITS),
@@ -364,6 +366,64 @@ module axi_ddr3_lite #(
       .ctl_rlast_o (rd_last),
       .ctl_rdata_o (rd_data)
   );
+
+`else  /* !__use_crusty_old_bypass */
+
+  ddr3_fastpath #(
+      .ROW_BITS(DDR_ROW_BITS),
+      .COL_BITS(DDR_COL_BITS),
+      .WIDTH(AXI_DAT_BITS),
+      .ADDRS(FSM_ADDRS),
+      .REQID(AXI_ID_WIDTH),
+      .ENABLE(BYPASS_ENABLE)
+  ) U_BYPASS (
+      .clock(clock),
+      .reset(~en_q),
+
+      .axi_arvalid_i(byp_arvalid_i),  // AXI4 fast-path, read-only port
+      .axi_arready_o(byp_arready_o),
+      .axi_araddr_i(byp_araddr_i[ASB:ADDRS_LSB]),
+      .axi_arid_i(byp_arid_i),
+      .axi_arlen_i(byp_arlen_i),
+      .axi_arburst_i(byp_arburst_i),
+
+      .axi_rready_i(byp_rready_i),
+      .axi_rvalid_o(byp_rvalid_o),
+      .axi_rlast_o(byp_rlast_o),
+      .axi_rresp_o(byp_rresp_o),
+      .axi_rid_o(byp_rid_o),
+      .axi_rdata_o(byp_rdata_o),
+
+      .ddl_rvalid_i(by_valid),  // DDL READ data-path
+      .ddl_rready_o(by_ready),
+      .ddl_rlast_i (by_last),
+      .ddl_rdata_i (by_data),
+
+      .ddl_run_i(cfg_run),  // Connects to the DDL
+      .ddl_req_o(ctl_req),
+      .ddl_seq_o(ctl_seq),  // Todo ...
+      .ddl_ref_i(cfg_ref),
+      .ddl_rdy_i(ctl_rdy),
+      .ddl_cmd_o(ctl_cmd),
+      .ddl_ba_o (ctl_ba),
+      .ddl_adr_o(ctl_adr),
+
+      .ctl_run_o(),  // Intercepts these memory controller -> DDL signals
+      .ctl_req_i(ddl_req),
+      .ctl_seq_i(ddl_seq),
+      .ctl_ref_o(ddl_ref),
+      .ctl_rdy_o(ddl_rdy),
+      .ctl_cmd_i(ddl_cmd),
+      .ctl_ba_i(ddl_ba),
+      .ctl_adr_i(ddl_adr),
+
+      .ctl_rvalid_o(rd_valid),  // READ data from DDL -> memory controller data-path
+      .ctl_rready_i(rd_ready),
+      .ctl_rlast_o (rd_last),
+      .ctl_rdata_o (rd_data)
+  );
+
+`endif /* !__use_crusty_old_bypass */
 
   // -- Coordinate with the DDR3 to PHY Interface -- //
 
