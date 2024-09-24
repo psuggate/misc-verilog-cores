@@ -30,7 +30,7 @@ module usb_ulpi_core #(
     localparam integer SSB = SERIAL_LENGTH * 8 - 1,
     parameter [SSB:0] SERIAL_STRING = "TART0001"
 ) (
-    input clk_26,
+    input osc_in,
     input arst_n,
 
     // Debug UART signals
@@ -97,7 +97,7 @@ module usb_ulpi_core #(
   ) U_RESET1 (
       .areset_n (arst_n),
       .ulpi_clk (ulpi_clk),
-      .sys_clock(clk_26),
+      .sys_clock(osc_in),
 
       .ulpi_rst_n(ulpi_rst),  // Active LO
       .pll_locked(locked),

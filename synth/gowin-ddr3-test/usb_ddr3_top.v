@@ -1,4 +1,17 @@
 `timescale 1ns / 100ps
+/**
+ * Connects a USB ULPI PHY to a DDR3 SRAM, and this top-level module is mostly
+ * just a demo, and for testing the DDR3 controller.
+ *
+ * Copyright 2024, Patrick Suggate.
+ *
+ */
+
+// With the DDR3 clock at 250 MHz, this slows down simulations
+`ifndef __icarus
+`define DDR3_250_MHZ
+`endif  /* __icarus */
+
 module usb_ddr3_top (
     // Clock and reset from the dev-board
     input clk_26,
@@ -36,6 +49,8 @@ module usb_ddr3_top (
     inout [15:0] ddr_dq
 );
 
+  localparam SRAM_BYTES = 2048;
+
   // -- USB Settings -- //
 
   localparam DEBUG = 1;
@@ -68,31 +83,58 @@ module usb_ddr3_top (
 
   // -- DDR3 Settings -- //
 
-  parameter DDR_FREQ_MHZ = 100;
   localparam LOW_LATENCY = 0;  // Default value
   localparam WR_PREFETCH = 0;  // Default value
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...
 
-  // localparam CLOCK_SHIFT = 2'b01;  // Default value
+`ifdef __gowin_for_the_win
+  localparam CLK_IN_FREQ  = "27";
+
+`ifdef DDR3_250_MHZ
+  // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
+  localparam DDR_FREQ_MHZ = 125;
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 36;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
-`ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
+`else  /* !DDR_FREQ_MHZ */
+  // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
+  localparam DDR_FREQ_MHZ = 100;
+  localparam IDIV_SEL = 3;
+  localparam FBDIV_SEL = 28;
+  localparam ODIV_SEL = 4;
+  localparam SDIV_SEL = 2;
+
+  localparam CLOCK_SHIFT = 2'b11;
+  localparam WRITE_DELAY = 2'b01;
+  localparam PHY_WR_DELAY = 3;
+  localparam PHY_RD_DELAY = 2;
+`endif  /* !DDR_FREQ_MHZ */
+
 `else  /* !__gowin_for_the_win */
+
+  // Uses simulation-only clocks, and a "generic" DDR3 PHY
+  localparam CLOCK_SHIFT = 2'b11;
+  localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
+
 `endif  /* !__gowin_for_the_win */
 
   // We only require the ASYNC FIFOs, because the USB End-Points provide packet
   // FIFOs, for each direction
-  localparam DATA_FIFO_BYPASS = 1;
+  localparam DFIFO_BYPASS = 1;
+  localparam DDR3_WIDTH = 32;
 
   // -- UART Settings -- //
 
   localparam [15:0] UART_PRESCALE = 16'd33;  // For: 60.0 MHz / (230400 * 8)
-
 
   // -- Signals -- //
 
@@ -143,7 +185,7 @@ module usb_ddr3_top (
       .ENDPOINT4(ENDPOINT4),
       .USE_EP4_OUT(USE_EP4_OUT)
   ) U_USB1 (
-      .clk_26(sys_clk),
+      .osc_in(sys_clk),
       .arst_n(rst_n),
 
       .ulpi_clk (ulpi_clk),
@@ -199,21 +241,22 @@ module usb_ddr3_top (
   assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
-      .SRAM_BYTES(2048),
-      .DATA_WIDTH(32),
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-
+      .SRAM_BYTES  (SRAM_BYTES),
+      .DATA_WIDTH  (DDR3_WIDTH),
+      .DFIFO_BYPASS(DFIFO_BYPASS),
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
-
-      .LOW_LATENCY(LOW_LATENCY),
-      .WR_PREFETCH(WR_PREFETCH),
-      .INVERT_MCLK(INVERT_MCLK),
-      .INVERT_DCLK(INVERT_DCLK),
-      .WRITE_DELAY(WRITE_DELAY),
-      .CLOCK_SHIFT(CLOCK_SHIFT)
+      .CLK_IDIV_SEL(IDIV_SEL),
+      .CLK_FBDV_SEL(FBDIV_SEL),
+      .CLK_ODIV_SEL(ODIV_SEL),
+      .CLK_SDIV_SEL(SDIV_SEL),
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
+      .LOW_LATENCY (LOW_LATENCY),
+      .WR_PREFETCH (WR_PREFETCH),
+      .WRITE_DELAY (WRITE_DELAY),
+      .CLOCK_SHIFT (CLOCK_SHIFT)
   ) ddr_core_inst (
-      .clk_26(clk_26),  // Dev-board clock
+      .osc_in(clk_26),  // Dev-board clock
       .arst_n(rst_n),   // 'S2' button for async-reset
 
       .bus_clock(clock),

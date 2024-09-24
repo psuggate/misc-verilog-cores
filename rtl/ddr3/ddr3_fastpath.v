@@ -227,6 +227,9 @@ module ddr3_fastpath #(
   // Tracks the activated rows
   reg [RSB:0] row_sram [0:7];
   reg [7:0] row_actv;
+  wire same_row_w;
+
+  assign same_row_w = row_actv[bank_w] && row_sram[bank_w] == row_w;
 
   always @(posedge clock) begin
     if (reset) begin

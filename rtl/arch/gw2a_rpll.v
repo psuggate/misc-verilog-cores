@@ -1,34 +1,34 @@
 `timescale 1ns / 100ps
 module gw2a_rpll #(
-  parameter FCLKIN = "27",
-  parameter DYN_IDIV_SEL = "false",
-  parameter IDIV_SEL = 8,
-  parameter DYN_FBDIV_SEL = "false",
-  parameter FBDIV_SEL = 39,
-  parameter DYN_ODIV_SEL = "false",
-  parameter ODIV_SEL = 8,
-  parameter PSDA_SEL = "0000",
-  parameter DYN_DA_EN = "false",
-  parameter DUTYDA_SEL = "1000",
-  parameter CLKOUT_FT_DIR = 1'b1,
-  parameter CLKOUTP_FT_DIR = 1'b1,
-  parameter CLKOUT_DLY_STEP = 0,
-  parameter CLKOUTP_DLY_STEP = 0,
-  parameter CLKFB_SEL = "internal",
-  parameter CLKOUT_BYPASS = "false",
-  parameter CLKOUTP_BYPASS = "false",
-  parameter CLKOUTD_BYPASS = "false",
-  parameter DYN_SDIV_SEL = 2,
-  parameter CLKOUTD_SRC = "CLKOUT",
-  parameter CLKOUTD3_SRC = "CLKOUT",
-  parameter DEVICE = "GW2A-18C"
+    parameter FCLKIN = "27",
+    parameter DYN_IDIV_SEL = "false",
+    parameter IDIV_SEL = 8,
+    parameter DYN_FBDIV_SEL = "false",
+    parameter FBDIV_SEL = 39,
+    parameter DYN_ODIV_SEL = "false",
+    parameter ODIV_SEL = 8,
+    parameter PSDA_SEL = "0000",
+    parameter DYN_DA_EN = "false",
+    parameter DUTYDA_SEL = "1000",
+    parameter CLKOUT_FT_DIR = 1'b1,
+    parameter CLKOUTP_FT_DIR = 1'b1,
+    parameter CLKOUT_DLY_STEP = 0,
+    parameter CLKOUTP_DLY_STEP = 0,
+    parameter CLKFB_SEL = "internal",
+    parameter CLKOUT_BYPASS = "false",
+    parameter CLKOUTP_BYPASS = "false",
+    parameter CLKOUTD_BYPASS = "false",
+    parameter DYN_SDIV_SEL = 2,
+    parameter CLKOUTD_SRC = "CLKOUT",
+    parameter CLKOUTD3_SRC = "CLKOUT",
+    parameter DEVICE = "GW2A-18C"
 ) (
-  output clkout,  // 120 MHz by default
-  output clockd,
-  output clockp,
-  output lock,
-  input clkin,
-   input reset
+    output clkout,  // 120 MHz by default
+    output clockd,
+    output clockp,
+    output lock,
+    input  clkin,
+    input  reset
 );
 
   wire clkoutd3_o;

@@ -7,19 +7,22 @@ module vpi_usb_ulpi_tb;
   localparam LOGGER = 0;
 
   localparam DATA_FIFO_BYPASS = 1;
+  localparam DDR_FREQ_MHZ = 100;
 
   // DDR3 settings
   localparam WR_PREFETCH = 0;
+`ifdef __spaghetti_concatenate
+  localparam RD_FASTPATH = 1;
+`else  /* !__spaghetti_concatenate */
   localparam RD_FASTPATH = 0;
+`endif  /* !__spaghetti_concatenate */
   localparam LOW_LATENCY = 0;
-  localparam INVERT_MCLK = 0;  // Default value
-  localparam INVERT_DCLK = 0;  // Default value
-
   localparam WRITE_DELAY = 2'b01;  // Default value (sim)
   localparam CLOCK_SHIFT = 2'b01;  // Default value
 `ifdef __gowin_for_the_win
   localparam PHY_WR_DELAY = 3;
-  localparam PHY_RD_DELAY = 2;
+  // localparam PHY_RD_DELAY = 2; // Default (100 MHz)
+  localparam PHY_RD_DELAY = 3;  // 125 MHz
 `else  /* !__gowin_for_the_win */
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
@@ -67,10 +70,12 @@ module vpi_usb_ulpi_tb;
   // -- Simulation Data -- //
 
   initial begin
-    // #700000 $dumpfile("vpi_usb_ulpi_tb.vcd");
-    $dumpfile("vpi_usb_ulpi_tb.vcd");
+    #659000 $dumpfile("vpi_usb_ulpi_tb.vcd");
+    // $dumpfile("vpi_usb_ulpi_tb.vcd");
     $dumpvars;
   end
+
+  // initial #670000 $finish;
 
   initial begin
     #3800000 $finish;
@@ -101,40 +106,7 @@ module vpi_usb_ulpi_tb;
     end
   end
 
-  //
-  //  Some Logics
-  ///
-
-  reg tvalid_q, tlast_q, tstart_q;
-  reg [7:0] tdata_q;
-
-  assign blki_tvalid_w = tvalid_q;
-  assign blki_tlast_w  = tlast_q;
-  assign blki_tdata_w  = tdata_q;
-
-  assign blko_tready_w = 1'b1;  // Todo ...
-
-  always @(posedge usb_clock) begin
-    if (!usb_rst_n) begin
-      tvalid_q <= 1'b0;
-      tstart_q <= 1'b0;
-      tlast_q  <= 1'b0;
-    end else begin
-      tstart_q <= configured && usb_config != 3'd0;
-
-      if (blki_tready_w && tvalid_q && !tlast_q) begin
-        tlast_q <= 1'b1;
-        tdata_q <= $random;
-      end else if (blki_tready_w && tvalid_q && tlast_q) begin
-        tvalid_q <= 1'b0;
-        tlast_q  <= 1'b0;
-      end else if (tstart_q && blki_tready_w) begin
-        tvalid_q <= 1'b1;
-        tlast_q  <= 1'b0;
-        tdata_q  <= $random;
-      end
-    end
-  end
+  // -- Simulation Stimulus -- //
 
   /**
    * Wrapper to the VPI model of a USB host, for providing the stimulus.
@@ -147,25 +119,6 @@ module vpi_usb_ulpi_tb;
       .stp  (ulpi_stp),
       .data (ulpi_data)
   );
-
-  // -- System Clocks & Resets -- //
-
-  ulpi_reset #(
-      .PHASE("0000"),  // Note: timing-constraints used instead
-      .PLLEN(0)
-  ) U_RESET1 (
-      .areset_n (arst_n),
-      .ulpi_clk (clock),
-      .sys_clock(clk25),
-
-      .ulpi_rst_n(usb_rst_n),  // Active LO
-      .pll_locked(locked),
-
-      // .usb_clock (clock),   // 60 MHz, PLL output, phase-shifted
-      .usb_reset(reset),  // Active HI
-      .ddr_clock()        // 120 MHz, PLL output, phase-shifted
-  );
-
 
   //
   // Cores Under New Tests
@@ -188,10 +141,11 @@ module vpi_usb_ulpi_tb;
       .LOGGER           (LOGGER),
       .USE_UART         (0)
   ) U_USB1 (
-      .clk_26(clk25),
+      .osc_in(clk25),
       .arst_n(arst_n),
 
       .ulpi_clk (usb_clock),
+      .ulpi_rst (usb_rst_n),
       .ulpi_dir (ulpi_dir),
       .ulpi_nxt (ulpi_nxt),
       .ulpi_stp (ulpi_stp),
@@ -259,22 +213,19 @@ module vpi_usb_ulpi_tb;
   end
 
   ddr3_top #(
-      .SRAM_BYTES(2048),
-      .DATA_WIDTH(32),
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
+      .SRAM_BYTES  (2048),
+      .DATA_WIDTH  (32),
+      .DFIFO_BYPASS(DATA_FIFO_BYPASS),
       .PHY_WR_DELAY(PHY_WR_DELAY),
       .PHY_RD_DELAY(PHY_RD_DELAY),
       .WRITE_DELAY (WRITE_DELAY),
       .CLOCK_SHIFT (CLOCK_SHIFT),
-
-      .INVERT_MCLK(INVERT_MCLK),
-      .INVERT_DCLK(INVERT_DCLK),
-      .RD_FASTPATH(RD_FASTPATH),
-      .WR_PREFETCH(WR_PREFETCH),
-      .LOW_LATENCY(LOW_LATENCY)
+      .RD_FASTPATH (RD_FASTPATH),
+      .WR_PREFETCH (WR_PREFETCH),
+      .LOW_LATENCY (LOW_LATENCY)
   ) U_DDRC1 (
-      .clk_26(clk25),  // Dev-board clock
+      .osc_in(clk25),  // Dev-board clock
       .arst_n(drst_n), // 'S2' button for async-reset
 
       .bus_clock(clock),

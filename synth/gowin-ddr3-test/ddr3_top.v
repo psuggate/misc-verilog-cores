@@ -1,4 +1,12 @@
 `timescale 1ns / 100ps
+/**
+ * DDR3 controller with a simple AXI-Stream interface. Mostly just a demo, and
+ * for testing the DDR3 controller.
+ *
+ * Copyright 2023, Patrick Suggate.
+ *
+ */
+
 // Comment this out to speed up Icarus Verilog simulations
 `define __gowin_for_the_win
 
@@ -6,24 +14,19 @@
 // Slower simulation performance, as the IOB's have to be simulated
 `define __gowin_for_the_win
 `endif  /* !__icarus */
+
 module ddr3_top #(
-<<<<<<< Updated upstream
-    parameter SRAM_BYTES = 2048,
-    parameter DATA_WIDTH = 32,
-    parameter DATA_FIFO_BYPASS = 0,
-=======
     parameter SRAM_BYTES   = 2048,
     parameter DATA_WIDTH   = 32,
     parameter DFIFO_BYPASS = 0,
 
     // Default clock-setup for 125 MHz DDR3 clock, from 27 MHz source
-    parameter CLK_IN_FREQ = "27",
-    parameter CLK_IDIV_SEL = 3,  // in  / 4
+    parameter CLK_IN_FREQ  = "27",
+    parameter CLK_IDIV_SEL = 3,   // in  / 4
     parameter CLK_FBDV_SEL = 36,  //     x37
-    parameter CLK_ODIV_SEL = 4,  // out / 4 (x2 DDR3 clock)
-    parameter CLK_SDIV_SEL = 2,  //     / 2
-    parameter DDR_FREQ_MHZ = 125,  // out: 249.75 / 2 MHz
->>>>>>> Stashed changes
+    parameter CLK_ODIV_SEL = 4,   // out / 4 (x2 DDR3 clock)
+    parameter CLK_SDIV_SEL = 2,   //     / 2
+    parameter DDR_FREQ_MHZ = 125, // out: 249.75 / 2 MHz
 
     // Settings for DLL=off mode
     parameter DDR_CL = 6,
@@ -32,32 +35,25 @@ module ddr3_top #(
     parameter PHY_RD_DELAY = 3,
 
     // Trims an additional clock-cycle of latency, if '1'
-<<<<<<< Updated upstream
-    parameter LOW_LATENCY = 1'b0,   // 0 or 1
-    parameter WR_PREFETCH = 1'b0,   // 0 or 1
-    parameter RD_FASTPATH = 1'b0,   // 0 or 1
-    parameter INVERT_MCLK = 0,
-    parameter INVERT_DCLK = 0,
-=======
     parameter LOW_LATENCY = 1'b0,  // 0 or 1
     parameter WR_PREFETCH = 1'b0,  // 0 or 1
     parameter RD_FASTPATH = 1'b0,  // 0 or 1
     parameter RD_PORTSWAP = 1'b0,  // 0 or 1
     parameter INVERT_MCLK = 0,  // Todo: unfinished, and to allow extra shifts
     parameter INVERT_DCLK = 0,  // Todo: unfinished, and to allow extra shifts
->>>>>>> Stashed changes
     parameter WRITE_DELAY = 2'b00,
     parameter CLOCK_SHIFT = 2'b10
 ) (
-    input clk_26,
+    input osc_in,  // Default: 27.0 MHz
     input arst_n,  // 'S2' button for async-reset
 
     input bus_clock,
     input bus_reset,
 
     output ddr3_conf_o,
-    output ddr_clock_o,
     output ddr_reset_o,
+    output ddr_clock_o,
+    output ddr_clkx2_o,
 
     // From USB or SPI
     input s_tvalid,
@@ -105,13 +101,6 @@ module ddr3_top #(
     inout [1:0] ddr_dqs_n,
     inout [15:0] ddr_dq
 );
-
-  localparam DDR_FREQ_MHZ = 100;
-
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
 
   // -- Constants -- //
 
@@ -166,8 +155,8 @@ module ddr3_top #(
   wire dfi_calib, dfi_align;
   wire [2:0] dfi_shift;
 
-  wire clk_200, clk_100, locked;
-  wire ddr_clk, clock, reset;
+  wire clk_x2, clk_x1, locked;
+  wire clock, reset;
 
   // TODO: set up this clock, as the DDR3 timings are quite fussy ...
 
@@ -177,17 +166,16 @@ module ddr3_top #(
   ///
   reg dclk = 1, mclk = 0, lock_q = 0;
 
-  assign clk_200 = dclk;
-  assign clk_100 = mclk;
-  assign locked  = lock_q;
+  localparam HCLK_DELAY = DDR_FREQ_MHZ > 100 ? 4.0 : 5.0;
+  localparam QCLK_DELAY = DDR_FREQ_MHZ > 100 ? 2.0 : 2.5;
 
-<<<<<<< Updated upstream
-  always #2.5 dclk <= ~dclk;
-  always #5.0 mclk <= ~mclk;
-=======
+  assign clk_x2 = dclk;
+  assign clk_x1 = mclk;
+  assign locked = lock_q;
+
   always #QCLK_DELAY dclk <= ~dclk;
   always #HCLK_DELAY mclk <= ~mclk;
->>>>>>> Stashed changes
+
   initial #20 lock_q = 0;
 
   always @(posedge mclk or negedge arst_n) begin
@@ -202,26 +190,27 @@ module ddr3_top #(
 
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(
-      .FCLKIN("27"),
-      .IDIV_SEL(IDIV_SEL),
-      .FBDIV_SEL(FBDIV_SEL),
-      .ODIV_SEL(ODIV_SEL),
-      .DYN_SDIV_SEL(SDIV_SEL)
+      .FCLKIN(CLK_IN_FREQ),
+      .IDIV_SEL(CLK_IDIV_SEL),
+      .FBDIV_SEL(CLK_FBDV_SEL),
+      .ODIV_SEL(CLK_ODIV_SEL),
+      .DYN_SDIV_SEL(CLK_SDIV_SEL)
   ) U_rPLL1 (
-      .clkout(clk_200),  // 200 MHz
-      .clockd(clk_100),  // 100 MHz
+      .clkout(clk_x2),  // Default: 249.75  MHz
+      .clockd(clk_x1),  // Default: 124.875 MHz
       .lock  (locked),
-      .clkin (clk_26),
+      .clkin (osc_in),
       .reset (~arst_n)
   );
 
 `endif  /* !__icarus */
 
-  assign ddr_clock_o = clock;
-  assign ddr_reset_o = reset;
+  assign ddr_reset_o = ~locked;
+  assign ddr_clock_o = clk_x1;
+  assign ddr_clkx2_o = clk_x2;
 
-  assign ddr_clk = clk_200;
-  assign clock = clk_100;
+  // Internal clock assigments
+  assign clock = clk_x1;
   assign reset = ~locked;
 
   // -- Processes & Dispatches Memory Requests -- //
@@ -303,38 +292,6 @@ module ddr3_top #(
   wire [1:0] dfi_wrdly;
   wire [2:0] dfi_rddly;
 
-<<<<<<< Updated upstream
-  wire crvalid, crready, cvalid, cready, clast;
-  wire [1:0] crburst, cresp;
-  wire [7:0] crlen;
-  wire [ASB:0] craddr;
-  wire [ISB:0] crid, cid;
-  wire [MSB:0] cdata;
-
-  wire arvalid, arready, rvalid, rready, rlast;
-  wire [1:0] arburst, rresp;
-  wire [7:0] arlen;
-  wire [ASB:0] araddr;
-  wire [ISB:0] arid, rid;
-  wire [MSB:0] rdata;
-
-  assign crvalid = BYPASS_ENABLE ? arvalid_w : 1'b0;
-  assign crid    = BYPASS_ENABLE ? arid_w : {REQID{1'bx}};
-  assign crlen   = BYPASS_ENABLE ? arlen_w : 8'bx;
-  assign crburst = BYPASS_ENABLE ? arburst_w : 2'bx;
-  assign craddr  = BYPASS_ENABLE ? araddr_w : {ADDRS{1'bx}};
-
-  assign arvalid = BYPASS_ENABLE ? 1'b0 : arvalid_w;
-  assign arid    = BYPASS_ENABLE ? {REQID{1'bx}} : arid_w;
-  assign arlen   = BYPASS_ENABLE ? 8'bx : arlen_w;
-  assign arburst = BYPASS_ENABLE ? 2'bx : arburst_w;
-  assign araddr  = BYPASS_ENABLE ? {ADDRS{1'bx}} : araddr_w;
-
-  assign arready_w = BYPASS_ENABLE ? crready : arready;
-
-  assign rready  = BYPASS_ENABLE ? 1'b0 : rready_w;
-  assign cready  = BYPASS_ENABLE ? rready_w : 1'b0;
-=======
   //
   // Select the source & destination channels for the bypass port
   //
@@ -414,7 +371,6 @@ module ddr3_top #(
   assign mr_rresp      = RD_PORTSWAP ? by_rresp : rd_rresp;
   assign mr_rid        = RD_PORTSWAP ? by_rid : rd_rid;
   assign mr_rdata      = RD_PORTSWAP ? by_rdata : rd_rdata;
->>>>>>> Stashed changes
 
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ    (DDR_FREQ_MHZ),
@@ -427,13 +383,8 @@ module ddr3_top #(
       .LOW_LATENCY     (LOW_LATENCY),
       .AXI_ID_WIDTH    (REQID),
       .MEM_ID_WIDTH    (REQID),
-<<<<<<< Updated upstream
-      .DATA_FIFO_BYPASS(DATA_FIFO_BYPASS),
-      .BYPASS_ENABLE   (BYPASS_ENABLE),
-=======
       .DFIFO_BYPASS    (DFIFO_BYPASS),
       .BYPASS_ENABLE   (RD_FASTPATH),
->>>>>>> Stashed changes
       .USE_PACKET_FIFOS(0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -535,7 +486,7 @@ module ddr3_top #(
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
-      .clk_ddr(ddr_clk),
+      .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),
       .dfi_cke_i (dfi_cke),
@@ -589,7 +540,7 @@ module ddr3_top #(
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),
-      .clk_ddr(ddr_clk),
+      .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),
       .dfi_cke_i (dfi_cke),

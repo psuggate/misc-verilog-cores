@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Sep 20 09:24:04 2024
+[*] Sun Sep 22 04:56:22 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Fri Sep 20 09:19:40 2024"
-[dumpfile_size] 61594928
+[dumpfile_mtime] "Sun Sep 22 04:55:28 2024"
+[dumpfile_size] 31324022
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 755352000
+[timestart] 757491000
 [size] 2560 1376
 [pos] -1 -1
-*-19.048487 758205000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.048487 758204000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -488,7 +488,6 @@ vpi_usb_ulpi_tb.ddr_rst_n
 vpi_usb_ulpi_tb.ddr_cke
 vpi_usb_ulpi_tb.ddr_cs_n
 vpi_usb_ulpi_tb.ddr_dqs_n[1:0]
-vpi_usb_ulpi_tb.reset
 vpi_usb_ulpi_tb.drst_n
 vpi_usb_ulpi_tb.sys_rst
 @1401200
