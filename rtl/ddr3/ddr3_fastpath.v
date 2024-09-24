@@ -182,9 +182,9 @@ module ddr3_fastpath #(
 
   assign ddl_rready_o = ctl_rready_i | (ENABLE & rdy_q & axi_rready_i);
 
-  assign ddl_req_o = (ENABLE && byp_w) || ctl_req_i;
+  // assign ddl_req_o = (ENABLE && byp_w) || ctl_req_i;
   assign ddl_seq_o = ENABLE && byp_w ? 1'b0 : ctl_seq_i;  // todo
-  assign ddl_cmd_o = ENABLE ? cmd_w : ctl_cmd_i;
+  // assign ddl_cmd_o = ENABLE ? cmd_w : ctl_cmd_i;
   assign ddl_ba_o  = ENABLE ? ba_w  : ctl_ba_i;
   assign ddl_adr_o = ENABLE ? adr_w : ctl_adr_i;
 
@@ -227,9 +227,6 @@ module ddr3_fastpath #(
   // Tracks the activated rows
   reg [RSB:0] row_sram [0:7];
   reg [7:0] row_actv;
-  wire same_row_w;
-
-  assign same_row_w = row_actv[bank_w] && row_sram[bank_w] == row_w;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -261,24 +258,6 @@ module ddr3_fastpath #(
     end
   end
 
-  // -- Burst-Sequence Detection -- //
-
-  // For AXI4 incrementing bursts, perform multiple, sequential (DDR3 SDRAM) BL8
-  // reads.
-  // todo: ...
-
-  always @(posedge clock) begin
-    if (reset) begin
-      burst <= 1'b0;
-    end else if (axi_arvalid_i && axi_rready_i) begin
-      burst <= axi_arlen_i > 3 && axi_arburst_i == BURST_TYPE_INCR;
-    end else if (axi_rvalid_o && axi_rready_i && axi_rlast_o) begin
-      burst <= 1'b0;
-    end else begin
-      burst <= burst;
-    end
-  end
-
   // -- Main State Machine -- //
 
   //
@@ -293,13 +272,59 @@ module ddr3_fastpath #(
   //
 
   reg byp_c, ack_c, ack_q;
-  reg [2:0] ba_c;
+  reg [2:0] ba_c, cmd_c;
   reg [RSB:0] row_c;
+  wire fast_sel_w, slow_sel_w, same_row_w, same_bank_w;
+  wire [2:0] fast_cmd_w, slow_cmd_w, axi_ba_w;
+  wire [RSB:0] axi_row_w;
+  wire [CSB:0] axi_col_w;
+
+  assign axi_row_w = axi_araddr_i[ASB:3+COL_BITS];
+  assign axi_ba_w  = axi_araddr_i[CSB+3:COL_BITS];
+  assign axi_col_w = axi_araddr_i[CSB:0];
+
+  // Note: due to 2T command-rate, these registers are fresh enough
+  assign same_row_w = row_actv[axi_ba_w] && row_sram[axi_ba_w] == axi_row_w;
+
+  // Note: due to 2T command-rate, do not issue back-to-back commands
+  assign fast_sel_w = ddl_req_o && ddl_rdy_i ? 1'b0 :
+                      ENABLE && axi_arvalid_i && axi_rready_i;
+  assign fast_cmd_w = same_row_w ? CMD_READ : // Already ACTIVATED
+                      row_actv[axi_ba_w] ? CMD_PREC : // PRECHARGE to switch rows
+                      CMD_ACTV; // ACTIVATE new row
+
+  // Registered commands, due to 2T command-rate, or for commands after the
+  // initial ACTIVATE.
+  assign slow_sel_w = ENABLE && byp_q;
+  assign slow_cmd_w = cmd_q;
+
+  assign ddl_req_o = fast_sel_w || slow_sel_w || ctl_req_i;
+  assign ddl_cmd_o = fast_sel_w ? fast_cmd_w :
+                     slow_sel_w ? slow_cmd_w :
+                     ctl_cmd_i;
 
   always @* begin
     snext = state;
     byp_c = byp_q;
     ack_c = ack_q;
+    cmd_c = cmd_q;
+
+    case (state)
+      ST_IDLE: begin
+        // Ignore requests if there is no space
+        if (axi_arvalid_i && axi_rready_i) begin
+          cmd_c = CMD_ACTV;
+        end
+      end
+    endcase
+  end
+
+  always @(posedge clock) begin
+    if (!ddl_run_i) begin
+      byp_q <= 1'b0;
+    end else begin
+      byp_q <= byp_c;
+    end
   end
 
   always @(posedge clock) begin
@@ -402,6 +427,23 @@ module ddr3_fastpath #(
     end
   end
 
+  // -- Burst-Sequence Detection -- //
+
+  // For AXI4 incrementing bursts, perform multiple, sequential (DDR3 SDRAM) BL8
+  // reads.
+  // todo: ...
+
+  always @(posedge clock) begin
+    if (reset) begin
+      burst <= 1'b0;
+    end else if (axi_arvalid_i && axi_rready_i) begin
+      burst <= axi_arlen_i > 3 && axi_arburst_i == BURST_TYPE_INCR;
+    end else if (axi_rvalid_o && axi_rready_i && axi_rlast_o) begin
+      burst <= 1'b0;
+    end else begin
+      burst <= burst;
+    end
+  end
 
 `ifdef __icarus
   //

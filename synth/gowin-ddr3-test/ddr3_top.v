@@ -9,6 +9,7 @@
 
 // Comment this out to speed up Icarus Verilog simulations
 `define __gowin_for_the_win
+// `undef __gowin_for_the_win
 
 `ifndef __icarus
 // Slower simulation performance, as the IOB's have to be simulated
@@ -531,6 +532,8 @@ module ddr3_top #(
   );
 
 `else  /* !__gowin_for_the_win */
+
+  assign dfi_calib = 1'b1;
 
   // Generic PHY -- that probably won't synthesise correctly, due to how the
   // (read-)data is registered ...
