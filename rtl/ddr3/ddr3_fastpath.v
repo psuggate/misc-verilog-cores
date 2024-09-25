@@ -175,17 +175,17 @@ module ddr3_fastpath #(
   assign axi_arready_o = ENABLE ? arack : 1'b0;
 
   assign axi_rvalid_o = ENABLE ? rdy_q & ddl_rvalid_i : 1'b0;
-  assign axi_rlast_o  = ENABLE ? ddl_rlast_i : 1'b0;
-  assign axi_rresp_o  = ENABLE ? RESP_OKAY : 2'bx;
-  assign axi_rid_o    = ENABLE ? axi_arid_i : {REQID{1'bx}};
-  assign axi_rdata_o  = ENABLE ? ddl_rdata_i : {WIDTH{1'bx}};
+  assign axi_rlast_o = ENABLE ? ddl_rlast_i : 1'b0;
+  assign axi_rresp_o = ENABLE ? RESP_OKAY : 2'bx;
+  assign axi_rid_o = ENABLE ? axi_arid_i : {REQID{1'bx}};
+  assign axi_rdata_o = ENABLE ? ddl_rdata_i : {WIDTH{1'bx}};
 
   assign ddl_rready_o = ctl_rready_i | (ENABLE & rdy_q & axi_rready_i);
 
   // assign ddl_req_o = (ENABLE && byp_w) || ctl_req_i;
   assign ddl_seq_o = ENABLE && byp_w ? 1'b0 : ctl_seq_i;  // todo
   // assign ddl_cmd_o = ENABLE ? cmd_w : ctl_cmd_i;
-  assign ddl_ba_o  = ENABLE ? ba_w  : ctl_ba_i;
+  assign ddl_ba_o = ENABLE ? ba_w : ctl_ba_i;
   assign ddl_adr_o = ENABLE ? adr_w : ctl_adr_i;
 
   assign ctl_run_o = ddl_run_i;
@@ -193,8 +193,8 @@ module ddr3_fastpath #(
   assign ctl_ref_o = ENABLE && byp_w ? 1'b0 : ddl_ref_i;  // todo
 
   assign ctl_rvalid_o = ENABLE && rdy_q ? 1'b0 : ddl_rvalid_i;
-  assign ctl_rlast_o  = ENABLE && req_q ? 1'bx : ddl_rlast_i;
-  assign ctl_rdata_o  = ENABLE && req_q ? {WIDTH{1'bx}} : ddl_rdata_i;
+  assign ctl_rlast_o = ENABLE && req_q ? 1'bx : ddl_rlast_i;
+  assign ctl_rdata_o = ENABLE && req_q ? {WIDTH{1'bx}} : ddl_rdata_i;
 
   assign byp_w = axi_arvalid_i & arack | req_q;
 
@@ -226,7 +226,7 @@ module ddr3_fastpath #(
 
   // Tracks the activated rows
   reg [RSB:0] row_sram [0:7];
-  reg [7:0] row_actv;
+  reg [  7:0] row_actv;
 
   always @(posedge clock) begin
     if (reset) begin
@@ -247,7 +247,7 @@ module ddr3_fastpath #(
         end
         CMD_PREC: begin
           if (ddl_adr_o[10] == 1'b1) begin
-            row_actv <= 8'd0; // PRECHARGE-ALL
+            row_actv <= 8'd0;  // PRECHARGE-ALL
           end else begin
             row_actv[ddl_ba_o] <= 1'b0;
           end
@@ -280,18 +280,17 @@ module ddr3_fastpath #(
   wire [CSB:0] axi_col_w;
 
   assign axi_row_w = axi_araddr_i[ASB:3+COL_BITS];
-  assign axi_ba_w  = axi_araddr_i[CSB+3:COL_BITS];
+  assign axi_ba_w = axi_araddr_i[CSB+3:COL_BITS];
   assign axi_col_w = axi_araddr_i[CSB:0];
 
   // Note: due to 2T command-rate, these registers are fresh enough
   assign same_row_w = row_actv[axi_ba_w] && row_sram[axi_ba_w] == axi_row_w;
 
   // Note: due to 2T command-rate, do not issue back-to-back commands
-  assign fast_sel_w = ddl_req_o && ddl_rdy_i ? 1'b0 :
-                      ENABLE && axi_arvalid_i && axi_rready_i;
-  assign fast_cmd_w = same_row_w ? CMD_READ : // Already ACTIVATED
-                      row_actv[axi_ba_w] ? CMD_PREC : // PRECHARGE to switch rows
-                      CMD_ACTV; // ACTIVATE new row
+  assign fast_sel_w = ddl_req_o && ddl_rdy_i ? 1'b0 : ENABLE && axi_arvalid_i && axi_rready_i;
+  assign fast_cmd_w = same_row_w ? CMD_READ :  // Already ACTIVATED
+      row_actv[axi_ba_w] ? CMD_PREC :  // PRECHARGE to switch rows
+      CMD_ACTV;  // ACTIVATE new row
 
   // Registered commands, due to 2T command-rate, or for commands after the
   // initial ACTIVATE.
@@ -299,9 +298,7 @@ module ddr3_fastpath #(
   assign slow_cmd_w = cmd_q;
 
   assign ddl_req_o = fast_sel_w || slow_sel_w || ctl_req_i;
-  assign ddl_cmd_o = fast_sel_w ? fast_cmd_w :
-                     slow_sel_w ? slow_cmd_w :
-                     ctl_cmd_i;
+  assign ddl_cmd_o = fast_sel_w ? fast_cmd_w : slow_sel_w ? slow_cmd_w : ctl_cmd_i;
 
   always @* begin
     snext = state;
@@ -450,8 +447,8 @@ module ddr3_fastpath #(
   //  Simulation Only
   ///
 
-  reg [39:0] dbg_state, dbg_snext, dbg_cmd;
-  wire [2:0] dbg_cmd_w;
+  reg [39:0] dbg_state, dbg_snext, dbg_cmd, dbg_byp;
+  wire [2:0] dbg_cmd_w, dbg_byp_w;
 
   always @(posedge clock or posedge reset) begin
     if (!reset && axi_arvalid_i && axi_arready_o) begin
@@ -481,19 +478,35 @@ module ddr3_fastpath #(
     endcase
   end
 
-  assign dbg_cmd_w = ddl_rdy_i ? cmd_q : CMD_NOOP;
+  assign dbg_cmd_w = ddl_rdy_i ? ddl_cmd_o : CMD_NOOP;
 
   always @* begin
     case (dbg_cmd_w)
       CMD_MODE: dbg_cmd = "MRS";
       CMD_REFR: dbg_cmd = "REF";
-      CMD_PREC: dbg_cmd = adr_q[10] ? "PREA" : "PRE";
+      CMD_PREC: dbg_cmd = ddl_adr_o[10] ? "PREA" : "PRE";
       CMD_ACTV: dbg_cmd = "ACT";
-      CMD_WRIT: dbg_cmd = adr_q[10] ? "WR-A" : "WR";
-      CMD_READ: dbg_cmd = adr_q[10] ? "RD-A" : "RD";
+      CMD_WRIT: dbg_cmd = ddl_adr_o[10] ? "WR-A" : "WR";
+      CMD_READ: dbg_cmd = ddl_adr_o[10] ? "RD-A" : "RD";
       CMD_ZQCL: dbg_cmd = "ZQCL";
-      CMD_NOOP: dbg_cmd = "---";
+      CMD_NOOP: dbg_cmd = " --";
       default:  dbg_cmd = "XXX";
+    endcase
+  end
+
+  assign dbg_byp_w = ddl_rdy_i ? cmd_q : CMD_NOOP;
+
+  always @* begin
+    case (dbg_byp_w)
+      CMD_MODE: dbg_byp = "MRS";
+      CMD_REFR: dbg_byp = "REF";
+      CMD_PREC: dbg_byp = adr_q[10] ? "PREA" : "PRE";
+      CMD_ACTV: dbg_byp = "ACT";
+      CMD_WRIT: dbg_byp = adr_q[10] ? "WR-A" : "WR";
+      CMD_READ: dbg_byp = adr_q[10] ? "RD-A" : "RD";
+      CMD_ZQCL: dbg_byp = "ZQCL";
+      CMD_NOOP: dbg_byp = "---";
+      default:  dbg_byp = "XXX";
     endcase
   end
 

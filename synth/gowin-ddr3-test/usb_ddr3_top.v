@@ -83,7 +83,7 @@ module usb_ddr3_top (
 
   // -- DDR3 Settings -- //
 
-  localparam LOW_LATENCY = 0;  // Default value
+  localparam LOW_LATENCY = 1;  // Default value
   localparam WR_PREFETCH = 0;  // Default value
   localparam INVERT_MCLK = 0;  // Default value
   localparam INVERT_DCLK = 0;  // Todo ...

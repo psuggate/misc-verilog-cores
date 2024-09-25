@@ -22,12 +22,12 @@ module ddr3_top #(
     parameter DFIFO_BYPASS = 0,
 
     // Default clock-setup for 125 MHz DDR3 clock, from 27 MHz source
-    parameter CLK_IN_FREQ  = "27",
-    parameter CLK_IDIV_SEL = 3,   // in  / 4
+    parameter CLK_IN_FREQ = "27",
+    parameter CLK_IDIV_SEL = 3,  // in  / 4
     parameter CLK_FBDV_SEL = 36,  //     x37
-    parameter CLK_ODIV_SEL = 4,   // out / 4 (x2 DDR3 clock)
-    parameter CLK_SDIV_SEL = 2,   //     / 2
-    parameter DDR_FREQ_MHZ = 125, // out: 249.75 / 2 MHz
+    parameter CLK_ODIV_SEL = 4,  // out / 4 (x2 DDR3 clock)
+    parameter CLK_SDIV_SEL = 2,  //     / 2
+    parameter DDR_FREQ_MHZ = 125,  // out: 249.75 / 2 MHz
 
     // Settings for DLL=off mode
     parameter DDR_CL = 6,
@@ -43,7 +43,10 @@ module ddr3_top #(
     parameter INVERT_MCLK = 0,  // Todo: unfinished, and to allow extra shifts
     parameter INVERT_DCLK = 0,  // Todo: unfinished, and to allow extra shifts
     parameter WRITE_DELAY = 2'b00,
-    parameter CLOCK_SHIFT = 2'b10
+    parameter CLOCK_SHIFT = 2'b10,
+
+    parameter  REQID = 4,
+    localparam ISB   = REQID - 1
 ) (
     input osc_in,  // Default: 27.0 MHz
     input arst_n,  // 'S2' button for async-reset
@@ -127,10 +130,6 @@ module ddr3_top #(
   // note: (AXI4) byte address, not burst-aligned address
   localparam ADDRS = DDR_COL_BITS + DDR_ROW_BITS + 4;
   localparam ASB = ADDRS - 1;
-
-  localparam REQID = 4;
-  localparam ISB = REQID - 1;
-
 
   // -- DDR3 Core and AXI Interconnect Signals -- //
 

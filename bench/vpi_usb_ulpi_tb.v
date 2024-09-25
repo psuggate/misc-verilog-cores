@@ -16,7 +16,7 @@ module vpi_usb_ulpi_tb;
 `else  /* !__spaghetti_concatenate */
   localparam RD_FASTPATH = 0;
 `endif  /* !__spaghetti_concatenate */
-  localparam LOW_LATENCY = 0;
+  localparam LOW_LATENCY = 1;
   localparam WRITE_DELAY = 2'b01;  // Default value (sim)
   localparam CLOCK_SHIFT = 2'b01;  // Default value
 `ifdef __gowin_for_the_win
@@ -27,6 +27,9 @@ module vpi_usb_ulpi_tb;
   localparam PHY_WR_DELAY = 1;
   localparam PHY_RD_DELAY = 1;
 `endif  /* !__gowin_for_the_win */
+
+  localparam ADDRS = 27;
+  localparam REQID = 4;
 
   // initial #759010 $finish;
 
@@ -248,6 +251,21 @@ module vpi_usb_ulpi_tb;
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
+
+      // Fast-read channels [optional]
+      .byp_arvalid_i(1'b0),
+      .byp_arready_o(),
+      .byp_araddr_i({ADDRS{1'b0}}),
+      .byp_arid_i({REQID{1'b0}}),
+      .byp_arlen_i(8'd0),
+      .byp_arburst_i(2'd0),
+
+      .byp_rvalid_o(),
+      .byp_rready_i(1'b1),
+      .byp_rlast_o(),
+      .byp_rresp_o(),
+      .byp_rid_o(),
+      .byp_rdata_o(),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck_p),

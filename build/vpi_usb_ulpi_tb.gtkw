@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Sep 24 08:51:25 2024
+[*] Wed Sep 25 04:30:40 2024
 [*]
 [dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Tue Sep 24 08:50:25 2024"
-[dumpfile_size] 31334333
+[dumpfile_mtime] "Wed Sep 25 04:24:10 2024"
+[dumpfile_size] 31338428
 [savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 757491000
+[timestart] 749158500
 [size] 2560 1376
 [pos] -1 -1
-*-17.048487 758105000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.048487 749505000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -479,12 +479,20 @@ vpi_usb_ulpi_tb.drst_n
 vpi_usb_ulpi_tb.sys_rst
 @1401200
 -Testbench
+@800200
+-FastPath
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_cmd[39:0]
+@25
+vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_cmd_o[2:0]
 @22
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.row_actv[7:0]
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_req_o
-@29
 [color] 3
 vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_rdy_i
+@1000200
+-FastPath
 [pattern_trace] 1
 [pattern_trace] 0
