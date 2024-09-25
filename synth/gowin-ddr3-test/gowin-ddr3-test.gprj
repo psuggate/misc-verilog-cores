@@ -19,6 +19,7 @@
         <File path="../../rtl/axis/skid_fun.vh" type="file.verilog" enable="1"/>
         <File path="../../rtl/axis/skid_loader.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/axi_ddr3_lite.v" type="file.verilog" enable="1"/>
+        <File path="../../rtl/ddr3/axi_ddr3_plus.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/axi_rd_path.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/axi_wr_path.v" type="file.verilog" enable="1"/>
         <File path="../../rtl/ddr3/ddr3_axi_ctrl.v" type="file.verilog" enable="1"/>

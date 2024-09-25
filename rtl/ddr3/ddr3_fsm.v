@@ -253,6 +253,9 @@ module ddr3_fsm #(
 
   always @(posedge clock or negedge arst_n) begin
     if (!arst_n) begin
+      adr_q <= {DDR_ROW_BITS{1'bx}};
+      col_q <= {DDR_COL_BITS{1'bx}};
+      ba_q  <= 3'bx;
       pre_q <= 0;
       wrack <= 1'b0;
       rdack <= 1'b0;
@@ -278,7 +281,6 @@ module ddr3_fsm #(
   //
   //  Simulation Only
   ///
-
   reg [39:0] dbg_state, dbg_snext;
 
   always @* begin
@@ -318,6 +320,5 @@ module ddr3_fsm #(
   end
 
 `endif  /* !__icarus */
-
 
 endmodule  /* ddr3_fsm */
