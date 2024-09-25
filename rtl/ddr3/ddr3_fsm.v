@@ -55,9 +55,6 @@ module ddr3_fsm #(
     input clock,  // Shared clock domain for the memory-controller
     input reset,  // Synchronous reset
 
-    output [4:0] state_o,
-    output [4:0] snext_o,
-
     // Write-request port
     input mem_wrreq_i,
     input mem_wrlst_i,  // If asserted, then LAST of burst
@@ -135,9 +132,6 @@ module ddr3_fsm #(
   reg [2:0] ba_c, ba_q, cmd_c, cmd_q;
   reg [PSB:0] pre_c, pre_q;
   reg wak_c, wrack, rak_c, rdack, req_c, req_q, wen_c, wen_q;
-
-  assign state_o = state;
-  assign snext_o = snext;
 
   assign cfg_rdy_o = ddl_rdy_i;
 

@@ -182,9 +182,7 @@ module ddr3_fastpath #(
 
   assign ddl_rready_o = ctl_rready_i | (ENABLE & rdy_q & axi_rready_i);
 
-  // assign ddl_req_o = (ENABLE && byp_w) || ctl_req_i;
   assign ddl_seq_o = ENABLE && byp_w ? 1'b0 : ctl_seq_i;  // todo
-  // assign ddl_cmd_o = ENABLE ? cmd_w : ctl_cmd_i;
   assign ddl_ba_o = ENABLE ? ba_w : ctl_ba_i;
   assign ddl_adr_o = ENABLE ? adr_w : ctl_adr_i;
 
@@ -201,7 +199,6 @@ module ddr3_fastpath #(
   assign precharge_w = axi_arvalid_i && arack && active_q && bank_w == actv_ba && row_w != actv_row;
   assign fast_read_w = axi_arvalid_i && arack && active_q && bank_w == actv_ba && row_w == actv_row;
 
-  // assign cmd_w  = state == ST_IDLE ? CMD_ACTV : cmd_q;
   assign cmd_w = req_q ? cmd_q
                : ~axi_arvalid_i | ~arack ? ctl_cmd_i
                : precharge_w ? CMD_PREC
@@ -505,7 +502,7 @@ module ddr3_fastpath #(
       CMD_WRIT: dbg_byp = adr_q[10] ? "WR-A" : "WR";
       CMD_READ: dbg_byp = adr_q[10] ? "RD-A" : "RD";
       CMD_ZQCL: dbg_byp = "ZQCL";
-      CMD_NOOP: dbg_byp = "---";
+      CMD_NOOP: dbg_byp = " --";
       default:  dbg_byp = "XXX";
     endcase
   end

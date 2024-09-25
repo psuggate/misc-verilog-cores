@@ -372,20 +372,20 @@ module ddr3_top #(
   assign mr_rid        = RD_PORTSWAP ? by_rid : rd_rid;
   assign mr_rdata      = RD_PORTSWAP ? by_rdata : rd_rdata;
 
-  axi_ddr3_lite #(
-      .DDR_FREQ_MHZ    (DDR_FREQ_MHZ),
-      .DDR_ROW_BITS    (DDR_ROW_BITS),
-      .DDR_COL_BITS    (DDR_COL_BITS),
-      .DDR_DQ_WIDTH    (DDR_DQ_WIDTH),
-      .PHY_WR_DELAY    (PHY_WR_DELAY),
-      .PHY_RD_DELAY    (PHY_RD_DELAY),
-      .WR_PREFETCH     (WR_PREFETCH),
-      .LOW_LATENCY     (LOW_LATENCY),
-      .AXI_ID_WIDTH    (REQID),
-      .MEM_ID_WIDTH    (REQID),
-      .DFIFO_BYPASS    (DFIFO_BYPASS),
-      .BYPASS_ENABLE   (RD_FASTPATH),
-      .USE_PACKET_FIFOS(0)
+  axi_ddr3_plus #(
+      .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
+      .DDR_ROW_BITS (DDR_ROW_BITS),
+      .DDR_COL_BITS (DDR_COL_BITS),
+      .DDR_DQ_WIDTH (DDR_DQ_WIDTH),
+      .PHY_WR_DELAY (PHY_WR_DELAY),
+      .PHY_RD_DELAY (PHY_RD_DELAY),
+      .WR_PREFETCH  (WR_PREFETCH),
+      .LOW_LATENCY  (LOW_LATENCY),
+      .AXI_ID_WIDTH (REQID),
+      .MEM_ID_WIDTH (REQID),
+      .DFIFO_BYPASS (DFIFO_BYPASS),
+      .BYPASS_ENABLE(RD_FASTPATH),
+      .PACKET_FIFOS (0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
 

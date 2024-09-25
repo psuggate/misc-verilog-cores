@@ -96,6 +96,7 @@ module usb_ddr3_top (
   localparam DDR_FREQ_MHZ = 125;
   localparam IDIV_SEL = 3;
   localparam FBDIV_SEL = 36;
+  // localparam FBDIV_SEL = 39; // Works with 'PHY_RD_DELAY = 3', below
   localparam ODIV_SEL = 4;
   localparam SDIV_SEL = 2;
 
@@ -103,6 +104,7 @@ module usb_ddr3_top (
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
+  // localparam PHY_RD_DELAY = 3; // Works with 'FBDIV_SEL = 39', above
 `else  /* !DDR_FREQ_MHZ */
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   localparam DDR_FREQ_MHZ = 100;
@@ -238,6 +240,9 @@ module usb_ddr3_top (
   //  DDR3 Cores Under Next-generation Tests
   ///
 
+  localparam ADDRS = 27;
+  localparam REQID = 4;
+
   assign y_tkeep = y_tvalid;  // Todo ...
 
   ddr3_top #(
@@ -279,6 +284,21 @@ module usb_ddr3_top (
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
+
+      // Fast-read channels [optional]
+      .byp_arvalid_i(1'b0),
+      .byp_arready_o(),
+      .byp_araddr_i({ADDRS{1'b0}}),
+      .byp_arid_i({REQID{1'b0}}),
+      .byp_arlen_i(8'd0),
+      .byp_arburst_i(2'd0),
+
+      .byp_rvalid_o(),
+      .byp_rready_i(1'b1),
+      .byp_rlast_o(),
+      .byp_rresp_o(),
+      .byp_rid_o(),
+      .byp_rdata_o(),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck),

@@ -1,16 +1,13 @@
 `timescale 1ns / 100ps
 /**
- * A simple DDR3 controller with an AXI4 interface.
- *
- * Notes:
- *  - only one bank + row are active at a time, with the current design;
- *  - if address-alignments or burst-sizes are not supported, the result of the
- *    transaction may not be what was expected;
+ * DDR3 controller with a simple AXI4 interface, and an optional read-only AXI4-
+ * style interface, for "fast-path reads" (though this latter inferface is not
+ * yet working).
  *
  * Copyright 2023, Patrick Suggate.
  *
  */
-module axi_ddr3_lite #(
+module axi_ddr3_plus #(
     // Settings for DLL=off mode
     parameter DDR_FREQ_MHZ = 100,
     parameter DDR_CL = 6,
@@ -31,6 +28,9 @@ module axi_ddr3_lite #(
     // delay).
     // Note: the 'gw2a_ddr3_phy' requires this to be enabled
     parameter WR_PREFETCH = 1'b0,
+
+    // Enables the (read-) bypass port
+    parameter BYPASS_ENABLE = 1'b0,
 
     // Size of bursts from memory controller perspective
     parameter PHY_BURSTLEN = 4,
@@ -118,6 +118,20 @@ module axi_ddr3_lite #(
     output [ISB:0] axi_rid_o,
     output [MSB:0] axi_rdata_o,
 
+    input byp_arvalid_i,  // [optional] fast-read port
+    output byp_arready_o,
+    input [ASB:0] byp_araddr_i,
+    input [ISB:0] byp_arid_i,
+    input [7:0] byp_arlen_i,
+    input [1:0] byp_arburst_i,
+
+    input byp_rready_i,
+    output byp_rvalid_o,
+    output byp_rlast_o,
+    output [1:0] byp_rresp_o,
+    output [ISB:0] byp_rid_o,
+    output [MSB:0] byp_rdata_o,
+
     output dfi_align_o,
     input  dfi_calib_i,
 
@@ -150,8 +164,9 @@ module axi_ddr3_lite #(
   // AXI <-> FSM signals
   wire fsm_wrreq, fsm_wrlst, fsm_wrack, fsm_wrerr;
   wire fsm_rdreq, fsm_rdlst, fsm_rdack, fsm_rderr;
-  wire [TSB:0] fsm_wrtid, fsm_rdtid;
-  wire [FSB:0] fsm_wradr, fsm_rdadr;
+  wire byp_rdreq, byp_rdack, byp_rderr;
+  wire [TSB:0] fsm_wrtid, fsm_rdtid, byp_rdtid;
+  wire [FSB:0] fsm_wradr, fsm_rdadr, byp_rdadr;
 
   // AXI <-> {FSM, DDL} signals
   wire wr_valid, wr_ready, wr_last;
@@ -166,6 +181,13 @@ module axi_ddr3_lite #(
   wire cfg_req, cfg_run, cfg_rdy, cfg_ref;
   wire [2:0] cfg_cmd, cfg_ba;
   wire [RSB:0] cfg_adr;
+
+  wire ctl_run, ctl_req, ctl_seq, ctl_rdy;
+  wire [2:0] ctl_cmd, ctl_ba;
+  wire [RSB:0] ctl_adr;
+
+  wire by_valid, by_ready, by_last;
+  wire [MSB:0] by_data;
 
   assign configured_o = en_q;
 
@@ -285,11 +307,126 @@ module axi_ddr3_lite #(
       .ddl_req_o(ddl_req),  // Controller <-> DFI
       .ddl_seq_o(ddl_seq),
       .ddl_rdy_i(ddl_rdy),
-      .ddl_ref_i(cfg_ref),
+      .ddl_ref_i(ddl_ref),
       .ddl_cmd_o(ddl_cmd),
       .ddl_ba_o (ddl_ba),
       .ddl_adr_o(ddl_adr)
   );
+
+`ifdef __use_crusty_old_bypass
+
+  ddr3_bypass #(
+      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
+      .DDR_ROW_BITS(DDR_ROW_BITS),
+      .DDR_COL_BITS(DDR_COL_BITS),
+      .WIDTH(AXI_DAT_BITS),
+      .ADDRS(FSM_ADDRS),
+      .REQID(AXI_ID_WIDTH),
+      .BYPASS_ENABLE(BYPASS_ENABLE)
+  ) U_BYPASS (
+      .clock(clock),
+      .reset(~en_q),
+
+      .axi_arvalid_i(byp_arvalid_i),  // AXI4 fast-path, read-only port
+      .axi_arready_o(byp_arready_o),
+      .axi_araddr_i(byp_araddr_i[ASB:ADDRS_LSB]),
+      .axi_arid_i(byp_arid_i),
+      .axi_arlen_i(byp_arlen_i),
+      .axi_arburst_i(byp_arburst_i),
+
+      .axi_rready_i(byp_rready_i),
+      .axi_rvalid_o(byp_rvalid_o),
+      .axi_rlast_o(byp_rlast_o),
+      .axi_rresp_o(byp_rresp_o),
+      .axi_rid_o(byp_rid_o),
+      .axi_rdata_o(byp_rdata_o),
+
+      .ddl_rvalid_i(by_valid),  // DDL READ data-path
+      .ddl_rready_o(by_ready),
+      .ddl_rlast_i (by_last),
+      .ddl_rdata_i (by_data),
+
+      .byp_run_i(cfg_run),  // Connects to the DDL
+      .byp_req_o(ctl_req),
+      .byp_seq_o(ctl_seq),  // Todo ...
+      .byp_ref_i(cfg_ref),
+      .byp_rdy_i(ctl_rdy),
+      .byp_cmd_o(ctl_cmd),
+      .byp_ba_o (ctl_ba),
+      .byp_adr_o(ctl_adr),
+
+      .ctl_run_o(),  // Intercepts these memory controller -> DDL signals
+      .ctl_req_i(ddl_req),
+      .ctl_seq_i(ddl_seq),
+      .ctl_ref_o(ddl_ref),
+      .ctl_rdy_o(ddl_rdy),
+      .ctl_cmd_i(ddl_cmd),
+      .ctl_ba_i(ddl_ba),
+      .ctl_adr_i(ddl_adr),
+
+      .ctl_rvalid_o(rd_valid),  // READ data from DDL -> memory controller data-path
+      .ctl_rready_i(rd_ready),
+      .ctl_rlast_o (rd_last),
+      .ctl_rdata_o (rd_data)
+  );
+
+`else  /* !__use_crusty_old_bypass */
+
+  ddr3_fastpath #(
+      .ROW_BITS(DDR_ROW_BITS),
+      .COL_BITS(DDR_COL_BITS),
+      .WIDTH(AXI_DAT_BITS),
+      .ADDRS(FSM_ADDRS),
+      .REQID(AXI_ID_WIDTH),
+      .ENABLE(BYPASS_ENABLE)
+  ) U_BYPASS (
+      .clock(clock),
+      .reset(~en_q),
+
+      .axi_arvalid_i(byp_arvalid_i),  // AXI4 fast-path, read-only port
+      .axi_arready_o(byp_arready_o),
+      .axi_araddr_i(byp_araddr_i[ASB:ADDRS_LSB]),
+      .axi_arid_i(byp_arid_i),
+      .axi_arlen_i(byp_arlen_i),
+      .axi_arburst_i(byp_arburst_i),
+
+      .axi_rready_i(byp_rready_i),
+      .axi_rvalid_o(byp_rvalid_o),
+      .axi_rlast_o(byp_rlast_o),
+      .axi_rresp_o(byp_rresp_o),
+      .axi_rid_o(byp_rid_o),
+      .axi_rdata_o(byp_rdata_o),
+
+      .ddl_rvalid_i(by_valid),  // DDL READ data-path
+      .ddl_rready_o(by_ready),
+      .ddl_rlast_i (by_last),
+      .ddl_rdata_i (by_data),
+
+      .ddl_run_i(cfg_run),  // Connects to the DDL
+      .ddl_req_o(ctl_req),
+      .ddl_seq_o(ctl_seq),  // Todo ...
+      .ddl_ref_i(cfg_ref),
+      .ddl_rdy_i(ctl_rdy),
+      .ddl_cmd_o(ctl_cmd),
+      .ddl_ba_o (ctl_ba),
+      .ddl_adr_o(ctl_adr),
+
+      .ctl_run_o(),  // Intercepts these memory controller -> DDL signals
+      .ctl_req_i(ddl_req),
+      .ctl_seq_i(ddl_seq),
+      .ctl_ref_o(ddl_ref),
+      .ctl_rdy_o(ddl_rdy),
+      .ctl_cmd_i(ddl_cmd),
+      .ctl_ba_i(ddl_ba),
+      .ctl_adr_i(ddl_adr),
+
+      .ctl_rvalid_o(rd_valid),  // READ data from DDL -> memory controller data-path
+      .ctl_rready_i(rd_ready),
+      .ctl_rlast_o (rd_last),
+      .ctl_rdata_o (rd_data)
+  );
+
+`endif  /* !__use_crusty_old_bypass */
 
   // -- Coordinate with the DDR3 to PHY Interface -- //
 
@@ -310,12 +447,12 @@ module axi_ddr3_lite #(
       .ddr_cke_i(dfi_cke_o),
       .ddr_cs_ni(dfi_cs_no),
 
-      .ctl_seq_i(1'b0),  // ddl_seq),  // Todo ...
-      .ctl_req_i(ddl_req),
-      .ctl_rdy_o(ddl_rdy),
-      .ctl_cmd_i(ddl_cmd),
-      .ctl_ba_i(ddl_ba),
-      .ctl_adr_i(ddl_adr),
+      .ctl_seq_i(1'b0),  // Todo ...
+      .ctl_req_i(ctl_req),
+      .ctl_rdy_o(ctl_rdy),
+      .ctl_cmd_i(ctl_cmd),
+      .ctl_ba_i(ctl_ba),
+      .ctl_adr_i(ctl_adr),
 
       .mem_wvalid_i(wr_valid),
       .mem_wready_o(wr_ready),
@@ -323,10 +460,10 @@ module axi_ddr3_lite #(
       .mem_wrmask_i(wr_mask),
       .mem_wrdata_i(wr_data),
 
-      .mem_rvalid_o(rd_valid),
-      .mem_rready_i(rd_ready),
-      .mem_rlast_o (rd_last),
-      .mem_rddata_o(rd_data),
+      .mem_rvalid_o(by_valid),
+      .mem_rready_i(by_ready),
+      .mem_rlast_o (by_last),
+      .mem_rddata_o(by_data),
 
       .dfi_ras_no(dfi_ras_no),
       .dfi_cas_no(dfi_cas_no),
@@ -368,4 +505,4 @@ module axi_ddr3_lite #(
   );
 
 
-endmodule  /* axi_ddr3_lite */
+endmodule  /* axi_ddr3_plus */
