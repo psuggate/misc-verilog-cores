@@ -24,7 +24,7 @@ module axi_ddr3_lite_tb;
   // Trims an additional clock-cycle of latency, if '1'
   localparam LOW_LATENCY = 1'b1;  // 0 or 1
   localparam WR_PREFETCH = 1'b0;
-  localparam BYPASS_ENABLE = 1'b1;
+  localparam BYPASS_ENABLE = 1'b0;
 
   // -- Data-path and address settings -- //
 
