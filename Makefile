@@ -4,6 +4,7 @@ all:	vpi
 	@make -C rtl all
 	@make -C rtl/fifo all
 	@make -C synth all
+	@make -C driver all
 
 vpi:
 	@make -C vpi all
@@ -52,6 +53,11 @@ OPT	?= --number-sections
 doc:	$(PDF) $(PIC) $(PNG) $(INC)
 
 clean:
+	@make -C bench clean
+	@make -C build clean
+	@make -C driver clean
+	@make -C rtl clean
+	@make -C vpi clean
 	rm -f $(PDF) $(LTX) $(PIC)
 
 # Implicit rules:

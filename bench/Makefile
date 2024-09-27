@@ -1,4 +1,4 @@
-.PHONY:	all build sim
+.PHONY:	all build clean sim
 all:	sim
 
 #
@@ -41,6 +41,9 @@ sim:	build
 usbsim:	$(USB_O)
 
 build:	$(OUT)
+
+clean:
+	@make -C spi clean
 
 ../build/%.out: %.v $(LIB)
 	$(IVC) $(OPT) -L../vpi -mulpisim -o $@ -s $(*F) $^

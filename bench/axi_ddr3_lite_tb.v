@@ -325,22 +325,22 @@ module axi_ddr3_lite_tb;
   //  DDR Core Under New Test
   ///
 
-  axi_ddr3_lite #(
-      .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
-      .DDR_ROW_BITS(DDR_ROW_BITS),
-      .DDR_COL_BITS(DDR_COL_BITS),
-      .DDR_DQ_WIDTH(WIDTH / 2),
-      .PHY_WR_DELAY(PHY_WR_DELAY),
-      .PHY_RD_DELAY(PHY_RD_DELAY),
-      .WR_PREFETCH(WR_PREFETCH),
-      .LOW_LATENCY(LOW_LATENCY),
-      .AXI_ID_WIDTH(REQID),
-      .MEM_ID_WIDTH(REQID),
+  axi_ddr3_plus #(
+      .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
+      .DDR_ROW_BITS (DDR_ROW_BITS),
+      .DDR_COL_BITS (DDR_COL_BITS),
+      .DDR_DQ_WIDTH (WIDTH / 2),
+      .PHY_WR_DELAY (PHY_WR_DELAY),
+      .PHY_RD_DELAY (PHY_RD_DELAY),
+      .WR_PREFETCH  (WR_PREFETCH),
+      .LOW_LATENCY  (LOW_LATENCY),
+      .AXI_ID_WIDTH (REQID),
+      .MEM_ID_WIDTH (REQID),
       .BYPASS_ENABLE(BYPASS_ENABLE)
   ) ddr_core_inst (
-      .clock(clock),  // system clock
-      .reset(reset),  // synchronous reset
-                   .arst_n(1'b1),
+      .clock (clock),  // system clock
+      .reset (reset),  // synchronous reset
+      .arst_n(1'b1),
 
       .axi_awvalid_i(awvalid),
       .axi_awready_o(awready),
