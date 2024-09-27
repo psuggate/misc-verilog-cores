@@ -596,9 +596,3 @@ void ut_register(void)
 
     vpi_register_systf(&tf_data);
 }
-
-void (*vlog_startup_routines[])() = {
-    ut_register,
-    pt_register,
-    0,
-};
