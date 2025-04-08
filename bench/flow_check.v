@@ -15,14 +15,16 @@ module axis_flow_check #(
   localparam MSB = WIDTH - 1;
 
 `ifdef __icarus
-  reg error = 1'b0;
+  assign error = err_q;
+
+  reg err_q = 1'b0;
   reg prev_tvalid, prev_tlast, prev_tready;
   reg [MSB:0] prev_tdata;
 
 
   always @(posedge clock) begin
     if (reset) begin
-      error <= 1'b0;
+      err_q <= 1'b0;
       prev_tvalid <= 1'b0;
       prev_tready <= 1'b0;
       prev_tlast  <= 1'b0;
@@ -40,23 +42,28 @@ module axis_flow_check #(
       //
       if (prev_tvalid && !prev_tready) begin
         if (axis_tvalid != prev_tvalid) begin
-          error <= 1'b1;
+          err_q <= 1'b1;
           $error("%10t: 'tvalid' de-asserted without 'tready'", $time);
         end
         if (axis_tlast != prev_tlast) begin
-          error <= 1'b1;
+          err_q <= 1'b1;
           $error("%10t: 'tlast' changed without 'tready'", $time);
         end
         if (axis_tdata != prev_tdata) begin
-          error <= 1'b1;
+          err_q <= 1'b1;
           $error("%10t: 'tdata' changed without 'tready'", $time);
         end
       end else begin
-        error <= 1'b0;
+        err_q <= 1'b0;
       end
     end
   end
-`endif
+
+`else  /* !__icarus */
+
+  assign error = 1'x;
+
+`endif /* !__icarus */
 
 
 endmodule  // axis_flow_check
