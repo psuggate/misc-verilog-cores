@@ -28,12 +28,8 @@ VERILOGS := ${BENCH}/spi/spi_to_spi.v \
         ${RTL}/ddr3/ddr3_axi_ctrl.v \
         ${RTL}/ddr3/ddr3_bypass.v \
         ${RTL}/ddr3/ddr3_cfg.v \
-        ${RTL}/ddr3/ddr3_cfg_tb.v \
         ${RTL}/ddr3/ddr3_ddl.v \
-        ${RTL}/ddr3/ddr3_ddl_tb.v \
         ${RTL}/ddr3/ddr3_fsm.v \
-        ${RTL}/ddr3/ddr3_fsm_tb.v \
-        ${RTL}/ddr3/ddr3_telemetry.v \
         ${RTL}/fifo/afifo_gray.v \
         ${RTL}/fifo/axis_afifo.v \
         ${RTL}/fifo/packet_fifo.v \
@@ -48,15 +44,17 @@ VERILOGS := ${BENCH}/spi/spi_to_spi.v \
         ${RTL}/uart/uart.v \
         ${RTL}/uart/uart_rx.v \
         ${RTL}/uart/uart_tx.v \
-        ${RTL}/usb/bulk_telemetry.v \
         ${RTL}/usb/ctl_pipe0.v \
+        ${RTL}/usb/ep_bulk_in.v \
+        ${RTL}/usb/ep_bulk_out.v \
         ${RTL}/usb/line_state.v \
-        ${RTL}/usb/transactor.v \
-        ${RTL}/usb/ulpi_axis_bridge.v \
+        ${RTL}/usb/protocol.v \
+        ${RTL}/usb/stdreq.v \
         ${RTL}/usb/ulpi_decoder.v \
         ${RTL}/usb/ulpi_encoder.v \
         ${RTL}/usb/ulpi_reset.v \
-        ${RTL}/usb/usb_ulpi_wrapper.v \
+        ${RTL}/usb/usb_ulpi_core.v \
+        ${RTL}/usb/usb_ulpi_top.v \
         axis_ddr3_ctrl.v \
         usb_demo_top.v
 
