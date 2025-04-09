@@ -55,7 +55,6 @@ VERILOGS := ${BENCH}/spi/spi_to_spi.v \
         ${RTL}/usb/ulpi_reset.v \
         ${RTL}/usb/usb_ulpi_core.v \
         ${RTL}/usb/usb_ulpi_top.v \
-        axis_ddr3_ctrl.v \
         usb_demo_top.v
 
 
