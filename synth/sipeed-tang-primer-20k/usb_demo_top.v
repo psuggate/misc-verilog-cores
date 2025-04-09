@@ -107,7 +107,7 @@ module usb_demo_top (
       .ENDPOINT4(ENDPOINT4),
       .USE_EP4_OUT(DEBUG)
   ) U_USB1 (
-      .clk_26(clk_26),
+      .osc_in(clk_26),
       .arst_n(rst_n),
 
       .ulpi_clk (ulpi_clk),
