@@ -15,3 +15,6 @@ target/
 *.vvp
 *.vpi
 vpi/usb/usbmodel
+
+Gowin_V1.9.8.11_Education_linux.tar.gz
+synth/sipeed-tang-primer-20k/usbcore.tcl

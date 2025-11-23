@@ -10,10 +10,11 @@ target
 bench/
 build/
 doc/
-generator/
+driver/
 .git/
 lib/
 rtl/
 scripts/
 synth/
+util/
 vcd/

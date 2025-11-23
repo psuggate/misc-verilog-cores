@@ -35,8 +35,8 @@ GID	:= `id -g $(USER)`
 USERDIR	:= /home/$(USER)/:/home/$(USER):rw
 PASSWD	:= /etc/passwd:/etc/passwd:ro
 GROUP	:= /etc/group:/etc/group:ro
-VOLUMES	:= -v `pwd`:/build/signal_pipeline:rw -v $(PASSWD) -v $(GROUP) -v $(USERDIR)
-MAKE	:= cd /build/signal_pipeline/synth/sipeed-tang-primer-20k && make -f gowin.mk GW_SH=/opt/gowin/IDE/bin/gw_sh
+VOLUMES	:= -v `pwd`:/build/misc-verilog-cores:rw -v $(PASSWD) -v $(GROUP) -v $(USERDIR)
+MAKE	:= cd /build/misc-verilog-cores/synth/sipeed-tang-primer-20k && make -f gowin.mk GW_SH=/opt/gowin/IDE/bin/gw_sh
 
 docker:
 	@docker build -f Dockerfile --build-arg USERNAME=$(USER) --build-arg USER_UID=$(UID) --build-arg USER_GID=$(GID) -t gowin-eda:latest .
