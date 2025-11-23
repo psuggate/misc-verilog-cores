@@ -3,7 +3,7 @@ TOP      := usb_demo_top
 FAMILY   := GW2A-18C
 DEVICE   := GW2A-LV18PG256C8/I7
 CST	 := gw2a-tang-primer.cst
-GW_SH	 := /home/tim/gowin/IDE/bin/gw_sh
+GW_SH	 := /opt/gowin/IDE/bin/gw_sh
 
 VROOT 	 :=  $(dir $(abspath $(CURDIR)/..))
 RTL	 = $(VROOT)/rtl
@@ -57,7 +57,6 @@ VERILOGS := ${BENCH}/spi/spi_to_spi.v \
         ${RTL}/usb/usb_ulpi_top.v \
         usb_demo_top.v
 
-
 gowin_build: impl/pnr/project.fs
 
 $(PROJECT).tcl: $(VERILOGS)
@@ -81,6 +80,6 @@ impl/pnr/project.fs: $(PROJECT).tcl
 
 gowin_load: impl/pnr/project.fs
 	openFPGALoader -b tangprimer20k impl/pnr/project.fs -f
-	
+
 clean:
 	rm -f $(PROJECT).tcl
