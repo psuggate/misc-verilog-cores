@@ -2,7 +2,7 @@
 module usb_demo_top (
     // Clock and reset from the dev-board
     input clk_26,
-    input rst_n,   // 'S2' button for async-reset
+    input rst_n,   // 'S1' button for async-reset
 
     input send_n,  // 'S4' button for telemetry read-back
     output [5:0] leds,
@@ -145,7 +145,7 @@ module usb_demo_top (
       .blko_tlast_o(m_tlast),
       .blko_tdata_o(m_tdata),
 
-      .blky_tvalid_o(y_tvalid),  // USB 'BULK OUT' EP data-path
+      .blky_tvalid_o(y_tvalid),  // Extra 'BULK OUT' EP data-path
       .blky_tready_i(LOOPBACK ? x_tready : 1'b0),
       .blky_tlast_o(y_tlast),
       .blky_tdata_o(y_tdata)

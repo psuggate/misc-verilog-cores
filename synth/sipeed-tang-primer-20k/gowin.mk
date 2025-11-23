@@ -62,7 +62,7 @@ gowin_build: impl/pnr/project.fs
 $(PROJECT).tcl: $(VERILOGS)
 	@echo ${VERILOGS}
 	@echo "set_device -name $(FAMILY) $(DEVICE)" > $(PROJECT).tcl
-	@for VAR in $?; do echo $$VAR | grep -s -q "\.v$$" && echo "add_file $$VAR" >> $(PROJECT).tcl; done
+	@for VAR in $^; do echo $$VAR | grep -s -q "\.v$$" && echo "add_file $$VAR" >> $(PROJECT).tcl; done
 	@echo "add_file ${CST}" >> $(PROJECT).tcl
 	@echo "set_option -top_module $(TOP)" >> $(PROJECT).tcl
 	@echo "set_option -verilog_std sysv2017" >> $(PROJECT).tcl
