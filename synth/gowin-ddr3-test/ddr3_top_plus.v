@@ -38,6 +38,7 @@ module ddr3_top #(
     // Trims an additional clock-cycle of latency, if '1'
     parameter LOW_LATENCY = 1'b0,  // 0 or 1
     parameter WR_PREFETCH = 1'b0,  // 0 or 1
+    parameter RD_FASTPATH = 1'b0,  // 0 or 1
     parameter RD_PORTSWAP = 1'b0,  // 0 or 1
     parameter INVERT_MCLK = 0,  // Todo: unfinished, and to allow extra shifts
     parameter INVERT_DCLK = 0,  // Todo: unfinished, and to allow extra shifts
@@ -71,6 +72,21 @@ module ddr3_top #(
     output m_tkeep,
     output m_tlast,
     output [7:0] m_tdata,
+
+    // Fast-reads port [AXI4, optional]
+    input byp_arvalid_i,  // AXI4 Read-Address channel
+    output byp_arready_o,
+    input [ASB:0] byp_araddr_i,
+    input [ISB:0] byp_arid_i,
+    input [7:0] byp_arlen_i,
+    input [1:0] byp_arburst_i,
+
+    input byp_rready_i,  // AXI4 Read-Data channel
+    output byp_rvalid_o,
+    output byp_rlast_o,
+    output [1:0] byp_rresp_o,
+    output [ISB:0] byp_rid_o,
+    output [MSB:0] byp_rdata_o,
 
     // 1Gb DDR3 SDRAM pins
     output ddr_ck,
@@ -292,24 +308,71 @@ module ddr3_top #(
   wire [ASB:0] rd_araddr;
   wire [MSB:0] rd_rdata;
 
+  wire by_arvalid, by_arready, by_rvalid, by_rready, by_rlast;
+  wire [ISB:0] by_arid, by_rid;
+  wire [7:0] by_arlen;
+  wire [1:0] by_arburst, by_rresp;
+  wire [ASB:0] by_araddr;
+  wire [MSB:0] by_rdata;
+
+  // 'Bypass' MUX-output intermediate signals
+  wire byvalid, byready, bxvalid, bxready, bxlast;
+  wire [1:0] byburst, bxresp;
+  wire [  7:0] bylen;
+  wire [ASB:0] byaddr;
+  wire [ISB:0] byid, bxid;
+  wire [MSB:0] bxdata;
+
+  // 'Bypass' Read-Address channel MUX, to the AXI DDR3 controller
+  assign byvalid       = RD_PORTSWAP ? mr_arvalid : byp_arvalid_i;
+  assign byready       = RD_PORTSWAP ? rd_arready : by_arready;
+  assign byid          = RD_PORTSWAP ? mr_arid : byp_arid_i;
+  assign bylen         = RD_PORTSWAP ? mr_arlen : byp_arlen_i;
+  assign byburst       = RD_PORTSWAP ? mr_arburst : byp_arburst_i;
+  assign byaddr        = RD_PORTSWAP ? mr_araddr : byp_araddr_i;
+
+  // Read-Address enable/disable, for the 'bypass' port
+  assign by_arvalid    = RD_FASTPATH ? byvalid : 1'b0;
+  assign by_arid       = RD_FASTPATH ? byid : {REQID{1'bx}};
+  assign by_arlen      = RD_FASTPATH ? bylen : 8'bx;
+  assign by_arburst    = RD_FASTPATH ? byburst : 2'bx;
+  assign by_araddr     = RD_FASTPATH ? byaddr : {ADDRS{1'bx}};
+  assign by_rready     = RD_FASTPATH ? bxready : 1'b0;
+
+  // 'Bypass' Read-Data channel MUX, out of this ('ddr3_top') module
+  assign bxvalid       = RD_PORTSWAP ? rd_rvalid : by_rvalid;
+  assign bxready       = RD_PORTSWAP ? mr_rready : byp_rready_i;
+  assign bxlast        = RD_PORTSWAP ? rd_rlast : by_rlast;
+  assign bxresp        = RD_PORTSWAP ? rd_rresp : by_rresp;
+  assign bxid          = RD_PORTSWAP ? rd_rid : by_rid;
+  assign bxdata        = RD_PORTSWAP ? rd_rdata : by_rdata;
+
+  // 'Bypass' response-enable signals, for this ('ddr3_top') module
+  assign byp_arready_o = RD_FASTPATH ? byready : 1'b0;
+  assign byp_rvalid_o  = RD_FASTPATH ? bxvalid : 1'b0;
+  assign byp_rlast_o   = RD_FASTPATH ? bxlast : 1'b0;
+  assign byp_rresp_o   = RD_FASTPATH ? bxresp : 2'bx;
+  assign byp_rid_o     = RD_FASTPATH ? bxid : {REQID{1'bx}};
+  assign byp_rdata_o   = RD_FASTPATH ? bxdata : {DATA_WIDTH{1'bx}};
+
   // Select the Read-Address channel source for the AXI DDR3 controller
-  assign rd_arvalid    = mr_arvalid;
-  assign rd_arid       = mr_arid;
-  assign rd_arlen      = mr_arlen;
-  assign rd_arburst    = mr_arburst;
-  assign rd_araddr     = mr_araddr;
-  assign rd_rready     = mr_rready;
+  assign rd_arvalid    = RD_PORTSWAP ? byp_arvalid_i : mr_arvalid;
+  assign rd_arid       = RD_PORTSWAP ? byp_arid_i : mr_arid;
+  assign rd_arlen      = RD_PORTSWAP ? byp_arlen_i : mr_arlen;
+  assign rd_arburst    = RD_PORTSWAP ? byp_arburst_i : mr_arburst;
+  assign rd_araddr     = RD_PORTSWAP ? byp_araddr_i : mr_araddr;
+  assign rd_rready     = RD_PORTSWAP ? byp_rready_i : mr_rready;
 
   // Read-Address and Read-Data responses to the memory-request ('memreq')
   // functional unit
-  assign mr_arready    = rd_arready;
-  assign mr_rvalid     = rd_rvalid;
-  assign mr_rlast      = rd_rlast;
-  assign mr_rresp      = rd_rresp;
-  assign mr_rid        = rd_rid;
-  assign mr_rdata      = rd_rdata;
+  assign mr_arready    = RD_PORTSWAP ? by_arready : rd_arready;
+  assign mr_rvalid     = RD_PORTSWAP ? by_rvalid : rd_rvalid;
+  assign mr_rlast      = RD_PORTSWAP ? by_rlast : rd_rlast;
+  assign mr_rresp      = RD_PORTSWAP ? by_rresp : rd_rresp;
+  assign mr_rid        = RD_PORTSWAP ? by_rid : rd_rid;
+  assign mr_rdata      = RD_PORTSWAP ? by_rdata : rd_rdata;
 
-  axi_ddr3_lite #(
+  axi_ddr3_plus #(
       .DDR_FREQ_MHZ (DDR_FREQ_MHZ),
       .DDR_ROW_BITS (DDR_ROW_BITS),
       .DDR_COL_BITS (DDR_COL_BITS),
@@ -321,6 +384,7 @@ module ddr3_top #(
       .AXI_ID_WIDTH (REQID),
       .MEM_ID_WIDTH (REQID),
       .DFIFO_BYPASS (DFIFO_BYPASS),
+      .BYPASS_ENABLE(RD_FASTPATH),
       .PACKET_FIFOS (0)
   ) U_LITE (
       .arst_n(arst_n),  // Global, asynchronous reset
@@ -363,6 +427,21 @@ module ddr3_top #(
       .axi_rresp_o(rd_rresp),
       .axi_rid_o(rd_rid),
       .axi_rdata_o(rd_rdata),
+
+      // Fast-read channels [optional]
+      .byp_arvalid_i(by_arvalid),
+      .byp_arready_o(by_arready),
+      .byp_araddr_i(by_araddr),
+      .byp_arid_i(by_arid),
+      .byp_arlen_i(by_arlen),
+      .byp_arburst_i(by_arburst),
+
+      .byp_rvalid_o(by_rvalid),
+      .byp_rready_i(by_rready),
+      .byp_rlast_o(by_rlast),
+      .byp_rresp_o(by_rresp),
+      .byp_rid_o(by_rid),
+      .byp_rdata_o(by_rdata),
 
       .dfi_align_o(dfi_align),
       .dfi_calib_i(dfi_calib),

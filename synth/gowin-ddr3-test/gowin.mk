@@ -50,8 +50,5 @@ impl/pnr/project.fs: $(PROJECT).tcl
 gowin_load: impl/pnr/project.fs
 	openFPGALoader --board tangprimer20k --write-sram impl/pnr/project.fs
 
-gowin_flash: impl/pnr/project.fs
-	openFPGALoader --board tangprimer20k impl/pnr/project.fs -f
-
 clean:
 	rm -f $(PROJECT).tcl

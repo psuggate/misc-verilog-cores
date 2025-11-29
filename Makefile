@@ -52,6 +52,12 @@ synth:	docker
 	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(TOPDIR) \
 --rm -it gowin-eda bash
 
+# Build and upload (to SRAM) the USB demo:
+SYNDIR	:= `pwd`/synth/sipeed-tang-primer-20k
+BIT	:= $(SYNDIR)/impl/pnr/usbcore.fs
+flash:	gowin
+	openFPGALoader --board tangprimer20k --write-sram $(BIT)
+
 #
 #  Synthesise the USB2 + DDR3 test.
 ##
@@ -60,12 +66,21 @@ USBDDR	:= /build/misc-verilog-cores/synth/gowin-ddr3-test
 usbddr:	docker
 	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(USBDDR) \
 --rm -it gowin-eda bash -c "$(MAKE)"
+	@openFPGALoader --board tangprimer20k --write-sram synth/gowin-ddr3-test/impl/pnr/project.fs
 
-# Build and upload (to SRAM) the USB demo:
-SYNDIR	:= `pwd`/synth/sipeed-tang-primer-20k
-BIT	:= $(SYNDIR)/impl/pnr/usbcore.fs
-flash:	gowin
-	openFPGALoader --board tangprimer20k --write-sram $(BIT)
+# Note: writing to Flash does not work for me, on Gowin GW2A.
+erase:
+	@openFPGALoader --board tangprimer20k --unprotect-flash --bulk-erase
+
+#
+#  Synthesise the USB2 + DDR3 test.
+##
+USBTOP	:= /build/misc-verilog-cores/synth/sipeed-tang-primer-20k
+.PHONY:	usbtop
+usbtop:	docker
+	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(USBTOP) \
+--rm -it gowin-eda bash -c "$(MAKE)"
+	@openFPGALoader --board tangprimer20k --write-sram synth/sipeed-tang-primer-20k/impl/pnr/project.fs
 
 #
 #  Documentation settings
