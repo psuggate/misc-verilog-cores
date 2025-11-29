@@ -1,15 +1,19 @@
-PROJECT  := usbcore
-TOP      := usb_demo_top
+PROJECT  := usbddr3
+TOP      := usb_ddr3_top
 FAMILY   := GW2A-18C
 DEVICE   := GW2A-LV18PG256C8/I7
-CST	 := gw2a-tang-primer.cst
-SDC	 := gw2a-tang-primer.sdc
+CST	 := gowin-ddr3-test.cst
+SDC	 := gowin-ddr3-test.sdc
 GW_SH	 := /opt/gowin/IDE/bin/gw_sh
 
-VROOT 	 :=  $(dir $(abspath $(CURDIR)/..))
+VROOT 	 := $(dir $(abspath $(CURDIR)/..))
 RTL	 = $(VROOT)/rtl
 BENCH	 = $(VROOT)/bench
 
+ARCH_V	:= \
+        ${RTL}/arch/gw2a_ddr3_phy.v \
+        ${RTL}/arch/gw2a_ddr_iob.v \
+        ${RTL}/arch/gw2a_rpll.v
 AXIS_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/axis/*.v))
 DDR3_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/ddr3/*.v))
 FIFO_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/fifo/*.v))
@@ -17,17 +21,9 @@ MISC_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/misc/*.v))
 UART_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/uart/*.v))
 USB2_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/usb/*.v))
 
-SOURCES	:= ${BENCH}/spi/spi_to_spi.v \
-	$(AXIS_V) $(DDR3_V) $(FIFO_V) $(MISC_V) $(UART_V) $(USB2_V) \
-        ${RTL}/arch/gw2a_ddr3_phy.v \
-        ${RTL}/arch/gw2a_ddr_iob.v \
-        ${RTL}/arch/gw2a_rpll.v \
-        ${RTL}/spi/axis_spi_master.v \
-        ${RTL}/spi/axis_spi_target.v \
-        ${RTL}/spi/spi_layer.v \
-        ${RTL}/spi/spi_master.v \
-        ${RTL}/spi/spi_target.v \
-        usb_demo_top.v
+SOURCES	:= \
+	$(ARCH_V) $(AXIS_V) $(DDR3_V) $(FIFO_V) $(MISC_V) $(UART_V) $(USB2_V) \
+	ddr3_top.v memreq.v $(TOP).v
 
 gowin_build: impl/pnr/project.fs
 
@@ -52,7 +48,10 @@ impl/pnr/project.fs: $(PROJECT).tcl
 	${GW_SH} $(PROJECT).tcl
 
 gowin_load: impl/pnr/project.fs
-	openFPGALoader -b tangprimer20k impl/pnr/project.fs -f
+	openFPGALoader --board tangprimer20k --write-sram impl/pnr/project.fs
+
+gowin_flash: impl/pnr/project.fs
+	openFPGALoader --board tangprimer20k impl/pnr/project.fs -f
 
 clean:
 	rm -f $(PROJECT).tcl

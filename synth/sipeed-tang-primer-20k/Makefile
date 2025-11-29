@@ -1,8 +1,14 @@
-.PHONY:	sim build upload
+.PHONY:	sim all build upload
 BIT	?= impl/pnr/usbcore.fs
+
+all:
+	@echo "Run 'make gowin' from project root"
 
 upload:
 	openFPGALoader --board tangprimer20k --write-sram $(BIT)
+
+clean:
+	rm -rf impl usbcore.tcl
 
 DIR	:= ../../rtl
 

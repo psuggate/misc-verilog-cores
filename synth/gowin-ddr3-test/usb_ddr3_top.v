@@ -6,6 +6,7 @@
  * Copyright 2024, Patrick Suggate.
  *
  */
+`define __gowin_for_the_win
 
 // With the DDR3 clock at 250 MHz, this slows down simulations
 `ifndef __icarus

@@ -17,4 +17,5 @@ target/
 vpi/usb/usbmodel
 
 Gowin_V1.9.8.11_Education_linux.tar.gz
+synth/gowin-ddr3-test/usbddr3.tcl
 synth/sipeed-tang-primer-20k/usbcore.tcl

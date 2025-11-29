@@ -52,6 +52,15 @@ synth:	docker
 	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(TOPDIR) \
 --rm -it gowin-eda bash
 
+#
+#  Synthesise the USB2 + DDR3 test.
+##
+USBDDR	:= /build/misc-verilog-cores/synth/gowin-ddr3-test
+.PHONY:	usbddr
+usbddr:	docker
+	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(USBDDR) \
+--rm -it gowin-eda bash -c "$(MAKE)"
+
 # Build and upload (to SRAM) the USB demo:
 SYNDIR	:= `pwd`/synth/sipeed-tang-primer-20k
 BIT	:= $(SYNDIR)/impl/pnr/usbcore.fs
@@ -92,6 +101,7 @@ clean:
 	@make -C driver clean
 	@make -C rtl clean
 	@make -C vpi clean
+	@make -C synth clean
 	rm -f $(PDF) $(LTX) $(PIC)
 
 # Implicit rules:
