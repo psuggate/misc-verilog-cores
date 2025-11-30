@@ -249,13 +249,7 @@ module usb_ddr3_top (
 
   assign y_tkeep = y_tvalid;  // Todo ...
 
-`ifdef __use_bypass
-  ddr3_top_plus #(
-
-`else  /* !__use_bypass */
   ddr3_top #(
-
-`endif /* !__use_bypass */
       .SRAM_BYTES  (SRAM_BYTES),
       .DATA_WIDTH  (DDR3_WIDTH),
       .DFIFO_BYPASS(DFIFO_BYPASS),
@@ -294,23 +288,6 @@ module usb_ddr3_top (
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
-
-`ifdef __use_bypass
-      // Fast-read channels [optional]
-      .byp_arvalid_i(1'b0),
-      .byp_arready_o(),
-      .byp_araddr_i({ADDRS{1'b0}}),
-      .byp_arid_i({REQID{1'b0}}),
-      .byp_arlen_i(8'd0),
-      .byp_arburst_i(2'd0),
-
-      .byp_rvalid_o(),
-      .byp_rready_i(1'b1),
-      .byp_rlast_o(),
-      .byp_rresp_o(),
-      .byp_rid_o(),
-      .byp_rdata_o(),
-`endif /* __use_bypass */
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck),

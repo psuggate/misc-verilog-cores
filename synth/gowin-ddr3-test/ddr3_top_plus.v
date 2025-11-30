@@ -16,7 +16,7 @@
 `define __gowin_for_the_win
 `endif  /* !__icarus */
 
-module ddr3_top #(
+module ddr3_top_plus #(
     parameter SRAM_BYTES   = 2048,
     parameter DATA_WIDTH   = 32,
     parameter DFIFO_BYPASS = 0,

@@ -30,6 +30,60 @@ module memreq_tb;
   always #5 mclk <= ~mclk;
   always #8 bclk <= ~bclk;
 
+  task ddr_send;
+    input [27:0] addr;
+    begin
+      req <= {4'hA, addr, 8'h08, CMD_STORE};
+      #16;
+
+      s_tvalid <= 1'b1;
+      s_tkeep  <= 1'b1;
+      s_tlast  <= 1'b0;
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata  <= req[7:0];
+      req <= {8'hx, req[47:8]};
+      #16 while (!s_tready) #16;
+
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+`define __science
+`ifdef __science
+      s_tdata <= $urandom; #16 while (!s_tready) #16;
+`else  /* !__science */
+      s_tdata <= $urandom; s_tlast <= 1'b1; #16;
+
+      s_tvalid <= 1'b0;
+      s_tkeep  <= 1'b0;
+      s_tlast  <= 1'b0;
+`endif /* !__science */
+      // #16;
+    end
+  endtask
+
   initial begin
     $dumpfile("memreq_tb.vcd");
     $dumpvars;
@@ -42,6 +96,7 @@ module memreq_tb;
     #40 rst = 1'b0;
     #16 @(posedge bclk) #1;
 
+/*
     s_tdata  = req[7:0];
     s_tvalid = 1'b1;
     s_tkeep  = 1'b1;
@@ -63,6 +118,10 @@ module memreq_tb;
     #16 s_tvalid = 1'b0;
     s_tkeep = 1'b0;
     s_tlast = 1'b0;
+*/
+
+    ddr_send(28'h0_20_80_F0);
+    ddr_send(28'h0_20_81_00);
 
     while (!m_tvalid) @(posedge bclk);
 
