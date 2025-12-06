@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Sun Nov 30 03:52:19 2025
+[*] Sat Dec  6 13:32:52 2025
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.vcd"
-[dumpfile_mtime] "Sun Nov 30 03:47:46 2025"
-[dumpfile_size] 63916
+[dumpfile_mtime] "Sat Dec  6 12:33:37 2025"
+[dumpfile_size] 85667
 [savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.gtkw"
-[timestart] 124100
-[size] 1280 1392
-[pos] 44 44
-*-16.335682 304000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 555600
+[size] 2560 1392
+[pos] -1 -1
+*-17.035683 322000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] memreq_tb.
 [treeopen] memreq_tb.U_REQ1.
 [sst_width] 233
 [signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 415
+[sst_vpaned_height] 388
 @28
 memreq_tb.bclk
 memreq_tb.rst
@@ -27,7 +27,7 @@ memreq_tb.s_tready
 memreq_tb.s_tlast
 memreq_tb.s_tkeep
 @22
-memreq_tb.s_tdata[7:0]
+memreq_tb.tdata_w[7:0]
 @1000200
 -To
 @800200
@@ -73,6 +73,8 @@ memreq_tb.len_q[7:0]
 memreq_tb.dat_q[31:0]
 @1000200
 -Fetch
+@25
+memreq_tb.cnt_q[10:0]
 @c00200
 -MemReq
 @800200
@@ -170,33 +172,44 @@ memreq_tb.U_REQ1.cmd_q[7:0]
 @1401200
 -MemReq
 @28
+[color] 3
 memreq_tb.U_REQ1.cyc_q
 memreq_tb.U_REQ1.stb_q
 memreq_tb.U_REQ1.wen_q
 @22
 memreq_tb.U_REQ1.cmd_q[7:0]
+@24
+[color] 2
+memreq_tb.U_REQ1.cnt_q[9:0]
+@22
 memreq_tb.U_REQ1.adr_q[27:0]
 memreq_tb.U_REQ1.tid_q[3:0]
-memreq_tb.U_REQ1.mop_q[5:0]
 @28
 memreq_tb.U_REQ1.cvalid_w
 memreq_tb.U_REQ1.cready_w
 memreq_tb.U_REQ1.sready_w
 @22
 memreq_tb.U_REQ1.state[7:0]
-@420
-memreq_tb.U_REQ1.dec_w[8:0]
 @820
 [color] 7
 memreq_tb.U_REQ1.dbg_state[39:0]
 @28
 memreq_tb.U_REQ1.arvalid_o
 memreq_tb.U_REQ1.awvalid_o
-@22
-memreq_tb.U_REQ1.cmd_m[4:0]
-@29
 memreq_tb.U_REQ1.cmd_w
-@28
 memreq_tb.U_REQ1.ack_w
+@820
+[color] 6
+memreq_tb.U_REQ1.dbg_rd[39:0]
+[color] 6
+memreq_tb.U_REQ1.dbg_wr[39:0]
+@22
+memreq_tb.U_REQ1.dbg_mdata[7:0]
+memreq_tb.U_REQ1.dbg_sdata[7:0]
+@820
+[color] 7
+memreq_tb.U_REQ1.dbg_cmd[47:0]
+[color] 7
+memreq_tb.U_REQ1.dbg_res[47:0]
 [pattern_trace] 1
 [pattern_trace] 0

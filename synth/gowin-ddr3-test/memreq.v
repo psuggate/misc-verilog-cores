@@ -178,17 +178,18 @@ module memreq #(
 
   // -- Parser for Memory Transaction Requests -- //
 
-  localparam [5:0] OP_IDLE = 6'b000001;
-  localparam [5:0] OP_ADR0 = 6'b000010;
-  localparam [5:0] OP_ADR1 = 6'b000100;
-  localparam [5:0] OP_ADR2 = 6'b001000;
-  localparam [5:0] OP_IDAD = 6'b010000;
-  localparam [5:0] OP_BUSY = 6'b100000;
-  reg [5:0] mop_q;
-  reg [7:0] cnt_q;
+  localparam [6:0] OP_IDLE = 7'b0000001;
+  localparam [6:0] OP_SIZE = 7'b1000000;
+  localparam [6:0] OP_ADR0 = 7'b0000010;
+  localparam [6:0] OP_ADR1 = 7'b0000100;
+  localparam [6:0] OP_ADR2 = 7'b0001000;
+  localparam [6:0] OP_IDAD = 7'b0010000;
+  localparam [6:0] OP_BUSY = 7'b0100000;
+  reg [6:0] mop_q;
+  reg [9:0] cnt_q;
   reg end_q;
 
-  wire [8:0] dec_w = cnt_q - 1;
+  wire [10:0] dec_w = cnt_q - 1;
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
@@ -235,14 +236,22 @@ module memreq #(
     if (bus_reset) begin
       mop_q <= OP_IDLE;
       len_q <= 8'bx;
-      cnt_q <= 8'd0;
+      cnt_q <= 10'd0;
       adr_q <= {ADDRESS_WIDTH{1'bx}};
       tid_q <= {ID_WIDTH{1'bx}};
+    end
+    else if (!cyc_q) begin
+      cmd_q <= s_tdata;
+      mop_q <= OP_IDLE;
     end
     else if (s_tvalid && s_tready) begin
       case (mop_q)
         OP_IDLE: begin
-          len_q <= s_tdata;
+          cmd_q <= s_tdata;
+          mop_q <= OP_SIZE;
+        end
+        OP_SIZE: begin
+          len_q <= s_tdata + 1;
           mop_q <= OP_ADR0;
         end
         OP_ADR0: begin
@@ -259,17 +268,14 @@ module memreq #(
         end
         OP_IDAD: begin
           {tid_q, adr_q[ASB:24]} <= s_tdata;
-          cnt_q <= len_q;
+          cnt_q <= {len_q, 2'b00};
           mop_q <= OP_BUSY;
         end
         OP_BUSY: begin
           mop_q <= mop_q;
-          cnt_q <= dec_w[7:0];
+          cnt_q <= dec_w[9:0];
         end
       endcase
-    end else if (!cyc_q) begin
-      mop_q <= OP_IDLE;
-      cmd_q <= s_tdata;
     end
   end
 
