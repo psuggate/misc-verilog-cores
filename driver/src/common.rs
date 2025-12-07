@@ -8,7 +8,7 @@ use std::time::Duration;
 pub const VENDOR_ID: u16 = 0xF4CE;
 pub const PRODUCT_ID: u16 = 0x0003;
 pub const MAX_BUF_SIZE: usize = 1024;
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(500);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(20);
 
 pub type TartResult<T> = Result<T, rusb::Error>;
 

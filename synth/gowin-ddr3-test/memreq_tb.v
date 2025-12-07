@@ -47,18 +47,18 @@ module memreq_tb;
     #40 rst = 1'b0;
     #16 @(posedge bclk) #1;
 
-    ddr_send(28'h0_20_80_F0);
-    ddr_send(28'h0_20_81_00);
+    ddr_send(8'd1, 28'h0_20_80_F0);
+    ddr_send(8'd3, 28'h0_20_81_00);
 
-    ddr_recv(28'h0_20_80_F0);
-    ddr_recv(28'h0_20_81_00);
+    ddr_recv(8'd1, 28'h0_20_80_F0);
+    ddr_recv(8'd7, 28'h0_20_81_00);
 
     while (!m_tvalid) @(posedge bclk);
 
     #1200 $finish;
   end
 
-  initial #2000 $finish;
+  initial #2400 $finish;
 
   // -- Simulation Signals & Registers -- //
 
@@ -151,7 +151,10 @@ module memreq_tb;
     end
   end
 
+  wire [8:0] len_w;
+
   assign cnext = count + 1;
+  assign len_w = arlen_w + 1;
 
   always @(posedge mclk) begin
     if (rst) begin
@@ -162,7 +165,7 @@ module memreq_tb;
     end
     else begin
       if (arvalid_w && state == ST_IDLE) begin
-        len_q <= arlen_w;
+        len_q <= len_w;
         tid_q <= arid_w;
         lst_q <= 1'b0;
         res_q <= 2'bx;
@@ -289,7 +292,10 @@ module memreq_tb;
   );
 
 
+  integer lim_q;
+
   task ddr_send;
+    input [7:0] size;
     input [27:0] addr;
     begin
       @(negedge bclk)
@@ -299,8 +305,9 @@ module memreq_tb;
         s_tvalid <= #2 1'b1;
         s_tkeep  <= #2 1'b1;
         s_tlast  <= #2 1'b0;
-        cnt_q <= s_tvalid && s_tready ? 11'd1 : 11'd0;
-        req_q <= #2 {4'hA, addr, 8'h01, CMD_STORE};
+        lim_q <= #2 {size, 2'b00} + 9;
+        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
+        req_q <= #2 {4'hA, addr, size, CMD_STORE};
         rnd_q <= $urandom;
       end
 
@@ -318,13 +325,13 @@ module memreq_tb;
       end
 
       $display("%11t: Sending DDR3 STORE (DATA: %d)\n", $time, cnt_q);
-      while (!(cnt_q == 11'd13 && s_tready)) begin
+      while (!(cnt_q == lim_q && s_tready)) begin
         @(posedge bclk);
         if (s_tready) begin
           cnt_q <= #2 inc_w[10:0];
           req_q <= #2 {rnd_q, req_q[47:8]};
           rnd_q <= #2 $urandom;
-          s_tlast <= #2 cnt_q < 11'd12 ? 1'b0 : 1'b1;
+          s_tlast <= #2 inc_w < lim_q[12:0] ? 1'b0 : 1'b1;
         end
         @(negedge bclk);
       end
@@ -342,6 +349,7 @@ module memreq_tb;
   endtask  /* ddr_send */
 
   task ddr_recv;
+    input [7:0] size;
     input [27:0] addr;
     begin
       @(negedge bclk)
@@ -352,7 +360,7 @@ module memreq_tb;
         s_tkeep  <= #2 1'b1;
         s_tlast  <= #2 1'b0;
         cnt_q <= s_tvalid && s_tready ? 11'd1 : 11'd0;
-        req_q <= #2 {4'hA, addr, 8'h01, CMD_FETCH};
+        req_q <= #2 {4'hA, addr, size, CMD_FETCH};
       end
 
       @(negedge bclk)

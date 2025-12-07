@@ -6,6 +6,7 @@
  * Todo:
  *  - read/write the status registers of other endpoints ??
  *  - make more general-purpose, for AXI-S <-> AXI4(-Lite) ??
+ *  - this is larger and slower than it needs to be, and is more of a demo;
  *
  * Copyright 2023, Patrick Suggate.
  *
@@ -190,6 +191,7 @@ module memreq #(
   reg end_q;
 
   wire [10:0] dec_w = cnt_q - 1;
+  wire [8:0] inc_w = len_q + 1;
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
@@ -203,11 +205,9 @@ module memreq #(
     end else begin
       new_q <= 1'b0;
       end_q <= (s_tvalid && s_tready && dec_w == 9'd1) ||
-               ((!s_tvalid || !s_tready) && dec_w == 9'd0); // ||
-//                (mop_q == OP_IDAD && s_tvalid && s_tready && cmd_q[7]);
+               ((!s_tvalid || !s_tready) && dec_w == 9'd0);
 
       if (s_tvalid && s_tready && (tlast_w || mop_q == OP_IDAD && cmd_q[7])) begin
-      // if (s_tvalid && s_tready && (dec_w == 9'd0 || tlast_w)) begin
         cyc_q <= 1'b0;
       end else begin
         cyc_q <= cyc_q;
@@ -254,7 +254,7 @@ module memreq #(
           mop_q <= OP_SIZE;
         end
         OP_SIZE: begin
-          len_q <= s_tdata + 1;
+          len_q <= s_tdata;
           mop_q <= OP_ADR0;
         end
         OP_ADR0: begin
@@ -271,7 +271,7 @@ module memreq #(
         end
         OP_IDAD: begin
           {tid_q, adr_q[ASB:24]} <= s_tdata;
-          cnt_q <= {len_q, 2'b00};
+          cnt_q <= {inc_w[7:0], 2'b00};
           mop_q <= OP_BUSY;
         end
         OP_BUSY: begin
@@ -431,7 +431,7 @@ module memreq #(
         ST_RESP: begin
           if (rvalid_w) begin
             {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
-            res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
+            res_q <= rokay_w ? CMD_WDONE : CMD_WFAIL;
             rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
           end
         end

@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Sun Dec  7 07:35:37 2025
+[*] Sun Dec  7 08:08:56 2025
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.vcd"
-[dumpfile_mtime] "Sun Dec  7 07:35:20 2025"
-[dumpfile_size] 99533
+[dumpfile_mtime] "Sun Dec  7 08:08:28 2025"
+[dumpfile_size] 99577
 [savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/memreq_tb.gtkw"
 [timestart] 0
 [size] 2560 1392

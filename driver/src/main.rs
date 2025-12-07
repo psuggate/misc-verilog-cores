@@ -190,18 +190,20 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
 
     // Each 'WRITE' should generate a single-byte response
-    let bytes: Vec<u8> = match tart.try_read(None) {
-        Ok(xs) => xs,
-        Err(e) => {
-            error!("TART DDR3 READ-RESPONSE failed: {:?}", e);
-            Vec::new()
-        }
-    };
-    info!(
-        "DDR3 RESPONSE (bytes = {}): {}",
-        bytes.len(),
-        hex_array_string(&bytes)
-    );
+    for x in 0..args.chunks {
+        let bytes: Vec<u8> = match tart.try_read(None) {
+            Ok(xs) => xs,
+            Err(e) => {
+                error!("TART DDR3 READ-RESPONSE failed: {:?}", e);
+                Vec::new()
+            }
+        };
+        info!(
+            "DDR3 RESPONSE (bytes = {}, chunk = {}): {}",
+            bytes.len(), x,
+            hex_array_string(&bytes)
+        );
+    }
 
     Ok(wrdat)
 }
