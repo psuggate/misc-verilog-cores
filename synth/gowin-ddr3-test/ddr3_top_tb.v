@@ -69,8 +69,8 @@ module ddr3_top_tb;
       .DATA_WIDTH(DATA_WIDTH),
       .LOW_LATENCY(1'b0)  // 0 or 1
   ) U_TOP1 (
-      .clk_26(mclk),
-      .rst_n (~rst),  // 'S2' button for async-reset
+      .osc_in(mclk),
+      .arst_n(~rst),  // 'S2' button for async-reset
 
       .bus_clock(bclk),
       .bus_reset(rst),

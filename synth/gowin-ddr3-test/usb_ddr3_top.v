@@ -6,6 +6,7 @@
  * Copyright 2024, Patrick Suggate.
  *
  */
+
 `define __gowin_for_the_win
 
 // With the DDR3 clock at 250 MHz, this slows down simulations
@@ -106,6 +107,7 @@ module usb_ddr3_top (
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
   // localparam PHY_RD_DELAY = 3; // Works with 'FBDIV_SEL = 39', above
+
 `else  /* !DDR_FREQ_MHZ */
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   localparam DDR_FREQ_MHZ = 100;
@@ -118,11 +120,12 @@ module usb_ddr3_top (
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 3;
   localparam PHY_RD_DELAY = 2;
+
 `endif  /* !DDR_FREQ_MHZ */
-
 `else  /* !__gowin_for_the_win */
-
+  //
   // Uses simulation-only clocks, and a "generic" DDR3 PHY
+  //
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 1;
@@ -285,21 +288,6 @@ module usb_ddr3_top (
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
-
-      // Fast-read channels [optional]
-      .byp_arvalid_i(1'b0),
-      .byp_arready_o(),
-      .byp_araddr_i({ADDRS{1'b0}}),
-      .byp_arid_i({REQID{1'b0}}),
-      .byp_arlen_i(8'd0),
-      .byp_arburst_i(2'd0),
-
-      .byp_rvalid_o(),
-      .byp_rready_i(1'b1),
-      .byp_rlast_o(),
-      .byp_rresp_o(),
-      .byp_rid_o(),
-      .byp_rdata_o(),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck),

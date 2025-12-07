@@ -1,6 +1,6 @@
 use log::{debug, info, warn};
 use rusb::{Context, Device, DeviceHandle, Direction, TransferType};
-use std::time::Duration;
+use std::time::{Instant, Duration};
 
 pub use crate::common::find_axis_usb;
 use crate::common::*;
@@ -138,13 +138,14 @@ impl AxisUSB {
     }
 
     pub fn try_read(&mut self, timeout: Option<Duration>) -> Result<Vec<u8>, rusb::Error> {
+        let current = Instant::now();
         let timeout = timeout.unwrap_or(DEFAULT_TIMEOUT);
         let mut buf = [0; MAX_BUF_SIZE];
         debug!("READ (timeout: {} ms)", timeout.as_millis() as u32);
         let len = self
             .handle
             .read_bulk(self.ep_in.read_address(), &mut buf, timeout)?;
-        debug!("RESPONSE (bytes = {})", len);
+        debug!("RESPONSE (bytes = {}, dt = {} us)", len, current.elapsed().as_micros());
         Ok(Vec::from(&buf[0..len]))
     }
 

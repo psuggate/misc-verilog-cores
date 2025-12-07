@@ -6,6 +6,7 @@
  * Todo:
  *  - read/write the status registers of other endpoints ??
  *  - make more general-purpose, for AXI-S <-> AXI4(-Lite) ??
+ *  - this is larger and slower than it needs to be, and is more of a demo;
  *
  * Copyright 2023, Patrick Suggate.
  *
@@ -120,20 +121,21 @@ module memreq #(
 
   reg [7:0] state, snext;
   reg [3:0] wr, rd;
-  reg [4:0] ptr_q, cmd_m, rd_m;
+  reg [4:0] ptr_q;
+  reg cmd_m, rd_m;
   reg wen_q, stb_q, new_q, cyc_q;
   reg mux_q, sel_q, vld_q, lst_q, idx_q;
   reg [  7:0] res_q;
   reg [ISB:0] rid_q;
-  reg [7:0] cmd_q, len_q, len_c, len_m;
+  reg [7:0] cmd_q, len_q, len_m;
   reg [ISB:0] tid_m;
   reg [ASB:0] adr_m;
-  reg [ISB:0] tid_q, tid_c;  // 4b
-  reg [ASB:0] adr_q, adr_c;  // 28b
+  reg [ISB:0] tid_q;  // 4b
+  reg [ASB:0] adr_q;  // 28b
   wire mux_enable_w, mux_select_w;
   wire svalid_w, sready_w, fready_w, fvalid_w, rd_mid_w;
   wire [DBITS:0] rd_level_w;
-  wire tkeep_w, rvalid_w, cmd_end_w;
+  wire tkeep_w, tlast_w, rvalid_w, cmd_end_w;
   wire bokay_w, wfull_w, rokay_w;
   wire cmd_w, ack_w, rd_w;
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
@@ -177,54 +179,46 @@ module memreq #(
 
   // -- Parser for Memory Transaction Requests -- //
 
-  // DeMUX for memory requests
-  always @* begin
-    len_c = len_q;
-    tid_c = tid_q;
-    adr_c = adr_q;
+  localparam [6:0] OP_IDLE = 7'b0000001;
+  localparam [6:0] OP_SIZE = 7'b1000000;
+  localparam [6:0] OP_ADR0 = 7'b0000010;
+  localparam [6:0] OP_ADR1 = 7'b0000100;
+  localparam [6:0] OP_ADR2 = 7'b0001000;
+  localparam [6:0] OP_IDAD = 7'b0010000;
+  localparam [6:0] OP_BUSY = 7'b0100000;
+  reg [6:0] mop_q;
+  reg [9:0] cnt_q;
+  reg end_q;
 
-    case (ptr_q)
-      5'h01: len_c = s_tdata;
-      5'h02: adr_c[7:0] = s_tdata;
-      5'h04: adr_c[15:8] = s_tdata;
-      5'h08: adr_c[23:16] = s_tdata;
-      5'h10: {tid_c, adr_c[ASB:24]} = s_tdata;
-    endcase
-  end
+  wire [10:0] dec_w = cnt_q - 1;
+  wire [8:0] inc_w = len_q + 1;
 
   always @(posedge bus_clock) begin
     if (bus_reset) begin
       new_q <= 1'b0;
       cyc_q <= 1'b0;
+      end_q <= 1'b0;
     end else if (!cyc_q && state == ST_IDLE && s_tvalid && s_tkeep) begin
       new_q <= 1'b1;
       cyc_q <= 1'b1;
+      end_q <= 1'b0;
     end else begin
       new_q <= 1'b0;
-      cyc_q <= s_tvalid && s_tready && s_tlast ? 1'b0 : cyc_q;
-    end
-  end
+      end_q <= (s_tvalid && s_tready && dec_w == 9'd1) ||
+               ((!s_tvalid || !s_tready) && dec_w == 9'd0);
 
-  always @(posedge bus_clock) begin
-    if (state == ST_IDLE) begin
-      ptr_q <= 5'b00001;
-      cmd_q <= s_tdata;
-      len_q <= 8'bx;
-      tid_q <= {ID_WIDTH{1'bx}};
-      adr_q <= {ADDRESS_WIDTH{1'bx}};
-    end else if (s_tvalid && s_tkeep && s_tready) begin
-      ptr_q <= {ptr_q[4:0], 1'b0};
-      cmd_q <= cmd_q;
-      len_q <= len_c;
-      tid_q <= tid_c;
-      adr_q <= adr_c;
+      if (s_tvalid && s_tready && (tlast_w || mop_q == OP_IDAD && cmd_q[7])) begin
+        cyc_q <= 1'b0;
+      end else begin
+        cyc_q <= cyc_q;
+      end
     end
   end
 
   always @(posedge bus_clock) begin
     if (bus_reset || stb_q && cready_w) begin
       stb_q <= 1'b0;
-    end else if (ptr_q[4]) begin
+    end else if (mop_q == OP_IDAD) begin
       stb_q <= 1'b1;
     end
   end
@@ -233,17 +227,64 @@ module memreq #(
     if (bus_reset) begin
       wen_q <= 1'b0;
     end else begin
-      if (cmd_q[7] == 1'b0 && ptr_q[4] && state != ST_IDLE) begin
+      if (cmd_q[7] == 1'b0 && mop_q == OP_IDAD && state != ST_IDLE) begin
         wen_q <= 1'b1;
-      end else if (s_tvalid && s_tready && s_tlast) begin
+      end else if (s_tvalid && s_tready && tlast_w) begin
         wen_q <= 1'b0;
       end
     end
   end
 
+  always @(posedge bus_clock) begin
+    if (bus_reset) begin
+      mop_q <= OP_IDLE;
+      len_q <= 8'bx;
+      cnt_q <= 10'd0;
+      adr_q <= {ADDRESS_WIDTH{1'bx}};
+      tid_q <= {ID_WIDTH{1'bx}};
+    end
+    else if (!cyc_q) begin
+      cmd_q <= s_tdata;
+      mop_q <= OP_IDLE;
+    end
+    else if (s_tvalid && s_tready) begin
+      case (mop_q)
+        OP_IDLE: begin
+          cmd_q <= s_tdata;
+          mop_q <= OP_SIZE;
+        end
+        OP_SIZE: begin
+          len_q <= s_tdata;
+          mop_q <= OP_ADR0;
+        end
+        OP_ADR0: begin
+          adr_q[7:0] <= s_tdata;
+          mop_q <= OP_ADR1;
+        end
+        OP_ADR1: begin
+          adr_q[15:8] <= s_tdata;
+          mop_q <= OP_ADR2;
+        end
+        OP_ADR2: begin
+          adr_q[23:16] <= s_tdata;
+          mop_q <= OP_IDAD;
+        end
+        OP_IDAD: begin
+          {tid_q, adr_q[ASB:24]} <= s_tdata;
+          cnt_q <= {inc_w[7:0], 2'b00};
+          mop_q <= OP_BUSY;
+        end
+        OP_BUSY: begin
+          mop_q <= mop_q;
+          cnt_q <= dec_w[9:0];
+        end
+      endcase
+    end
+  end
+
   // -- FSM for Memory Requests -- //
 
-  assign cmd_end_w = ptr_q[4];
+  assign cmd_end_w = mop_q == OP_IDAD; // ptr_q[4];
   assign svalid_w  = s_tvalid & tkeep_w;
 
   always @(posedge bus_clock) begin
@@ -259,7 +300,7 @@ module memreq #(
 
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
-        ST_WDAT: state <= s_tvalid && s_tready && s_tlast ? ST_RESP : state;
+        ST_WDAT: state <= s_tvalid && s_tready && (s_tlast || end_q) ? ST_RESP : state;
         ST_RESP: state <= rvalid_w ? ST_DONE : state;
         // ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
@@ -329,6 +370,7 @@ module memreq #(
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
 
   assign tkeep_w  = wen_q;  // state == ST_WDAT;
+  assign tlast_w  = s_tlast || end_q;
   assign bokay_w  = bresp_i == RESP_OKAY;
 
   always @(posedge mem_clock) begin
@@ -389,7 +431,7 @@ module memreq #(
         ST_RESP: begin
           if (rvalid_w) begin
             {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
-            res_q <= bokay_w ? CMD_WDONE : CMD_WFAIL;
+            res_q <= rokay_w ? CMD_WDONE : CMD_WFAIL;
             rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
           end
         end
@@ -457,7 +499,7 @@ module memreq #(
       .s_axis_tvalid(svalid_w),
       .s_axis_tready(sready_w),
       .s_axis_tkeep(tkeep_w),
-      .s_axis_tlast(s_tlast),
+      .s_axis_tlast(tlast_w),
       .s_axis_tid(tid_q),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
@@ -534,8 +576,8 @@ module memreq #(
       .m_status_good_frame()
   );
 
-  // `define __use_potatio
-`ifdef __use_potatio
+// `define __pipelined_afifo
+`ifdef __pipelined_afifo
 
   // Write-responses FIFO
   axis_afifo #(
@@ -556,7 +598,7 @@ module memreq #(
       .m_tdata ({rokay_w, rid_w})
   );
 
-`else  /* !__use_potatio */
+`else  /* !__pipelined_afifo */
 
   axis_async_fifo #(
       .DEPTH(16),
@@ -619,7 +661,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-`endif  /* !__use_potatio */
+`endif  /* !__pipelined_afifo */
 
   // -- Read Datapath -- //
 

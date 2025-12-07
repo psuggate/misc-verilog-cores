@@ -20,12 +20,17 @@ module memreq_tb;
   reg rst;
   wire configured;
 
-  reg [47:0] req = {4'hA, 28'h0_20_80_F0, 8'h08, CMD_STORE};
+  reg [47:0] req_q= {4'hA, 28'h0_20_80_F0, 8'h08, CMD_STORE};
 
   reg s_tvalid, s_tkeep, s_tlast, m_tready;
-  reg [7:0] s_tdata;
+  reg [7:0] s_tdata, rnd_q;
   wire s_tready, m_tvalid, m_tkeep, m_tlast;
-  wire [7:0] m_tdata;
+  wire [7:0] m_tdata, tdata_w;
+  reg [10:0] cnt_q;
+  wire [11:0] inc_w;
+
+  assign tdata_w = req_q[7:0];
+  assign inc_w = cnt_q + 1;
 
   always #5 mclk <= ~mclk;
   always #8 bclk <= ~bclk;
@@ -42,53 +47,18 @@ module memreq_tb;
     #40 rst = 1'b0;
     #16 @(posedge bclk) #1;
 
-    s_tdata  = req[7:0];
-    s_tvalid = 1'b1;
-    s_tkeep  = 1'b1;
-    #16 s_tdata = req[15:8];
-    #16 s_tdata = req[23:16];
-    #16 s_tdata = req[31:24];
-    #16 s_tdata = req[39:32];
-    #16 s_tdata = req[47:40];
+    ddr_send(8'd1, 28'h0_20_80_F0);
+    ddr_send(8'd3, 28'h0_20_81_00);
 
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    #16 s_tdata = $urandom;
-    s_tlast = 1'b1;
-    #16 s_tvalid = 1'b0;
-    s_tkeep = 1'b0;
-    s_tlast = 1'b0;
+    ddr_recv(8'd1, 28'h0_20_80_F0);
+    ddr_recv(8'd7, 28'h0_20_81_00);
 
     while (!m_tvalid) @(posedge bclk);
 
-    req <= {4'h5, 28'h0_20_80_F0, 8'h08, CMD_FETCH};
-
-    #16 s_tdata = req[7:0];
-    s_tvalid = 1'b1;
-    s_tkeep  = 1'b1;
-    s_tlast  = 1'b0;
-    #16 s_tdata = req[15:8];
-    #16 s_tdata = req[23:16];
-    #16 s_tdata = req[31:24];
-    #16 s_tdata = req[39:32];
-    #16 s_tdata = req[47:40];
-    s_tlast = 1'b1;
-
-    #16 s_tvalid = 1'b0;
-    s_tkeep = 1'b0;
-    s_tlast = 1'b0;
-
-    while (!m_tvalid) @(posedge bclk);
-
-    #800 $finish;
+    #1200 $finish;
   end
 
-  initial #2000 $finish;
+  initial #2400 $finish;
 
   // -- Simulation Signals & Registers -- //
 
@@ -181,7 +151,10 @@ module memreq_tb;
     end
   end
 
+  wire [8:0] len_w;
+
   assign cnext = count + 1;
+  assign len_w = arlen_w + 1;
 
   always @(posedge mclk) begin
     if (rst) begin
@@ -189,17 +162,21 @@ module memreq_tb;
       lst_q <= 1'b0;
       count <= 0;
       len_q <= 8'd0;
-    end else begin
+    end
+    else begin
       if (arvalid_w && state == ST_IDLE) begin
-        len_q <= arlen_w;
+        len_q <= len_w;
         tid_q <= arid_w;
         lst_q <= 1'b0;
-        res_q <= RESP_OKAY;
+        res_q <= 2'bx;
+        // res_q <= RESP_OKAY;
         dat_q <= $urandom;
+        count <= 0;
       end
 
       if (count < len_q) begin
         vld_q <= 1'b1;
+        res_q <= RESP_OKAY;
         if (rready_w) begin
           dat_q <= $urandom;
           lst_q <= cnext >= len_q;
@@ -215,6 +192,35 @@ module memreq_tb;
     end
   end
 
+  wire [9:0] level_w;
+  wire f_tready, f_tvalid, f_tkeep, f_tlast, f_tdrop;
+  wire [7:0] f_tdata;
+
+  assign f_tkeep = f_tvalid;
+  assign f_tlast = 1'b0;
+
+`define __chunky
+`ifdef __chunky
+  sync_fifo #(
+      .OUTREG(1),  // 0, 1, 2, or 3
+      .WIDTH (9),
+      .ABITS (10)
+  ) U_FIFO0 (
+      .clock(bclk),
+      .reset(rst),
+
+      .level_o(level_w),
+
+      .valid_i(s_tvalid),
+      .ready_o(s_tready),
+      .data_i ({s_tlast, tdata_w}),
+
+      .valid_o(f_tvalid),
+      .ready_i(f_tready),
+      .data_o ({f_tdrop, f_tdata})
+      // .data_o ({f_tlast, f_tdata})
+  );
+`endif /* __chunky */
 
   //
   //  Cores Under Nondestructive Testing
@@ -230,11 +236,21 @@ module memreq_tb;
       .bus_clock(bclk),  // SPI or USB domain
       .bus_reset(rst),
 
+`ifdef __chunky
+      .s_tvalid(f_tvalid),
+      .s_tready(f_tready),
+      .s_tkeep (f_tkeep),
+      .s_tlast (f_tlast),
+      .s_tdata (f_tdata),
+
+`else  /* !__chunky */
       .s_tvalid(s_tvalid),
       .s_tready(s_tready),
       .s_tkeep (s_tkeep),
       .s_tlast (s_tlast),
-      .s_tdata (s_tdata),
+      .s_tdata (tdata_w),
+      // .s_tdata (s_tdata),
+`endif /* !__chunky */
 
       .m_tvalid(m_tvalid),
       .m_tready(m_tready),
@@ -274,6 +290,103 @@ module memreq_tb;
       .rid_i(tid_q),
       .rdata_i(dat_q)
   );
+
+
+  integer lim_q;
+
+  task ddr_send;
+    input [7:0] size;
+    input [27:0] addr;
+    begin
+      @(negedge bclk)
+        $display("%11t: Starting DDR3 STORE\n", $time);
+
+      @(posedge bclk) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep  <= #2 1'b1;
+        s_tlast  <= #2 1'b0;
+        lim_q <= #2 {size, 2'b00} + 9;
+        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
+        req_q <= #2 {4'hA, addr, size, CMD_STORE};
+        rnd_q <= $urandom;
+      end
+
+      @(negedge bclk)
+        $display("%11t: Sending DDR3 STORE (ADDR: %7x)\n", $time, addr);
+
+      while (cnt_q < 11'd6) begin
+        @(posedge bclk);
+        if (s_tready) begin
+          cnt_q <= #2 inc_w[10:0];
+          req_q <= #2 {rnd_q, req_q[47:8]};
+          rnd_q <= #2 $urandom;
+        end
+        @(negedge bclk);
+      end
+
+      $display("%11t: Sending DDR3 STORE (DATA: %d)\n", $time, cnt_q);
+      while (!(cnt_q == lim_q && s_tready)) begin
+        @(posedge bclk);
+        if (s_tready) begin
+          cnt_q <= #2 inc_w[10:0];
+          req_q <= #2 {rnd_q, req_q[47:8]};
+          rnd_q <= #2 $urandom;
+          s_tlast <= #2 inc_w < lim_q[12:0] ? 1'b0 : 1'b1;
+        end
+        @(negedge bclk);
+      end
+
+      $display("%11t: Finishing DDR3 STORE\n", $time);
+      @(posedge bclk);
+      s_tvalid <= #2 1'b0;
+      s_tkeep  <= #2 1'b0;
+      s_tlast  <= #2 1'b0;
+
+      @(negedge bclk)
+        $display("%11t: Finished DDR3 STORE\n", $time);
+
+    end
+  endtask  /* ddr_send */
+
+  task ddr_recv;
+    input [7:0] size;
+    input [27:0] addr;
+    begin
+      @(negedge bclk)
+        $display("%11t: Starting DDR3 FETCH\n", $time);
+
+      @(posedge bclk) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep  <= #2 1'b1;
+        s_tlast  <= #2 1'b0;
+        cnt_q <= s_tvalid && s_tready ? 11'd1 : 11'd0;
+        req_q <= #2 {4'hA, addr, size, CMD_FETCH};
+      end
+
+      @(negedge bclk)
+        $display("%11t: Sending DDR3 FETCH (ADDR: %7x)\n", $time, addr);
+
+      while (!(cnt_q == 11'd5 && s_tready)) begin
+        @(posedge bclk);
+        if (s_tready) begin
+          cnt_q <= #2 inc_w[10:0];
+          req_q <= #2 {8'bx, req_q[47:8]};
+          s_tlast <= #2 cnt_q < 11'd4 ? 1'b0 : 1'b1;
+        end
+        @(negedge bclk);
+      end
+
+      $display("%11t: Sent DDR3 FETCH\n", $time);
+      @(posedge bclk);
+      s_tvalid <= #2 1'b0;
+      s_tkeep  <= #2 1'b0;
+      s_tlast  <= #2 1'b0;
+
+      @(negedge bclk)
+        $display("%11t: Waiting for DDR3 FETCH\n", $time);
+
+    end
+  endtask  /* ddr_recv */
 
 
 endmodule  /* memreq_tb */

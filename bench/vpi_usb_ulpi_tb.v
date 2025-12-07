@@ -11,11 +11,6 @@ module vpi_usb_ulpi_tb;
 
   // DDR3 settings
   localparam WR_PREFETCH = 0;
-`ifdef __spaghetti_concatenate
-  localparam RD_FASTPATH = 1;
-`else  /* !__spaghetti_concatenate */
-  localparam RD_FASTPATH = 0;
-`endif  /* !__spaghetti_concatenate */
   localparam LOW_LATENCY = 1;
   localparam WRITE_DELAY = 2'b01;  // Default value (sim)
   localparam CLOCK_SHIFT = 2'b01;  // Default value
@@ -224,7 +219,6 @@ module vpi_usb_ulpi_tb;
       .PHY_RD_DELAY(PHY_RD_DELAY),
       .WRITE_DELAY (WRITE_DELAY),
       .CLOCK_SHIFT (CLOCK_SHIFT),
-      .RD_FASTPATH (RD_FASTPATH),
       .WR_PREFETCH (WR_PREFETCH),
       .LOW_LATENCY (LOW_LATENCY)
   ) U_DDRC1 (
@@ -251,21 +245,6 @@ module vpi_usb_ulpi_tb;
       .m_tkeep (x_tkeep),
       .m_tlast (x_tlast),
       .m_tdata (x_tdata),
-
-      // Fast-read channels [optional]
-      .byp_arvalid_i(1'b0),
-      .byp_arready_o(),
-      .byp_araddr_i({ADDRS{1'b0}}),
-      .byp_arid_i({REQID{1'b0}}),
-      .byp_arlen_i(8'd0),
-      .byp_arburst_i(2'd0),
-
-      .byp_rvalid_o(),
-      .byp_rready_i(1'b1),
-      .byp_rlast_o(),
-      .byp_rresp_o(),
-      .byp_rid_o(),
-      .byp_rdata_o(),
 
       // 1Gb DDR3 SDRAM pins
       .ddr_ck(ddr_ck_p),
