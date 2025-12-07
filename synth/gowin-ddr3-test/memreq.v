@@ -134,7 +134,7 @@ module memreq #(
   wire mux_enable_w, mux_select_w;
   wire svalid_w, sready_w, fready_w, fvalid_w, rd_mid_w;
   wire [DBITS:0] rd_level_w;
-  wire tkeep_w, rvalid_w, cmd_end_w;
+  wire tkeep_w, tlast_w, rvalid_w, cmd_end_w;
   wire bokay_w, wfull_w, rokay_w;
   wire cmd_w, ack_w, rd_w;
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
@@ -202,9 +202,12 @@ module memreq #(
       end_q <= 1'b0;
     end else begin
       new_q <= 1'b0;
-      end_q <= s_tvalid && s_tready && dec_w == 9'd1;
+      end_q <= (s_tvalid && s_tready && dec_w == 9'd1) ||
+               ((!s_tvalid || !s_tready) && dec_w == 9'd0); // ||
+//                (mop_q == OP_IDAD && s_tvalid && s_tready && cmd_q[7]);
 
-      if (s_tvalid && s_tready && (dec_w == 9'd0 || s_tlast)) begin
+      if (s_tvalid && s_tready && (tlast_w || mop_q == OP_IDAD && cmd_q[7])) begin
+      // if (s_tvalid && s_tready && (dec_w == 9'd0 || tlast_w)) begin
         cyc_q <= 1'b0;
       end else begin
         cyc_q <= cyc_q;
@@ -226,7 +229,7 @@ module memreq #(
     end else begin
       if (cmd_q[7] == 1'b0 && mop_q == OP_IDAD && state != ST_IDLE) begin
         wen_q <= 1'b1;
-      end else if (s_tvalid && s_tready && (end_q || s_tlast)) begin
+      end else if (s_tvalid && s_tready && tlast_w) begin
         wen_q <= 1'b0;
       end
     end
@@ -367,6 +370,7 @@ module memreq #(
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
 
   assign tkeep_w  = wen_q;  // state == ST_WDAT;
+  assign tlast_w  = s_tlast || end_q;
   assign bokay_w  = bresp_i == RESP_OKAY;
 
   always @(posedge mem_clock) begin
@@ -495,7 +499,7 @@ module memreq #(
       .s_axis_tvalid(svalid_w),
       .s_axis_tready(sready_w),
       .s_axis_tkeep(tkeep_w),
-      .s_axis_tlast(s_tlast || end_q),
+      .s_axis_tlast(tlast_w),
       .s_axis_tid(tid_q),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),

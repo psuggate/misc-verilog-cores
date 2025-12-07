@@ -55,7 +55,7 @@ module memreq_tb;
 
     while (!m_tvalid) @(posedge bclk);
 
-    #800 $finish;
+    #1200 $finish;
   end
 
   initial #2000 $finish;
@@ -159,17 +159,21 @@ module memreq_tb;
       lst_q <= 1'b0;
       count <= 0;
       len_q <= 8'd0;
-    end else begin
+    end
+    else begin
       if (arvalid_w && state == ST_IDLE) begin
         len_q <= arlen_w;
         tid_q <= arid_w;
         lst_q <= 1'b0;
-        res_q <= RESP_OKAY;
+        res_q <= 2'bx;
+        // res_q <= RESP_OKAY;
         dat_q <= $urandom;
+        count <= 0;
       end
 
       if (count < len_q) begin
         vld_q <= 1'b1;
+        res_q <= RESP_OKAY;
         if (rready_w) begin
           dat_q <= $urandom;
           lst_q <= cnext >= len_q;
@@ -185,6 +189,35 @@ module memreq_tb;
     end
   end
 
+  wire [9:0] level_w;
+  wire f_tready, f_tvalid, f_tkeep, f_tlast, f_tdrop;
+  wire [7:0] f_tdata;
+
+  assign f_tkeep = f_tvalid;
+  assign f_tlast = 1'b0;
+
+`define __chunky
+`ifdef __chunky
+  sync_fifo #(
+      .OUTREG(1),  // 0, 1, 2, or 3
+      .WIDTH (9),
+      .ABITS (10)
+  ) U_FIFO0 (
+      .clock(bclk),
+      .reset(rst),
+
+      .level_o(level_w),
+
+      .valid_i(s_tvalid),
+      .ready_o(s_tready),
+      .data_i ({s_tlast, tdata_w}),
+
+      .valid_o(f_tvalid),
+      .ready_i(f_tready),
+      .data_o ({f_tdrop, f_tdata})
+      // .data_o ({f_tlast, f_tdata})
+  );
+`endif /* __chunky */
 
   //
   //  Cores Under Nondestructive Testing
@@ -200,12 +233,21 @@ module memreq_tb;
       .bus_clock(bclk),  // SPI or USB domain
       .bus_reset(rst),
 
+`ifdef __chunky
+      .s_tvalid(f_tvalid),
+      .s_tready(f_tready),
+      .s_tkeep (f_tkeep),
+      .s_tlast (f_tlast),
+      .s_tdata (f_tdata),
+
+`else  /* !__chunky */
       .s_tvalid(s_tvalid),
       .s_tready(s_tready),
       .s_tkeep (s_tkeep),
       .s_tlast (s_tlast),
       .s_tdata (tdata_w),
       // .s_tdata (s_tdata),
+`endif /* !__chunky */
 
       .m_tvalid(m_tvalid),
       .m_tready(m_tready),
@@ -257,7 +299,7 @@ module memreq_tb;
         s_tvalid <= #2 1'b1;
         s_tkeep  <= #2 1'b1;
         s_tlast  <= #2 1'b0;
-        cnt_q <= s_tready ? 11'd1 : 11'd0;
+        cnt_q <= s_tvalid && s_tready ? 11'd1 : 11'd0;
         req_q <= #2 {4'hA, addr, 8'h01, CMD_STORE};
         rnd_q <= $urandom;
       end
@@ -309,7 +351,7 @@ module memreq_tb;
         s_tvalid <= #2 1'b1;
         s_tkeep  <= #2 1'b1;
         s_tlast  <= #2 1'b0;
-        cnt_q <= s_tready ? 11'd1 : 11'd0;
+        cnt_q <= s_tvalid && s_tready ? 11'd1 : 11'd0;
         req_q <= #2 {4'hA, addr, 8'h01, CMD_FETCH};
       end
 
