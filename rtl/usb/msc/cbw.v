@@ -34,7 +34,7 @@ module cbw (
     output [7:0] cb_tdata_o
 );
 
-  reg vld, err, dir, rdy, enb;
+  reg vld, err, dir, rdy, enb, byp;
   reg [31:0] len, tag;
   reg [3:0] lun;
   reg [4:0] cnt;
@@ -45,11 +45,11 @@ module cbw (
   localparam [4:0] ST_TAG0 = 5'd4, ST_TAG1 = 5'd5, ST_TAG2 = 5'd6, ST_TAG3 = 5'd7;
   localparam [4:0] ST_LEN0 = 5'd8, ST_LEN1 = 5'd9, ST_LEN2 = 5'd10, ST_LEN3 = 5'd11;
   localparam [4:0] ST_FLAG = 5'd12, ST_DLUN = 5'd13, ST_BLEN = 5'd14, ST_SEND = 5'd15;
-  localparam [4:0] ST_WAIT = 5'd16, ST_FAIL = 5'd17;
+  localparam [4:0] ST_WAIT = 5'd16, ST_DATO = 5'd17, ST_DATI = 5'd18, ST_FAIL = 5'd19;
 
   assign error_o = err;
 
-  assign usb_tready_o = state != ST_SEND ? rdy : skid_ready_w;
+  assign usb_tready_o = byp ? skid_ready_w : rdy;
 
   assign cbw_vld_o = vld;
   assign cbw_dir_o = dir;  // 1: Bulk-In (device to host)
@@ -61,9 +61,25 @@ module cbw (
   assign vld_w = usb_tdata_i[7:5] == 3'd0 && usb_tdata_i[4:0] != 5'd0 && usb_tdata_i[4:0] <= 5'd16;
 
   always @(posedge clock) begin
+    if (reset == 1'b1 || cbw_ack_i == 1'b1) begin
+      vld <= 1'b0;
+    end else begin
+      case (state)
+        ST_IDLE: vld <= 1'b0;
+        ST_FAIL: vld <= 1'b0;
+        ST_BLEN: vld <= usb_tvalid_i && vld_w;
+        default:
+        if (cbw_ack_i) begin
+          vld <= 1'b0;
+        end
+      endcase
+    end
+  end
+
+  always @(posedge clock) begin
     if (reset == 1'b1) begin
       state <= ST_IDLE;
-      vld   <= 1'b0;
+      byp   <= 1'b0;
       enb   <= 1'b1;
       err   <= 1'b0;
       rdy   <= 1'b0;
@@ -71,7 +87,7 @@ module cbw (
     end else if (enable_i) begin
       case (state)
         ST_IDLE: begin
-          vld <= 1'b0;
+          byp <= 1'b0;
           enb <= 1'b1;
           err <= 1'b0;
           rdy <= ~scsi_busy_i;
@@ -149,36 +165,52 @@ module cbw (
         ST_BLEN:
         if (usb_tvalid_i) begin
           cnt   <= usb_tdata_i[4:0];
-          vld   <= vld_w;
+          byp   <= 1'b1;
           enb   <= ~vld_w;
           state <= vld_w ? ST_SEND : ST_FAIL;
         end
 
         // Send the Command Block to the SCSI controller.
         ST_SEND: begin
-          if (cbw_ack_i) begin
-            vld <= 1'b0;
-          end
           if (usb_tvalid_i && usb_tlast_i) begin
             state <= ST_WAIT;
           end
         end
 
+        // Wait for the SCSI controller to read the CB.
         ST_WAIT: begin
-          if (cbw_ack_i) begin
-            vld <= 1'b0;
-          end
-          if (scsi_done_i) begin
-            state <= ST_IDLE;
-          end
           if (cb_tvalid_o && cb_tready_i && cb_tlast_o) begin
-            enb <= 1'b1;
+            if (dir == 1'b1) begin
+              byp   <= 1'b0;
+              rdy   <= 1'b0;
+              enb   <= 1'b1;
+              state <= ST_DATO;
+            end else begin
+              enb   <= 1'b0;
+              state <= ST_DATI;
+            end
           end
+        end
+
+        // Wait for the SCSI subsystem to send data (device -> host), and block
+        // until this has completed -- command-queuing not supported by BOT.
+        ST_DATO:
+        if (scsi_done_i) begin
+          state <= ST_IDLE;
+        end
+
+        // Pass data (host -> device) through the skid-register, until the SCSI
+        // transaction has completed.
+        ST_DATI:
+        if (scsi_done_i) begin
+          enb   <= 1'b1;
+          byp   <= 1'b0;
+          state <= ST_IDLE;
         end
 
         default: begin
           // Failed, so handle error, and return to idle.
-          vld   <= 1'b0;
+          byp   <= 1'b0;
           err   <= 1'b1;
           enb   <= 1'b1;
           rdy   <= usb_tvalid_i && usb_tlast_i ? 1'b0 : 1'b1;

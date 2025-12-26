@@ -84,7 +84,7 @@ module bot (
       .reset(reset),
 
       .enable_i(enable_i),
-              .error_i(error_o),
+      .error_i (error_o),
 
       .scsi_done_i(scsi_done_i),
 
