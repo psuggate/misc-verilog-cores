@@ -144,7 +144,6 @@ module mmio_ep_out #(
   //  - Must terminate with 'tlast=1'; i.e., one command in a USB frame, and the
   //    payload must be 11 bytes, only.
   //
-  reg cmd_error_q, resp_sent_q;
   reg [5:0] parse;
 
   /**
@@ -221,28 +220,6 @@ module mmio_ep_out #(
   end
 
   /**
-   * Set the AXI-stream to bypass USB frames, until the Bulk-Out phase has been
-   * completed.
-   */
-  always @(posedge clock) begin
-    if (clear || stall) begin
-      bypass <= 1'b0;
-    end else begin
-      case (parse)
-        MM_IDOP:
-        if (cyc && stb && lst && dat32[27:26] == 2'b00) bypass <= 1'b1;
-        else bypass <= 1'b0;
-
-        MM_BUSY:
-        if (bypass && (zdp_w || end_w)) bypass <= 1'b0;
-        else bypass <= bypass;
-
-        default: bypass <= 1'b0;
-      endcase
-    end
-  end
-
-  /**
    * Parser FSM for MMIO commands, and after a transaction starts, waits as
    * data is passed through to other functional-units (if a SET or STORE) has
    * been requested.
@@ -291,15 +268,60 @@ module mmio_ep_out #(
 
 
   //
+  // Detect the end of the data-transfer phase by counting bytes per USB frame,
+  // or arrival of a ZDP (Zero-Data Packet).
+  //
+  reg [CSB:0] count;
+  wire [CBITS:0] cprev_w;
+  wire czero_w, cfull_w, zdp_w, end_w;
+
+  assign cprev_w = count - 1;
+  assign czero_w = count == CZERO;
+  assign cfull_w = count == CMAX;
+
+  assign zdp_w = cyc && !stb && lst && cfull_w;
+  assign end_w = cyc && stb && lst && !czero_w;
+
+  always @(posedge clock) begin
+    if (clear || state != EP_XFER) begin
+      count <= CMAX;
+      recvd <= 1'b0;
+    end else if (bypass && cyc) begin
+      count <= stb ? cprev[CSB:0] : count;
+      recvd <= lst && (stb && czero_w || !stb);
+    end else begin
+      count <= count;
+      recvd <= 1'b0;
+    end
+  end
+
+  /**
+   * Set the AXI-stream to bypass USB frames, until the Bulk-Out phase has been
+   * completed.
+   */
+  always @(posedge clock) begin
+    if (clear || stall) begin
+      bypass <= 1'b0;
+    end else begin
+      case (parse)
+        MM_IDOP:
+        if (cyc && stb && lst && dat32[27:26] == 2'b00) bypass <= 1'b1;
+        else bypass <= 1'b0;
+
+        MM_BUSY:
+        if (bypass && cyc && lst && (!stb || stb && !czero_w)) bypass <= 1'b0;
+        else bypass <= bypass;
+
+        default: bypass <= 1'b0;
+      endcase
+    end
+  end
+
+
+  //
   // Top-level FSM.
   //
   reg [3:0] state;
-  reg [CSB:0] count;
-  wire [CBITS:0] cprev_w;
-  wire czero_w, zdp_w;
-
-  assign zdp_w = cyc && !stb && lst;
-  assign end_w = cyc && stb && lst && !czero_w;
 
   /**
    * End-point stall handling, in response to invalid commands.
@@ -321,26 +343,6 @@ module mmio_ep_out #(
       enb <= 1'b1;
     end else if (state == EP_XFER && bypass) begin
       enb <= 1'b0;
-    end
-  end
-
-  /**
-   * Detect the end of the data-transfer phase by counting bytes per USB frame,
-   * or arrival of a ZDP (Zero-Data Packet).
-   */
-  assign cprev_w = count - 1;
-  assign czero_w = count == CZERO;
-
-  always @(posedge clock) begin
-    if (clear || state != EP_XFER) begin
-      count <= CMAX;
-      recvd <= 1'b0;
-    end else if (bypass && cyc) begin
-      count <= stb ? cprev[CSB:0] : count;
-      recvd <= lst && (stb && czero_w || !stb);
-    end else begin
-      count <= count;
-      recvd <= 1'b0;
     end
   end
 
