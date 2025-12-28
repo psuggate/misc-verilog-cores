@@ -1,6 +1,8 @@
 `timescale 1ns / 100ps
 //
-// Parser for USB Bulk-Only Transport (BOT) Command Block Wrapper (CBW) frames.
+// Command parser-, and Bulk-Out data-, end-point for the USB MMIO logic-core,
+// that presents a Bulk-Only Transport (BOT) inspired interface connecting AXI
+// and APB buses to USB.
 //
 // Note(s):
 //  - Some errors may 'STALL' this end-point, which will require using the
@@ -271,7 +273,7 @@ module mmio_ep_out #(
   // Detect the end of the data-transfer phase by counting bytes per USB frame,
   // or arrival of a ZDP (Zero-Data Packet).
   //
-  reg [CSB:0] count;
+  reg  [  CSB:0] count;
   wire [CBITS:0] cprev_w;
   wire czero_w, cfull_w, zdp_w, end_w;
 
@@ -279,8 +281,8 @@ module mmio_ep_out #(
   assign czero_w = count == CZERO;
   assign cfull_w = count == CMAX;
 
-  assign zdp_w = cyc && !stb && lst && cfull_w;
-  assign end_w = cyc && stb && lst && !czero_w;
+  assign zdp_w   = cyc && !stb && lst && cfull_w;
+  assign end_w   = cyc && stb && lst && !czero_w;
 
   always @(posedge clock) begin
     if (clear || state != EP_XFER) begin

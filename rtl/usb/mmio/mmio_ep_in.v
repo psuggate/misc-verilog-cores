@@ -1,6 +1,7 @@
 `timescale 1ns / 100ps
 //
-// Parser for USB Bulk-Only Transport (BOT) Command Block Wrapper (CBW) frames.
+// Data and command-responses for USB MMIO logic-core, that presents a Bulk-Only
+// Transport (BOT) inspired interface connecting AXI and APB buses to USB.
 //
 // Note(s):
 //  - Some errors may 'STALL' this end-point, which will require using the
@@ -35,7 +36,7 @@ module mmio_ep_in #(
 
     // From MMIO controller
     input  mmio_busy_i,
-    input mmio_recv_i,
+    input  mmio_recv_i,
     output mmio_sent_o,
     output mmio_resp_o,
     input  mmio_done_i,
@@ -67,8 +68,9 @@ module mmio_ep_in #(
 
   reg stall, clear, ready, avail, bypass, parity, sent, respd;
   reg cyc, stb, lst, rdy, enb;
-  wire fifo_tready_w;
   wire save_w, redo_w, next_w;
+  wire fifo_tvalid_w, fifo_tready_w, fifo_tkeep_w, fifo_tlast_w;
+  wire [7:0] fifo_tdata_w;
 
   // Top-level states for the high-level control of this end-point (EP).
   localparam [3:0] EP_IDLE = 4'h1, EP_XFER = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
@@ -76,9 +78,16 @@ module mmio_ep_in #(
   assign stalled_o = stall;
   assign ep_ready_o = ready;
   assign parity_o = parity;
+
   assign mmio_sent_o = sent;
   assign mmio_resp_o = respd;
-  assign usb_tready_o = bypass ? fifo_tready_w : rdy;
+
+  // Todo ...
+  assign fifo_tvalid_w = bypass ? dat_tvalid_i : vld;
+  assign dat_tready_o = bypass ? fifo_tready_w : rdy;
+  assign fifo_tkeep_w = 1'b1;
+  assign fifo_tlast_w = bypass ? dat_tlast_i : lst;
+  assign fifo_tdata_w = bypass ? dat_tdata_i : dat;
 
   /**
    * Pipeline some of the control signals.
@@ -141,7 +150,7 @@ module mmio_ep_in #(
    * then deassert once we have sent the response back to the USB host.
    */
   always @(posedge clock) begin
-    if (clear || mmio_resp_i) begin
+    if (clear || mmio_done_i) begin
       enb <= 1'b1;
     end else if (state == EP_XFER && bypass) begin
       enb <= 1'b0;
@@ -189,21 +198,21 @@ module mmio_ep_in #(
 
       .level_o(level_w),
 
-      .drop_i (1'b0),
-      .save_i (save_w),
-      .redo_i (redo_w),
-      .next_i (next_w),
+      .drop_i(1'b0),
+      .save_i(save_w),
+      .redo_i(redo_w),
+      .next_i(next_w),
 
-      .s_tvalid(s_tvalid),
+      .s_tvalid(fifo_tvalid_w),
       .s_tready(fifo_tready_w),
-      .s_tlast (s_tlast),
-      .s_tkeep (s_tvalid),
-      .s_tdata (s_tdata),
+      .s_tlast (fifo_tlast_w),
+      .s_tkeep (fifo_tkeep_w),
+      .s_tdata (fifo_tdata_w),
 
-      .m_tvalid(tvalid_r),
-      .m_tready(tready_r),
-      .m_tlast (tlast_r),
-      .m_tdata (m_tdata)
+      .m_tvalid(usb_tvalid_o),
+      .m_tready(usb_tready_i),
+      .m_tlast (usb_tlast_o),
+      .m_tdata (usb_tdata_o)
   );
 
 
