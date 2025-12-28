@@ -123,7 +123,7 @@ module memreq #(
   reg [3:0] wr, rd;
   reg [4:0] ptr_q;
   reg cmd_m, rd_m;
-  reg wen_q, stb_q, new_q, cyc_q;
+  reg wen_q, stb_q, cyc_q;
   reg mux_q, sel_q, vld_q, lst_q, idx_q;
   reg [  7:0] res_q;
   reg [ISB:0] rid_q;
@@ -193,17 +193,17 @@ module memreq #(
   wire [10:0] dec_w = cnt_q - 1;
   wire [8:0] inc_w = len_q + 1;
 
+  assign tkeep_w = wen_q;
+  assign tlast_w = s_tlast || end_q;
+
   always @(posedge bus_clock) begin
     if (bus_reset) begin
-      new_q <= 1'b0;
       cyc_q <= 1'b0;
       end_q <= 1'b0;
-    end else if (!cyc_q && state == ST_IDLE && s_tvalid && s_tkeep) begin
-      new_q <= 1'b1;
+    end else if (cyc_q == 1'b0 && state == ST_IDLE && s_tvalid && s_tkeep) begin
       cyc_q <= 1'b1;
       end_q <= 1'b0;
     end else begin
-      new_q <= 1'b0;
       end_q <= (s_tvalid && s_tready && dec_w == 9'd1) ||
                ((!s_tvalid || !s_tready) && dec_w == 9'd0);
 
@@ -242,12 +242,10 @@ module memreq #(
       cnt_q <= 10'd0;
       adr_q <= {ADDRESS_WIDTH{1'bx}};
       tid_q <= {ID_WIDTH{1'bx}};
-    end
-    else if (!cyc_q) begin
+    end else if (cyc_q == 1'b0) begin
       cmd_q <= s_tdata;
       mop_q <= OP_IDLE;
-    end
-    else if (s_tvalid && s_tready) begin
+    end else if (s_tvalid && s_tready) begin
       case (mop_q)
         OP_IDLE: begin
           cmd_q <= s_tdata;
@@ -284,7 +282,7 @@ module memreq #(
 
   // -- FSM for Memory Requests -- //
 
-  assign cmd_end_w = mop_q == OP_IDAD; // ptr_q[4];
+  assign cmd_end_w = mop_q == OP_IDAD;  // ptr_q[4];
   assign svalid_w  = s_tvalid & tkeep_w;
 
   always @(posedge bus_clock) begin
@@ -300,9 +298,8 @@ module memreq #(
 
         // Write States //
         ST_WADR: state <= cmd_end_w ? ST_WDAT : state;
-        ST_WDAT: state <= s_tvalid && s_tready && (s_tlast || end_q) ? ST_RESP : state;
+        ST_WDAT: state <= s_tvalid && s_tready && tlast_w ? ST_RESP : state;
         ST_RESP: state <= rvalid_w ? ST_DONE : state;
-        // ST_RESP: state <= rvalid_w ? ST_IDLE : state;
 
         // Read States //
         ST_RADR: state <= cmd_end_w ? ST_RDAT : state;
@@ -368,9 +365,6 @@ module memreq #(
   // -- Write-Port, Memory-Domain FSM -- //
 
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
-
-  assign tkeep_w  = wen_q;  // state == ST_WDAT;
-  assign tlast_w  = s_tlast || end_q;
   assign bokay_w  = bresp_i == RESP_OKAY;
 
   always @(posedge mem_clock) begin
@@ -576,7 +570,7 @@ module memreq #(
       .m_status_good_frame()
   );
 
-// `define __pipelined_afifo
+  // `define __pipelined_afifo
 `ifdef __pipelined_afifo
 
   // Write-responses FIFO

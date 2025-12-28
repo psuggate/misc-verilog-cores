@@ -96,7 +96,7 @@ module ep_bulk_out #(
     end
   end
 
-  // -- FSM for Bulk IN Transfers -- //
+  // -- FSM for Bulk OUT Transfers -- //
 
   always @(posedge clock) begin
     if (reset || clr_conf_i || ENABLED != 1) begin

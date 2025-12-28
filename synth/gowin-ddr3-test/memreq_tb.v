@@ -8,12 +8,19 @@ module memreq_tb;
   localparam MSB = DATA_WIDTH - 1;
 
   localparam [7:0] CMD_NOP = 8'h00;
+  localparam [7:0] CMD_READY = 8'h00;
   localparam [7:0] CMD_STORE = 8'h01;
-  localparam [7:0] CMD_WDONE = 8'h02;
-  localparam [7:0] CMD_WFAIL = 8'h03;
   localparam [7:0] CMD_FETCH = 8'h80;
-  localparam [7:0] CMD_RDATA = 8'h81;
-  localparam [7:0] CMD_RFAIL = 8'h82;
+  localparam [7:0] CMD_QUERY = 8'hC0;
+
+  localparam [7:0] RES_READY = 8'h00;
+  localparam [7:0] RES_ERROR = 8'hFF;
+  // localparam [7:0] CMD_STORE = 8'h01;
+  localparam [7:0] RES_WDONE = 8'h02;
+  localparam [7:0] RES_WFAIL = 8'h03;
+  // localparam [7:0] CMD_FETCH = 8'h80;
+  localparam [7:0] RES_RDATA = 8'h81;
+  localparam [7:0] RES_RFAIL = 8'h82;
 
   reg mclk = 1;
   reg bclk = 1;
