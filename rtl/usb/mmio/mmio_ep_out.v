@@ -67,17 +67,18 @@ module mmio_ep_out #(
     output [7:0] dat_tdata_o
 );
 
-  reg stall, clear, ready, avail, bypass, parity, recvd;
+  reg stall, clear, en_q, ready, avail, bypass, parity, recvd;
   reg cyc, stb, lst, rdy;
   reg vld, dir, enb, apb;
   reg [ 1:0] cmd;
   reg [27:0] adr;
+  reg [15:0] len;
   reg [3:0] tag, lun;
   wire fifo_tready_w;
 
   // MMIO command parser states.
   localparam [5:0] MM_IDLE = 6'h01, MM_ADDR = 6'h02, MM_WORD = 6'h04, MM_IDOP = 6'h08;
-  localparam [5:0] MM_DROP = 6'h10, MM_HALT = 6'h20;
+  localparam [5:0] MM_BUSY = 6'h10, MM_HALT = 6'h20;
 
   // Top-level states for the high-level control of this end-point (EP).
   localparam [3:0] EP_IDLE = 4'h1, EP_XFER = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
@@ -204,7 +205,7 @@ module mmio_ep_out #(
     if (cyc && stb) begin
       case (parse)
         MM_ADDR: if (sel == 2'd0) {lun, adr} <= dat32;
-        MM_WORD: if (sel == 2'd2) val <= dat32[31:16];
+        MM_WORD: if (sel == 2'd2) len <= dat32[31:16];
         MM_IDOP: if (lst) {tag, dir, apb, cmd} <= dat32[31:24];
       endcase
     end
@@ -242,28 +243,28 @@ module mmio_ep_out #(
         // If the first four bytes match "TART", then parse a command packet.
         MM_IDLE:
         if (cyc && stb && sel == 2'd0 && dat32 == MAGIC) parse <= MM_ADDR;
-        else if (!cyc && sel != 2'd0) parse <= MM_FAIL;
+        else if (!cyc && sel != 2'd0) parse <= MM_HALT;
 
         // Extract the 32-bit address from the packet.
         MM_ADDR:
-        if (!cyc) parse <= MM_FAIL;
+        if (!cyc) parse <= MM_HALT;
         else if (stb && sel == 2'd0) parse <= MM_WORD;
 
         // Then 16-bits which is either a length, or a word to send over APB.
         MM_WORD:
-        if (!cyc) parse <= MM_FAIL;
+        if (!cyc) parse <= MM_HALT;
         else if (stb && sel == 2'd2) parse <= MM_IDOP;
 
         // Last byte is 4-bit tag, and 4-bit command/op.
         MM_IDOP:
-        if (!cyc || stb && !lst) parse <= MM_FAIL;
+        if (!cyc || stb && !lst) parse <= MM_HALT;
         else if (stb) parse <= MM_BUSY;
 
         // Wait for transaction to complete.
         MM_BUSY: parse <= parse;
 
         // Wait for end-point to be reset.
-        MM_FAIL: parse <= parse;
+        MM_HALT: parse <= parse;
       endcase
     end
   end
@@ -289,7 +290,7 @@ module mmio_ep_out #(
       count <= CMAX;
       recvd <= 1'b0;
     end else if (bypass && cyc) begin
-      count <= stb ? cprev[CSB:0] : count;
+      count <= stb ? cprev_w[CSB:0] : count;
       recvd <= lst && (stb && czero_w || !stb);
     end else begin
       count <= count;
@@ -331,7 +332,7 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear) begin
       stall <= 1'b0;
-    end else if (parse == MM_FAIL) begin
+    end else if (parse == MM_HALT) begin
       stall <= 1'b1;
     end
   end

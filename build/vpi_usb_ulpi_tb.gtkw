@@ -1,29 +1,27 @@
 [*]
-[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Sep 25 04:30:40 2024
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Sun Dec 28 12:49:07 2025
 [*]
-[dumpfile] "./vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Wed Sep 25 04:24:10 2024"
-[dumpfile_size] 31338428
-[savefile] "./vpi_usb_ulpi_tb.gtkw"
-[timestart] 749158500
-[size] 2560 1376
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
+[dumpfile_mtime] "Sun Dec 28 02:19:24 2025"
+[dumpfile_size] 8588996
+[savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
+[timestart] 757643000
+[size] 2560 1363
 [pos] -1 -1
-*-16.048487 749505000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.048487 759084000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_AXI_CTRL.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
-[treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.
-[treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.
 [sst_width] 233
 [signals_width] 174
 [sst_expanded] 1
-[sst_vpaned_height] 695
+[sst_vpaned_height] 647
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -42,9 +40,8 @@ vpi_usb_ulpi_tb.ulpi_data[7:0]
 @28
 [color] 2
 vpi_usb_ulpi_tb.configured
-@c00200
--USB Core
 @800200
+-USB Core
 -Decoder
 @820
 [color] 7
@@ -112,14 +109,21 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_ENC1.s_tdata[7:0]
 @820
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_STDREQ1.dbg_state[55:0]
-@c00200
+@800200
 -OUT1
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.selected_i
 @24
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.level_w[10:0]
-@1401200
+@28
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.set_conf_i
+[color] 1
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.rx_error_i
+@1000200
 -OUT1
-@c00200
+@800200
 -IN2
 @28
 [color] 2
@@ -127,13 +131,22 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.ep_ready_o
 @24
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.level_w[10:0]
-@1401200
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.selected_i
+@1000200
 -IN2
 @800200
 -IN3
 @24
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.level_w[10:0]
+@29
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.selected_i
+@28
+[color] 1
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.timedout_i
 @800200
 -Internal
 @820
@@ -141,7 +154,7 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.level_w[10:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.dbg_recv[39:0]
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.dbg_send[39:0]
-@800200
+@c00200
 -Packet
 @28
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.save_w
@@ -158,8 +171,9 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.paddr[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.waddr[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.rplay[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.raddr[11:0]
-@1000200
+@1401200
 -Packet
+@1000200
 -Internal
 @c00200
 -IO
@@ -180,14 +194,16 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.m_tdata[7:0]
 -IO
 @1000200
 -IN3
-@c00200
+@800200
 -OUT4
 @24
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.level_w[10:0]
 @28
-[color] 2
+[color] 3
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.selected_i
+[color] 1
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.rx_error_i
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tvalid
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tready
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.s_tkeep
@@ -200,11 +216,14 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tready
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tlast
 @22
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.m_tdata[7:0]
-@1401200
--OUT4
+@28
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.set_conf_i
+[color] 2
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP4.clr_conf_i
 @1000200
+-OUT4
 -USB EPs
-@1401200
 -USB Core
 @c00200
 -MemReq
@@ -246,7 +265,6 @@ vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.dbg_res[47:0]
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.cyc_q
 [color] 3
-vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.new_q
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.mux_q
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.sel_q
 vpi_usb_ulpi_tb.U_DDRC1.U_MEMREQ1.vld_q
@@ -417,11 +435,6 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.waddr[11:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.waddr[11:0]
 @1401200
 -RdDat
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_state[39:0]
-[color] 2
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_cmd[39:0]
 @c00200
 -DDL
 @28
@@ -444,11 +457,11 @@ vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_DDR3_CFG.dbg_state[79:0]
 @1000200
 -CFG
 -MemCtrl
-@800200
+@c00200
 -DDR PHY
 @28
 vpi_usb_ulpi_tb.U_DDRC1.U_PHY1.clock
-@1000200
+@1401200
 -DDR PHY
 @800200
 -DDR3
@@ -481,17 +494,6 @@ vpi_usb_ulpi_tb.sys_rst
 -Testbench
 @800200
 -FastPath
-@820
-[color] 7
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.dbg_cmd[39:0]
-@25
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_cmd_o[2:0]
-@22
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.row_actv[7:0]
-@28
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_req_o
-[color] 3
-vpi_usb_ulpi_tb.U_DDRC1.U_LITE.U_BYPASS.ddl_rdy_i
 @1000200
 -FastPath
 [pattern_trace] 1
