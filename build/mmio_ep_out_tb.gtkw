@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Jan  1 10:05:06 2026
+[*] Thu Jan  1 10:49:19 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.vcd"
-[dumpfile_mtime] "Thu Jan  1 10:04:12 2026"
-[dumpfile_size] 17622
+[dumpfile_mtime] "Thu Jan  1 10:48:37 2026"
+[dumpfile_size] 18762
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.gtkw"
 [timestart] 180800
 [size] 2560 1392
 [pos] -1 -1
-*-16.619900 712000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.619900 546000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] mmio_ep_out_tb.
 [treeopen] mmio_ep_out_tb.U_EPOUT0.
 [sst_width] 209
@@ -63,6 +63,7 @@ mmio_ep_out_tb.U_EPOUT0.cmd_adr_o[27:0]
 -Bus
 @28
 mmio_ep_out_tb.U_EPOUT0.mmio_busy_i
+[color] 3
 mmio_ep_out_tb.U_EPOUT0.mmio_recv_o
 mmio_ep_out_tb.U_EPOUT0.mmio_sent_i
 mmio_ep_out_tb.U_EPOUT0.mmio_resp_i
@@ -94,15 +95,17 @@ mmio_ep_out_tb.U_EPOUT0.clear
 @22
 [color] 7
 mmio_ep_out_tb.U_EPOUT0.state[3:0]
-@821
+@820
 [color] 6
 mmio_ep_out_tb.U_EPOUT0.dbg_state[39:0]
+@28
+mmio_ep_out_tb.U_EPOUT0.end_w
+mmio_ep_out_tb.U_EPOUT0.zdp_w
+@24
+[color] 2
+mmio_ep_out_tb.U_EPOUT0.count[8:0]
 @1000200
 -Internal
-@28
-mmio_ep_out_tb.U_EPOUT0.selected_i
-@22
-mmio_ep_out_tb.U_EPOUT0.MAGIC
 @24
 mmio_ep_out_tb.cnt_q[10:0]
 mmio_ep_out_tb.inc_w[11:0]
@@ -110,11 +113,14 @@ mmio_ep_out_tb.inc_w[11:0]
 mmio_ep_out_tb.lim_q
 @28
 mmio_ep_out_tb.U_EPOUT0.ready
-mmio_ep_out_tb.U_EPOUT0.recvd
-mmio_ep_out_tb.U_EPOUT0.fifo_tready_w
 mmio_ep_out_tb.U_EPOUT0.en_q
 @24
 mmio_ep_out_tb.U_EPOUT0.space_w[10:0]
 mmio_ep_out_tb.U_EPOUT0.level_w[10:0]
+@28
+mmio_ep_out_tb.ack_q
+mmio_ep_out_tb.U_EPOUT0.drop_q
+@29
+mmio_ep_out_tb.U_EPOUT0.save_q
 [pattern_trace] 1
 [pattern_trace] 0

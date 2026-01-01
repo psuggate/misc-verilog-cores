@@ -165,7 +165,12 @@ module mmio_ep_out_tb;
       req_q <= #2{rnd_q, req_q[87:8]};
 
       // Todo: the target device is supposed to 'ACK' the command frame.
-      @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_q <= #2 1'b1;
+      #16 ack_q <= #2 1'b0;
+
+      @(posedge clock) #32 sel_q <= #2 1'b0;
+      #32 sel_q <= #2 1'b1;
 
       // Send the requested number of bytes.
       $display("%11t: Sending AXI STORE (DATA: %d)", $time, cnt_q);
@@ -194,6 +199,11 @@ module mmio_ep_out_tb;
       s_tvalid <= #2 1'b0;
       s_tkeep  <= #2 1'b0;
       s_tlast  <= #2 1'b0;
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_q <= #2 1'b1;
+      #16 ack_q <= #2 1'b0;
 
       @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
 

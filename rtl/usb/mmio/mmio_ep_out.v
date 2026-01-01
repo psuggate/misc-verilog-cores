@@ -73,9 +73,10 @@ module mmio_ep_out #(
     output [7:0] dat_tdata_o
 );
 
-  reg stall, clear, en_q, ready, avail, bypass, parity, recvd;
+  reg stall, clear, en_q, ready, avail, bypass, parity, rxd_q, recvd;
   reg cyc, stb, lst, rdy;
   reg vld, dir, enb, apb;
+  reg drop_q, save_q, recv_q;
   reg [ 1:0] cmd;
   reg [27:0] adr;
   reg [15:0] len;
@@ -294,12 +295,18 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear || state != EP_XFER) begin
       count <= CMAX;
-      recvd <= 1'b0;
+      rxd_q <= 1'b0;
     end else if (bypass && cyc) begin
       count <= stb ? cprev_w[CSB:0] : count;
-      recvd <= lst && (stb && czero_w || !stb);
+      rxd_q <= lst && (stb && !czero_w || !stb && cfull_w);
     end else begin
       count <= count;
+      rxd_q <= rxd_q;
+    end
+
+    if (ack_sent_i && rxd_q) begin
+      recvd <= 1'b1;
+    end else begin
       recvd <= 1'b0;
     end
   end
@@ -374,6 +381,22 @@ module mmio_ep_out #(
     end
   end
 
+  /**
+   * When we are performing a 'STORE', we need to save each packet (fragment) to
+   * the packet-FIFO, so that it can be transferred out. And if there was any
+   * problem receiving, then we have to drop that packet (fragment).
+   */
+  always @(posedge clock) begin
+    if (clear || rx_error_i || ack_sent_i || state != EP_XFER) begin
+      recv_q <= 1'b0;
+    end else if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
+      recv_q <= 1'b1;
+    end
+
+    drop_q <= recv_q && rx_error_i;
+    save_q <= recv_q && ack_sent_i;
+  end
+
 
   //
   // Output packet FIFO, for (STORE) data passed-through from the USB Bulk-Out
@@ -395,8 +418,8 @@ module mmio_ep_out #(
 
       .level_o(level_w),
 
-      .drop_i(rx_error_i),
-      .save_i(ack_sent_i),
+      .drop_i(drop_q),
+      .save_i(save_q),
       .redo_i(1'b0),
       .next_i(1'b0),
 
