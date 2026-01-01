@@ -1,25 +1,120 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Jan  1 04:43:33 2026
+[*] Thu Jan  1 10:05:06 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.vcd"
-[dumpfile_mtime] "Thu Jan  1 04:42:20 2026"
-[dumpfile_size] 12346
+[dumpfile_mtime] "Thu Jan  1 10:04:12 2026"
+[dumpfile_size] 17622
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.gtkw"
-[timestart] 0
-[size] 2560 1363
-[pos] -46 -46
-*-17.619900 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 180800
+[size] 2560 1392
+[pos] -1 -1
+*-16.619900 712000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] mmio_ep_out_tb.
+[treeopen] mmio_ep_out_tb.U_EPOUT0.
 [sst_width] 209
-[signals_width] 110
+[signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 420
+[sst_vpaned_height] 400
 @28
 mmio_ep_out_tb.clock
 mmio_ep_out_tb.reset
+@800200
+-Control
+@28
+[color] 3
+mmio_ep_out_tb.sel_q
 mmio_ep_out_tb.ep_set_q
-@29
 [color] 1
 mmio_ep_out_tb.ep_stall_w
+[color] 6
+mmio_ep_out_tb.U_EPOUT0.parity_o
+[color] 1
+mmio_ep_out_tb.U_EPOUT0.rx_error_i
+[color] 1
+mmio_ep_out_tb.U_EPOUT0.stalled_o
+@1000200
+-Control
+@800200
+-Bulk-Out
+@28
+mmio_ep_out_tb.s_tvalid
+mmio_ep_out_tb.tready_w
+mmio_ep_out_tb.s_tkeep
+mmio_ep_out_tb.s_tlast
+@22
+mmio_ep_out_tb.s_tdata[7:0]
+@1000200
+-Bulk-Out
+@800200
+-Command
+@28
+mmio_ep_out_tb.U_EPOUT0.cmd_vld_o
+mmio_ep_out_tb.U_EPOUT0.cmd_ack_i
+mmio_ep_out_tb.U_EPOUT0.cmd_cmd_o[1:0]
+mmio_ep_out_tb.U_EPOUT0.cmd_dir_o
+@22
+mmio_ep_out_tb.U_EPOUT0.cmd_len_o[15:0]
+mmio_ep_out_tb.U_EPOUT0.cmd_lun_o[3:0]
+mmio_ep_out_tb.U_EPOUT0.cmd_adr_o[27:0]
+@1000200
+-Command
+@800200
+-Bus
+@28
+mmio_ep_out_tb.U_EPOUT0.mmio_busy_i
+mmio_ep_out_tb.U_EPOUT0.mmio_recv_o
+mmio_ep_out_tb.U_EPOUT0.mmio_sent_i
+mmio_ep_out_tb.U_EPOUT0.mmio_resp_i
+mmio_ep_out_tb.U_EPOUT0.mmio_done_i
+@1000200
+-Bus
+@800200
+-Internal
+@28
+[color] 3
+mmio_ep_out_tb.U_EPOUT0.cyc
+mmio_ep_out_tb.U_EPOUT0.stb
+mmio_ep_out_tb.U_EPOUT0.lst
+mmio_ep_out_tb.U_EPOUT0.rdy
+@24
+[color] 2
+mmio_ep_out_tb.U_EPOUT0.sel[1:0]
+@22
+mmio_ep_out_tb.U_EPOUT0.dat32[31:0]
+[color] 7
+mmio_ep_out_tb.U_EPOUT0.parse[5:0]
+@820
+[color] 6
+mmio_ep_out_tb.U_EPOUT0.dbg_parse[39:0]
+@28
+[color] 2
+mmio_ep_out_tb.U_EPOUT0.bypass
+mmio_ep_out_tb.U_EPOUT0.clear
+@22
+[color] 7
+mmio_ep_out_tb.U_EPOUT0.state[3:0]
+@821
+[color] 6
+mmio_ep_out_tb.U_EPOUT0.dbg_state[39:0]
+@1000200
+-Internal
+@28
+mmio_ep_out_tb.U_EPOUT0.selected_i
+@22
+mmio_ep_out_tb.U_EPOUT0.MAGIC
+@24
+mmio_ep_out_tb.cnt_q[10:0]
+mmio_ep_out_tb.inc_w[11:0]
+@420
+mmio_ep_out_tb.lim_q
+@28
+mmio_ep_out_tb.U_EPOUT0.ready
+mmio_ep_out_tb.U_EPOUT0.recvd
+mmio_ep_out_tb.U_EPOUT0.fifo_tready_w
+mmio_ep_out_tb.U_EPOUT0.en_q
+@24
+mmio_ep_out_tb.U_EPOUT0.space_w[10:0]
+mmio_ep_out_tb.U_EPOUT0.level_w[10:0]
 [pattern_trace] 1
 [pattern_trace] 0

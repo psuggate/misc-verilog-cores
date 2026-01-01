@@ -1,6 +1,6 @@
 # USB Logic Core for MMIO to AXI and APB
 
-Connects the AXI and APB buses of a SoC to a USB MMIO interface, for data transfer to/from the SoC, and also to support development and monitoring of the SoC. It may be desirable to include this core alongside JTAG, as the data bandwidth is orders of magnitude greater, and does not require that the SoC be paused, if available AXI (USB, DDRx, APB, ...) bandwidth is sufficient.
+Connects the AXI and APB buses of a SoC to a USB MMIO interface, for data transfer to/from the SoC, and also to support development and monitoring of the SoC. It may be desirable to include this core alongside JTAG, as the data bandwidth is orders of magnitude greater, and does not require that the SoC be paused -- if available AXI (USB, DDRx, APB, ...) bandwidth is sufficient so that these transfers do not disrupt normal operation of the SoC.
 
 Uses a protocol inspired by the Bulk-Only Transport (BOT) USB Mass Storage Class (MSC), so that a high degree of robustness is achieved, while only requiring two USB endpoints, Bulk-Out and Bulk-In.
 

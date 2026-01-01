@@ -1,6 +1,8 @@
 `timescale 1ns / 100ps
 module mmio_ep_out_tb;
 
+  `define CMD_STORE 4'h0
+
   reg clock = 1;
   reg reset;
 
@@ -20,10 +22,13 @@ module mmio_ep_out_tb;
 
   reg s_tvalid, s_tkeep, s_tlast, m_tready;
   wire tvalid_w, tready_w, tkeep_w, tlast_w;
-  reg [7:0] s_tdata;
-  wire [7:0] tdata_w;
+  wire [7:0] s_tdata, tdata_w;
 
   always #8 clock <= ~clock;
+
+  reg [7:0] len_q = 8'd7;
+  reg [3:0] lun_q = 4'd0, tag_q = 4'hA;
+  reg [27:0] adr_q = 28'h0800;
 
   initial begin : SIM_FTW
     $dumpfile("mmio_ep_out_tb.vcd");
@@ -42,9 +47,14 @@ module mmio_ep_out_tb;
     #80 ep_set_q <= 1'b1;
     #16 ep_set_q <= 1'b0;
 
-    #2000 $finish;
+    axi_send(len_q, tag_q, adr_q, lun_q);
+
+    #800 $finish;
   end
 
+  initial begin : FAIL_SAFE
+    #2560 $finish;
+  end
 
   mmio_ep_out U_EPOUT0 (
       .clock(clock),
@@ -93,6 +103,145 @@ module mmio_ep_out_tb;
       .dat_tlast_o (tlast_w),
       .dat_tdata_o (tdata_w)
   );
+
+
+  //
+  //  Simulation tasks for entire transactions.
+  //
+  integer lim_q;
+  reg [10:0] cnt_q;
+  reg [7:0] rnd_q;
+  reg [87:0] req_q;
+  wire [11:0] inc_w;
+
+  assign s_tdata = req_q[7:0];
+  assign inc_w   = cnt_q + 1;
+
+  /**
+   * Send a command frame, followed by as many data frames as required.
+   */
+  task axi_send;
+    input [7:0] size;
+    input [3:0] tag;
+    input [27:0] addr;
+    input [3:0] lun;
+    begin
+      // Select the OUT EP.
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      lim_q <= #2{24'd0, size};
+      sel_q <= #2 1'b1;
+
+      @(negedge clock) #16 $display("%11t: Starting AXI STORE", $time);
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 1'b0;
+        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+        req_q <= #2{tag, `CMD_STORE, 8'd0, size, lun, addr, "T", "R", "A", "T"};
+        rnd_q <= $urandom;
+      end
+
+      @(negedge clock) $display("%11t: Sending AXI STORE (ADDR: %7x)", $time, addr);
+
+      while (cnt_q < 11'd10) begin
+        @(posedge clock);
+        if (tready_w) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{rnd_q, req_q[87:8]};
+          rnd_q   <= #2 $urandom;
+          s_tlast <= #2 inc_w < 12'd10 ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      req_q <= #2{rnd_q, req_q[87:8]};
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+
+      // Send the requested number of bytes.
+      $display("%11t: Sending AXI STORE (DATA: %d)", $time, cnt_q);
+      #16 cnt_q <= 11'd0;
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 size == 8'd0 ? 1'b1 : 1'b0;
+        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+      end
+
+      while (!(cnt_q == lim_q[10:0] && tready_w)) begin
+        @(posedge clock);
+        if (tready_w) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{rnd_q, req_q[87:8]};
+          rnd_q   <= #2 $urandom;
+          s_tlast <= #2 inc_w < lim_q[11:0] ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      $display("%11t: Finishing AXI STORE", $time);
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep  <= #2 1'b0;
+      s_tlast  <= #2 1'b0;
+
+      @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
+
+      @(posedge clock) sel_q <= #2 1'b0;
+
+    end
+  endtask  /* ddr_send */
+
+`ifdef __potatoe
+
+  task ddr_recv;
+    input [7:0] size;
+    input [27:0] addr;
+    begin
+      @(negedge clock) $display("%11t: Starting DDR3 FETCH\n", $time);
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 1'b0;
+        cnt_q <= s_tvalid && tready_w ? 11'd1 : 11'd0;
+        req_q <= #2{4'hA, addr, size, CMD_FETCH};
+      end
+
+      @(negedge clock) $display("%11t: Sending DDR3 FETCH (ADDR: %7x)\n", $time, addr);
+
+      while (!(cnt_q == 11'd5 && tready_w)) begin
+        @(posedge clock);
+        if (tready_w) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{8'bx, req_q[47:8]};
+          s_tlast <= #2 cnt_q < 11'd4 ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      $display("%11t: Sent DDR3 FETCH\n", $time);
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep  <= #2 1'b0;
+      s_tlast  <= #2 1'b0;
+
+      @(negedge clock) $display("%11t: Waiting for DDR3 FETCH\n", $time);
+
+    end
+  endtask  /* ddr_recv */
+
+`endif  /* __potatoe */
 
 
 endmodule  /* mmio_ep_out_tb */

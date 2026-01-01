@@ -17,7 +17,13 @@ module mmio_ep_out #(
     parameter PACKET_FIFO_DEPTH = 2048,
     localparam PBITS = $clog2(PACKET_FIFO_DEPTH),
     localparam PSB = PBITS - 1,
-    parameter [31:0] MAGIC = "TART",
+    // Icarus/Verilog seems to use wrong-endian by default?
+    parameter [7:0] MAGIC0 = "T",
+    parameter [7:0] MAGIC1 = "A",
+    parameter [7:0] MAGIC2 = "R",
+    parameter [7:0] MAGIC3 = "T",
+    localparam [31:0] MAGIC = {MAGIC3, MAGIC2, MAGIC1, MAGIC0},
+    // parameter [31:0] MAGIC = "TART",
     parameter ENABLED = 1
 ) (
     input clock,
@@ -104,7 +110,7 @@ module mmio_ep_out #(
   wire avail_w;
   wire [PSB:0] level_w, space_w;
 
-  assign space_w = MAX_PACKET_LENGTH - level_w;
+  assign space_w = PACKET_FIFO_DEPTH - level_w;
   assign avail_w = space_w > MAX_PACKET_LENGTH;
 
   always @(posedge clock) begin
@@ -126,7 +132,7 @@ module mmio_ep_out #(
     if (clear || stall) begin
       ready <= 1'b0;
     end else if (en_q) begin
-      ready <= avail;
+      ready <= avail_w;
     end
 
     // USB end-point parity-bit logic.
@@ -166,8 +172,8 @@ module mmio_ep_out #(
       stb <= 1'b0;
       lst <= 1'b0;
     end else begin
-      stb <= 1'b0;
-      lst <= 1'b0;
+      stb <= usb_tvalid_i & usb_tready_o;
+      lst <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
     end
   end
 
@@ -406,5 +412,32 @@ module mmio_ep_out #(
       .m_tdata (dat_tdata_o)
   );
 
+
+`ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+  reg [39:0] dbg_state, dbg_parse;
+
+  always @* begin
+    case (parse)
+      MM_IDLE: dbg_parse = "IDLE";
+      MM_ADDR: dbg_parse = "ADDR";
+      MM_WORD: dbg_parse = "WORD";
+      MM_IDOP: dbg_parse = "IDOP";
+      MM_BUSY: dbg_parse = "BUSY";
+      MM_HALT: dbg_parse = "HALT";
+      default: dbg_parse = " ?? ";
+    endcase
+    case (state)
+      EP_IDLE: dbg_state = "IDLE";
+      EP_XFER: dbg_state = "XFER";
+      EP_RESP: dbg_state = "RESP";
+      EP_HALT: dbg_state = "HALT";
+      default: dbg_state = " ?? ";
+    endcase
+  end
+
+`endif  /* __icarus */
 
 endmodule  /* mmio_ep_out */
