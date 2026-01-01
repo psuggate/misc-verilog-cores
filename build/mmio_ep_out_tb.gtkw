@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Thu Jan  1 10:49:19 2026
+[*] Thu Jan  1 11:44:41 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.vcd"
-[dumpfile_mtime] "Thu Jan  1 10:48:37 2026"
-[dumpfile_size] 18762
+[dumpfile_mtime] "Thu Jan  1 11:39:58 2026"
+[dumpfile_size] 19141
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/mmio_ep_out_tb.gtkw"
-[timestart] 180800
-[size] 2560 1392
+[timestart] 396600
+[size] 2560 1363
 [pos] -1 -1
-*-16.619900 546000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.619900 944000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] mmio_ep_out_tb.
 [treeopen] mmio_ep_out_tb.U_EPOUT0.
 [sst_width] 209
 [signals_width] 150
 [sst_expanded] 1
-[sst_vpaned_height] 400
+[sst_vpaned_height] 391
 @28
 mmio_ep_out_tb.clock
 mmio_ep_out_tb.reset

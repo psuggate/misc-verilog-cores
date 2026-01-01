@@ -222,7 +222,7 @@ module mmio_ep_out #(
    * Command validation and dispatch.
    */
   always @(posedge clock) begin
-    if (clear || stall || cmd_ack_i || mmio_done_i) begin
+    if (clear || stall || cmd_ack_i || mmio_done_i || mmio_resp_i) begin
       vld <= 1'b0;
     end else if (parse == MM_IDOP && cyc && stb && lst) begin
       vld <= 1'b1;

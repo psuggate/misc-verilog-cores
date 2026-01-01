@@ -206,8 +206,9 @@ module mmio_ep_out_tb;
       #16 ack_q <= #2 1'b0;
 
       @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
-
       @(posedge clock) sel_q <= #2 1'b0;
+      #48 resp_q <= #2 1'b1;
+      #16 resp_q <= #2 1'b0;
 
     end
   endtask  /* ddr_send */
