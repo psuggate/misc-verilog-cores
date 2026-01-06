@@ -13,3 +13,21 @@ GET and SET 16-bit values from/to the APB bus of the SoC.
 QUERY the endpoints for status, etc.
 
 READY to see if the USB MMIO core is able to process commmands.
+
+## Responses
+
+SUCCESS
+
+FAILURE
+
+CANCELED
+
+INVALID
+
+## Formats
+
+Commands are 11B USB frames, with the frame containing only the command, and must have size of 11 bytes, only.
+
+Either one or more BULK OUT, or BULK IN, data transfers (for USB to AXI transactions).
+
+Responses are 7B USB frames, with the USB frame containing just the response, and must have size of seven bytes, only.

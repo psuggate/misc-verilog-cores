@@ -1,6 +1,5 @@
 `timescale 1ns / 100ps
-module cmd_to_axi
-   (// USB bus (command) clock-domain
+module cmd_to_axi (  // USB bus (command) clock-domain
     input cmd_clk,
     input cmd_rst,
 
@@ -8,7 +7,6 @@ module cmd_to_axi
     input cmd_vld_i,
     input cmd_ack_i,
     input cmd_dir_i,
-    input cmd_apb_i,
     input [1:0] cmd_cmd_i,
     input [3:0] cmd_tag_i,
     input [15:0] cmd_len_i,
@@ -428,7 +426,7 @@ module cmd_to_axi
       .TLAST(0),
       .ABITS(4)
   ) U_BFIFO1 (
-      .aresetn (~cmd_rst),
+      .aresetn (aresetn),
       .s_aclk  (aclk),
       .s_tvalid(bvalid_i),
       .s_tready(bready_o),

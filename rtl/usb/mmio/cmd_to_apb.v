@@ -1,6 +1,5 @@
 `timescale 1ns / 100ps
-module cmd_to_apb
-   (// USB bus (command) clock-domain
+module cmd_to_apb (  // USB bus (command) clock-domain
     input cmd_clk,
     input cmd_rst,
 
@@ -8,10 +7,9 @@ module cmd_to_apb
     input cmd_vld_i,
     input cmd_ack_i,
     input cmd_dir_i,
-    input cmd_apb_i,
     input [1:0] cmd_cmd_i,
     input [3:0] cmd_tag_i,
-    input [15:0] cmd_len_i,
+    input [15:0] cmd_val_i,
     input [3:0] cmd_lun_i,
     output cmd_rdy_o,
     output [15:0] cmd_val_o,

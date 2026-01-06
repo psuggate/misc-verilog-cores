@@ -105,18 +105,18 @@ module usb_mmio (
     input [MSB:0] axi_rdata_i
 );
 
-  reg cmd_ack_q;
-  wire cmd_vld_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
-  wire [ 1:0] cmd_cmd_w;
+  reg sel_apb_q, sel_axi_q, cmd_ack_q;
+  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
+  wire [1:0] cmd_cmd_w;
   wire [15:0] cmd_len_w, cmd_val_w;
   wire [3:0] cmd_tag_w, cmd_lun_w;
   wire [27:0] cmd_adr_w;
 
   reg busy_q, send_q, done_q;
   wire recv_w, sent_w, resp_w;
-  wire s_tvalid, m_tready, s_tkeep, s_tlast;
-  wire tvalid_w, tready_w, tkeep_w, tlast_w;
-  wire [7:0] tdata_w, s_tdata;
+  wire s_tvalid, s_tready, s_tkeep, s_tlast;
+  wire m_tvalid, m_tready, m_tkeep, m_tlast;
+  wire [7:0] s_tdata, m_tdata;
 
   localparam [4:0] ST_IDLE = 5'd1, ST_READ = 5'd2, ST_WAIT = 5'd4, ST_RESP = 5'd8, ST_HALT = 5'd16;
   reg [4:0] state;
@@ -163,21 +163,6 @@ module usb_mmio (
           state <= ST_IDLE;
         end
       endcase
-    end
-  end
-
-  /**
-   * Command-processing logic, for GET, QUERY, and READY requests.
-   */
-  always @(posedge clock) begin
-    if (reset) begin
-      cmd_ack_q <= 1'b0;
-    end else begin
-      if (state == ST_RESP && resp_w) begin
-        cmd_ack_q <= 1'b1;
-      end else if (cmd_ack_q && !cmd_vld_i) begin
-        cmd_ack_q <= 1'b0;
-      end
     end
   end
 
@@ -228,10 +213,11 @@ module usb_mmio (
       .cmd_adr_o(cmd_adr_w),
 
       // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
-      .dat_tvalid_o(tvalid_w),
+      .dat_tvalid_o(m_tvalid),
       .dat_tready_i(m_tready),
-      .dat_tlast_o (tlast_w),
-      .dat_tdata_o (tdata_w)
+      .dat_tkeep_o (m_tkeep),
+      .dat_tlast_o (m_tlast),
+      .dat_tdata_o (m_tdata)
   );
 
   mmio_ep_in U_EPIN0 (
@@ -261,7 +247,7 @@ module usb_mmio (
 
       // From Bulk-In data source (AXI or APB(), via AXI-S)
       .dat_tvalid_i(s_tvalid),
-      .dat_tready_o(tready_w),
+      .dat_tready_o(s_tready),
       .dat_tkeep_i (s_tkeep),
       .dat_tlast_i (s_tlast),
       .dat_tdata_i (s_tdata),
@@ -286,17 +272,55 @@ module usb_mmio (
       .usb_tdata_o (usb_tdata_o)
   );
 
-  cmd_to_apb U_APB0 (
+
+  //
+  //  Controllers for the APB and AXI transactions.
+  //
+  assign cmd_ack_w = state == ST_RESP && resp_w;
+
+  /**
+   * Command-processing logic, for GET, QUERY, and READY requests.
+   */
+  always @(posedge clock) begin
+    if (reset) begin
+      cmd_ack_q <= 1'b0;
+    end else begin
+      cmd_ack_q <= cmd_ack_w;
+    end
+  end
+
+  /**
+   * Select the controller for the transaction, either the APB or the AXI.
+   */
+  always @(posedge clock) begin
+    if (reset || cmd_ack_w) begin
+      sel_apb_q <= 1'b0;
+      sel_axi_q <= 1'b0;
+    end else begin
+      // if (!sel_apb_q && cmd_vld_w && cmd_apb_w) begin
+      if (cmd_vld_w && cmd_apb_w) begin
+        sel_apb_q <= 1'b1;
+      end
+      // if (!sel_axi_q && cmd_vld_w && !cmd_apb_w) begin
+      if (cmd_vld_w && !cmd_apb_w) begin
+        sel_axi_q <= 1'b1;
+      end
+    end
+  end
+
+  /**
+   * Issues APB transactions, then sends the result to Bulk-In EP.
+   */
+  cmd_to_apb U_APB_CTRL0 (
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
 
-      .cmd_vld_i(cmd_vld_w),  // Decoded command (APB(), or AXI)
+      .cmd_vld_i(sel_apb_q),  // Decoded command (APB(), or AXI)
       .cmd_ack_i(cmd_ack_q),
       .cmd_dir_i(cmd_dir_w),
-      .cmd_apb_i(cmd_apb_w),
       .cmd_cmd_i(cmd_cmd_w),
       .cmd_tag_i(cmd_tag_w),
-      .cmd_len_i(cmd_len_w),
+      .cmd_val_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_o(cmd_rdy_w),
       .cmd_val_o(cmd_val_w),
@@ -304,8 +328,7 @@ module usb_mmio (
       .pclk(pclk),  // APB clock-domain
       .presetn(presetn),  // Synchronous reset (active LOW)
 
-      // APB requester interface(), to controllers
-      .penable_o(penable_o),
+      .penable_o(penable_o),  // APB requester interface(), to controllers
       .pwrite_o (pwrite_o),
       .pstrb_o  (pstrb_o),
       .pready_i (pready_i),
@@ -315,18 +338,33 @@ module usb_mmio (
       .prdata_i (prdata_i)
   );
 
-  cmd_to_axi U_AXI0 (
+  /**
+   * Issues AXI transactions, transfers data to/from AXI bus, and then sends
+   * the result to Bulk-In EP.
+   */
+  cmd_to_axi U_AXI_CTRL0 (
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
 
-      .cmd_vld_i(cmd_vld_w),  // Decoded command (APB(), or AXI)
+      .cmd_vld_i(sel_axi_q),  // Decoded command (APB(), or AXI)
       .cmd_ack_i(cmd_ack_q),
       .cmd_dir_i(cmd_dir_w),
-      .cmd_apb_i(cmd_apb_w),
       .cmd_cmd_i(cmd_cmd_w),
       .cmd_tag_i(cmd_tag_w),
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
+
+      .s_tvalid(m_tvalid),
+      .s_tready(m_tready),
+      .s_tkeep (m_tkeep),
+      .s_tlast (m_tlast),
+      .s_tdata (m_tdata),
+
+      .m_tvalid(s_tvalid),
+      .m_tready(s_tready),
+      .m_tkeep (s_tkeep),
+      .m_tlast (s_tlast),
+      .m_tdata (s_tdata),
 
       .aclk(aclk),  // AXI clock-domain
       .aresetn(areset_n),  // Asynchronous reset (active LOW)
