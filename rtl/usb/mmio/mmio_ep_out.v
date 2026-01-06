@@ -29,9 +29,9 @@ module mmio_ep_out #(
     input clock,
     input reset,
 
-    input         set_conf_i,  // From CONTROL PIPE0
-    input         clr_conf_i,  // From CONTROL PIPE0
-    input [CSB:0] max_size_i,  // From CONTROL PIPE0
+    input           set_conf_i,  // From CONTROL PIPE0
+    input           clr_conf_i,  // From CONTROL PIPE0
+    input [CBITS:0] max_size_i,  // From CONTROL PIPE0
 
     input selected_i,  // From USB controller
     input rx_error_i,  // Timed-out or CRC16 error
@@ -88,7 +88,7 @@ module mmio_ep_out #(
   localparam [5:0] MM_BUSY = 6'h10, MM_HALT = 6'h20;
 
   // Top-level states for the high-level control of this end-point (EP).
-  localparam [3:0] EP_IDLE = 4'h1, EP_XFER = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
+  localparam [3:0] EP_IDLE = 4'h1, EP_RECV = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
 
   assign stalled_o = stall;
   assign ep_ready_o = ready;
@@ -293,7 +293,7 @@ module mmio_ep_out #(
   assign end_w   = cyc && stb && lst && !czero_w;
 
   always @(posedge clock) begin
-    if (clear || state != EP_XFER) begin
+    if (clear || state != EP_RECV) begin
       count <= CMAX;
       rxd_q <= 1'b0;
     end else if (bypass && cyc) begin
@@ -357,7 +357,7 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear || mmio_resp_i) begin
       enb <= 1'b1;
-    end else if (state == EP_XFER && bypass) begin
+    end else if (state == EP_RECV && bypass) begin
       enb <= 1'b0;
     end
   end
@@ -373,8 +373,8 @@ module mmio_ep_out #(
       state <= EP_HALT;
     end else begin
       case (state)
-        EP_IDLE: state <= vld ? EP_XFER : state;
-        EP_XFER: state <= mmio_sent_i || recvd ? EP_RESP : state;
+        EP_IDLE: state <= vld ? EP_RECV : state;
+        EP_RECV: state <= mmio_sent_i || recvd ? EP_RESP : state;
         EP_RESP: state <= mmio_resp_i ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
@@ -387,7 +387,7 @@ module mmio_ep_out #(
    * problem receiving, then we have to drop that packet (fragment).
    */
   always @(posedge clock) begin
-    if (clear || rx_error_i || ack_sent_i || state != EP_XFER) begin
+    if (clear || rx_error_i || ack_sent_i || state != EP_RECV) begin
       recv_q <= 1'b0;
     end else if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
       recv_q <= 1'b1;
@@ -454,7 +454,7 @@ module mmio_ep_out #(
     endcase
     case (state)
       EP_IDLE: dbg_state = "IDLE";
-      EP_XFER: dbg_state = "XFER";
+      EP_RECV: dbg_state = "RECV";
       EP_RESP: dbg_state = "RESP";
       EP_HALT: dbg_state = "HALT";
       default: dbg_state = " ?? ";

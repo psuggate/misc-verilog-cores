@@ -62,7 +62,7 @@ module mmio_ep_out_tb;
 
       .set_conf_i(ep_set_q),  // From CONTROL PIPE0
       .clr_conf_i(ep_clr_q),  // From CONTROL PIPE0
-      .max_size_i(9'd64),  // From CONTROL PIPE0
+      .max_size_i(10'd64),  // From CONTROL PIPE0
 
       .selected_i(sel_q),  // From USB controller
       .rx_error_i(err_q),  // Timed-out or CRC16 error

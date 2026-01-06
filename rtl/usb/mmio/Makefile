@@ -6,7 +6,7 @@ sim:	build
 #  Icarus Verilog settings
 ##
 IVC	?= iverilog
-OPT	:= -g2005-sv -D__icarus -Wall
+OPT	:= -g2005-sv -D__icarus -Wall -I../../axis
 
 LIB	:= $(wildcard ../../arch/*.v ../../fifo/*.v ../../axis/*.v ../../misc/*.v)
 DEP	:= $(filter-out %_tb.v, $(LIB))
