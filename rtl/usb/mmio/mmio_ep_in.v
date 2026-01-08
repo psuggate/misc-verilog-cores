@@ -8,6 +8,9 @@
 //    control-pipe to reset/re-enable the end-point.
 //
 module mmio_ep_in #(
+                    parameter integer TIMEOUT = 256,
+                    localparam integer TBITS = $clog2(256),
+                    localparam integer TSB = TBITS - 1,
     parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     localparam CBITS = $clog2(MAX_PACKET_LENGTH),
     localparam CSB = CBITS - 1,
@@ -75,9 +78,10 @@ module mmio_ep_in #(
   `define CMD_FAILURE 4'h1
   `define CMD_INVALID 4'hF
 
-  reg stall, clear, ready, avail, bypass, parity, sent, respd;
-  reg cyc, stb, lst, rdy, enb;
+  reg stall, clear, ready, avail, bypass, parity, sent, resp;
+  reg vld, cyc, stb, lst, rdy, enb, en_q;
   reg save_q, redo_q, next_q;
+  reg [7:0] dat;
   wire fifo_tvalid_w, fifo_tready_w, fifo_tkeep_w, fifo_tlast_w;
   wire [7:0] fifo_tdata_w;
 
@@ -89,7 +93,7 @@ module mmio_ep_in #(
   assign parity_o = parity;
 
   assign mmio_sent_o = sent;
-  assign mmio_resp_o = respd;
+  assign mmio_resp_o = resp;
 
   // Todo ...
   assign fifo_tvalid_w = bypass ? dat_tvalid_i : vld;
@@ -142,6 +146,21 @@ module mmio_ep_in #(
   // Top-level FSM.
   //
   reg [3:0] state;
+  reg [TSB:0] ticks;
+  wire [TBITS:0] dec_w;
+
+  localparam TZERO = {TBITS{1'b0}};
+  localparam TONES = {TBITS{1'b1}};
+
+  assign dec_w = ticks - 1;
+
+  // Count the number of wait-states, and timeout if tardy.
+  always @(posedge clock) begin
+    case (state)
+      EP_SEND: ticks <= usb_tvalid_o ? ticks : dec_w[TSB:0];
+      default: ticks <= TONES;
+    endcase
+  end
 
   /**
    * End-point stall handling, in response to invalid commands.
@@ -149,7 +168,7 @@ module mmio_ep_in #(
   always @(posedge clock) begin
     if (clear) begin
       stall <= 1'b0;
-    end else if (parse == MM_FAIL) begin
+    end else if (state == EP_SEND && ticks == TZERO) begin
       stall <= 1'b1;
     end
   end
@@ -178,7 +197,7 @@ module mmio_ep_in #(
     end else begin
       case (state)
         EP_IDLE: state <= vld ? EP_SEND : state;
-        EP_SEND: state <= mmio_sent_i || sent ? EP_RESP : state;
+        EP_SEND: state <= sent ? EP_RESP : state;
         EP_RESP: state <= resp ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
@@ -258,7 +277,7 @@ module mmio_ep_in #(
     if (clear) begin
       sel_q <= 3'd0;
       out_q <= 56'bx;
-    end else if (state == EP_SEND && mmio_sent_i) begin
+    end else if (state == EP_SEND && sent) begin
       sel_q <= 3'd7;
       out_q <= out_w;
     end else if (fifo_tready_w && sel_q != 3'd0) begin
@@ -316,7 +335,7 @@ module mmio_ep_in #(
   always @* begin
     case (state)
       EP_IDLE: dbg_state = "IDLE";
-      EP_RECV: dbg_state = "RECV";
+      EP_SEND: dbg_state = "SEND";
       EP_RESP: dbg_state = "RESP";
       EP_HALT: dbg_state = "HALT";
       default: dbg_state = " ?? ";

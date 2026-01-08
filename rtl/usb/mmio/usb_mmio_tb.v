@@ -1,0 +1,438 @@
+`timescale 1ns / 100ps
+module usb_mmio_tb;
+
+  `define CMD_STORE 4'h0
+
+  `include "axi_defs.vh"
+
+  localparam FIFO_DEPTH = 512;
+  localparam DATA_WIDTH = 32;
+  localparam MSB = DATA_WIDTH - 1;
+
+  localparam [7:0] CMD_NOP = 8'h00;
+  localparam [7:0] CMD_READY = 8'h00;
+  localparam [7:0] CMD_STORE = 8'h01;
+  localparam [7:0] CMD_FETCH = 8'h80;
+  localparam [7:0] CMD_QUERY = 8'hC0;
+
+  localparam [7:0] RES_READY = 8'h00;
+  localparam [7:0] RES_ERROR = 8'hFF;
+  // localparam [7:0] CMD_STORE = 8'h01;
+  localparam [7:0] RES_WDONE = 8'h02;
+  localparam [7:0] RES_WFAIL = 8'h03;
+  // localparam [7:0] CMD_FETCH = 8'h80;
+  localparam [7:0] RES_RDATA = 8'h81;
+  localparam [7:0] RES_RFAIL = 8'h82;
+
+  reg clock = 1;
+  reg reset;
+
+  reg busy_q, sent_q, resp_q, done_q;
+  wire recv_w;
+
+  reg ep_set_q, ep_clr_q;
+  reg sel_q, err_q, ack_q;
+  wire ep_ready_w, ep_stall_w, ep_out_par;
+
+  reg cmd_ack_q;
+  wire cmd_vld_w, cmd_dir_w, cmd_apb_w;
+  wire [1:0] cmd_cmd_w;
+  wire [3:0] cmd_lun_w, cmd_tag_w;
+  wire [15:0] cmd_len_w;
+  wire [27:0] cmd_adr_w;
+
+  reg s_tvalid, s_tkeep, s_tlast, m_tready;
+  wire s_tready, m_tvalid, m_tkeep, m_tlast;
+  wire tvalid_w, tready_w, tkeep_w, tlast_w;
+  wire [7:0] s_tdata, m_tdata, tdata_w;
+
+  reg [7:0] len_q = 8'd7;
+  reg [3:0] lun_q = 4'd0, tag_q = 4'hA;
+  reg [27:0] adr_q = 28'h0800;
+
+  reg mclk = 1, pclk = 1;
+  reg presetn;
+  wire areset_n, configured;
+
+  assign areset_n = ~reset;
+
+  always #5 mclk <= ~mclk;
+  always #8 clock <= ~clock;
+  always #15 pclk <= ~pclk;
+
+  always @(posedge pclk) begin
+    presetn <= areset_n;
+  end
+
+  initial begin : SIM_FTW
+    $dumpfile("usb_mmio_tb.vcd");
+    $dumpvars;
+
+    #2 reset <= 1'b1;
+    {ep_set_q, ep_clr_q} <= 2'b0;
+    {sel_q, err_q, ack_q} <= 3'b0;
+    {busy_q, sent_q, resp_q, done_q} <= 4'b0;
+    cmd_ack_q <= 1'b0;
+    {s_tvalid, s_tkeep, s_tlast} <= 3'b0;
+    m_tready <= 1'b0;
+
+    #160 reset <= 1'b0;
+
+    #80 ep_set_q <= 1'b1;
+    #16 ep_set_q <= 1'b0;
+
+    axi_send(len_q, tag_q, adr_q, lun_q);
+
+    #800 $finish;
+  end
+
+  initial begin : FAIL_SAFE
+    #2560 $finish;
+  end
+
+  // -- Simulation Signals & Registers -- //
+
+  localparam ST_IDLE = 0;
+  localparam ST_DONE = 1;
+  localparam ST_WDAT = 2;
+  localparam ST_RESP = 3;
+  localparam ST_RADR = 4;
+  localparam ST_RDAT = 5;
+  localparam ST_REND = 6;
+
+  reg bvalid;
+  reg [1:0] bresp;
+  reg [3:0] bid, tid_q;
+  wire bready_w, awvalid_w, wvalid_w, wlast_w, arvalid_w, rready_w;
+  wire [3:0] awid_w, arid_w;
+  wire [7:0] awlen_w, arlen_w;
+
+  reg vld_q, lst_q;
+  reg [1:0] res_q;
+  reg [MSB:0] dat_q;
+  integer count;
+  wire [31:0] cnext;
+
+  reg [3:0] state;
+
+  always @(posedge mclk) begin
+    if (reset) begin
+      state  <= ST_IDLE;
+      bvalid <= 1'b0;
+    end else begin
+      case (state)
+        ST_IDLE: begin
+          if (awvalid_w) begin
+            $display("%8t: Address-WRITE Request ('%m')", $time);
+            state <= ST_WDAT;
+            bid   <= awid_w;
+          end else if (arvalid_w) begin
+            $display("%8t: Address-READ Request ('%m')", $time);
+            state <= ST_RDAT;
+          end
+        end
+
+        ST_WDAT: begin
+          if (wvalid_w && wlast_w) begin
+            $display("%8t: Write-DATA Received ('%m')", $time);
+            state <= ST_RESP;
+          end
+        end
+
+        ST_RESP: begin
+          bvalid <= 1'b1;
+          bresp  <= RESP_OKAY;
+          if (bready_w) begin
+            $display("%8t: Write-Response Sent ('%m')", $time);
+            state <= ST_DONE;
+          end
+        end
+
+        ST_DONE: begin
+          bvalid <= 1'b0;
+          bresp  <= 2'dx;
+          state  <= ST_IDLE;
+          $display("%8t: Write DONE, returning to IDLE ('%m')", $time);
+        end
+
+        ST_RDAT: begin
+          state <= vld_q && lst_q && rready_w ? ST_REND : state;
+        end
+
+        ST_REND: begin
+          state <= ST_IDLE;
+          $display("%8t: Read DONE, returning to IDLE ('%m')", $time);
+        end
+
+        default: begin
+          $error("%8t: Error: Invalid 'state' value: %d ('%m')", $time, state);
+          $finish;
+        end
+      endcase
+    end
+  end
+
+  always @(posedge clock) begin
+    if (reset) begin
+      m_tready <= 1'b0;
+    end else if (m_tvalid) begin
+      m_tready <= ~(m_tready & m_tlast);
+    end
+  end
+
+  wire [8:0] len_w;
+
+  assign cnext = count + 1;
+  assign len_w = arlen_w + 1;
+
+  always @(posedge mclk) begin
+    if (reset) begin
+      vld_q <= 1'b0;
+      lst_q <= 1'b0;
+      count <= 0;
+      len_q <= 8'd0;
+    end else begin
+      if (arvalid_w && state == ST_IDLE) begin
+        len_q <= len_w;
+        tid_q <= arid_w;
+        lst_q <= 1'b0;
+        res_q <= 2'bx;
+        // res_q <= RESP_OKAY;
+        dat_q <= $urandom;
+        count <= 0;
+      end
+
+      if (count < len_q) begin
+        vld_q <= 1'b1;
+        res_q <= RESP_OKAY;
+        if (rready_w) begin
+          dat_q <= $urandom;
+          lst_q <= cnext >= len_q;
+          count <= cnext;
+        end
+      end else begin
+        vld_q <= 1'b0;
+        lst_q <= 1'b0;
+        res_q <= 2'bx;
+        tid_q <= 4'bx;
+        dat_q <= 32'bx;
+      end
+    end
+  end
+
+  //
+  //  Cores Under Nondestructive Testing
+  ///
+  reg set_conf_q, clr_conf_q, ack_sent_q, ack_recv_q;
+  reg epi_sel_q, timeout_q, epo_sel_q, epo_err_q;
+  wire epi_ready_w, epi_parity_w, epi_stall_w;
+  wire epo_ready_w, epo_parity_w, epo_stall_w;
+
+  reg pready_q, pslverr_q;
+  reg [15:0] prdata_q;
+  wire penable_w, pwrite_w;
+  wire [ 1:0] pstrb_w;
+  wire [31:0] paddr_w;
+  wire [15:0] pwdata_w;
+
+  usb_mmio U_REQ1 (
+      .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
+
+      .clock(clock),  // USB clock domain
+      .reset(reset),
+
+      .usb_ack_sent_i(ack_sent_q),
+      .usb_ack_recv_i(ack_recv_q),
+
+      .epi_set_conf_i(set_conf_q),
+      .epi_clr_conf_i(clr_conf_q),
+      .epi_selected_i(epi_sel_q),
+      .epi_timedout_i(timeout_q),
+      .epi_max_size_i(10'd64),  // Todo
+      .epi_ready_o(epi_ready_w),
+      .epi_parity_o(epi_parity_w),
+      .epi_stalled_o(epi_stall_w),
+
+      .epo_set_conf_i(set_conf_q),
+      .epo_clr_conf_i(clr_conf_q),
+      .epo_selected_i(epo_sel_q),
+      .epo_rx_error_i(epo_err_q),
+      .epo_max_size_i(10'd64),  // Todo
+      .epo_ready_o(epo_ready_w),
+      .epo_parity_o(epo_parity_w),
+      .epo_stalled_o(epo_stall_w),
+
+      // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
+      .usb_tvalid_i(s_tvalid),
+      .usb_tready_o(s_tready),
+      .usb_tkeep_i (s_tkeep),
+      .usb_tlast_i (s_tlast),
+      .usb_tdata_i (s_tdata),
+
+      // USB status, and READ, packet stream (Bulk-Out pipe, AXI-S)
+      .usb_tvalid_o(m_tvalid),
+      .usb_tready_i(m_tready),
+      .usb_tkeep_o (m_tkeep),
+      .usb_tlast_o (m_tlast),
+      .usb_tdata_o (m_tdata),
+
+      // APB clock domain
+      .pclk(pclk),
+      .presetn(presetn),
+
+      // APB requester interface, to controllers
+      .penable_o(penable_w),
+      .pwrite_o (pwrite_w),
+      .pstrb_o  (pstrb_w),
+      .pready_i (pready_q),
+      .pslverr_i(pslverr_q),
+      .paddr_o  (paddr_w),
+      .pwdata_o (pwdata_w),
+      .prdata_i (prdata_q),
+
+      .aclk(mclk),  // AXI clock domain
+
+      .axi_awvalid_o(awvalid_w),
+      .axi_awready_i(1'b1),
+      .axi_awaddr_o(),
+      .axi_awid_o(awid_w),
+      .axi_awlen_o(awlen_w),
+      .axi_awburst_o(),
+
+      .axi_wvalid_o(wvalid_w),
+      .axi_wready_i(1'b1),
+      .axi_wlast_o (wlast_w),
+      .axi_wstrb_o (),
+      .axi_wdata_o (),
+
+      .axi_bvalid_i(bvalid),
+      .axi_bready_o(bready_w),
+      .axi_bresp_i(bresp),
+      .axi_bid_i(bid),
+
+      .axi_arvalid_o(arvalid_w),
+      .axi_arready_i(1'b1),
+      .axi_araddr_o(),
+      .axi_arid_o(arid_w),
+      .axi_arlen_o(arlen_w),
+      .axi_arburst_o(),
+
+      .axi_rvalid_i(vld_q),
+      .axi_rready_o(rready_w),
+      .axi_rlast_i(lst_q),
+      .axi_rresp_i(res_q),
+      .axi_rid_i(tid_q),
+      .axi_rdata_i(dat_q)
+  );
+
+
+  //
+  //  Simulation tasks for entire transactions.
+  //
+  integer lim_q;
+  reg [10:0] cnt_q;
+  reg [7:0] rnd_q;
+  reg [87:0] req_q;
+  wire [11:0] inc_w;
+
+  assign s_tdata = req_q[7:0];
+  assign inc_w   = cnt_q + 1;
+
+  /**
+   * Send a command frame, followed by as many data frames as required.
+   */
+  task axi_send;
+    input [7:0] size;
+    input [3:0] tag;
+    input [27:0] addr;
+    input [3:0] lun;
+    begin
+      // Select the OUT EP.
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      lim_q <= #2{24'd0, size};
+      sel_q <= #2 1'b1;
+
+      @(negedge clock) #16 $display("%11t: Starting AXI STORE", $time);
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 1'b0;
+        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+        req_q <= #2{tag, `CMD_STORE, 8'd0, size, lun, addr, "T", "R", "A", "T"};
+        rnd_q <= $urandom;
+      end
+
+      @(negedge clock) $display("%11t: Sending AXI STORE (ADDR: %7x)", $time, addr);
+
+      while (cnt_q < 11'd10) begin
+        @(posedge clock);
+        if (tready_w) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{rnd_q, req_q[87:8]};
+          rnd_q   <= #2 $urandom;
+          s_tlast <= #2 inc_w < 12'd10 ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      req_q <= #2{rnd_q, req_q[87:8]};
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_q <= #2 1'b1;
+      #16 ack_q <= #2 1'b0;
+
+      @(posedge clock) #32 sel_q <= #2 1'b0;
+      #32 sel_q <= #2 1'b1;
+
+      // Send the requested number of bytes.
+      $display("%11t: Sending AXI STORE (DATA: %d)", $time, cnt_q);
+      #16 cnt_q <= 11'd0;
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 size == 8'd0 ? 1'b1 : 1'b0;
+        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+      end
+
+      while (!(cnt_q == lim_q[10:0] && tready_w)) begin
+        @(posedge clock);
+        if (tready_w) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{rnd_q, req_q[87:8]};
+          rnd_q   <= #2 $urandom;
+          s_tlast <= #2 inc_w < lim_q[11:0] ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      $display("%11t: Finishing AXI STORE", $time);
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep  <= #2 1'b0;
+      s_tlast  <= #2 1'b0;
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_q <= #2 1'b1;
+      #16 ack_q <= #2 1'b0;
+
+      @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
+      @(posedge clock) sel_q <= #2 1'b0;
+      #48 resp_q <= #2 1'b1;
+      #16 resp_q <= #2 1'b0;
+
+    end
+  endtask  /* axi_send */
+
+
+endmodule  /* usb_mmio_tb */

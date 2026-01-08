@@ -69,6 +69,7 @@ module mmio_ep_out #(
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     output dat_tvalid_o,
     input dat_tready_i,
+    output dat_tkeep_o,
     output dat_tlast_o,
     output [7:0] dat_tdata_o
 );
@@ -95,6 +96,7 @@ module mmio_ep_out #(
   assign parity_o = parity;
   assign mmio_recv_o = recvd;
   assign usb_tready_o = bypass ? fifo_tready_w : rdy;
+  assign dat_tkeep_o = dat_tvalid_o;
 
   assign cmd_vld_o = vld;
   assign cmd_cmd_o = cmd;

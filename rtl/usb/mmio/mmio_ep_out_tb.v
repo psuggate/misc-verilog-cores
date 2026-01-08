@@ -211,7 +211,7 @@ module mmio_ep_out_tb;
       #16 resp_q <= #2 1'b0;
 
     end
-  endtask  /* ddr_send */
+  endtask  /* axi_send */
 
 `ifdef __potatoe
 

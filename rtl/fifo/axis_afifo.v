@@ -8,8 +8,7 @@ module axis_afifo #(
     parameter integer WIDTH = 8,
     localparam MSB = WIDTH - 1,
     localparam FSB = WIDTH + TLAST - 1,
-    parameter integer ABITS = 4,
-    parameter integer DELAY = 3
+    parameter integer ABITS = 4
 ) (
     input aresetn,
 

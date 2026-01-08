@@ -61,10 +61,10 @@ module usb_mmio (
     // APB requester interface, to controllers
     output penable_o,
     output pwrite_o,
-    output pstrb_o,
+    output [1:0] pstrb_o,
     input pready_i,
     input pslverr_i,
-    output [ASB:0] paddr_o,
+    output [31:0] paddr_o,
     output [15:0] pwdata_o,
     input [15:0] prdata_i,
 
@@ -74,26 +74,26 @@ module usb_mmio (
     // AXI4 Interface
     output axi_awvalid_o,
     input axi_awready_i,
-    output [ASB:0] axi_awaddr_o,
-    output [ISB:0] axi_awid_o,
+    output [31:0] axi_awaddr_o,
+    output [3:0] axi_awid_o,
     output [7:0] axi_awlen_o,
     output [1:0] axi_awburst_o,
 
     output axi_wvalid_o,
     input axi_wready_i,
     output axi_wlast_o,
-    output [SSB:0] axi_wstrb_o,
-    output [MSB:0] axi_wdata_o,
+    output [3:0] axi_wstrb_o,
+    output [31:0] axi_wdata_o,
 
     input axi_bvalid_i,
     output axi_bready_o,
     input [1:0] axi_bresp_i,
-    input [ISB:0] axi_bid_i,
+    input [3:0] axi_bid_i,
 
     output axi_arvalid_o,
     input axi_arready_i,
-    output [ASB:0] axi_araddr_o,
-    output [ISB:0] axi_arid_o,
+    output [31:0] axi_araddr_o,
+    output [3:0] axi_arid_o,
     output [7:0] axi_arlen_o,
     output [1:0] axi_arburst_o,
 
@@ -101,8 +101,8 @@ module usb_mmio (
     output axi_rready_o,
     input axi_rlast_i,
     input [1:0] axi_rresp_i,
-    input [ISB:0] axi_rid_i,
-    input [MSB:0] axi_rdata_i
+    input [3:0] axi_rid_i,
+    input [31:0] axi_rdata_i
 );
 
   reg sel_apb_q, sel_axi_q, cmd_ack_q;
@@ -120,6 +120,7 @@ module usb_mmio (
 
   localparam [4:0] ST_IDLE = 5'd1, ST_READ = 5'd2, ST_WAIT = 5'd4, ST_RESP = 5'd8, ST_HALT = 5'd16;
   reg [4:0] state;
+  reg epi_en_q, epo_en_q;
 
 
   //
@@ -159,10 +160,23 @@ module usb_mmio (
         end
 
         ST_HALT:
-        if (epo_rdy_q && epi_rdy_q) begin
+        if (epo_en_q && epi_en_q) begin
           state <= ST_IDLE;
         end
       endcase
+    end
+  end
+
+  always @(posedge clock) begin
+    if (epo_set_conf_i) begin
+      epo_en_q <= 1'b1;
+    end else if (reset || epo_clr_conf_i || epo_stalled_o) begin
+      epo_en_q <= 1'b0;
+    end
+    if (epi_set_conf_i) begin
+      epi_en_q <= 1'b1;
+    end else if (reset || epi_clr_conf_i || epi_stalled_o) begin
+      epi_en_q <= 1'b0;
     end
   end
 
@@ -312,6 +326,8 @@ module usb_mmio (
    * Issues APB transactions, then sends the result to Bulk-In EP.
    */
   cmd_to_apb U_APB_CTRL0 (
+      .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
+
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
 
@@ -321,6 +337,7 @@ module usb_mmio (
       .cmd_cmd_i(cmd_cmd_w),
       .cmd_tag_i(cmd_tag_w),
       .cmd_val_i(cmd_len_w),
+      .cmd_adr_i(cmd_adr_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_o(cmd_rdy_w),
       .cmd_val_o(cmd_val_w),
@@ -337,6 +354,8 @@ module usb_mmio (
       .pwdata_o (pwdata_o),
       .prdata_i (prdata_i)
   );
+
+`ifdef __spanner_montana
 
   /**
    * Issues AXI transactions, transfers data to/from AXI bus, and then sends
@@ -401,6 +420,8 @@ module usb_mmio (
       .rid_i(axi_rid_i),
       .rdata_i(axi_rdata_i)
   );
+
+`endif /* __spanner_montana */
 
 
 endmodule  /* usb_mmio */
