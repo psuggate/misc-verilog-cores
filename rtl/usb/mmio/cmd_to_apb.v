@@ -43,10 +43,8 @@ module cmd_to_apb (  // USB bus (command) clock-domain
   reg [3:0] state;
 
   wire cvalid_w, cready_w, cwrite_w, cerror_w;
-  wire [15:0] crdata_w;
-
   wire pwrite_w, pvalid_w, pready_w, perror_w, strobe_w;
-  wire [15:0] pwdata_w;
+  wire [15:0] pwdata_w, crdata_w;
   wire [31:0] paddr_w;
 
   // APB-domain signal assignments.
@@ -86,7 +84,8 @@ module cmd_to_apb (  // USB bus (command) clock-domain
         end
         ST_WRIT: begin
           vld_q <= 1'b0;
-          rdy_q <= 1'b0;
+          rdy_q <= cvalid_w && cwrite_w && !cerror_w;
+          // rdy_q <= 1'b0;
           val_q <= 16'bx;
           err_q <= cvalid_w && (!cwrite_w || cerror_w);
         end

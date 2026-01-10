@@ -63,6 +63,7 @@ module mmio_ep_in #(
     input [15:0] cmd_len_i,
     input [3:0] cmd_lun_i,
     input cmd_rdy_i,
+    input cmd_err_i,
     input [15:0] cmd_val_i,
 
     // Output data stream (via AXI-S, to Bulk-In), and USB data or responses
@@ -92,7 +93,7 @@ module mmio_ep_in #(
   localparam [3:0] EP_IDLE = 4'h1, EP_SEND = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
 
   // Top-level states for the high-level control of this end-point (EP).
-  reg [4:0] send, snxt;
+  reg [4:0] xmit, snxt;
   localparam [4:0] TX_IDLE = 5'h01, TX_SEND = 5'h02, TX_WAIT = 5'h04;
   localparam [4:0] TX_NONE = 5'h08, TX_REDO = 5'h10;
 
@@ -110,10 +111,10 @@ module mmio_ep_in #(
   assign fifo_tlast_w = state == EP_SEND ? dat_tlast_i : lst_q;
   assign fifo_tdata_w = state == EP_SEND ? dat_tdata_i : dat_w;
 
-  assign usb_tvalid_o = send == TX_SEND && ulpi_tvalid_w || send == TX_NONE;
-  assign ulpi_tready_w = send == TX_SEND && usb_tready_i;
-  assign usb_tkeep_o = send == TX_SEND;
-  assign usb_tlast_o = send == TX_SEND && ulpi_tlast_w || send == TX_NONE;
+  assign usb_tvalid_o = xmit == TX_SEND && ulpi_tvalid_w || xmit == TX_NONE;
+  assign ulpi_tready_w = xmit == TX_SEND && usb_tready_i;
+  assign usb_tkeep_o = xmit == TX_SEND;
+  assign usb_tlast_o = xmit == TX_SEND && ulpi_tlast_w || xmit == TX_NONE;
   assign usb_tdata_o = ulpi_tdata_w;
 
   /**
@@ -138,7 +139,7 @@ module mmio_ep_in #(
     if (clear || stall) begin
       ready <= 1'b0;
     end else if (en_q) begin
-      ready <= ulpi_tvalid_w || send == TX_NONE || zdp_q;
+      ready <= ulpi_tvalid_w || xmit == TX_NONE || zdp_q;
     end
 
     // USB end-point parity-bit logic.
@@ -193,6 +194,94 @@ module mmio_ep_in #(
   end
 
   /**
+   * Strobe `resp=HIGH` when we have successfully sent a reponse-frame.
+   */
+  always @(posedge clock) begin
+    if (!clear && state == EP_RESP && ack_recv_i) begin
+      resp <= 1'b1;
+    end else begin
+      resp <= 1'b0;
+    end
+  end
+
+  /**
+   * Compute the "residual" of a transaction, of the value returned by an APB
+   * transaction.
+   *
+   * Todo:
+   *  - can be either 16-bit value from APB, or the number of bytes _not_ sent;
+   *  - how to handle 0 vs 65536 (as the residual)?
+   *  - how to count bytes transferred by other end-point?
+   */
+  reg  [15:0] val_q;
+  wire [16:0] val_w;
+
+  assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
+
+  always @(posedge clock) begin
+    if (clear) begin
+      val_q <= 16'bx;
+    end else if (cmd_vld_i) begin
+      case (state)
+        EP_IDLE:
+        if (cmd_rdy_i) begin
+          val_q <= cmd_dir_i ? cmd_val_i : cmd_len_i;
+        end else if (ack_sent_i) begin
+          val_q <= val_w[15:0];
+        end
+
+        EP_SEND:
+        if (dat_tvalid_i && dat_tkeep_i && dat_tready_o) begin
+          val_q <= cmd_apb_i ? {dat_tdata_i, val_q[15:8]} : val_w[15:0];
+        end
+
+        EP_RESP: val_q <= val_q;
+
+        default: val_q <= 16'bx;
+      endcase
+    end
+  end
+
+  /**
+   * Writes the MMIO response, after the data transfer stage(s) have completed.
+   */
+  reg  [55:0] out_q;
+  reg  [ 2:0] idx_q;
+  wire [55:0] out_w;
+  wire [ 3:0] idx_w;
+
+  assign idx_w = idx_q - 1;
+  assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
+  assign dat_w = out_q[7:0];
+
+  always @(posedge clock) begin
+    if (clear) begin
+      vld_q <= 1'b0;
+      lst_q <= 1'b0;
+      idx_q <= 3'd0;
+      out_q <= 56'bx;
+    end else begin
+      case (state)
+        EP_RESP:
+        if (idx_q != 3'd0) begin
+          vld_q <= !(fifo_tready_w && idx_q == 3'd1);
+          if (fifo_tready_w) begin
+            lst_q <= idx_q == 3'd2;
+            idx_q <= idx_w[2:0];
+            out_q <= {8'bx, out_q[55:8]};
+          end
+        end
+        default: begin
+          vld_q <= 1'b0;
+          lst_q <= 1'b0;
+          idx_q <= 3'd7;
+          out_q <= out_w;
+        end
+      endcase
+    end
+  end
+
+  /**
    * Top-level of a hierarchical FSM, and just transitions between the phases
    * of parsing a command, transferring data, then sending a response.
    */
@@ -203,7 +292,12 @@ module mmio_ep_in #(
       state <= EP_HALT;
     end else begin
       case (state)
-        EP_IDLE: state <= mmio_send_i ? EP_SEND : (mmio_recv_i ? EP_RESP : state);
+        EP_IDLE:
+        if (mmio_send_i) begin
+          state <= EP_RESP;
+        end else if (mmio_recv_i) begin
+          state <= EP_SEND;
+        end
         EP_SEND: state <= sent ? EP_RESP : state;
         EP_RESP: state <= resp ? EP_IDLE : state;
         EP_HALT: state <= state;
@@ -246,67 +340,6 @@ module mmio_ep_in #(
     end
   end
 
-  /**
-   * Compute the "residual" of a transaction, of the value returned by an APB
-   * transaction.
-   *
-   * Todo:
-   *  - can be either 16-bit value from APB, or the number of bytes _not_ sent;
-   *  - how to handle 0 vs 65536 (as the residual)?
-   *  - how to count bytes transferred by other end-point?
-   */
-  reg  [15:0] val_q;
-  wire [16:0] val_w;
-
-  assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
-
-  always @(posedge clock) begin
-    if (clear) begin
-      val_q <= 16'bx;
-    end else begin
-      case (state)
-        EP_IDLE:
-        if (cmd_vld_i && ack_sent_i) begin
-          val_q <= val_w[15:0];
-        end
-
-        EP_SEND:
-        if (dat_tvalid_i && dat_tkeep_i && dat_tready_o) begin
-          val_q <= cmd_apb_i ? {dat_tdata_i, val_q[15:8]} : val_w[15:0];
-        end
-
-        EP_RESP: val_q <= val_q;
-
-        default: val_q <= 16'bx;
-      endcase
-    end
-  end
-
-  /**
-   * Writes the MMIO response, after the data transfer stage(s) have completed.
-   */
-  reg  [55:0] out_q;
-  reg  [ 2:0] idx_q;
-  wire [55:0] out_w;
-  wire [ 3:0] idx_w;
-
-  assign idx_w = idx_q - 1;
-  assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
-  assign dat_w = out_q[7:0];
-
-  always @(posedge clock) begin
-    if (clear) begin
-      idx_q <= 3'd0;
-      out_q <= 56'bx;
-    end else if (state == EP_SEND && sent) begin
-      idx_q <= 3'd7;
-      out_q <= out_w;
-    end else if (fifo_tready_w && idx_q != 3'd0) begin
-      idx_q <= idx_w[2:0];
-      out_q <= {8'bx, out_q[55:8]};
-    end
-  end
-
 
   //
   // Logic for sending USB data as USB frames, via the `ulpi_encoder`.
@@ -316,9 +349,10 @@ module mmio_ep_in #(
   assign smax_w = scount == CMAX;  // Todo
   // assign smax_w = scount & max_size_i == max_size_i;
 
-  assign save_w = dat_tvalid_i && dat_tready_o && (dat_tlast_i || rmax_w);
-  assign redo_w = send == TX_WAIT && selected_i && timedout_i;
-  assign next_w = send == TX_WAIT && selected_i && ack_recv_i;
+  // assign save_w = dat_tvalid_i && dat_tready_o && (dat_tlast_i || rmax_w);
+  assign save_w = fifo_tvalid_w && fifo_tready_w && (fifo_tlast_w || rmax_w);
+  assign redo_w = xmit == TX_WAIT && selected_i && timedout_i;
+  assign next_w = xmit == TX_WAIT && selected_i && ack_recv_i;
 
   /**
    * Todo:
@@ -344,12 +378,13 @@ module mmio_ep_in #(
    * FSM for sending USB frames.
    */
   always @* begin
-    snxt = send;
+    snxt = xmit;
 
-    case (send)
+    case (xmit)
       TX_IDLE:
-      if (selected_i) begin
-        snxt = ulpi_tvalid_w ? TX_SEND : TX_NONE;
+      if (selected_i && mmio_send_i) begin
+        // snxt = ulpi_tvalid_w ? TX_SEND : TX_NONE;
+        snxt = TX_SEND;
       end
 
       // Transferring data from source to USB encoder (via the packet FIFO).
@@ -375,7 +410,7 @@ module mmio_ep_in #(
       // Repeat the previous packet(-chunk), as an 'ACK' was not received.
       TX_REDO:
       if (selected_i) begin
-        snxt = TX_SEND;
+        snxt = zdp_q ? TX_NONE : TX_SEND;  // Todo
       end
     endcase
 
@@ -384,14 +419,14 @@ module mmio_ep_in #(
     end
   end
 
-  assign sent_w = dat_tvalid_i && dat_tready_o && dat_tlast_i && !smax_w;
+  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o && !smax_w;
 
   always @(posedge clock) begin
-    send <= snxt;
+    xmit <= snxt;
     sent <= sent_w;
 
     // Todo: how to handle time-outs (while waiting for USB 'ACK')?
-    if (clear || send == TX_WAIT && ack_recv_i) begin
+    if (clear || xmit == TX_WAIT && ack_recv_i) begin
       zdp_q <= 1'b0;
     end else if (smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
       zdp_q <= 1'b1;
@@ -442,9 +477,17 @@ module mmio_ep_in #(
   //
   //  Simulation Only
   ///
-  reg [39:0] dbg_state;
+  reg [39:0] dbg_state, dbg_xmit;
 
   always @* begin
+    case (xmit)
+      TX_IDLE: dbg_xmit = "IDLE";
+      TX_SEND: dbg_xmit = "SEND";
+      TX_WAIT: dbg_xmit = "WAIT";
+      TX_NONE: dbg_xmit = "NONE";
+      TX_REDO: dbg_xmit = "REDO";
+      default: dbg_xmit = " ?? ";
+    endcase
     case (state)
       EP_IDLE: dbg_state = "IDLE";
       EP_SEND: dbg_state = "SEND";

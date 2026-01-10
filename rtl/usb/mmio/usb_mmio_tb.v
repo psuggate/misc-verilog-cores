@@ -2,7 +2,9 @@
 module usb_mmio_tb;
 
   `define CMD_STORE 4'h0
+  `define CMD_FETCH 4'h8
   `define CMD_SET 4'h4
+  `define CMD_GET 4'hC
 
   `include "axi_defs.vh"
 
@@ -32,7 +34,9 @@ module usb_mmio_tb;
   wire recv_w;
 
   reg set_conf_q, clr_conf_q;
-  reg epo_sel_q, epi_sel_q, err_q, ack_q;
+  reg ack_sent_q, ack_recv_q;
+  reg timeout_q, epo_err_q;
+  reg epo_sel_q, epi_sel_q, err_q;
   wire ep_ready_w, ep_stall_w, ep_out_par;
 
   reg cmd_ack_q;
@@ -72,7 +76,7 @@ module usb_mmio_tb;
 
     #2 reset <= 1'b1;
     {set_conf_q, clr_conf_q} <= 2'b0;
-    {epo_sel_q, err_q, ack_q} <= 3'b0;
+    {epo_sel_q, epi_sel_q, err_q, ack_sent_q, ack_recv_q} <= 5'b0;
     {busy_q, sent_q, resp_q, done_q} <= 4'b0;
     cmd_ack_q <= 1'b0;
     {s_tvalid, s_tkeep, s_tlast} <= 3'b0;
@@ -226,8 +230,6 @@ module usb_mmio_tb;
   //
   //  Cores Under Nondestructive Testing
   ///
-  reg ack_sent_q, ack_recv_q;
-  reg timeout_q, epo_err_q;
   wire epi_ready_w, epi_parity_w, epi_stall_w;
   wire epo_ready_w, epo_parity_w, epo_stall_w;
 
@@ -409,8 +411,8 @@ module usb_mmio_tb;
 
       // Todo: the target device is supposed to 'ACK' the command frame.
       @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
-      @(posedge clock) ack_q <= #2 1'b1;
-      #16 ack_q <= #2 1'b0;
+      @(posedge clock) ack_sent_q <= #2 1'b1;
+      #16 ack_sent_q <= #2 1'b0;
 
       @(posedge clock) #32 epo_sel_q <= #2 1'b0;
       #32 epo_sel_q <= #2 1'b1;
@@ -445,8 +447,8 @@ module usb_mmio_tb;
 
       // Todo: the target device is supposed to 'ACK' the command frame.
       @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
-      @(posedge clock) ack_q <= #2 1'b1;
-      #16 ack_q <= #2 1'b0;
+      @(posedge clock) ack_sent_q <= #2 1'b1;
+      #16 ack_sent_q <= #2 1'b0;
 
       @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
       @(posedge clock) epo_sel_q <= #2 1'b0;
@@ -483,7 +485,7 @@ module usb_mmio_tb;
         req_q <= #2{tag, `CMD_SET, val_q, lun, addr, "T", "R", "A", "T"};
       end
 
-      @(negedge clock) $display("%11t: Sending APB STORE (ADDR: %7x)", $time, addr);
+      @(negedge clock) $display("%11t: Sending APB SET (ADDR: %7x)", $time, addr);
 
       while (cnt_q < 11'd10) begin
         @(posedge clock);
@@ -503,14 +505,15 @@ module usb_mmio_tb;
 
       // Todo: the target device is supposed to 'ACK' the command frame.
       @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
-      @(posedge clock) ack_q <= #2 1'b1;
-      #16 ack_q <= #2 1'b0;
+      @(posedge clock) ack_sent_q <= #2 1'b1;
+      #16 ack_sent_q <= #2 1'b0;
 
       @(posedge clock) #32 epo_sel_q <= #2 1'b0;
-      #32 epo_sel_q <= #2 1'b1;
+      #128 epi_sel_q <= #2 1'b1;
 
-      @(negedge clock) #16 $display("%11t: Finished APB STORE", $time);
-      @(posedge clock) epo_sel_q <= #2 1'b0;
+      @(negedge clock) #16 $display("%11t: Finished APB SET", $time);
+      @(posedge clock) ack_recv_q <= #2 1'b0;
+      @(posedge clock) epi_sel_q <= #2 1'b0;
       #48 resp_q <= #2 1'b1;
       #16 resp_q <= #2 1'b0;
 

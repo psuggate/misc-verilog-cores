@@ -106,7 +106,7 @@ module usb_mmio (
 );
 
   reg sel_apb_q, sel_axi_q, cmd_ack_q;
-  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
+  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w, cmd_err_w;
   wire [1:0] cmd_cmd_w;
   wire [15:0] cmd_len_w, cmd_val_w;
   wire [3:0] cmd_tag_w, cmd_lun_w;
@@ -120,7 +120,56 @@ module usb_mmio (
 
   localparam [4:0] ST_IDLE = 5'd1, ST_READ = 5'd2, ST_WAIT = 5'd4, ST_RESP = 5'd8, ST_HALT = 5'd16;
   reg [4:0] state;
-  reg epi_en_q, epo_en_q;
+  reg epi_en_q, epo_en_q, clear;
+
+
+  //
+  //  Module control-signals.
+  //
+  always @(posedge clock or negedge areset_n) begin
+    if (reset || !areset_n || epo_set_conf_i || epo_clr_conf_i || epi_set_conf_i || epi_clr_conf_i) begin
+      clear <= 1'b1;
+    end else begin
+      clear <= 1'b0;
+    end
+  end
+
+  always @(posedge clock) begin
+    if (epo_set_conf_i) begin
+      epo_en_q <= 1'b1;
+    end else if (reset || epo_clr_conf_i || epo_stalled_o) begin
+      epo_en_q <= 1'b0;
+    end
+
+    if (epi_set_conf_i) begin
+      epi_en_q <= 1'b1;
+    end else if (reset || epi_clr_conf_i || epi_stalled_o) begin
+      epi_en_q <= 1'b0;
+    end
+
+    if (clear) begin
+      busy_q <= 1'b0;
+      send_q <= 1'b0;
+      done_q <= 1'b0;
+    end else begin
+      if (cmd_ack_w) begin
+        busy_q <= 1'b0;
+        done_q <= 1'b1;
+      end else if (cmd_vld_w) begin
+        busy_q <= 1'b1;
+        done_q <= 1'b0;
+      end else begin
+        busy_q <= busy_q;
+        done_q <= 1'b0;
+      end
+
+      if (recv_w || cmd_rdy_w || cmd_err_w) begin
+        send_q <= 1'b1;
+      end else begin  // if (sent_w) begin
+        send_q <= 1'b0;
+      end
+    end
+  end
 
 
   //
@@ -164,19 +213,6 @@ module usb_mmio (
           state <= ST_IDLE;
         end
       endcase
-    end
-  end
-
-  always @(posedge clock) begin
-    if (epo_set_conf_i) begin
-      epo_en_q <= 1'b1;
-    end else if (reset || epo_clr_conf_i || epo_stalled_o) begin
-      epo_en_q <= 1'b0;
-    end
-    if (epi_set_conf_i) begin
-      epi_en_q <= 1'b1;
-    end else if (reset || epi_clr_conf_i || epi_stalled_o) begin
-      epi_en_q <= 1'b0;
     end
   end
 
@@ -276,6 +312,7 @@ module usb_mmio (
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_i(cmd_rdy_w),
+      .cmd_err_i(cmd_err_w),
       .cmd_val_i(cmd_val_w),
 
       // Output data stream (via AXI-S(), to Bulk-In)(), and USB data or responses
@@ -340,6 +377,7 @@ module usb_mmio (
       .cmd_adr_i(cmd_adr_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_o(cmd_rdy_w),
+      .cmd_err_o(cmd_err_w),
       .cmd_val_o(cmd_val_w),
 
       .pclk(pclk),  // APB clock-domain
