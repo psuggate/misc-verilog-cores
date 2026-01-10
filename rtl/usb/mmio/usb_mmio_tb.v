@@ -2,6 +2,7 @@
 module usb_mmio_tb;
 
   `define CMD_STORE 4'h0
+  `define CMD_SET 4'h4
 
   `include "axi_defs.vh"
 
@@ -30,8 +31,8 @@ module usb_mmio_tb;
   reg busy_q, sent_q, resp_q, done_q;
   wire recv_w;
 
-  reg ep_set_q, ep_clr_q;
-  reg sel_q, err_q, ack_q;
+  reg set_conf_q, clr_conf_q;
+  reg epo_sel_q, epi_sel_q, err_q, ack_q;
   wire ep_ready_w, ep_stall_w, ep_out_par;
 
   reg cmd_ack_q;
@@ -48,6 +49,7 @@ module usb_mmio_tb;
 
   reg [7:0] len_q = 8'd7;
   reg [3:0] lun_q = 4'd0, tag_q = 4'hA;
+  reg [15:0] val_q;
   reg [27:0] adr_q = 28'h0800;
 
   reg mclk = 1, pclk = 1;
@@ -69,8 +71,8 @@ module usb_mmio_tb;
     $dumpvars;
 
     #2 reset <= 1'b1;
-    {ep_set_q, ep_clr_q} <= 2'b0;
-    {sel_q, err_q, ack_q} <= 3'b0;
+    {set_conf_q, clr_conf_q} <= 2'b0;
+    {epo_sel_q, err_q, ack_q} <= 3'b0;
     {busy_q, sent_q, resp_q, done_q} <= 4'b0;
     cmd_ack_q <= 1'b0;
     {s_tvalid, s_tkeep, s_tlast} <= 3'b0;
@@ -78,10 +80,11 @@ module usb_mmio_tb;
 
     #160 reset <= 1'b0;
 
-    #80 ep_set_q <= 1'b1;
-    #16 ep_set_q <= 1'b0;
+    #80 set_conf_q <= 1'b1;
+    #16 set_conf_q <= 1'b0;
 
-    axi_send(len_q, tag_q, adr_q, lun_q);
+    apb_send(tag_q, adr_q, lun_q);
+    // axi_send(len_q, tag_q, adr_q, lun_q);
 
     #800 $finish;
   end
@@ -223,17 +226,36 @@ module usb_mmio_tb;
   //
   //  Cores Under Nondestructive Testing
   ///
-  reg set_conf_q, clr_conf_q, ack_sent_q, ack_recv_q;
-  reg epi_sel_q, timeout_q, epo_sel_q, epo_err_q;
+  reg ack_sent_q, ack_recv_q;
+  reg timeout_q, epo_err_q;
   wire epi_ready_w, epi_parity_w, epi_stall_w;
   wire epo_ready_w, epo_parity_w, epo_stall_w;
 
-  reg pready_q, pslverr_q;
+  reg pready_q, pslverr_q, pfinish_q;
   reg [15:0] prdata_q;
   wire penable_w, pwrite_w;
   wire [ 1:0] pstrb_w;
   wire [31:0] paddr_w;
   wire [15:0] pwdata_w;
+
+  always @(posedge pclk) begin
+    if (!presetn) begin
+      pready_q  <= 1'b0;
+      pslverr_q <= 1'b0;
+      pfinish_q <= 1'b0;
+      prdata_q  <= 16'bx;
+    end else if (penable_w && !pfinish_q) begin
+      pready_q  <= 1'b1;
+      pslverr_q <= 1'b0;
+      pfinish_q <= 1'b1;
+      prdata_q  <= pwrite_w ? prdata_q : $random;
+    end else begin
+      pready_q  <= 1'b0;
+      pslverr_q <= 1'b0;
+      pfinish_q <= penable_w;
+      prdata_q  <= 16'bx;
+    end
+  end
 
   usb_mmio U_REQ1 (
       .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
@@ -353,7 +375,7 @@ module usb_mmio_tb;
       s_tkeep <= #2 1'b0;
       s_tlast <= #2 1'b0;
       lim_q <= #2{24'd0, size};
-      sel_q <= #2 1'b1;
+      epo_sel_q <= #2 1'b1;
 
       @(negedge clock) #16 $display("%11t: Starting AXI STORE", $time);
 
@@ -361,7 +383,7 @@ module usb_mmio_tb;
         s_tvalid <= #2 1'b1;
         s_tkeep <= #2 1'b1;
         s_tlast <= #2 1'b0;
-        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
         req_q <= #2{tag, `CMD_STORE, 8'd0, size, lun, addr, "T", "R", "A", "T"};
         rnd_q <= $urandom;
       end
@@ -370,7 +392,7 @@ module usb_mmio_tb;
 
       while (cnt_q < 11'd10) begin
         @(posedge clock);
-        if (tready_w) begin
+        if (s_tready) begin
           cnt_q   <= #2 inc_w[10:0];
           req_q   <= #2{rnd_q, req_q[87:8]};
           rnd_q   <= #2 $urandom;
@@ -390,8 +412,8 @@ module usb_mmio_tb;
       @(posedge clock) ack_q <= #2 1'b1;
       #16 ack_q <= #2 1'b0;
 
-      @(posedge clock) #32 sel_q <= #2 1'b0;
-      #32 sel_q <= #2 1'b1;
+      @(posedge clock) #32 epo_sel_q <= #2 1'b0;
+      #32 epo_sel_q <= #2 1'b1;
 
       // Send the requested number of bytes.
       $display("%11t: Sending AXI STORE (DATA: %d)", $time, cnt_q);
@@ -401,12 +423,12 @@ module usb_mmio_tb;
         s_tvalid <= #2 1'b1;
         s_tkeep <= #2 1'b1;
         s_tlast <= #2 size == 8'd0 ? 1'b1 : 1'b0;
-        cnt_q <= #2 s_tvalid && tready_w ? 11'd1 : 11'd0;
+        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
       end
 
-      while (!(cnt_q == lim_q[10:0] && tready_w)) begin
+      while (!(cnt_q == lim_q[10:0] && s_tready)) begin
         @(posedge clock);
-        if (tready_w) begin
+        if (s_tready) begin
           cnt_q   <= #2 inc_w[10:0];
           req_q   <= #2{rnd_q, req_q[87:8]};
           rnd_q   <= #2 $urandom;
@@ -427,12 +449,73 @@ module usb_mmio_tb;
       #16 ack_q <= #2 1'b0;
 
       @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
-      @(posedge clock) sel_q <= #2 1'b0;
+      @(posedge clock) epo_sel_q <= #2 1'b0;
       #48 resp_q <= #2 1'b1;
       #16 resp_q <= #2 1'b0;
 
     end
   endtask  /* axi_send */
+
+
+  /**
+   * Send a command frame, followed by as many data frames as required.
+   */
+  task apb_send;
+    input [3:0] tag;
+    input [27:0] addr;
+    input [3:0] lun;
+    begin
+      // Select the OUT EP.
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      epo_sel_q <= #2 1'b1;
+      val_q <= #2 $random;
+
+      @(negedge clock) #16 $display("%11t: Starting APB STORE", $time);
+
+      @(posedge clock) begin
+        s_tvalid <= #2 1'b1;
+        s_tkeep <= #2 1'b1;
+        s_tlast <= #2 1'b0;
+        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
+        req_q <= #2{tag, `CMD_SET, val_q, lun, addr, "T", "R", "A", "T"};
+      end
+
+      @(negedge clock) $display("%11t: Sending APB STORE (ADDR: %7x)", $time, addr);
+
+      while (cnt_q < 11'd10) begin
+        @(posedge clock);
+        if (s_tready) begin
+          cnt_q   <= #2 inc_w[10:0];
+          req_q   <= #2{8'bx, req_q[87:8]};
+          s_tlast <= #2 inc_w < 12'd10 ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      @(posedge clock);
+      s_tvalid <= #2 1'b0;
+      s_tkeep <= #2 1'b0;
+      s_tlast <= #2 1'b0;
+      req_q <= #2{8'bx, req_q[87:8]};
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_q <= #2 1'b1;
+      #16 ack_q <= #2 1'b0;
+
+      @(posedge clock) #32 epo_sel_q <= #2 1'b0;
+      #32 epo_sel_q <= #2 1'b1;
+
+      @(negedge clock) #16 $display("%11t: Finished APB STORE", $time);
+      @(posedge clock) epo_sel_q <= #2 1'b0;
+      #48 resp_q <= #2 1'b1;
+      #16 resp_q <= #2 1'b0;
+
+    end
+  endtask  /* apb_send */
 
 
 endmodule  /* usb_mmio_tb */

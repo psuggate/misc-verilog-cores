@@ -8,9 +8,9 @@
 //    control-pipe to reset/re-enable the end-point.
 //
 module mmio_ep_in #(
-                    parameter integer TIMEOUT = 256,
-                    localparam integer TBITS = $clog2(256),
-                    localparam integer TSB = TBITS - 1,
+    parameter integer TIMEOUT = 256,
+    localparam integer TBITS = $clog2(256),
+    localparam integer TSB = TBITS - 1,
     parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
     localparam CBITS = $clog2(MAX_PACKET_LENGTH),
     localparam CSB = CBITS - 1,
@@ -20,7 +20,7 @@ module mmio_ep_in #(
     localparam PBITS = $clog2(PACKET_FIFO_DEPTH),
     localparam PSB = PBITS - 1,
     parameter [31:0] MAGIC = "TART",
-    parameter ENABLED = 1
+    parameter ENABLED = 1  // Todo
 ) (
     input clock,
     input reset,
@@ -78,15 +78,23 @@ module mmio_ep_in #(
   `define CMD_FAILURE 4'h1
   `define CMD_INVALID 4'hF
 
-  reg stall, clear, ready, avail, bypass, parity, sent, resp;
-  reg vld, cyc, stb, lst, rdy, enb, en_q;
+  reg stall, clear, ready, parity, sent, resp;
+  reg vld_q, lst_q, zdp_q, enb_q, en_q, cyc, stb;
   reg save_q, redo_q, next_q;
-  reg [7:0] dat;
+  wire [7:0] dat_w;
+  wire save_w, redo_w, next_w, sent_w;
   wire fifo_tvalid_w, fifo_tready_w, fifo_tkeep_w, fifo_tlast_w;
-  wire [7:0] fifo_tdata_w;
+  wire ulpi_tvalid_w, ulpi_tready_w, ulpi_tkeep_w, ulpi_tlast_w;
+  wire [7:0] fifo_tdata_w, ulpi_tdata_w;
 
   // Top-level states for the high-level control of this end-point (EP).
+  reg [3:0] state;
   localparam [3:0] EP_IDLE = 4'h1, EP_SEND = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
+
+  // Top-level states for the high-level control of this end-point (EP).
+  reg [4:0] send, snxt;
+  localparam [4:0] TX_IDLE = 5'h01, TX_SEND = 5'h02, TX_WAIT = 5'h04;
+  localparam [4:0] TX_NONE = 5'h08, TX_REDO = 5'h10;
 
   assign stalled_o = stall;
   assign ep_ready_o = ready;
@@ -96,21 +104,21 @@ module mmio_ep_in #(
   assign mmio_resp_o = resp;
 
   // Todo ...
-  assign fifo_tvalid_w = bypass ? dat_tvalid_i : vld;
-  assign dat_tready_o = bypass ? fifo_tready_w : rdy;
-  assign fifo_tkeep_w = 1'b1;
-  assign fifo_tlast_w = bypass ? dat_tlast_i : lst;
-  assign fifo_tdata_w = bypass ? dat_tdata_i : dat;
+  assign fifo_tvalid_w = state == EP_SEND ? dat_tvalid_i : vld_q;
+  assign dat_tready_o = state == EP_SEND ? fifo_tready_w : 1'b0;
+  assign fifo_tkeep_w = state == EP_SEND ? dat_tkeep_i : 1'b1;
+  assign fifo_tlast_w = state == EP_SEND ? dat_tlast_i : lst_q;
+  assign fifo_tdata_w = state == EP_SEND ? dat_tdata_i : dat_w;
+
+  assign usb_tvalid_o = send == TX_SEND && ulpi_tvalid_w || send == TX_NONE;
+  assign ulpi_tready_w = send == TX_SEND && usb_tready_i;
+  assign usb_tkeep_o = send == TX_SEND;
+  assign usb_tlast_o = send == TX_SEND && ulpi_tlast_w || send == TX_NONE;
+  assign usb_tdata_o = ulpi_tdata_w;
 
   /**
    * Pipeline some of the control signals.
    */
-  wire avail_w;
-  wire [PSB:0] level_w, space_w;
-
-  assign space_w = MAX_PACKET_LENGTH - level_w;
-  assign avail_w = space_w > MAX_PACKET_LENGTH;
-
   always @(posedge clock) begin
     // Clear state values, as required.
     if (reset || set_conf_i || clr_conf_i) begin
@@ -130,7 +138,7 @@ module mmio_ep_in #(
     if (clear || stall) begin
       ready <= 1'b0;
     end else if (en_q) begin
-      ready <= avail;
+      ready <= ulpi_tvalid_w || send == TX_NONE || zdp_q;
     end
 
     // USB end-point parity-bit logic.
@@ -145,8 +153,7 @@ module mmio_ep_in #(
   //
   // Top-level FSM.
   //
-  reg [3:0] state;
-  reg [TSB:0] ticks;
+  reg  [  TSB:0] ticks;
   wire [TBITS:0] dec_w;
 
   localparam TZERO = {TBITS{1'b0}};
@@ -174,14 +181,14 @@ module mmio_ep_in #(
   end
 
   /**
-   * Enable the packet-FIFO, if we are bypassing (USB) Bulk-Out data to AXI, and
+   * Enable the packet-FIFO, if we are bypassing (USB) Bulk-In data to ULPI, and
    * then deassert once we have sent the response back to the USB host.
    */
   always @(posedge clock) begin
     if (clear || mmio_done_i) begin
-      enb <= 1'b1;
-    end else if (state == EP_SEND && bypass) begin
-      enb <= 1'b0;
+      enb_q <= 1'b1;
+    end else if (mmio_send_i || mmio_recv_i) begin
+      enb_q <= 1'b0;
     end
   end
 
@@ -196,7 +203,7 @@ module mmio_ep_in #(
       state <= EP_HALT;
     end else begin
       case (state)
-        EP_IDLE: state <= vld ? EP_SEND : state;
+        EP_IDLE: state <= mmio_send_i ? EP_SEND : (mmio_recv_i ? EP_RESP : state);
         EP_SEND: state <= sent ? EP_RESP : state;
         EP_RESP: state <= resp ? EP_IDLE : state;
         EP_HALT: state <= state;
@@ -204,25 +211,38 @@ module mmio_ep_in #(
     end
   end
 
+
   //
-  // Todo:
-  //  - generate 'SAVE' strobes once enough data for a full USB frame exists in
-  //    the packet FIFO;
-  //  - issue 'NEXT' strobes when each 'ACK' is received, after a 'DATA IN'
-  //    transaction;
-  //  - repeat data-transmissions, via 'REDO' strobes, on 'ACK' timeouts;
+  // Chop-up large transfers into the (configured) USB frame-size, and send a
+  // ZDP, if transfer ends on a USB frame-boundary.
   //
+  reg [CSB:0] rcount, scount;
+  wire [CBITS:0] rcnext, scnext;
+  wire rmax_w, smax_w;
+
+  /**
+   * Receive Counter.
+   */
+  assign rcnext = fifo_tlast_w ? {1'b0, CZERO} : rcount + 1;
+
   always @(posedge clock) begin
     if (clear) begin
-      save_q <= 1'b0;
-      next_q <= 1'b0;
-      redo_q <= 1'b0;
-    end else begin
-      case (state)
-        EP_IDLE: {redo_q, next_q, save_q} <= 3'b000;
-        EP_HALT: {redo_q, next_q, save_q} <= 3'b000;
-        default: {redo_q, next_q, save_q} <= 3'b000;
-      endcase
+      rcount <= CZERO;
+    end else if (fifo_tvalid_w && fifo_tready_w) begin
+      rcount <= rcnext[CSB:0];
+    end
+  end
+
+  /**
+   * Transmit (or, Send) Counter.
+   */
+  assign scnext = usb_tlast_o ? {1'b0, CZERO} : scount + 1;
+
+  always @(posedge clock) begin
+    if (clear) begin
+      scount <= CZERO;
+    end else if (usb_tvalid_o && usb_tready_i) begin
+      scount <= scnext[CSB:0];
     end
   end
 
@@ -235,8 +255,8 @@ module mmio_ep_in #(
    *  - how to handle 0 vs 65536 (as the residual)?
    *  - how to count bytes transferred by other end-point?
    */
-  reg [15:0] val_q;
-  reg [16:0] val_w;
+  reg  [15:0] val_q;
+  wire [16:0] val_w;
 
   assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
 
@@ -266,23 +286,115 @@ module mmio_ep_in #(
    * Writes the MMIO response, after the data transfer stage(s) have completed.
    */
   reg  [55:0] out_q;
-  reg  [ 2:0] sel_q;
+  reg  [ 2:0] idx_q;
   wire [55:0] out_w;
-  wire [ 3:0] sel_w;
+  wire [ 3:0] idx_w;
 
-  assign sel_w = sel_q - 1;
+  assign idx_w = idx_q - 1;
   assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
+  assign dat_w = out_q[7:0];
 
   always @(posedge clock) begin
     if (clear) begin
-      sel_q <= 3'd0;
+      idx_q <= 3'd0;
       out_q <= 56'bx;
     end else if (state == EP_SEND && sent) begin
-      sel_q <= 3'd7;
+      idx_q <= 3'd7;
       out_q <= out_w;
-    end else if (fifo_tready_w && sel_q != 3'd0) begin
-      sel_q <= sel_w[2:0];
+    end else if (fifo_tready_w && idx_q != 3'd0) begin
+      idx_q <= idx_w[2:0];
       out_q <= {8'bx, out_q[55:8]};
+    end
+  end
+
+
+  //
+  // Logic for sending USB data as USB frames, via the `ulpi_encoder`.
+  //
+  assign rmax_w = rcount == CMAX;  // Todo
+  // assign rmax_w = rcount & max_size_i == max_size_i;
+  assign smax_w = scount == CMAX;  // Todo
+  // assign smax_w = scount & max_size_i == max_size_i;
+
+  assign save_w = dat_tvalid_i && dat_tready_o && (dat_tlast_i || rmax_w);
+  assign redo_w = send == TX_WAIT && selected_i && timedout_i;
+  assign next_w = send == TX_WAIT && selected_i && ack_recv_i;
+
+  /**
+   * Todo:
+   *  - generate 'SAVE' strobes once enough data for a full USB frame exists in
+   *    the packet FIFO;
+   *  - issue 'NEXT' strobes when each 'ACK' is received, after a 'DATA IN'
+   *    transaction;
+   *  - repeat data-transmissions, via 'REDO' strobes, on 'ACK' timeouts;
+   */
+  always @(posedge clock) begin
+    if (clear) begin
+      {next_q, redo_q, save_q} <= 3'b000;
+    end else begin
+      case (state)
+        EP_IDLE: {next_q, redo_q, save_q} <= 3'b000;
+        EP_HALT: {next_q, redo_q, save_q} <= 3'b000;
+        default: {next_q, redo_q, save_q} <= {next_w, redo_w, save_w};
+      endcase
+    end
+  end
+
+  /**
+   * FSM for sending USB frames.
+   */
+  always @* begin
+    snxt = send;
+
+    case (send)
+      TX_IDLE:
+      if (selected_i) begin
+        snxt = ulpi_tvalid_w ? TX_SEND : TX_NONE;
+      end
+
+      // Transferring data from source to USB encoder (via the packet FIFO).
+      TX_SEND:
+      if (ulpi_tvalid_w && usb_tready_i && ulpi_tlast_w) begin
+        snxt = TX_WAIT;
+      end
+
+      // After sending a packet, wait for an ACK/ERR response.
+      TX_WAIT:
+      if (selected_i && ack_recv_i) begin
+        snxt = zdp_q ? TX_NONE : TX_IDLE;
+      end else if (selected_i && timedout_i) begin
+        snxt = TX_REDO;
+      end
+
+      // Rest of packet has already been sent, so transmit a ZDP
+      TX_NONE:
+      if (usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
+        snxt = TX_WAIT;
+      end
+
+      // Repeat the previous packet(-chunk), as an 'ACK' was not received.
+      TX_REDO:
+      if (selected_i) begin
+        snxt = TX_SEND;
+      end
+    endcase
+
+    if (en_q != 1'b1 || ENABLED != 1) begin
+      snxt = TX_IDLE;
+    end
+  end
+
+  assign sent_w = dat_tvalid_i && dat_tready_o && dat_tlast_i && !smax_w;
+
+  always @(posedge clock) begin
+    send <= snxt;
+    sent <= sent_w;
+
+    // Todo: how to handle time-outs (while waiting for USB 'ACK')?
+    if (clear || send == TX_WAIT && ack_recv_i) begin
+      zdp_q <= 1'b0;
+    end else if (smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
+      zdp_q <= 1'b1;
     end
   end
 
@@ -304,9 +416,9 @@ module mmio_ep_in #(
       .OUTREG(2)
   ) U_FIFO0 (
       .clock(clock),
-      .reset(clear),
+      .reset(enb_q),
 
-      .level_o(level_w),
+      .level_o(),
 
       .drop_i(1'b0),
       .save_i(save_q),
@@ -319,10 +431,10 @@ module mmio_ep_in #(
       .s_tkeep (fifo_tkeep_w),
       .s_tdata (fifo_tdata_w),
 
-      .m_tvalid(usb_tvalid_o),
-      .m_tready(usb_tready_i),
-      .m_tlast (usb_tlast_o),
-      .m_tdata (usb_tdata_o)
+      .m_tvalid(ulpi_tvalid_w),
+      .m_tready(ulpi_tready_w),
+      .m_tlast (ulpi_tlast_w),
+      .m_tdata (ulpi_tdata_w)
   );
 
 

@@ -121,17 +121,13 @@ module cmd_to_apb (  // USB bus (command) clock-domain
   //  APB-domain logic.
   //
   assign perror_w = pslverr_i || !presetn;
-  assign strobe_w = cyc_p && (pready_i && pslverr_i || !presetn);
+  assign strobe_w = cyc_p && pready_i;
 
   always @(posedge pclk or negedge areset_n) begin
-    if (!areset_n) begin
+    if (!areset_n || strobe_w) begin
       cyc_p <= 1'b0;
-    end else begin
-      if (pvalid_w && pready_w) begin
-        cyc_p <= 1'b1;
-      end else if (strobe_w) begin
-        cyc_p <= 1'b0;
-      end
+    end else if (pvalid_w && pready_w) begin
+      cyc_p <= 1'b1;
     end
   end
 

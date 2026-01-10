@@ -421,7 +421,7 @@ module usb_mmio (
       .rdata_i(axi_rdata_i)
   );
 
-`endif /* __spanner_montana */
+`endif  /* __spanner_montana */
 
 
 endmodule  /* usb_mmio */

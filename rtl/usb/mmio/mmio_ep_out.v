@@ -74,7 +74,7 @@ module mmio_ep_out #(
     output [7:0] dat_tdata_o
 );
 
-  reg stall, clear, en_q, ready, avail, bypass, parity, rxd_q, recvd;
+  reg stall, clear, en_q, ready, bypass, parity, rxd_q, recvd;
   reg cyc, stb, lst, rdy;
   reg vld, dir, enb, apb;
   reg drop_q, save_q, recv_q;
