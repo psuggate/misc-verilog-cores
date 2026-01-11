@@ -254,5 +254,4 @@ module mmio_ep_out_tb;
 
 `endif  /* __potatoe */
 
-
 endmodule  /* mmio_ep_out_tb */

@@ -461,5 +461,4 @@ module usb_mmio (
 
 `endif  /* __spanner_montana */
 
-
 endmodule  /* usb_mmio */

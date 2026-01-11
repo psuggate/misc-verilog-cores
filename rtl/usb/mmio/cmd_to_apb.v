@@ -151,6 +151,8 @@ module cmd_to_apb (  // USB bus (command) clock-domain
       .m_tdata ({pwrite_w, paddr_w, pwdata_w})
   );
 
+  assign cready_w = state != ST_IDLE;
+
   // APB-response FIFO.
   axis_afifo #(
       .WIDTH(18),
@@ -172,5 +174,23 @@ module cmd_to_apb (  // USB bus (command) clock-domain
       .m_tdata ({cerror_w, cwrite_w, crdata_w})
   );
 
+
+`ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_READ: dbg_state = "READ";
+      ST_WRIT: dbg_state = "WRIT";
+      ST_DONE: dbg_state = "DONE";
+      default: dbg_state = " ?? ";
+    endcase
+  end
+
+`endif  /* __icarus */
 
 endmodule  /* cmd_to_apb */

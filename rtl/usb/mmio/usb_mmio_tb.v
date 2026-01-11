@@ -30,9 +30,6 @@ module usb_mmio_tb;
   reg clock = 1;
   reg reset;
 
-  reg busy_q, sent_q, resp_q, done_q;
-  wire recv_w;
-
   reg set_conf_q, clr_conf_q;
   reg ack_sent_q, ack_recv_q;
   reg timeout_q, epo_err_q;
@@ -77,7 +74,6 @@ module usb_mmio_tb;
     #2 reset <= 1'b1;
     {set_conf_q, clr_conf_q} <= 2'b0;
     {epo_sel_q, epi_sel_q, err_q, ack_sent_q, ack_recv_q} <= 5'b0;
-    {busy_q, sent_q, resp_q, done_q} <= 4'b0;
     {cmd_ack_q, timeout_q} <= 1'b0;
     {s_tvalid, s_tkeep, s_tlast} <= 3'b0;
     m_tready <= 1'b0;
@@ -88,6 +84,8 @@ module usb_mmio_tb;
     #16 set_conf_q <= 1'b0;
 
     apb_send(16'hFACE, tag_q, adr_q, lun_q);
+    #64 apb_recv(tag_q, adr_q, lun_q);
+
     // axi_send(len_q, tag_q, adr_q, lun_q);
 
     #800 $finish;
@@ -178,16 +176,6 @@ module usb_mmio_tb;
       endcase
     end
   end
-
-`ifdef __use_bloated
-  always @(posedge clock) begin
-    if (reset) begin
-      m_tready <= 1'b0;
-    end else if (m_tvalid) begin
-      m_tready <= ~(m_tready & m_tlast);
-    end
-  end
-`endif /* __use_bloated */
 
   wire [8:0] len_w;
 
@@ -425,7 +413,7 @@ module usb_mmio_tb;
     begin
       // Select the IN EP.
       @(posedge clock) begin
-        m_tready <= #2 1'b0;
+        m_tready  <= #2 1'b0;
         epi_sel_q <= #2 1'b1;
       end
       @(negedge clock) $display("%11t: Requesting RES", $time);
@@ -440,15 +428,15 @@ module usb_mmio_tb;
       while (cnt_q < 11'd6) begin
         @(posedge clock);
         if (m_tvalid) begin
-          cnt_q   <= #2 inc_w[10:0];
-          din_q   <= #2{m_tdata, din_q[55:8]};
+          cnt_q <= #2 inc_w[10:0];
+          din_q <= #2{m_tdata, din_q[55:8]};
         end
         @(negedge clock);
       end
       if (m_tvalid && m_tready && m_tlast) begin
         @(posedge clock) $display("%11t: Received RES", $time);
         m_tready <= #2 1'b0;
-        din_q   <= #2{m_tdata, din_q[55:8]};
+        din_q <= #2{m_tdata, din_q[55:8]};
       end else begin
         #32 $error("%11t: Invalid transfer: %x", din_q);
         #32 $fatal(1);
@@ -472,57 +460,8 @@ module usb_mmio_tb;
     input [27:0] addr;
     input [3:0] lun;
     begin
-  `ifdef __use_bloated
-      // Select the OUT EP.
-      @(posedge clock);
-      s_tvalid <= #2 1'b0;
-      s_tkeep <= #2 1'b0;
-      s_tlast <= #2 1'b0;
-      lim_q <= #2{24'd0, size};
-      epo_sel_q <= #2 1'b1;
-
-      @(negedge clock) #16 $display("%11t: Starting AXI STORE", $time);
-
-      @(posedge clock) begin
-        s_tvalid <= #2 1'b1;
-        s_tkeep <= #2 1'b1;
-        s_tlast <= #2 1'b0;
-        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
-        req_q <= #2{tag, `CMD_STORE, 8'd0, size, lun, addr, "T", "R", "A", "T"};
-        rnd_q <= $urandom;
-      end
-
-      @(negedge clock) $display("%11t: Sending AXI STORE (ADDR: %7x)", $time, addr);
-
-      while (cnt_q < 11'd10) begin
-        @(posedge clock);
-        if (s_tready) begin
-          cnt_q   <= #2 inc_w[10:0];
-          req_q   <= #2{rnd_q, req_q[87:8]};
-          rnd_q   <= #2 $urandom;
-          s_tlast <= #2 inc_w < 12'd10 ? 1'b0 : 1'b1;
-        end
-        @(negedge clock);
-      end
-
-      @(posedge clock);
-      s_tvalid <= #2 1'b0;
-      s_tkeep <= #2 1'b0;
-      s_tlast <= #2 1'b0;
-      req_q <= #2{rnd_q, req_q[87:8]};
-
-      // Todo: the target device is supposed to 'ACK' the command frame.
-      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
-      @(posedge clock) ack_sent_q <= #2 1'b1;
-      #16 ack_sent_q <= #2 1'b0;
-
-      @(posedge clock) #32 epo_sel_q <= #2 1'b0;
-  `else   /* !__use_bloated */
-
-      // Smol.
       cmd_send({8'd0, size}, `CMD_STORE, tag, addr, lun);
 
-  `endif  /* !__use_bloated */
       #32 epo_sel_q <= #2 1'b1;
 
       // Send the requested number of bytes.
@@ -560,13 +499,8 @@ module usb_mmio_tb;
 
       @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
       @(posedge clock) epo_sel_q <= #2 1'b0;
-      #48 resp_q <= #2 1'b1;
-      #16 resp_q <= #2 1'b0;
-
     end
   endtask  /* axi_send */
-
-// `define __use_bloated
 
   /**
    * Send a command frame, followed by as many data frames as required.
@@ -577,64 +511,28 @@ module usb_mmio_tb;
     input [27:0] addr;
     input [3:0] lun;
     begin
-  `ifdef __use_bloated
-      // Select the OUT EP.
-      @(posedge clock);
-      s_tvalid <= #2 1'b0;
-      s_tkeep <= #2 1'b0;
-      s_tlast <= #2 1'b0;
-      epo_sel_q <= #2 1'b1;
-      @(negedge clock) $display("%11t: Starting APB SET", $time);
-
-      @(posedge clock) begin
-        s_tvalid <= #2 1'b1;
-        s_tkeep <= #2 1'b1;
-        s_tlast <= #2 1'b0;
-        cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
-        req_q <= #2{tag, `CMD_SET, val, lun, addr, "T", "R", "A", "T"};
-      end
-      @(negedge clock) $display("%11t: Sending APB SET (ADDR: %7x)", $time, addr);
-
-      while (cnt_q < 11'd10) begin
-        @(posedge clock);
-        if (s_tready) begin
-          cnt_q   <= #2 inc_w[10:0];
-          req_q   <= #2{8'bx, req_q[87:8]};
-          s_tlast <= #2 inc_w < 12'd10 ? 1'b0 : 1'b1;
-        end
-        @(negedge clock);
-      end
-
-      @(posedge clock);
-      s_tvalid <= #2 1'b0;
-      s_tkeep <= #2 1'b0;
-      s_tlast <= #2 1'b0;
-      req_q <= #2{8'bx, req_q[87:8]};
-
-      // Todo: the target device is supposed to 'ACK' the command frame.
-      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
-      @(posedge clock) ack_sent_q <= #2 1'b1;
-      #16 ack_sent_q <= #2 1'b0;
-
-      @(posedge clock) #32 epo_sel_q <= #2 1'b0;
-      #128 epi_sel_q <= #2 1'b1;
-
-      @(negedge clock) #16 $display("%11t: Finished APB SET", $time);
-      @(posedge clock) ack_recv_q <= #2 1'b0;
-      @(posedge clock) epi_sel_q <= #2 1'b0;
-      #48 resp_q <= #2 1'b1;
-      #16 resp_q <= #2 1'b0;
-
-  `else  /* !__use_bloated */
       cmd_send(val, tag, `CMD_SET, addr, lun);
       @(negedge clock) #16 $display("%11t: Finished APB SET", $time);
-      
+
       #32 res_recv();
       $display("%11t: Completed RES: %x", $time, din_q);
-
-  `endif /* !__use_bloated */
     end
   endtask  /* apb_send */
 
+  /**
+   * GET a value from a device attached to the APB.
+   */
+  task apb_recv;
+    input [3:0] tag;
+    input [27:0] addr;
+    input [3:0] lun;
+    begin
+      cmd_send(16'd0, tag, `CMD_GET, addr, lun);
+      @(negedge clock) #16 $display("%11t: Finished APB GET", $time);
+
+      #512 res_recv();
+      $display("%11t: Completed RES: %x", $time, din_q);
+    end
+  endtask  /* apb_recv */
 
 endmodule  /* usb_mmio_tb */

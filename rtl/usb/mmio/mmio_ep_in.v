@@ -382,8 +382,7 @@ module mmio_ep_in #(
 
     case (xmit)
       TX_IDLE:
-      if (selected_i && mmio_send_i) begin
-        // snxt = ulpi_tvalid_w ? TX_SEND : TX_NONE;
+      if (mmio_send_i) begin
         snxt = TX_SEND;
       end
 

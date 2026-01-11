@@ -235,15 +235,15 @@ module mmio_ep_out #(
    * Parser FSM for MMIO commands, and after a transaction starts, waits as
    * data is passed through to other functional-units (if a SET or STORE) has
    * been requested.
-   * 
+   *
    * Note(s):
    *  - Data transfer phase is terminated by receiving either: a ZDP; or a USB
    *    frame that is smaller than the max. frame-length.
    *  - If any invalid sequences are received, then wait for recovery.
-   * 
+   *
    */
   always @(posedge clock) begin
-    if (clear) begin
+    if (clear || mmio_done_i) begin
       parse <= MM_IDLE;
     end else if (bypass) begin
       parse <= MM_BUSY;
@@ -271,6 +271,7 @@ module mmio_ep_out #(
 
         // Wait for transaction to complete.
         MM_BUSY: parse <= parse;
+        // MM_BUSY: parse <= mmio_done_i ? MM_IDLE : parse;
 
         // Wait for end-point to be reset.
         MM_HALT: parse <= parse;
