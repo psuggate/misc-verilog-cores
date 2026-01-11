@@ -213,13 +213,15 @@ module mmio_ep_in #(
    *  - how to handle 0 vs 65536 (as the residual)?
    *  - how to count bytes transferred by other end-point?
    */
-  reg  [15:0] val_q;
+  reg end_q;
+  reg [15:0] val_q;
   wire [16:0] val_w;
 
   assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
 
   always @(posedge clock) begin
     if (clear) begin
+      end_q <= 1'b0;
       val_q <= 16'bx;
     end else if (cmd_vld_i) begin
       case (state)

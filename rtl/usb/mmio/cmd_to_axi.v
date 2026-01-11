@@ -26,6 +26,7 @@ module cmd_to_axi #(
     input [3:0] cmd_lun_i,
     input [27:0] cmd_adr_i,
     output cmd_err_o,
+    output [15:0] cmd_res_o,
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     input dat_tvalid_i,
@@ -117,11 +118,8 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg [3:0] state;
-  reg dir_q, stb_q, cyc_q, err_q;
-  reg sel_q, vld_q, lst_q, idx_q;
-  reg [7:0] len_q;
-  reg [ISB:0] tid_q;  // 4b
-  reg [ASB:0] adr_q;  // 32b
+  reg vld_q, stb_q, cyc_q, err_q;
+  reg [15:0] res_q;
   wire cvalid_w, cready_w;
   wire [CSB:0] cdata_w;
   wire svalid_w, sready_w;
@@ -136,7 +134,7 @@ module cmd_to_axi #(
 
   reg [3:0] wr, rd;
   reg cmd_m, rd_m;
-  reg [7:0] len_m;
+  reg [  7:0] len_m;
   reg [ISB:0] tid_m;
   reg [ASB:0] adr_m;
   wire fready_w, fvalid_w, rd_mid_w, bokay_w;
@@ -144,13 +142,14 @@ module cmd_to_axi #(
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
   wire x_tvalid, x_tready, x_tlast;
   wire [DBITS:0] rd_level_w;
-  wire [  7:0] len_w;
+  wire [7:0] len_w;
   wire [ASB:0] adr_w;
   wire [SSB:0] x_tkeep;
   wire [ISB:0] x_tid, y_tid, tid_w;
   wire [MSB:0] x_tdata;
 
   assign cmd_err_o = err_q;
+  assign cmd_res_o = res_q;
 
   // Todo: make less combinational ...
   assign dat_tready_o = sready_w && cready_w && cyc_q;
@@ -181,13 +180,45 @@ module cmd_to_axi #(
   //
   //  USB clock-domain FSM for transactions.
   //
+  wire stb_w;
+  wire [16:0] dec_w;
+
   assign cvalid_w = stb_q;
-  assign cdata_w = {dir_q, tid_q, len_q, adr_q};
+  assign cdata_w = {cmd_dir_i, cmd_tag_i, cmd_len_i[7:0], cmd_lun_i, cmd_adr_i};
+
+  assign stb_w = !vld_q && cmd_vld_i;
+  assign dec_w = res_q - 1;
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      vld_q <= 1'b0;
+      cyc_q <= 1'b0;
+      stb_q <= 1'b0;
+    end else begin
+      vld_q <= cmd_vld_i;
+      stb_q <= stb_w;
+
+      if (stb_w) begin
+        cyc_q <= 1'b1;
+      end else if (cmd_ack_i) begin
+        cyc_q <= 1'b0;
+      end
+    end
+  end
 
   always @(posedge cmd_clk or negedge aresetn) begin
     if (cmd_rst || !aresetn) begin
       err_q <= 1'b0;
-    end else begin
+      res_q <= 61'bx;
+    end else if (cmd_vld_i) begin
+      if (stb_q) begin
+        res_q <= cmd_len_i;
+      end else if (dat_tvalid_i && dat_tready_o && !dat_tlast_i) begin
+        res_q <= dec_w;
+      end else if (dat_tvalid_o && dat_tready_i && !dat_tlast_o) begin
+        res_q <= dec_w;
+      end
+
       // Todo: check the AXI responses, and assert error-flag, as necessary.
     end
   end
@@ -333,7 +364,7 @@ module cmd_to_axi #(
       .s_axis_tready(sready_w),
       .s_axis_tkeep(tkeep_w),
       .s_axis_tlast(tlast_w),
-      .s_axis_tid(tid_q),
+      .s_axis_tid(cmd_tag_i),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
       .s_axis_tdata(dat_tdata_i),  // AXI input

@@ -108,8 +108,9 @@ module usb_mmio (
   reg sel_apb_q, sel_axi_q, cmd_ack_q, cmd_err_q;
   wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
   wire apb_err_w, axi_err_w;
-  wire [1:0] cmd_cmd_w;
-  wire [15:0] cmd_len_w, cmd_val_w;
+  reg  [15:0] cmd_val_q;
+  wire [ 1:0] cmd_cmd_w;
+  wire [15:0] cmd_len_w, apb_val_w, axi_res_w;
   wire [3:0] cmd_tag_w, cmd_lun_w;
   wire [27:0] cmd_adr_w;
 
@@ -314,7 +315,7 @@ module usb_mmio (
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_i(cmd_rdy_w),
       .cmd_err_i(cmd_err_q),
-      .cmd_val_i(cmd_val_w),
+      .cmd_val_i(cmd_val_q),
 
       // Output data stream (via AXI-S(), to Bulk-In)(), and USB data or responses
       .usb_tvalid_o(usb_tvalid_o),
@@ -337,9 +338,11 @@ module usb_mmio (
     if (reset) begin
       cmd_ack_q <= 1'b0;
       cmd_err_q <= 1'b0;
+      cmd_val_q <= 16'bx;
     end else begin
       cmd_ack_q <= cmd_ack_w;
       cmd_err_q <= apb_err_w || axi_err_w;
+      cmd_val_q <= sel_apb_q ? apb_val_w : axi_res_w;
     end
   end
 
@@ -381,7 +384,7 @@ module usb_mmio (
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_o(cmd_rdy_w),
       .cmd_err_o(apb_err_w),
-      .cmd_val_o(cmd_val_w),
+      .cmd_val_o(apb_val_w),
 
       .pclk(pclk),  // APB clock-domain
       .presetn(presetn),  // Synchronous reset (active LOW)
@@ -396,7 +399,7 @@ module usb_mmio (
       .prdata_i (prdata_i)
   );
 
-`define __spanner_montana
+  `define __spanner_montana
 `ifdef __spanner_montana
 
   /**
@@ -416,6 +419,7 @@ module usb_mmio (
       .cmd_lun_i(cmd_lun_w),
       .cmd_adr_i(cmd_adr_w),
       .cmd_err_o(axi_err_w),
+      .cmd_res_o(axi_res_w),
 
       .dat_tvalid_i(m_tvalid),
       .dat_tready_o(m_tready),

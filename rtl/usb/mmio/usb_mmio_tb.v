@@ -74,7 +74,7 @@ module usb_mmio_tb;
     #2 reset <= 1'b1;
     {set_conf_q, clr_conf_q} <= 2'b0;
     {epo_sel_q, epi_sel_q, err_q, ack_sent_q, ack_recv_q} <= 5'b0;
-    {cmd_ack_q, timeout_q} <= 1'b0;
+    {cmd_ack_q, timeout_q, epo_err_q} <= 1'b0;
     {s_tvalid, s_tkeep, s_tlast} <= 3'b0;
     m_tready <= 1'b0;
 
@@ -365,7 +365,7 @@ module usb_mmio_tb;
       s_tkeep <= #2 1'b0;
       s_tlast <= #2 1'b0;
       lim_q <= #2{16'd0, len};
-      zdp_q <= #2 len[5:0] == 6'h3f; // ZDP if transfer ends on USB frame boundary
+      zdp_q <= #2 len[5:0] == 6'h3f;  // ZDP if transfer ends on USB frame boundary
       epo_sel_q <= #2 1'b1;
       @(negedge clock) $display("%11t: Starting CMD (0x%x, ADR: %7x)", $time, cmd, adr);
 

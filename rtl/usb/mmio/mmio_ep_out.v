@@ -75,8 +75,8 @@ module mmio_ep_out #(
 );
 
   reg stall, clear, en_q, ready, bypass, parity, recvd;
-  reg byp_q, sel_q, rxd_q;
-  reg cyc, stb, lst, rdy;
+  reg sel_q, rxd_q;
+  reg cyc, stb, lst, rdy, byp;
   reg vld, dir, enb, apb;
   reg drop_q, save_q, recv_q;
   reg [ 1:0] cmd;
@@ -97,7 +97,7 @@ module mmio_ep_out #(
   assign parity_o = parity;
   assign mmio_recv_o = recvd;
   // assign usb_tready_o = bypass ? fifo_tready_w : rdy;
-  assign usb_tready_o = byp_q ? fifo_tready_w : rdy;
+  assign usb_tready_o = byp ? fifo_tready_w : rdy;
   assign dat_tkeep_o = dat_tvalid_o;
 
   assign cmd_vld_o = vld;
@@ -329,13 +329,13 @@ module mmio_ep_out #(
     if (clear || stall) begin
       bypass <= 1'b0;
       sel_q <= 1'b0;
-      byp_q <= 1'b0;
+      byp <= 1'b0;
     end else begin
       sel_q <= selected_i;
       if (!sel_q && selected_i && bypass) begin
-        byp_q <= 1'b1;
+        byp <= 1'b1;
       end else if (!selected_i || usb_tvalid_i && fifo_tready_w && usb_tlast_i) begin
-        byp_q <= 1'b0;
+        byp <= 1'b0;
       end
 
       case (parse)
