@@ -1,5 +1,18 @@
 `timescale 1ns / 100ps
-module cmd_to_axi (  // USB bus (command) clock-domain
+module cmd_to_axi #(
+    parameter FIFO_DEPTH = 512,
+    localparam DATA_WIDTH = 32,
+    localparam MSB = DATA_WIDTH - 1,
+    localparam STROBES = DATA_WIDTH / 8,
+    localparam SSB = STROBES - 1,
+    localparam ADDRESS_WIDTH = 32,
+    localparam AZERO = {ADDRESS_WIDTH{1'b0}},
+    localparam ASB = ADDRESS_WIDTH - 1,
+    localparam ID_WIDTH = 4,
+    localparam ISB = ID_WIDTH - 1,
+    parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
+    localparam RD_FRAME_FIFO = 0  // Not useful ??
+) (  // USB bus (command) clock-domain
     input cmd_clk,
     input cmd_rst,
 
@@ -11,22 +24,20 @@ module cmd_to_axi (  // USB bus (command) clock-domain
     input [3:0] cmd_tag_i,
     input [15:0] cmd_len_i,
     input [3:0] cmd_lun_i,
-    input cmd_rdy_i,
-    input [15:0] cmd_val_i,
-
-    // Pass-through data stream, to USB (Bulk-In, via AXI-S)
-    output m_tvalid,
-    input m_tready,
-    output m_tkeep,
-    output m_tlast,
-    output [7:0] m_tdata,
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
-    input s_tvalid,
-    output s_tready,
-    input s_tkeep,
-    input s_tlast,
-    input [7:0] s_tdata,
+    input dat_tvalid_i,
+    output dat_tready_o,
+    input dat_tkeep_i,
+    input dat_tlast_i,
+    input [7:0] dat_tdata_i,
+
+    // Pass-through data stream, to USB (Bulk-In, via AXI-S)
+    output dat_tvalid_o,
+    input dat_tready_i,
+    output dat_tkeep_o,
+    output dat_tlast_o,
+    output [7:0] dat_tdata_o,
 
     // AXI clock-domain
     input aclk,
@@ -95,44 +106,50 @@ module cmd_to_axi (  // USB bus (command) clock-domain
   localparam [3:0] RD_DATA = 4;
   localparam [3:0] RD_SEND = 8;
 
-  // -- Datapath Signals -- //
+  localparam [3:0] EP_IDLE = 4'd1, EP_READ = 4'd2, EP_WRIT = 4'd4, EP_RESP = 4'd8;
+
+  //
+  //  Datapath signal declarations.
+  //
+
+  // -- Command (USB) clock-domain signals and state -- //
+
+  reg [3:0] state;
+  reg wen_q, stb_q, cyc_q;
+  reg sel_q, vld_q, lst_q, idx_q;
+  reg [7:0] cmd_q, len_q;
+  reg [ISB:0] tid_q;  // 4b
+  reg [ASB:0] adr_q;  // 32b
+  wire cvalid_w, cready_w;
+  wire [CSB:0] cdata_w;
+  wire svalid_w, sready_w;
+  wire tkeep_w, tlast_w, rvalid_w, rokay_w;
+  wire [ISB:0] rid_w, a_tid, b_tid;
+  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
+  wire [SSB:0] a_tkeep, b_tkeep;
+  wire [1:0] b_tuser;
+  wire [MSB:0] b_tdata, a_tdata;
+
+  // -- AXI clock-domain signals and state -- //
 
   reg [3:0] wr, rd;
-  reg [4:0] ptr_q;
   reg cmd_m, rd_m;
-  reg wen_q, stb_q, cyc_q;
-  reg mux_q, sel_q, vld_q, lst_q, idx_q;
-  reg [  7:0] res_q;
-  reg [ISB:0] rid_q;
-  reg [7:0] cmd_q, len_q, len_m;
+  reg [7:0] len_m;
   reg [ISB:0] tid_m;
   reg [ASB:0] adr_m;
-  reg [ISB:0] tid_q;  // 4b
-  reg [ASB:0] adr_q;  // 28b
-  wire mux_enable_w, mux_select_w;
-  wire svalid_w, sready_w, fready_w, fvalid_w, rd_mid_w;
-  wire [DBITS:0] rd_level_w;
-  wire tkeep_w, tlast_w, rvalid_w, cmd_end_w;
-  wire bokay_w, wfull_w, rokay_w;
+  wire fready_w, fvalid_w, rd_mid_w, bokay_w;
   wire cmd_w, ack_w, rd_w;
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
-  wire [ISB:0] tid_w, rid_w;
+  wire x_tvalid, x_tready, x_tlast;
+  wire [DBITS:0] rd_level_w;
   wire [  7:0] len_w;
   wire [ASB:0] adr_w;
-  wire [CSB:0] cdata_w;
+  wire [SSB:0] x_tkeep;
+  wire [ISB:0] x_tid, y_tid, tid_w;
+  wire [MSB:0] x_tdata;
 
-  wire x_tvalid, x_tready, x_tlast, y_tvalid, y_tready, y_tkeep, y_tlast;
-  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
-  wire z_tvalid, z_tready, z_tkeep, z_tlast, cvalid_w, cready_w;
-  wire [SSB:0] a_tkeep, x_tkeep, b_tkeep;
-  wire [1:0] b_tuser, y_tuser;
-  wire [ISB:0] x_tid, y_tid, a_tid, b_tid;
-  wire [7:0] y_tdata, z_tdata;
-  wire [MSB:0] x_tdata, b_tdata, a_tdata;
-
-  reg [4:0] state;
-
-  assign s_tready = sready_w && cready_w && cyc_q;
+  // Todo: make less combinational ...
+  assign dat_tready_o = sready_w && cready_w && cyc_q;
 
   // Todo ...
   assign awvalid_o = cmd_m && !rd_m;
@@ -157,10 +174,34 @@ module cmd_to_axi (  // USB bus (command) clock-domain
   assign rready_o = rd == RD_DATA && fready_w;
 
 
-  // -- Memory-Domain Command & Address Synchronisation -- //
-
+  //
+  //  USB clock-domain FSM for transactions.
+  //
   assign cvalid_w = stb_q;
   assign cdata_w = {cmd_q[7], tid_q, len_q, adr_q};
+
+  /**
+   * Transaction-framing logic, for AXI requests.
+   */
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      state <= EP_IDLE;
+    end else begin
+      case (state)
+        EP_IDLE: state <= state;
+        EP_READ: state <= state;
+        EP_WRIT: state <= state;
+        EP_RESP: state <= state;
+      endcase
+    end
+  end
+
+
+  //
+  //  AXI clock-domain FSMs for read- & write- transactions.
+  //
+
+  // -- Memory-Domain Command & Address Synchronisation -- //
 
   // Note: According to the AXI spec., not supposed to have combinational logic
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
@@ -187,30 +228,6 @@ module cmd_to_axi (  // USB bus (command) clock-domain
       adr_m <= adr_w;
     end
   end
-
-
-  //
-  //  Clock-domain crossing, to the AXI domain.
-  //
-  axis_afifo #(
-      .WIDTH(CMD_FIFO_WIDTH),
-      .TLAST(0),
-      .ABITS(4)
-  ) U_CFIFO1 (
-      .aresetn(aresetn),
-
-      .s_aclk  (cmd_clk),
-      .s_tvalid(cvalid_w),
-      .s_tready(cready_w),
-      .s_tlast (1'b1),
-      .s_tdata (cdata_w),
-
-      .m_aclk  (aclk),
-      .m_tvalid(cmd_w),
-      .m_tready(ack_w),
-      .m_tlast (),
-      .m_tdata ({rd_w, tid_w, len_w, adr_w})
-  );
 
   // -- Write-Port, AXI-Domain FSM -- //
 
@@ -254,75 +271,35 @@ module cmd_to_axi (  // USB bus (command) clock-domain
     end
   end
 
-  // -- Multiplexor to the SPI or USB Encoder -- //
 
-  assign z_tvalid = vld_q;
-  assign z_tkeep  = vld_q;
-  assign z_tlast  = lst_q;
-  assign z_tdata  = idx_q ? rid_q : res_q;
+  //
+  //  Clock-domain crossing, for AXI transaction requests, to the AXI domain.
+  //
+  axis_afifo #(
+      .WIDTH(CMD_FIFO_WIDTH),
+      .TLAST(0),
+      .ABITS(4)
+  ) U_CFIFO1 (
+      .aresetn(aresetn),
 
-  always @(posedge cmd_clk) begin
-    if (cmd_rst) begin
-      {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
-      res_q <= 8'bx;
-      rid_q <= 8'bx;
-    end else begin
-      case (state)
-        ST_IDLE: begin
-          {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
-        end
+      .s_aclk  (cmd_clk),
+      .s_tvalid(cvalid_w),
+      .s_tready(cready_w),
+      .s_tlast (1'b1),
+      .s_tdata (cdata_w),
 
-        ST_RESP: begin
-          if (rvalid_w) begin
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
-            res_q <= rokay_w ? CMD_WDONE : CMD_WFAIL;
-            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, rid_w};
-          end
-        end
-
-        ST_DONE: begin
-          if (z_tready && vld_q && !idx_q) begin
-            // Send the 2nd byte of the write-response
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1f;
-          end else if (z_tready) begin
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h00;
-          end
-        end
-
-        ST_RDAT: begin
-          if (!idx_q && !vld_q && y_tvalid && y_tready) begin
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1a;
-            res_q <= b_tuser == RESP_OKAY ? CMD_RDATA : CMD_RFAIL;
-            rid_q <= {{(8 - ID_WIDTH) {1'b0}}, y_tid};
-          end else if (!idx_q && vld_q) begin
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h1e;
-          end else if (idx_q && vld_q) begin
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h14;
-          end else begin
-            // Todo: this is the same as the previous case !?
-            {mux_q, sel_q, idx_q, vld_q, lst_q} <= 5'h14;
-          end
-        end
-
-        ST_SEND: begin
-          {sel_q, idx_q, vld_q, lst_q} <= 4'h4;
-          if (m_tvalid && m_tready && m_tlast) begin
-            mux_q <= 1'b0;
-          end else begin
-            mux_q <= 1'b1;
-          end
-        end
-
-        default: begin
-          {mux_q, sel_q, idx_q, vld_q, lst_q} <= {mux_q, sel_q, idx_q, vld_q, lst_q};
-        end
-
-      endcase
-    end
-  end
+      .m_aclk  (aclk),
+      .m_tvalid(cmd_w),
+      .m_tready(ack_w),
+      .m_tlast (),
+      .m_tdata ({rd_w, tid_w, len_w, adr_w})
+  );
 
   // -- Write Datapath -- //
 
+  /**
+   * Widens the 8-bit stream (from USB) to 32-bit for AXI.
+   */
   axis_adapter #(
       .S_DATA_WIDTH(8),
       .S_KEEP_ENABLE(1),
@@ -347,7 +324,7 @@ module cmd_to_axi (  // USB bus (command) clock-domain
       .s_axis_tid(tid_q),
       .s_axis_tdest(1'b0),
       .s_axis_tuser(1'b0),
-      .s_axis_tdata(s_tdata),  // AXI input
+      .s_axis_tdata(dat_tdata_i),  // AXI input
 
       .m_axis_tvalid(a_tvalid),
       .m_axis_tready(a_tready),
@@ -359,6 +336,13 @@ module cmd_to_axi (  // USB bus (command) clock-domain
       .m_axis_tdata(a_tdata)  // AXI output
   );
 
+  /**
+   * Clock-domain crossing for the USB data, to the AXI clock-domain.
+   *
+   * Note(s):
+   *  - Because the data-transfer rate for USB data is likely to be less than
+   *    that of AXI, we need to store data for an entire AXI transaction.
+   */
   axis_async_fifo #(
       .DEPTH(FIFO_DEPTH),
       .DATA_WIDTH(DATA_WIDTH),
@@ -420,7 +404,9 @@ module cmd_to_axi (  // USB bus (command) clock-domain
       .m_status_good_frame()
   );
 
-  // Write-responses FIFO
+  /**
+   * AXI write-responses need to cross back to the USB clock-domain.
+   */
   axis_afifo #(
       .WIDTH(ID_WIDTH + 1),
       .TLAST(0),
@@ -528,52 +514,14 @@ module cmd_to_axi (  // USB bus (command) clock-domain
       .s_axis_tdest(1'b0),
       .s_axis_tuser(b_tuser),
 
-      .m_axis_tvalid(y_tvalid),  // AXI output: 8b
-      .m_axis_tready(y_tready),
-      .m_axis_tkeep(y_tkeep),
-      .m_axis_tlast(y_tlast),
-      .m_axis_tid(y_tid),
+      .m_axis_tvalid(dat_tvalid_o),  // AXI output: 8b
+      .m_axis_tready(dat_tready_i),
+      .m_axis_tkeep(dat_tkeep_o),
+      .m_axis_tlast(dat_tlast_o),
+      .m_axis_tid(),
       .m_axis_tdest(),
-      .m_axis_tuser(y_tuser),
-      .m_axis_tdata(y_tdata)
-  );
-
-  // Multiplexor to the SPI or USB Encoder
-  axis_mux #(
-      .S_COUNT(2),
-      .DATA_WIDTH(8),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(1),
-      .ID_ENABLE(0),
-      .ID_WIDTH(1),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1)
-  ) U_MUX1 (
-      .clk(cmd_clk),
-      .rst(cmd_rst),
-
-      .enable(mux_q),
-      .select(sel_q),
-
-      .s_axis_tvalid({z_tvalid, y_tvalid}), // AXI input: 2x 8b
-      .s_axis_tready({z_tready, y_tready}),
-      .s_axis_tkeep ({z_tkeep, y_tkeep}),
-      .s_axis_tlast ({z_tlast, y_tlast}),
-      .s_axis_tuser (2'bx),
-      .s_axis_tid   (2'bx),
-      .s_axis_tdest (2'bx),
-      .s_axis_tdata ({z_tdata, y_tdata}),
-
-      .m_axis_tvalid(m_tvalid), // AXI output: 8b
-      .m_axis_tready(m_tready),
-      .m_axis_tkeep (m_tkeep),
-      .m_axis_tlast (m_tlast),
-      .m_axis_tuser (),
-      .m_axis_tid   (),
-      .m_axis_tdest (),
-      .m_axis_tdata (m_tdata)
+      .m_axis_tuser(),
+      .m_axis_tdata(dat_tdata_o)
   );
 
 

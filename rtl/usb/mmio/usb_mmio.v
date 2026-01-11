@@ -393,6 +393,7 @@ module usb_mmio (
       .prdata_i (prdata_i)
   );
 
+`define __spanner_montana
 `ifdef __spanner_montana
 
   /**
@@ -411,17 +412,17 @@ module usb_mmio (
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
 
-      .s_tvalid(m_tvalid),
-      .s_tready(m_tready),
-      .s_tkeep (m_tkeep),
-      .s_tlast (m_tlast),
-      .s_tdata (m_tdata),
+      .dat_tvalid_i(m_tvalid),
+      .dat_tready_o(m_tready),
+      .dat_tkeep_i (m_tkeep),
+      .dat_tlast_i (m_tlast),
+      .dat_tdata_i (m_tdata),
 
-      .m_tvalid(s_tvalid),
-      .m_tready(s_tready),
-      .m_tkeep (s_tkeep),
-      .m_tlast (s_tlast),
-      .m_tdata (s_tdata),
+      .dat_tvalid_o(s_tvalid),
+      .dat_tready_i(s_tready),
+      .dat_tkeep_o (s_tkeep),
+      .dat_tlast_o (s_tlast),
+      .dat_tdata_o (s_tdata),
 
       .aclk(aclk),  // AXI clock-domain
       .aresetn(areset_n),  // Asynchronous reset (active LOW)

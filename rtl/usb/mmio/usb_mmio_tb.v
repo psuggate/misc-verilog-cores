@@ -48,9 +48,9 @@ module usb_mmio_tb;
   wire tvalid_w, tready_w, tkeep_w, tlast_w;
   wire [7:0] s_tdata, m_tdata, tdata_w;
 
+  reg zdp_q;
   reg [7:0] len_q = 8'd7;
   reg [3:0] lun_q = 4'd0, tag_q = 4'hA;
-  // reg [15:0] val_q;
   reg [27:0] adr_q = 28'h0800;
 
   reg mclk = 1, pclk = 1;
@@ -86,13 +86,13 @@ module usb_mmio_tb;
     apb_send(16'hFACE, tag_q, adr_q, lun_q);
     #64 apb_recv(tag_q, adr_q, lun_q);
 
-    // axi_send(len_q, tag_q, adr_q, lun_q);
+    #64 axi_send(len_q, tag_q, adr_q, lun_q);
 
     #800 $finish;
   end
 
   initial begin : FAIL_SAFE
-    #2560 $finish;
+    #5120 $finish;
   end
 
   // -- Simulation Signals & Registers -- //
@@ -365,6 +365,7 @@ module usb_mmio_tb;
       s_tkeep <= #2 1'b0;
       s_tlast <= #2 1'b0;
       lim_q <= #2{16'd0, len};
+      zdp_q <= #2 len[5:0] == 6'h3f; // ZDP if transfer ends on USB frame boundary
       epo_sel_q <= #2 1'b1;
       @(negedge clock) $display("%11t: Starting CMD (0x%x, ADR: %7x)", $time, cmd, adr);
 
@@ -452,26 +453,24 @@ module usb_mmio_tb;
   endtask  /* res_recv */
 
   /**
-   * Send a command frame, followed by as many data frames as required.
+   * Send one or more Bulk-Out frames, terminated with a ZDP, if required.
    */
-  task axi_send;
-    input [7:0] size;
-    input [3:0] tag;
-    input [27:0] addr;
-    input [3:0] lun;
+  task dat_send;
     begin
-      cmd_send({8'd0, size}, `CMD_STORE, tag, addr, lun);
+      @(negedge clock) $display("%11t: Sending %d (+1) bytes", $time, lim_q);
+      @(posedge clock) begin
+        epo_sel_q <= #2 1'b0;
+        s_tvalid <= #2 1'b0;
+        s_tkeep <= #2 1'b0;
+        s_tlast <= #2 1'b0;
+        cnt_q <= #2 11'd0;
+      end
 
-      #32 epo_sel_q <= #2 1'b1;
-
-      // Send the requested number of bytes.
-      $display("%11t: Sending AXI STORE (DATA: %d)", $time, cnt_q);
-      #16 cnt_q <= 11'd0;
-
+      @(negedge clock) $display("%11t: Starting transaction", $time);
       @(posedge clock) begin
         s_tvalid <= #2 1'b1;
         s_tkeep <= #2 1'b1;
-        s_tlast <= #2 size == 8'd0 ? 1'b1 : 1'b0;
+        s_tlast <= #2 lim_q == 32'd0 ? 1'b1 : 1'b0;
         cnt_q <= #2 s_tvalid && s_tready ? 11'd1 : 11'd0;
       end
 
@@ -486,7 +485,7 @@ module usb_mmio_tb;
         @(negedge clock);
       end
 
-      $display("%11t: Finishing AXI STORE", $time);
+      $display("%11t: Finishing transaction", $time);
       @(posedge clock);
       s_tvalid <= #2 1'b0;
       s_tkeep  <= #2 1'b0;
@@ -497,8 +496,28 @@ module usb_mmio_tb;
       @(posedge clock) ack_sent_q <= #2 1'b1;
       #16 ack_sent_q <= #2 1'b0;
 
-      @(negedge clock) #16 $display("%11t: Finished AXI STORE", $time);
+      @(negedge clock) #16 $display("%11t: Finished transaction", $time);
       @(posedge clock) epo_sel_q <= #2 1'b0;
+    end
+  endtask  /* dat_send */
+
+  /**
+   * Send a command frame, followed by as many data frames as required.
+   */
+  task axi_send;
+    input [7:0] size;
+    input [3:0] tag;
+    input [27:0] addr;
+    input [3:0] lun;
+    begin
+      cmd_send({8'd0, size}, `CMD_STORE, tag, addr, lun);
+      @(negedge clock) #16 $display("%11t: Finished sending AXI STORE command", $time);
+
+      dat_send(size);
+      @(negedge clock) #16 $display("%11t: Finished sending AXI STORE data", $time);
+
+      #32 res_recv();
+      @(negedge clock) #16 $display("%11t: Completed AXI STORE, RES: %x", $time, din_q);
     end
   endtask  /* axi_send */
 
