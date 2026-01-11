@@ -74,7 +74,8 @@ module mmio_ep_out #(
     output [7:0] dat_tdata_o
 );
 
-  reg stall, clear, en_q, ready, bypass, parity, rxd_q, recvd;
+  reg stall, clear, en_q, ready, bypass, parity, recvd;
+  reg byp_q, sel_q, rxd_q;
   reg cyc, stb, lst, rdy;
   reg vld, dir, enb, apb;
   reg drop_q, save_q, recv_q;
@@ -95,7 +96,8 @@ module mmio_ep_out #(
   assign ep_ready_o = ready;
   assign parity_o = parity;
   assign mmio_recv_o = recvd;
-  assign usb_tready_o = bypass ? fifo_tready_w : rdy;
+  // assign usb_tready_o = bypass ? fifo_tready_w : rdy;
+  assign usb_tready_o = byp_q ? fifo_tready_w : rdy;
   assign dat_tkeep_o = dat_tvalid_o;
 
   assign cmd_vld_o = vld;
@@ -162,7 +164,8 @@ module mmio_ep_out #(
    * Pipeline the incoming, streamed, USB data (and handshaking signals).
    */
   always @(posedge clock) begin
-    if (clear || mmio_busy_i || !selected_i) begin
+    // if (clear || mmio_busy_i || !selected_i) begin
+    if (clear || !selected_i) begin
       cyc <= 1'b0;
       stb <= 1'b0;
       lst <= 1'b0;
@@ -295,6 +298,10 @@ module mmio_ep_out #(
   assign zdp_w   = cyc && !stb && lst && cfull_w;
   assign end_w   = cyc && stb && lst && !czero_w;
 
+  /**
+   * Tracks the data transfered, and asserts `rxd_q` when the data-transfer
+   * stage has completed.
+   */
   always @(posedge clock) begin
     if (clear || state != EP_RECV) begin
       count <= CMAX;
@@ -321,7 +328,16 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear || stall) begin
       bypass <= 1'b0;
+      sel_q <= 1'b0;
+      byp_q <= 1'b0;
     end else begin
+      sel_q <= selected_i;
+      if (!sel_q && selected_i && bypass) begin
+        byp_q <= 1'b1;
+      end else if (!selected_i || usb_tvalid_i && fifo_tready_w && usb_tlast_i) begin
+        byp_q <= 1'b0;
+      end
+
       case (parse)
         MM_IDOP:
         if (cyc && stb && lst && dat32[27:26] == 2'b00) bypass <= 1'b1;

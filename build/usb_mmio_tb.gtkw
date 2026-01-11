@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Sun Jan 11 06:02:15 2026
+[*] Sun Jan 11 08:12:37 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Sun Jan 11 06:01:25 2026"
-[dumpfile_size] 60485
+[dumpfile_mtime] "Sun Jan 11 08:06:54 2026"
+[dumpfile_size] 122483
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
-[timestart] 0
+[timestart] 1822500
 [size] 2560 1392
 [pos] -1 -1
-*-17.848089 1952000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.952858 2512000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usb_mmio_tb.
 [treeopen] usb_mmio_tb.U_REQ1.
 [sst_width] 209
@@ -104,26 +104,27 @@ usb_mmio_tb.U_REQ1.U_APB_CTRL0.dbg_state[39:0]
 -APB
 @800200
 -MMIO
-@800201
 -Command
-@29
+@28
 [color] 2
 usb_mmio_tb.U_REQ1.cmd_vld_w
 [color] 3
 usb_mmio_tb.U_REQ1.cmd_ack_q
 usb_mmio_tb.U_REQ1.cmd_dir_w
 usb_mmio_tb.U_REQ1.cmd_apb_w
-usb_mmio_tb.U_REQ1.cmd_cmd_w[1:0]
 [color] 3
 usb_mmio_tb.U_REQ1.cmd_rdy_w
 [color] 1
-usb_mmio_tb.U_REQ1.cmd_err_w
+usb_mmio_tb.U_REQ1.cmd_err_q
+[color] 6
+usb_mmio_tb.U_REQ1.cmd_cmd_w[1:0]
 @23
 usb_mmio_tb.U_REQ1.cmd_len_w[15:0]
+@22
 usb_mmio_tb.U_REQ1.cmd_val_w[15:0]
 usb_mmio_tb.U_REQ1.cmd_lun_w[3:0]
 usb_mmio_tb.U_REQ1.cmd_adr_w[27:0]
-@1000201
+@1000200
 -Command
 @800200
 -Control

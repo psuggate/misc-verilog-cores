@@ -24,6 +24,8 @@ module cmd_to_axi #(
     input [3:0] cmd_tag_i,
     input [15:0] cmd_len_i,
     input [3:0] cmd_lun_i,
+    input [27:0] cmd_adr_i,
+    output cmd_err_o,
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     input dat_tvalid_i,
@@ -115,9 +117,9 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg [3:0] state;
-  reg wen_q, stb_q, cyc_q;
+  reg dir_q, stb_q, cyc_q, err_q;
   reg sel_q, vld_q, lst_q, idx_q;
-  reg [7:0] cmd_q, len_q;
+  reg [7:0] len_q;
   reg [ISB:0] tid_q;  // 4b
   reg [ASB:0] adr_q;  // 32b
   wire cvalid_w, cready_w;
@@ -147,6 +149,8 @@ module cmd_to_axi #(
   wire [SSB:0] x_tkeep;
   wire [ISB:0] x_tid, y_tid, tid_w;
   wire [MSB:0] x_tdata;
+
+  assign cmd_err_o = err_q;
 
   // Todo: make less combinational ...
   assign dat_tready_o = sready_w && cready_w && cyc_q;
@@ -178,7 +182,15 @@ module cmd_to_axi #(
   //  USB clock-domain FSM for transactions.
   //
   assign cvalid_w = stb_q;
-  assign cdata_w = {cmd_q[7], tid_q, len_q, adr_q};
+  assign cdata_w = {dir_q, tid_q, len_q, adr_q};
+
+  always @(posedge cmd_clk or negedge aresetn) begin
+    if (cmd_rst || !aresetn) begin
+      err_q <= 1'b0;
+    end else begin
+      // Todo: check the AXI responses, and assert error-flag, as necessary.
+    end
+  end
 
   /**
    * Transaction-framing logic, for AXI requests.

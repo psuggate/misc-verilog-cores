@@ -105,8 +105,9 @@ module usb_mmio (
     input [31:0] axi_rdata_i
 );
 
-  reg sel_apb_q, sel_axi_q, cmd_ack_q;
-  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w, cmd_err_w;
+  reg sel_apb_q, sel_axi_q, cmd_ack_q, cmd_err_q;
+  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
+  wire apb_err_w, axi_err_w;
   wire [1:0] cmd_cmd_w;
   wire [15:0] cmd_len_w, cmd_val_w;
   wire [3:0] cmd_tag_w, cmd_lun_w;
@@ -163,7 +164,7 @@ module usb_mmio (
         done_q <= 1'b0;
       end
 
-      if (recv_w || cmd_rdy_w || cmd_err_w) begin
+      if (recv_w || cmd_rdy_w || apb_err_w) begin
         send_q <= 1'b1;
       end else begin  // if (sent_w) begin
         send_q <= 1'b0;
@@ -312,7 +313,7 @@ module usb_mmio (
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_i(cmd_rdy_w),
-      .cmd_err_i(cmd_err_w),
+      .cmd_err_i(cmd_err_q),
       .cmd_val_i(cmd_val_w),
 
       // Output data stream (via AXI-S(), to Bulk-In)(), and USB data or responses
@@ -335,8 +336,10 @@ module usb_mmio (
   always @(posedge clock) begin
     if (reset) begin
       cmd_ack_q <= 1'b0;
+      cmd_err_q <= 1'b0;
     end else begin
       cmd_ack_q <= cmd_ack_w;
+      cmd_err_q <= apb_err_w || axi_err_w;
     end
   end
 
@@ -377,7 +380,7 @@ module usb_mmio (
       .cmd_adr_i(cmd_adr_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_rdy_o(cmd_rdy_w),
-      .cmd_err_o(cmd_err_w),
+      .cmd_err_o(apb_err_w),
       .cmd_val_o(cmd_val_w),
 
       .pclk(pclk),  // APB clock-domain
@@ -411,6 +414,8 @@ module usb_mmio (
       .cmd_tag_i(cmd_tag_w),
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
+      .cmd_adr_i(cmd_adr_w),
+      .cmd_err_o(axi_err_w),
 
       .dat_tvalid_i(m_tvalid),
       .dat_tready_o(m_tready),

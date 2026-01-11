@@ -86,7 +86,7 @@ module usb_mmio_tb;
     apb_send(16'hFACE, tag_q, adr_q, lun_q);
     #64 apb_recv(tag_q, adr_q, lun_q);
 
-    #64 axi_send(len_q, tag_q, adr_q, lun_q);
+    #64 axi_send(8'd7, tag_q, adr_q, lun_q);
 
     #800 $finish;
   end
@@ -459,7 +459,7 @@ module usb_mmio_tb;
     begin
       @(negedge clock) $display("%11t: Sending %d (+1) bytes", $time, lim_q);
       @(posedge clock) begin
-        epo_sel_q <= #2 1'b0;
+        epo_sel_q <= #2 1'b1;
         s_tvalid <= #2 1'b0;
         s_tkeep <= #2 1'b0;
         s_tlast <= #2 1'b0;
@@ -510,7 +510,7 @@ module usb_mmio_tb;
     input [27:0] addr;
     input [3:0] lun;
     begin
-      cmd_send({8'd0, size}, `CMD_STORE, tag, addr, lun);
+      cmd_send({8'd0, size}, tag, `CMD_STORE, addr, lun);
       @(negedge clock) #16 $display("%11t: Finished sending AXI STORE command", $time);
 
       dat_send(size);
