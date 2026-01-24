@@ -209,7 +209,7 @@ module cmd_to_axi #(
   always @(posedge cmd_clk or negedge aresetn) begin
     if (cmd_rst || !aresetn) begin
       err_q <= 1'b0;
-      res_q <= 61'bx;
+      res_q <= 16'bx;
     end else if (cmd_vld_i) begin
       if (stb_q) begin
         res_q <= cmd_len_i;
@@ -226,14 +226,38 @@ module cmd_to_axi #(
   /**
    * Transaction-framing logic, for AXI requests.
    */
+  reg [14:0] len_q;
+  reg [3:0] dqs_q;
+  reg [31:0] adr_q;
+  wire bdy_w, pag_w;
+
+  // Compute the number of 32-bit AXI transfers, for (len-1) bytes, and with the
+  // address alignment of the request.
+  wire [14:0] len_w = 14'd1 + cmd_len_i[15:2] + (cmd_len_i[1:0] + cmd_adr_i[1:0] > 3'd3);
+
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
       state <= EP_IDLE;
     end else begin
       case (state)
-        EP_IDLE: state <= state;
+        EP_IDLE: begin
+          state <= state;
+          //
+          // Todo:
+          //  - break large bursts into USB frame-sized chunks;
+          //  - split bursts that cross 4kB page-boundaries;
+          //  - support for unaligned addresses;
+          //
+          lst_q <= cmd_len_i == 16'd1; // Todo
+          len_q <= len_w;
+          dqs_q <= 4'b1111 << cmd_adr_i[1:0];
+          adr_q <= {cmd_lun_i, cmd_adr_i};
+        end
         EP_READ: state <= state;
-        EP_WRIT: state <= state;
+        EP_WRIT: begin
+          state <= state;
+          lst_q <= bdy_w || pag_w;
+        end
         EP_RESP: state <= state;
       endcase
     end
@@ -246,16 +270,42 @@ module cmd_to_axi #(
 
   // -- Memory-Domain Command & Address Synchronisation -- //
 
+  reg a_vld, a_ack;
+
+  always @(posedge aclk or negedge aresetn) begin
+    if (!aresetn || wr_ack_w || rd_ack_w) begin
+      a_vld <= 1'b0;
+      a_ack <= 1'b0;
+    end else if (cmd_w && !a_vld && rd == RD_IDLE && wr == WR_IDLE) begin
+      if (rd_w && fready_w) begin
+        a_vld <= 1'b1;
+        a_ack <= 1'b0;
+      end else if (!rd_w && !x_tvalid) begin
+        a_vld <= 1'b1;
+        a_ack <= 1'b0;
+      end
+    end else if (a_vld && !a_ack && (rd != RD_IDLE || wr != WR_IDLE)) begin
+      a_vld <= 1'b0;
+      a_ack <= 1'b1;
+    end else begin
+      a_vld <= a_vld;
+      a_ack <= 1'b0;
+    end
+  end
+
   // Note: According to the AXI spec., not supposed to have combinational logic
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
   //   out this way.
-  assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE && (rd_w ? fready_w : x_tvalid);
+  assign ack_w = a_ack;
+  // assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE && (rd_w ? fready_w : x_tvalid);
 
-  assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
+  assign wr_cmd_w = rd_w == 1'b0 && cmd_w && a_vld;
+  // assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
   assign wr_ack_w = awvalid_o && awready_i;
   assign wr_end_w = x_tvalid && x_tready && x_tlast;
 
-  assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
+  assign rd_cmd_w = rd_w == 1'b1 && cmd_w && a_vld;
+  // assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
   assign rd_ack_w = arvalid_o && arready_i;
   assign rd_end_w = fvalid_w && fready_w && rlast_i;
 

@@ -57,6 +57,8 @@ module usb_mmio_tb;
   reg presetn;
   wire areset_n, configured;
 
+  reg [63:0] dbg_op;
+
   assign areset_n = ~reset;
 
   always #5 mclk <= ~mclk;
@@ -72,6 +74,7 @@ module usb_mmio_tb;
     $dumpvars;
 
     #2 reset <= 1'b1;
+    dbg_op <= "RESET";
     {set_conf_q, clr_conf_q} <= 2'b0;
     {epo_sel_q, epi_sel_q, err_q, ack_sent_q, ack_recv_q} <= 5'b0;
     {cmd_ack_q, timeout_q, epo_err_q} <= 1'b0;
@@ -79,14 +82,23 @@ module usb_mmio_tb;
     m_tready <= 1'b0;
 
     #160 reset <= 1'b0;
+    dbg_op <= "IDLE";
 
     #80 set_conf_q <= 1'b1;
+    dbg_op <= "USB_CONF";
     #16 set_conf_q <= 1'b0;
+    dbg_op <= "IDLE";
 
+    #16 dbg_op <= "APB_SEND";
     apb_send(16'hFACE, tag_q, adr_q, lun_q);
-    #64 apb_recv(tag_q, adr_q, lun_q);
+    dbg_op <= "IDLE";
+    #64 dbg_op <= "APB_RECV";
+    apb_recv(tag_q, adr_q, lun_q);
+    dbg_op <= "IDLE";
 
-    #64 axi_send(8'd7, tag_q, adr_q, lun_q);
+    #64 dbg_op <= "AXI_SEND";
+    axi_send(8'd7, tag_q, adr_q, lun_q);
+    dbg_op <= "IDLE";
 
     #800 $finish;
   end
@@ -119,6 +131,9 @@ module usb_mmio_tb;
   wire [31:0] cnext;
 
   reg [3:0] state;
+
+`define __spanner_montana
+`ifdef __spanner_montana
 
   always @(posedge mclk) begin
     if (reset) begin
@@ -176,6 +191,8 @@ module usb_mmio_tb;
       endcase
     end
   end
+
+`endif /* __spanner_montana */
 
   wire [8:0] len_w;
 
