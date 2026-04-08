@@ -82,6 +82,13 @@ usbtop:	docker
 --rm -it gowin-eda bash -c "$(MAKE)"
 	@openFPGALoader --board tangprimer20k --write-sram synth/sipeed-tang-primer-20k/impl/pnr/project.fs
 
+DISXCB	:= -e DISPLAY=$(DISPLAY) -v /tmp/.X11-unix:/tmp/.X11-unix --network host
+
+.PHONY:	tomato
+tomato:	docker
+	@docker run $(VOLUMES) $(DISXCB) -w=$(TOPDIR) -e USER=$(USER) \
+	--user=$(UID):$(GID) --rm -it gowin-eda bash -c "$(MAKE)"
+
 #
 #  Documentation settings
 ##

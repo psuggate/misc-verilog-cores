@@ -51,10 +51,30 @@ RUN dpkg-reconfigure --frontend=noninteractive locales && \
 # RUN wget https://cdn.gowinsemi.com.cn/Gowin_V1.9.11.01_Education_Linux.tar.gz
 # RUN tar xvf Gowin_V1.9.11.01_Education_Linux.tar.gz
 
-ARG GOWIN=Gowin_V1.9.8.11_Education_linux.tar.gz
+# ARG GOWIN=Gowin_V1.9.8.11_Education_linux.tar.gz
+
+# Note: `Gowin_V1.9.11.03_Education_Linux.tar.gz` seg-faults!
+ARG GOWIN=Gowin_V1.9.11.01_Education_Linux.tar.gz
 WORKDIR /opt/gowin
 COPY $GOWIN .
 RUN tar xvf $GOWIN
+
+# For v1.9.11 and later:
+RUN apt-get install -y libgl1 libxcomposite1 libnss3 libasound2 libxrandr2 \
+    libxdamage1 libxtst6 libxkbcommon0 libdbus-1-3 libxcb-cursor0 libxcb-xinerama0 \
+    libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 \
+    libxkbcommon-x11-0 fontconfig libfreetype6 libgl1-mesa-glx libgl1-mesa-dri
+
+ENV QT_DEBUG_PLUGINS 1
+ENV QT_QPA_PLATFORM xcb
+ENV QT_PLUGIN_PATH /opt/gowin/IDE/plugins
+ENV LD_LIBRARY_PATH /opt/gowin/IDE/lib
+
+ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libfreetype.so.6
+# For Fedora:
+# ENV LD_PRELOAD /usr/lib64/libfreetype.so.6
+
+RUN ldconfig
 
 #
 #  Now setup build directory
