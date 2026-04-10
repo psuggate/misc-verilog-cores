@@ -142,7 +142,6 @@ module cmd_to_axi #(
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
   wire x_tvalid, x_tready, x_tlast;
   wire [DBITS:0] rd_level_w;
-  wire [7:0] len_w;
   wire [ASB:0] adr_w;
   wire [SSB:0] x_tkeep;
   wire [ISB:0] x_tid, y_tid, tid_w;
@@ -229,6 +228,7 @@ module cmd_to_axi #(
   reg [14:0] len_q;
   reg [3:0] dqs_q;
   reg [31:0] adr_q;
+  reg lst_q;
   wire bdy_w, pag_w;
 
   // Compute the number of 32-bit AXI transfers, for (len-1) bytes, and with the

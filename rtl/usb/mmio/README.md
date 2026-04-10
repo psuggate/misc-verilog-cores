@@ -31,3 +31,22 @@ Commands are 11B USB frames, with the frame containing only the command, and mus
 Either one or more BULK OUT, or BULK IN, data transfers (for USB to AXI transactions).
 
 Responses are 7B USB frames, with the USB frame containing just the response, and must have size of seven bytes, only.
+
+## Design
+
+Constraints:
+
++ The host issues a command (either APB or AXI).
++ Responses are issued immediately for APB requests.
++ AXI requests consist of one or more data transfers, which are either Bulk Out, or Bulk In, followed by the peripheral's response frame.
+
+AXI-only constraints:
+
++ After receiving an AXI command, data transfers occur until the requested number of bytes have been transferred.
++ AXI requires large transfers to be split at 4kB ("page") boundaries (and this framing is handled by the core). So one MMIO command may generate many AXI burst-transfers.
++ All USB data-frames have to be max-size, except for the final data-frame, which is _NOT_ max-size.
++ The final data-frame is either a ZDP or contain the number of remaining bytes.
++ A command completes with a response frame from the peripheral.
++ When an unexpected ZDP is received by the peripheral, the transaction is canceled, and the response frame contains `CANCELED`.
++ The peripheral issues a `ZDP` to cancel a transaction, with the response frame containing the reason-code.
++ If the transaction times-out, then the host should issue a `QUERY`, and if this fails as well (or returns a USB `STALL` response), then the peripheral must be reset. (TODO??)

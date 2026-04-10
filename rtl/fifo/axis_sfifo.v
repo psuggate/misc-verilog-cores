@@ -128,10 +128,10 @@ module axis_sfifo #(
 
     end else begin : g_axis_afifo
 
-      localparam WBITS = WIDTH + TLAST + KEEPS;
+      localparam WBITS = WIDTH + TLAST + (TKEEP ? KEEPS : 0);
       localparam WSB = WBITS - 1;
-      localparam SBITS = WIDTH + TLAST + (TKEEP ? KEEPS : 0);
-      localparam SSB = SBITS - 1;
+      // localparam SBITS = WIDTH + TLAST + (TKEEP ? KEEPS : 0);
+      // localparam SSB = SBITS - 1;
 
       wire [WSB:0] sdata_w = {s_tkeep, s_tlast, s_tdata};
       wire [WSB:0] mdata_w;
@@ -141,7 +141,7 @@ module axis_sfifo #(
       assign m_tdata = mdata_w[MSB:0];
 
       sync_fifo #(
-          .WIDTH (SBITS),
+          .WIDTH (WBITS),
           .ABITS (ABITS),
           .OUTREG(OUTREG)
       ) U_FIFO1 (
@@ -151,7 +151,7 @@ module axis_sfifo #(
 
           .valid_i(s_tvalid),
           .ready_o(s_tready),
-          .data_i (sdata_w[SSB:0]),
+          .data_i (sdata_w[WSB:0]),
 
           .valid_o(m_tvalid),
           .ready_i(m_tready),
