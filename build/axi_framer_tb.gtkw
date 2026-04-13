@@ -1,19 +1,19 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Apr 10 03:46:33 2026
+[*] Sun Apr 12 01:46:13 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/axi_framer_tb.vcd"
-[dumpfile_mtime] "Fri Apr 10 03:45:57 2026"
-[dumpfile_size] 35638
+[dumpfile_mtime] "Sun Apr 12 01:46:07 2026"
+[dumpfile_size] 32712
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/axi_framer_tb.gtkw"
 [timestart] 0
 [size] 1920 1033
 [pos] -1 -1
-*-16.176682 9806 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.176682 140000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] axi_framer_tb.
 [treeopen] axi_framer_tb.U_WRFIFO1.
 [sst_width] 314
-[signals_width] 230
+[signals_width] 330
 [sst_expanded] 1
 [sst_vpaned_height] 306
 @28
@@ -32,6 +32,15 @@ axi_framer_tb.adr[27:0]
 @1000200
 -Command
 @800200
+-AXI
+@28
+axi_framer_tb.axi_valid_w
+axi_framer_tb.axi_ready_q
+axi_framer_tb.axi_write_w
+axi_framer_tb.axi_finish_q
+@1000200
+-AXI
+@800200
 -Datapath
 @24
 axi_framer_tb.fifo_rd_level_w[8:0]
@@ -44,8 +53,17 @@ axi_framer_tb.U_WRFIFO1.s_tlast
 axi_framer_tb.U_WRFIFO1.g_axis_afifo.sdata_w[8:0]
 @1000200
 -Datapath
-@821
+@820
 [color] 7
 axi_framer_tb.AF1.dbg_state[39:0]
+@24
+axi_framer_tb.AF1.write_bytes_remaining_w[15:0]
+axi_framer_tb.AF1.write_bytes_available_w[10:0]
+axi_framer_tb.AF1.bytes_to_page_boundary_w[11:0]
+@25
+axi_framer_tb.AF1.byt_num_q[9:0]
+@22
+axi_framer_tb.AF1.byt_adr_q[31:0]
+axi_framer_tb.AF1.end_adr_q[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

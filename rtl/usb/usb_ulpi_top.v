@@ -1,4 +1,9 @@
 `timescale 1ns / 100ps
+/**
+ * USB2.0 HighSpeed (HS) core with up to four Bulk In/Out endpoints.
+ * License: MIT
+ *  Copyright (c) 2026 Patrick Suggate
+ */
 module usb_ulpi_top #(
     parameter DEBUG = 0,
 

@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 //
 // The USB '0' configuration/control PIPE is always reserved for configuring a
-// USB device/function.
+// USB device/function/peripheral.
 //
 // Based on project 'https://github.com/ObKo/USBCore'
 // License: MIT

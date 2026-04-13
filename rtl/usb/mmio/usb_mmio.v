@@ -399,7 +399,7 @@ module usb_mmio (
       .prdata_i (prdata_i)
   );
 
-  `define __spanner_montana
+`define __spanner_montana
 `ifdef __spanner_montana
 
   /**

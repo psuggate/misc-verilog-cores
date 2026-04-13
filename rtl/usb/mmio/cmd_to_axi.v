@@ -112,6 +112,24 @@ module cmd_to_axi #(
   localparam [3:0] EP_IDLE = 4'd1, EP_READ = 4'd2, EP_WRIT = 4'd4, EP_RESP = 4'd8;
 
   //
+  //  Module-wide control signals.
+  //
+  reg arst, rst0, rst1;
+
+  always @(posedge aclk or negedge aresetn)
+    if (!aresetn) begin
+      rst0 <= 1'b1;
+      rst1 <= 1'b1;
+    end else begin
+      rst0 <= 1'b0;
+      rst1 <= rst0;
+    end
+
+  always @(posedge aclk) begin
+    arst <= rst1;
+  end
+
+  //
   //  Datapath signal declarations.
   //
 
@@ -141,11 +159,13 @@ module cmd_to_axi #(
   wire cmd_w, ack_w, rd_w;
   wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
   wire x_tvalid, x_tready, x_tlast;
-  wire [DBITS:0] rd_level_w;
+  wire [DBITS:0] axi_rd_level_w;
   wire [ASB:0] adr_w;
   wire [SSB:0] x_tkeep;
   wire [ISB:0] x_tid, y_tid, tid_w;
   wire [MSB:0] x_tdata;
+
+  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w;
 
   assign cmd_err_o = err_q;
   assign cmd_res_o = res_q;
@@ -348,7 +368,7 @@ module cmd_to_axi #(
   // -- Read-Port, AXI-Domain FSM -- //
 
   assign fvalid_w = rd == RD_DATA && rvalid_i;
-  assign rd_mid_w = rd_level_w[DSB];
+  assign rd_mid_w = axi_rd_level_w[DSB];
 
   always @(posedge aclk or negedge aresetn) begin
     if (!aresetn) begin
@@ -389,6 +409,10 @@ module cmd_to_axi #(
   );
 
   // -- Write Datapath -- //
+
+  assign svalid_w = dat_tvalid_i && wr != WR_IDLE;
+  assign tkeep_w  = dat_tkeep_i;
+  assign tlast_w  = dat_tlast_i;
 
   /**
    * Widens the 8-bit stream (from USB) to 32-bit for AXI.
@@ -469,7 +493,7 @@ module cmd_to_axi #(
       .s_axis_tuser(1'b0),
 
       .m_clk(aclk),
-      .m_rst(aresetn),
+      .m_rst(arst),
 
       .m_axis_tvalid(x_tvalid),
       .m_axis_tready(x_tready),
@@ -485,7 +509,7 @@ module cmd_to_axi #(
       .m_pause_req(1'b0),
       .m_pause_ack(),
 
-      .s_status_depth(),  // Status
+      .s_status_depth(cmd_wr_level_w),  // Status
       .s_status_depth_commit(),
       .s_status_overflow(),
       .s_status_bad_frame(),
@@ -541,7 +565,7 @@ module cmd_to_axi #(
       .DROP_WHEN_FULL(0)
   ) U_RDFIFO1 (
       .s_clk(aclk),
-      .s_rst(aresetn),
+      .s_rst(arst),
 
       .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
       .s_axis_tready(fready_w),
@@ -569,12 +593,12 @@ module cmd_to_axi #(
       .m_pause_req(1'b0),
       .m_pause_ack(),
 
-      .s_status_depth(rd_level_w),  // Status
+      .s_status_depth(axi_rd_level_w),  // Status
       .s_status_depth_commit(),
       .s_status_overflow(),
       .s_status_bad_frame(),
       .s_status_good_frame(),
-      .m_status_depth(),  // Status
+      .m_status_depth(cmd_rd_level_w),  // Status
       .m_status_depth_commit(),
       .m_status_overflow(),
       .m_status_bad_frame(),

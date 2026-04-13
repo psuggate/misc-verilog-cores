@@ -10,8 +10,8 @@ module axi_framer_tb;
 
   reg axi_ready_q, axi_finish_q;
   wire axi_valid_w, axi_write_w;
-  wire [7:0] axi_length_w;
-  wire [3:0] axi_strobe_w;
+  wire [ 7:0] axi_length_w;
+  wire [ 3:0] axi_strobe_w;
   wire [31:0] axi_address_w;
 
   wire [8:0] fifo_wr_level_w, fifo_rd_level_w;
@@ -33,18 +33,37 @@ module axi_framer_tb;
   integer ii;
 
   initial begin : AXI_CMD
-    #10 rst = 1; vld = 0; axi_ready_q = 0; axi_finish_q = 0;
+    // Bring to known state:
+    #10 rst = 1;
+    vld = 0;
+    axi_ready_q = 0;
+    axi_finish_q = 0;
     #20 rst = 0;
 
-    for (ii=0; ii<30; ii=ii+1) begin
-      #10 store = 1; slast = 0; sdata = $random;
-    end
-    #10 store = 1; slast = 1; sdata = $random;
-    #10 store = 0; slast = 0;
+    // Send 'cmd' to DUT:
+    #20 vld = 1;
+    dir = 1;
+    len = 6;
+    lun = 0;
+    adr = 63;
+    $display("%10t: AXI write issued (n = %d)", $time, len);
 
-    #20 vld = 1; dir = 1; len = 7; lun = 0; adr = 63;
+    // Fill write-data FIFO:
+    for (ii = 0; ii < len; ii = ii + 1) begin
+      #10 store = 1;
+      slast = 0;
+      sdata = $random;
+    end
+    #10 store = 1;
+    slast = 1;
+    sdata = $random;
+    #10 store = 0;
+    slast = 0;
+    $display("%10t: AXI data sent (n = %d)", $time, len);
+
     #10 while (!rdy) #10;
     vld = 0;
+    $display("%10t: AXI transaction complete", $time);
   end  // AXI_CMD
 
   /**
@@ -114,9 +133,9 @@ module axi_framer_tb;
   /**
    * Component Under Neuromorphological Testing.
    */
-  axi_framer AF1
-    ( .cmd_clk(clk),
-      .cmd_rst(rst),
+  axi_framer AF1 (
+      .cmd_clk  (clk),
+      .cmd_rst  (rst),
       .cmd_vld_i(vld),
       .cmd_dir_i(dir),
       .cmd_rdy_o(rdy),
@@ -134,7 +153,7 @@ module axi_framer_tb;
       .axi_len_o(axi_length_w),
       .axi_stb_o(axi_strobe_w),
       .axi_adr_o(axi_address_w)
-     );
+  );
 
   /* ====================================================================== */
 

@@ -1,21 +1,21 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Sat Jan 24 12:16:00 2026
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Apr 12 09:51:59 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Sat Jan 24 12:14:43 2026"
-[dumpfile_size] 135433
+[dumpfile_mtime] "Sun Apr 12 03:20:20 2026"
+[dumpfile_size] 138797
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
-[timestart] 1894100
-[size] 2560 1392
+[timestart] 2374600
+[size] 2560 1513
 [pos] -1 -1
-*-16.952858 2610000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-16.952858 3007000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usb_mmio_tb.
 [treeopen] usb_mmio_tb.U_REQ1.
-[sst_width] 209
-[signals_width] 174
+[sst_width] 314
+[signals_width] 230
 [sst_expanded] 1
-[sst_vpaned_height] 364
+[sst_vpaned_height] 532
 @28
 usb_mmio_tb.clock
 usb_mmio_tb.reset
@@ -295,12 +295,10 @@ usb_mmio_tb.U_REQ1.U_AXI_CTRL0.ack_w
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.rd_w
 @22
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.tid_w[3:0]
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.len_w[7:0]
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.adr_w[31:0]
 @28
 [color] 2
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_vld
-@29
 [color] 3
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_ack
 @22
@@ -323,6 +321,16 @@ usb_mmio_tb.U_REQ1.U_AXI_CTRL0.len_m[7:0]
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.adr_m[31:0]
 @1000200
 -Cmd Channel
+@28
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tvalid
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tready
+@22
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tkeep[3:0]
+@29
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tlast
+@24
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.fifo_wr_level_w[9:0]
+@1000200
 -AXI Ctrl
 -MMIO
 [pattern_trace] 1
