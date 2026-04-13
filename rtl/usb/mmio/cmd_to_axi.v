@@ -90,26 +90,66 @@ module cmd_to_axi #(
   localparam DBITS = $clog2(FIFO_DEPTH);
   localparam DSB = DBITS - 1;
 
-  localparam ST_IDLE = 1;
-  localparam ST_WADR = 2;
-  localparam ST_WDAT = 4;
-  localparam ST_RESP = 8;
-  localparam ST_RADR = 16;
-  localparam ST_RDAT = 32;
-  localparam ST_SEND = 64;
-  localparam ST_DONE = 128;
+  localparam [3:0] WR_IDLE = 1, WR_ADDR = 2, WR_DATA = 4, WR_RESP = 8;
+  localparam [3:0] RD_IDLE = 1, RD_ADDR = 2, RD_DATA = 4, RD_SEND = 8;
 
-  localparam [3:0] WR_IDLE = 1;
-  localparam [3:0] WR_ADDR = 2;
-  localparam [3:0] WR_DATA = 4;
-  localparam [3:0] WR_RESP = 8;
+  //
+  //  Module-wide registers and signals.
+  //
 
-  localparam [3:0] RD_IDLE = 1;
-  localparam [3:0] RD_ADDR = 2;
-  localparam [3:0] RD_DATA = 4;
-  localparam [3:0] RD_SEND = 8;
+  // -- Command (USB) clock-domain signals and state -- //
 
-  localparam [3:0] EP_IDLE = 4'd1, EP_READ = 4'd2, EP_WRIT = 4'd4, EP_RESP = 4'd8;
+  reg [15:0] res_q;
+  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w;
+  wire svalid_w, sready_w;
+  wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
+  wire [ISB:0] rid_w;
+  wire cvalid_w, cready_w;
+  wire [CSB:0] cdata_w;
+
+  // -- AXI clock-domain signals and state -- //
+
+  reg [3:0] wr, rd;
+  reg cmd_m, rd_m;
+  reg [  7:0] len_m;
+  reg [ISB:0] tid_m;
+  reg [ASB:0] adr_m;
+  wire fready_w, fvalid_w, rd_mid_w, bokay_w;
+  wire cmd_w, ack_w, rd_w;
+  wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
+  wire [ISB:0] a_tid, b_tid;
+  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
+  wire [SSB:0] a_tkeep, b_tkeep;
+  wire [1:0] b_tuser;
+  wire [MSB:0] b_tdata, a_tdata;
+  wire x_tvalid, x_tready, x_tlast;
+  wire [DBITS:0] axi_rd_level_w;
+  wire [  ASB:0] adr_w;
+  wire [  SSB:0] x_tkeep;
+  wire [ISB:0] x_tid, y_tid, tid_w;
+  wire [MSB:0] x_tdata;
+
+  // Todo ...
+  assign awvalid_o = cmd_m && !rd_m;
+  assign awburst_o = BURST_TYPE_INCR;
+  assign awlen_o   = len_m;
+  assign awid_o    = tid_m;
+  assign awaddr_o  = adr_m;
+
+  // Write-buffer (FIFO) assignments, to the DDR3 controller
+  assign wvalid_o = wr == WR_DATA && x_tvalid;
+  assign wlast_o  = wr == WR_DATA && x_tlast;
+  assign wstrb_o  = {STROBES{x_tvalid}};
+  assign wdata_o  = x_tdata;
+
+  // Read-address assignments, to the DDR3 controller
+  assign arvalid_o = cmd_m && rd_m;
+  assign arburst_o = BURST_TYPE_INCR;
+  assign arlen_o   = len_m;
+  assign arid_o    = tid_m;
+  assign araddr_o  = adr_m;
+
+  assign rready_o = rd == RD_DATA && fready_w;
 
   //
   //  Module-wide control signals.
@@ -129,6 +169,31 @@ module cmd_to_axi #(
     arst <= rst1;
   end
 
+`ifdef __biscuit_delivery
+
+  localparam [3:0] WR_IDLE = 1;
+  localparam [3:0] WR_ADDR = 2;
+  localparam [3:0] WR_DATA = 4;
+  localparam [3:0] WR_RESP = 8;
+
+  localparam [3:0] RD_IDLE = 1;
+  localparam [3:0] RD_ADDR = 2;
+  localparam [3:0] RD_DATA = 4;
+  localparam [3:0] RD_SEND = 8;
+
+  // -- Awful, disgusting, no-good state machine -- //
+
+  localparam ST_IDLE = 1;
+  localparam ST_WADR = 2;
+  localparam ST_WDAT = 4;
+  localparam ST_RESP = 8;
+  localparam ST_RADR = 16;
+  localparam ST_RDAT = 32;
+  localparam ST_SEND = 64;
+  localparam ST_DONE = 128;
+
+  localparam [3:0] EP_IDLE = 4'd1, EP_READ = 4'd2, EP_WRIT = 4'd4, EP_RESP = 4'd8;
+
   //
   //  Datapath signal declarations.
   //
@@ -137,35 +202,6 @@ module cmd_to_axi #(
 
   reg [3:0] state;
   reg vld_q, stb_q, cyc_q, err_q;
-  reg [15:0] res_q;
-  wire cvalid_w, cready_w;
-  wire [CSB:0] cdata_w;
-  wire svalid_w, sready_w;
-  wire tkeep_w, tlast_w, rvalid_w, rokay_w;
-  wire [ISB:0] rid_w, a_tid, b_tid;
-  wire a_tvalid, a_tready, a_tlast, b_tvalid, b_tready, b_tlast;
-  wire [SSB:0] a_tkeep, b_tkeep;
-  wire [1:0] b_tuser;
-  wire [MSB:0] b_tdata, a_tdata;
-
-  // -- AXI clock-domain signals and state -- //
-
-  reg [3:0] wr, rd;
-  reg cmd_m, rd_m;
-  reg [  7:0] len_m;
-  reg [ISB:0] tid_m;
-  reg [ASB:0] adr_m;
-  wire fready_w, fvalid_w, rd_mid_w, bokay_w;
-  wire cmd_w, ack_w, rd_w;
-  wire wr_cmd_w, wr_ack_w, wr_end_w, rd_cmd_w, rd_ack_w, rd_end_w;
-  wire x_tvalid, x_tready, x_tlast;
-  wire [DBITS:0] axi_rd_level_w;
-  wire [ASB:0] adr_w;
-  wire [SSB:0] x_tkeep;
-  wire [ISB:0] x_tid, y_tid, tid_w;
-  wire [MSB:0] x_tdata;
-
-  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w;
 
   assign cmd_err_o = err_q;
   assign cmd_res_o = res_q;
@@ -204,6 +240,8 @@ module cmd_to_axi #(
 
   assign cvalid_w = stb_q;
   assign cdata_w = {cmd_dir_i, cmd_tag_i, cmd_len_i[7:0], cmd_lun_i, cmd_adr_i};
+
+  assign rready_w = state == ST_RESP;
 
   assign stb_w = !vld_q && cmd_vld_i;
   assign dec_w = res_q - 1;
@@ -268,7 +306,7 @@ module cmd_to_axi #(
           //  - split bursts that cross 4kB page-boundaries;
           //  - support for unaligned addresses;
           //
-          lst_q <= cmd_len_i == 16'd1; // Todo
+          lst_q <= cmd_len_i == 16'd1;  // Todo
           len_q <= len_w;
           dqs_q <= 4'b1111 << cmd_adr_i[1:0];
           adr_q <= {cmd_lun_i, cmd_adr_i};
@@ -283,6 +321,80 @@ module cmd_to_axi #(
     end
   end
 
+`else  /*! __biscuit_delivery */
+
+  /**
+   * Generates AXI(4) requests in response to commands from the USB interface.
+   * The `axi_*` outputs are to be fed into async. FIFOs, and data is handled
+   * external to this module.
+   */
+  reg cmd_vld_q, cmd_ack_q, axi_vld_q;
+  wire cmd_err_w, cmd_rdy_w, usb_send_w, usb_sent_w;
+
+  wire usb_recv_w, axi_write_w;
+  wire [ 7:0] axi_length_w;
+  wire [ 3:0] axi_strobe_w;
+  wire [31:0] axi_address_w;
+
+  assign cmd_err_o = cmd_err_w;
+  assign cmd_res_o = cmd_len_i;
+
+  // Todo: make less combinational ...
+  assign usb_sent_w = dat_tvalid_o && dat_tlast_o && dat_tready_i;
+  assign cdata_w = {axi_write_w, cmd_tag_i, axi_length_w[7:0], axi_address_w};
+
+  // assign dat_tvalid_o = usb_send_w && sready_w;
+  assign dat_tready_o = usb_recv_w && sready_w;
+  assign rready_w = cmd_vld_q;
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      {cmd_ack_q, cmd_vld_q} <= 2'b00;
+    end else if (cready_w && cmd_vld_i && !cmd_err_w) begin
+      cmd_vld_q <= 1'b1;
+    end else if (cmd_rdy_w || cmd_err_w) begin
+      cmd_vld_q <= 1'b0;
+    end
+
+    cmd_ack_q <= cmd_ack_i;
+
+    if (cmd_rst) begin
+      axi_vld_q <= 1'b0;
+    end else if (cmd_vld_q) begin
+      axi_vld_q <= cvalid_w && cready_w;
+    end
+  end
+
+  cmd_to_axi_framer U_C2AF1 (
+      .cmd_clk(cmd_clk),
+      .cmd_rst(cmd_rst),
+
+      .cmd_vld_i(cmd_vld_q),
+      .cmd_dir_i(cmd_dir_i),
+      .cmd_ack_i(cmd_ack_q),
+      .cmd_err_o(cmd_err_w),
+      .cmd_rdy_o(cmd_rdy_w),
+      .cmd_len_i(cmd_len_i),
+      .cmd_lun_i(cmd_lun_i),
+      .cmd_adr_i(cmd_adr_i),
+
+      .usb_recv_o(usb_recv_w),
+      .usb_send_o(usb_send_w),
+      .usb_sent_i(usb_sent_w),
+
+      .fifo_rd_level_i(cmd_rd_level_w),
+      .fifo_wr_level_i(cmd_wr_level_w),
+
+      .axi_vld_o(cvalid_w),
+      .axi_ack_i(axi_vld_q),
+      .axi_fin_i(rvalid_w),
+      .axi_dir_o(axi_write_w),
+      .axi_len_o(axi_length_w),
+      .axi_stb_o(axi_strobe_w),
+      .axi_adr_o(axi_address_w)
+  );
+
+`endif  /* !__biscuit_delivery */
 
   //
   //  AXI clock-domain FSMs for read- & write- transactions.
@@ -291,7 +403,9 @@ module cmd_to_axi #(
   // -- Memory-Domain Command & Address Synchronisation -- //
 
   reg a_vld, a_ack;
+  wire [7:0] len_w;
 
+  // Todo: async-reset not required?
   always @(posedge aclk or negedge aresetn) begin
     if (!aresetn || wr_ack_w || rd_ack_w) begin
       a_vld <= 1'b0;
@@ -355,10 +469,9 @@ module cmd_to_axi #(
         WR_IDLE: wr <= wr_cmd_w ? WR_ADDR : wr;
         WR_ADDR: wr <= wr_ack_w ? WR_DATA : wr;
         WR_DATA: wr <= wr_end_w ? WR_RESP : wr;
-        WR_RESP: begin
-          if (bvalid_i && bready_o) begin
-            wr <= WR_IDLE;
-          end
+        WR_RESP:
+        if (bvalid_i && bready_o) begin
+          wr <= WR_IDLE;
         end
         default: wr <= 'bx;
       endcase
@@ -383,7 +496,6 @@ module cmd_to_axi #(
       endcase
     end
   end
-
 
   //
   //  Clock-domain crossing, for AXI transaction requests, to the AXI domain.
@@ -410,7 +522,7 @@ module cmd_to_axi #(
 
   // -- Write Datapath -- //
 
-  assign svalid_w = dat_tvalid_i && wr != WR_IDLE;
+  assign svalid_w = dat_tvalid_i && !cmd_dir_i;
   assign tkeep_w  = dat_tkeep_i;
   assign tlast_w  = dat_tlast_i;
 
@@ -537,7 +649,7 @@ module cmd_to_axi #(
       .s_tdata ({bokay_w, bid_i}),
       .m_aclk  (cmd_clk),
       .m_tvalid(rvalid_w),
-      .m_tready(state == ST_RESP),
+      .m_tready(rready_w),
       .m_tlast (),
       .m_tdata ({rokay_w, rid_w})
   );
@@ -641,5 +753,33 @@ module cmd_to_axi #(
       .m_axis_tdata(dat_tdata_o)
   );
 
+
+`ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+  reg [39:0] dbg_rd, dbg_wr;
+
+  always @* begin
+    case (wr)
+      WR_IDLE: dbg_wr = "IDLE";
+      WR_ADDR: dbg_wr = "ADDR";
+      WR_DATA: dbg_wr = "DATA";
+      WR_RESP: dbg_wr = "RESP";
+      default: dbg_wr = " ?? ";
+    endcase
+  end
+
+  always @* begin
+    case (rd)
+      RD_IDLE: dbg_rd = "IDLE";
+      RD_ADDR: dbg_rd = "ADDR";
+      RD_DATA: dbg_rd = "DATA";
+      RD_SEND: dbg_rd = "SEND";
+      default: dbg_rd = " ?? ";
+    endcase
+  end
+
+`endif  /* __icarus */
 
 endmodule  /* cmd_to_axi */

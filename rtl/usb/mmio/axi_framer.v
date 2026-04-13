@@ -31,10 +31,8 @@ module axi_framer #(
     input [3:0] cmd_lun_i,
     input [27:0] cmd_adr_i,
 
-    input fifo_ready_i,
     input [FSB:0] fifo_rd_level_i,
     input [FSB:0] fifo_wr_level_i,
-    input next_frame_i,
     output next_valid_o,
     output next_ready_o,
 
@@ -47,7 +45,7 @@ module axi_framer #(
     output [ASB:0] axi_adr_o
 );
 
-  localparam ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8, ST_SEND = 16, ST_DONE = 32;
+  localparam ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8, ST_SEND = 16, ST_DONE = 32, ST_FAIL = 64;
 
   reg ready_q, valid_q;
 
@@ -162,12 +160,10 @@ module axi_framer #(
 
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
-      vld_q <= 1'b0;
-      rdy_q <= 1'b0;
+      {rdy_q, vld_q} <= 2'h0;
+      {dqe_q, dqs_q} <= 'bx;
       lst_q <= 1'bx;
       len_q <= 'bx;
-      dqs_q <= 'bx;
-      dqe_q <= 'bx;
       bytes <= 'bx;
     end else begin
       case (state)

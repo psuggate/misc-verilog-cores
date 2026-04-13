@@ -1,21 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sun Apr 12 09:51:59 2026
+[*] Mon Apr 13 11:57:56 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Sun Apr 12 03:20:20 2026"
-[dumpfile_size] 138797
+[dumpfile_mtime] "Mon Apr 13 11:57:07 2026"
+[dumpfile_size] 140069
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
-[timestart] 2374600
+[timestart] 0
 [size] 2560 1513
 [pos] -1 -1
-*-16.952858 3007000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.973017 3200000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usb_mmio_tb.
 [treeopen] usb_mmio_tb.U_REQ1.
+[treeopen] usb_mmio_tb.U_REQ1.U_AXI_CTRL0.
 [sst_width] 314
 [signals_width] 230
 [sst_expanded] 1
-[sst_vpaned_height] 532
+[sst_vpaned_height] 512
 @28
 usb_mmio_tb.clock
 usb_mmio_tb.reset
@@ -263,16 +264,42 @@ usb_mmio_tb.U_REQ1.U_EPIN0.dbg_xmit[39:0]
 @800200
 -AXI Ctrl
 @28
-[color] 2
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.cyc_q
 [color] 3
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.stb_q
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.cmd_vld_i
 [color] 1
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.err_q
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.cmd_err_o
+[color] 3
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.axi_vld_o
+[color] 2
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.axi_ack_i
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.axi_fin_i
+@820
+[color] 7
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.dbg_wr[39:0]
 @24
-[color] 6
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.res_q[15:0]
+[color] 5
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.fifo_wr_level_i[9:0]
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.wr_level_w[7:0]
+@29
+[color] 2
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.wr_ready_w
+@820
+[color] 7
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.dbg_rd[39:0]
+@24
+[color] 5
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.fifo_rd_level_i[9:0]
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.rd_level_w[7:0]
 @28
+[color] 2
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.rd_ready_w
+@820
+[color] 7
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.U_C2AF1.dbg_state[39:0]
+@28
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.svalid_w
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.rready_w
+[color] 6
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.sready_w
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.cready_w
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.dat_tvalid_i
@@ -326,10 +353,10 @@ usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tvalid
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tready
 @22
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tkeep[3:0]
-@29
+@28
 usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tlast
-@24
-usb_mmio_tb.U_REQ1.U_AXI_CTRL0.fifo_wr_level_w[9:0]
+@22
+usb_mmio_tb.U_REQ1.U_AXI_CTRL0.a_tdata[31:0]
 @1000200
 -AXI Ctrl
 -MMIO

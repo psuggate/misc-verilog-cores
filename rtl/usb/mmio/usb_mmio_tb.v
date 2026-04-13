@@ -132,7 +132,7 @@ module usb_mmio_tb;
 
   reg [3:0] state;
 
-`define __spanner_montana
+  `define __spanner_montana
 `ifdef __spanner_montana
 
   always @(posedge mclk) begin
@@ -192,7 +192,7 @@ module usb_mmio_tb;
     end
   end
 
-`endif /* __spanner_montana */
+`endif  /* __spanner_montana */
 
   wire [8:0] len_w;
 
@@ -456,7 +456,7 @@ module usb_mmio_tb;
         m_tready <= #2 1'b0;
         din_q <= #2{m_tdata, din_q[55:8]};
       end else begin
-        #32 $error("%11t: Invalid transfer: %x", din_q);
+        #32 $error("%11t: Invalid transfer: %x", $time, din_q);
         #32 $fatal(1);
       end
 
