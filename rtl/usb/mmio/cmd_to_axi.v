@@ -200,7 +200,7 @@ module cmd_to_axi #(
       cmd_vld_q <= 1'b0;
     end else if (cready_w && cmd_vld_i && !cmd_err_w) begin
       cmd_vld_q <= 1'b1;
-    end else if (cmd_rdy_w || cmd_err_w) begin
+    end else if (!cmd_vld_i) begin
       cmd_vld_q <= 1'b0;
     end
 
