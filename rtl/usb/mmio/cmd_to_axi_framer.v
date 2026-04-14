@@ -28,8 +28,8 @@ module cmd_to_axi_framer #(
     input cmd_vld_i,
     input cmd_dir_i,
     input cmd_ack_i,
-    output cmd_err_o,
     output cmd_rdy_o,
+    output cmd_err_o,
     input [15:0] cmd_len_i,
     input [3:0] cmd_lun_i,
     input [27:0] cmd_adr_i,
@@ -52,19 +52,19 @@ module cmd_to_axi_framer #(
 
   localparam ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8, ST_SEND = 16, ST_DONE = 32, ST_FAIL = 64;
   integer state;
-  reg [9:0] beat_num_q;
+  reg [10:0] beat_num_q;
   wire cmd_err_w, beat_err_w;
   wire wr_ready_w, rd_ready_w;
-  wire [9:0] beat_num_w, beat_nxt_w;
+  wire [10:0] beat_num_w, beat_nxt_w;
 
-  reg axi_vld_q;
-  reg [7:0] axi_len_q;
+  reg cmd_rdy_q, axi_vld_q;
+  reg [ 7:0] axi_len_q;
   reg [31:0] axi_adr_q;
   wire [7:0] axi_len_w, len_nxt_w;
   wire [31:0] adr_nxt_w;
   wire [FSB:0] wr_level_w, rd_level_w;
 
-  assign cmd_rdy_o  = state == ST_DONE;
+  assign cmd_rdy_o  = cmd_rdy_q;
   assign cmd_err_o  = state == ST_FAIL;
 
   assign usb_recv_o = state == ST_RECV;
@@ -77,18 +77,18 @@ module cmd_to_axi_framer #(
   assign axi_adr_o  = axi_adr_q;
 
   // Compute the total number of AXI transaction beats.
-  assign beat_num_w = cmd_len_i[11:2];
+  assign beat_num_w = cmd_len_i[11:2] + 1;
   assign beat_err_w = cmd_len_i[15:12] != 4'd0;
   assign beat_nxt_w = beat_num_q - axi_len_q - 1;
 
-  assign axi_len_w  = beat_num_w < BURST_BEATS ? beat_num_w[7:0] : BURST_BEATS;
-  assign len_nxt_w  = beat_nxt_w < BURST_BEATS ? beat_nxt_w[7:0] : BURST_BEATS;
+  assign axi_len_w  = beat_num_w < BURST_BEATS ? (beat_num_w[7:0] - 1) : BURST_BEATS;
+  assign len_nxt_w  = beat_nxt_w < BURST_BEATS ? (beat_nxt_w[7:0] - 1) : BURST_BEATS;
   assign adr_nxt_w  = axi_adr_q + axi_len_q + 1;
 
   assign wr_level_w = fifo_wr_level_i[FBITS:2];
   assign rd_level_w = fifo_rd_level_i[FBITS:2];
-  assign wr_ready_w = wr_level_w > beat_num_q || wr_level_w > BURST_BEATS;
-  assign rd_ready_w = rd_level_w > beat_num_q || rd_level_w > USB_DWORDS;
+  assign wr_ready_w = wr_level_w >= beat_num_q || wr_level_w >= BURST_BEATS;
+  assign rd_ready_w = rd_level_w >= beat_num_q || rd_level_w >= USB_DWORDS;
 
   /**
    * Data transfer counting and address calculation.
@@ -107,14 +107,14 @@ module cmd_to_axi_framer #(
         end
 
         ST_RECV:
-        if (wr_ready_w && axi_ack_i) begin
+        if (wr_ready_w) begin
           beat_num_q <= beat_nxt_w;
           axi_len_q  <= len_nxt_w;
           axi_adr_q  <= adr_nxt_w;
         end
 
         ST_SEND:
-        if (rd_ready_w && axi_ack_i) begin
+        if (rd_ready_w) begin
           beat_num_q <= beat_nxt_w;
           axi_len_q  <= len_nxt_w;
           axi_adr_q  <= adr_nxt_w;
@@ -132,8 +132,6 @@ module cmd_to_axi_framer #(
   /**
    * AXI command issuing logic.
    */
-  `define __biscuit_delivery
-`ifdef __biscuit_delivery
   always @(posedge cmd_clk) begin
     if (cmd_rst || axi_ack_i || axi_fin_i) begin
       axi_vld_q <= 1'b0;
@@ -146,24 +144,17 @@ module cmd_to_axi_framer #(
     end
   end
 
-`else  /*! __biscuit_delivery */
-  // Todo: this version has a large delay between issuing the AXI command, and
-  // transferring the data.
   always @(posedge cmd_clk) begin
-    if (cmd_rst || axi_ack_i || axi_fin_i) begin
-      axi_vld_q <= 1'b0;
+    if (cmd_rst) begin
+      cmd_rdy_q <= 1'b0;
     end else begin
       case (state)
-        ST_IDLE: axi_vld_q <= cmd_vld_i;
-        ST_WRIT: axi_vld_q <= axi_fin_i && beat_num_q > 0;
-        ST_SEND: axi_vld_q <= usb_sent_i && beat_num_q > 0;
-        default: axi_vld_q <= 1'b0;
+        ST_WRIT: cmd_rdy_q <= beat_num_q == 0 && axi_fin_i;
+        ST_SEND: cmd_rdy_q <= beat_num_q == 0 && usb_sent_i;
+        default: cmd_rdy_q <= 1'b0;
       endcase
     end
   end
-
-`endif  /* !__biscuit_delivery */
-  `undef __biscuit_delivery
 
   // -- Main AXI-Framing State Machine -- //
 

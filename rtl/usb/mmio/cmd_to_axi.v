@@ -25,6 +25,7 @@ module cmd_to_axi #(
     input [15:0] cmd_len_i,
     input [3:0] cmd_lun_i,
     input [27:0] cmd_adr_i,
+    output cmd_rdy_o,
     output cmd_err_o,
     output [15:0] cmd_res_o,
 
@@ -169,160 +170,6 @@ module cmd_to_axi #(
     arst <= rst1;
   end
 
-`ifdef __biscuit_delivery
-
-  localparam [3:0] WR_IDLE = 1;
-  localparam [3:0] WR_ADDR = 2;
-  localparam [3:0] WR_DATA = 4;
-  localparam [3:0] WR_RESP = 8;
-
-  localparam [3:0] RD_IDLE = 1;
-  localparam [3:0] RD_ADDR = 2;
-  localparam [3:0] RD_DATA = 4;
-  localparam [3:0] RD_SEND = 8;
-
-  // -- Awful, disgusting, no-good state machine -- //
-
-  localparam ST_IDLE = 1;
-  localparam ST_WADR = 2;
-  localparam ST_WDAT = 4;
-  localparam ST_RESP = 8;
-  localparam ST_RADR = 16;
-  localparam ST_RDAT = 32;
-  localparam ST_SEND = 64;
-  localparam ST_DONE = 128;
-
-  localparam [3:0] EP_IDLE = 4'd1, EP_READ = 4'd2, EP_WRIT = 4'd4, EP_RESP = 4'd8;
-
-  //
-  //  Datapath signal declarations.
-  //
-
-  // -- Command (USB) clock-domain signals and state -- //
-
-  reg [3:0] state;
-  reg vld_q, stb_q, cyc_q, err_q;
-
-  assign cmd_err_o = err_q;
-  assign cmd_res_o = res_q;
-
-  // Todo: make less combinational ...
-  assign dat_tready_o = sready_w && cready_w && cyc_q;
-
-  // Todo ...
-  assign awvalid_o = cmd_m && !rd_m;
-  assign awburst_o = BURST_TYPE_INCR;
-  assign awlen_o   = len_m;
-  assign awid_o    = tid_m;
-  assign awaddr_o  = adr_m;
-
-  // Write-buffer (FIFO) assignments, to the DDR3 controller
-  assign wvalid_o = wr == WR_DATA && x_tvalid;
-  assign wlast_o  = wr == WR_DATA && x_tlast;
-  assign wstrb_o  = {STROBES{x_tvalid}};
-  assign wdata_o  = x_tdata;
-
-  // Read-address assignments, to the DDR3 controller
-  assign arvalid_o = cmd_m && rd_m;
-  assign arburst_o = BURST_TYPE_INCR;
-  assign arlen_o   = len_m;
-  assign arid_o    = tid_m;
-  assign araddr_o  = adr_m;
-
-  assign rready_o = rd == RD_DATA && fready_w;
-
-
-  //
-  //  USB clock-domain FSM for transactions.
-  //
-  wire stb_w;
-  wire [16:0] dec_w;
-
-  assign cvalid_w = stb_q;
-  assign cdata_w = {cmd_dir_i, cmd_tag_i, cmd_len_i[7:0], cmd_lun_i, cmd_adr_i};
-
-  assign rready_w = state == ST_RESP;
-
-  assign stb_w = !vld_q && cmd_vld_i;
-  assign dec_w = res_q - 1;
-
-  always @(posedge cmd_clk) begin
-    if (cmd_rst) begin
-      vld_q <= 1'b0;
-      cyc_q <= 1'b0;
-      stb_q <= 1'b0;
-    end else begin
-      vld_q <= cmd_vld_i;
-      stb_q <= stb_w;
-
-      if (stb_w) begin
-        cyc_q <= 1'b1;
-      end else if (cmd_ack_i) begin
-        cyc_q <= 1'b0;
-      end
-    end
-  end
-
-  always @(posedge cmd_clk or negedge aresetn) begin
-    if (cmd_rst || !aresetn) begin
-      err_q <= 1'b0;
-      res_q <= 16'bx;
-    end else if (cmd_vld_i) begin
-      if (stb_q) begin
-        res_q <= cmd_len_i;
-      end else if (dat_tvalid_i && dat_tready_o && !dat_tlast_i) begin
-        res_q <= dec_w;
-      end else if (dat_tvalid_o && dat_tready_i && !dat_tlast_o) begin
-        res_q <= dec_w;
-      end
-
-      // Todo: check the AXI responses, and assert error-flag, as necessary.
-    end
-  end
-
-  /**
-   * Transaction-framing logic, for AXI requests.
-   */
-  reg [14:0] len_q;
-  reg [3:0] dqs_q;
-  reg [31:0] adr_q;
-  reg lst_q;
-  wire bdy_w, pag_w;
-
-  // Compute the number of 32-bit AXI transfers, for (len-1) bytes, and with the
-  // address alignment of the request.
-  wire [14:0] len_w = 14'd1 + cmd_len_i[15:2] + (cmd_len_i[1:0] + cmd_adr_i[1:0] > 3'd3);
-
-  always @(posedge cmd_clk) begin
-    if (cmd_rst) begin
-      state <= EP_IDLE;
-    end else begin
-      case (state)
-        EP_IDLE: begin
-          state <= state;
-          //
-          // Todo:
-          //  - break large bursts into USB frame-sized chunks;
-          //  - split bursts that cross 4kB page-boundaries;
-          //  - support for unaligned addresses;
-          //
-          lst_q <= cmd_len_i == 16'd1;  // Todo
-          len_q <= len_w;
-          dqs_q <= 4'b1111 << cmd_adr_i[1:0];
-          adr_q <= {cmd_lun_i, cmd_adr_i};
-        end
-        EP_READ: state <= state;
-        EP_WRIT: begin
-          state <= state;
-          lst_q <= bdy_w || pag_w;
-        end
-        EP_RESP: state <= state;
-      endcase
-    end
-  end
-
-`else  /*! __biscuit_delivery */
-
   /**
    * Generates AXI(4) requests in response to commands from the USB interface.
    * The `axi_*` outputs are to be fed into async. FIFOs, and data is handled
@@ -336,6 +183,7 @@ module cmd_to_axi #(
   wire [ 3:0] axi_strobe_w;
   wire [31:0] axi_address_w;
 
+  assign cmd_rdy_o = cmd_rdy_w;
   assign cmd_err_o = cmd_err_w;
   assign cmd_res_o = cmd_len_i;
 
@@ -349,14 +197,14 @@ module cmd_to_axi #(
 
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
-      {cmd_ack_q, cmd_vld_q} <= 2'b00;
+      cmd_vld_q <= 1'b0;
     end else if (cready_w && cmd_vld_i && !cmd_err_w) begin
       cmd_vld_q <= 1'b1;
     end else if (cmd_rdy_w || cmd_err_w) begin
       cmd_vld_q <= 1'b0;
     end
 
-    cmd_ack_q <= cmd_ack_i;
+    cmd_ack_q <= cmd_ack_i && !cmd_rst;
 
     if (cmd_rst) begin
       axi_vld_q <= 1'b0;
@@ -372,8 +220,8 @@ module cmd_to_axi #(
       .cmd_vld_i(cmd_vld_q),
       .cmd_dir_i(cmd_dir_i),
       .cmd_ack_i(cmd_ack_q),
-      .cmd_err_o(cmd_err_w),
       .cmd_rdy_o(cmd_rdy_w),
+      .cmd_err_o(cmd_err_w),
       .cmd_len_i(cmd_len_i),
       .cmd_lun_i(cmd_lun_i),
       .cmd_adr_i(cmd_adr_i),
@@ -394,8 +242,6 @@ module cmd_to_axi #(
       .axi_adr_o(axi_address_w)
   );
 
-`endif  /* !__biscuit_delivery */
-
   //
   //  AXI clock-domain FSMs for read- & write- transactions.
   //
@@ -414,7 +260,7 @@ module cmd_to_axi #(
       if (rd_w && fready_w) begin
         a_vld <= 1'b1;
         a_ack <= 1'b0;
-      end else if (!rd_w && !x_tvalid) begin
+      end else if (!rd_w && x_tvalid) begin
         a_vld <= 1'b1;
         a_ack <= 1'b0;
       end

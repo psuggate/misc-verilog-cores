@@ -105,9 +105,9 @@ module usb_mmio (
     input [31:0] axi_rdata_i
 );
 
-  reg sel_apb_q, sel_axi_q, cmd_ack_q, cmd_err_q;
-  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w, cmd_rdy_w;
-  wire apb_err_w, axi_err_w;
+  reg sel_apb_q, sel_axi_q, cmd_ack_q, cmd_rdy_q, cmd_err_q;
+  wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w;
+  wire apb_rdy_w, axi_rdy_w, apb_err_w, axi_err_w;
   reg  [15:0] cmd_val_q;
   wire [ 1:0] cmd_cmd_w;
   wire [15:0] cmd_len_w, apb_val_w, axi_res_w;
@@ -165,7 +165,8 @@ module usb_mmio (
         done_q <= 1'b0;
       end
 
-      if (recv_w || cmd_rdy_w || apb_err_w) begin
+      // if (recv_w || apb_rdy_w || axi_rdy_w || apb_err_w || axi_err_w) begin
+      if (apb_rdy_w || axi_rdy_w || apb_err_w || axi_err_w) begin
         send_q <= 1'b1;
       end else begin  // if (sent_w) begin
         send_q <= 1'b0;
@@ -291,7 +292,7 @@ module usb_mmio (
 
       // From MMIO controller
       .mmio_busy_i(busy_q),
-      .mmio_recv_i(recv_w),
+      .mmio_recv_i(1'b0),    // Todo: handle AXI -> Bulk IN `recv_w`
       .mmio_send_i(send_q),
       .mmio_sent_o(sent_w),
       .mmio_resp_o(resp_w),
@@ -313,7 +314,7 @@ module usb_mmio (
       .cmd_tag_i(cmd_tag_w),
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
-      .cmd_rdy_i(cmd_rdy_w),
+      .cmd_rdy_i(cmd_rdy_q),
       .cmd_err_i(cmd_err_q),
       .cmd_val_i(cmd_val_q),
 
@@ -342,6 +343,7 @@ module usb_mmio (
     end else begin
       cmd_ack_q <= cmd_ack_w;
       cmd_err_q <= apb_err_w || axi_err_w;
+      cmd_rdy_q <= apb_rdy_w || axi_rdy_w;
       cmd_val_q <= sel_apb_q ? apb_val_w : axi_res_w;
     end
   end
@@ -354,11 +356,9 @@ module usb_mmio (
       sel_apb_q <= 1'b0;
       sel_axi_q <= 1'b0;
     end else begin
-      // if (!sel_apb_q && cmd_vld_w && cmd_apb_w) begin
       if (cmd_vld_w && cmd_apb_w) begin
         sel_apb_q <= 1'b1;
       end
-      // if (!sel_axi_q && cmd_vld_w && !cmd_apb_w) begin
       if (cmd_vld_w && !cmd_apb_w) begin
         sel_axi_q <= 1'b1;
       end
@@ -382,7 +382,7 @@ module usb_mmio (
       .cmd_val_i(cmd_len_w),
       .cmd_adr_i(cmd_adr_w),
       .cmd_lun_i(cmd_lun_w),
-      .cmd_rdy_o(cmd_rdy_w),
+      .cmd_rdy_o(apb_rdy_w),
       .cmd_err_o(apb_err_w),
       .cmd_val_o(apb_val_w),
 
@@ -398,9 +398,6 @@ module usb_mmio (
       .pwdata_o (pwdata_o),
       .prdata_i (prdata_i)
   );
-
-  `define __spanner_montana
-`ifdef __spanner_montana
 
   /**
    * Issues AXI transactions, transfers data to/from AXI bus, and then sends
@@ -418,6 +415,7 @@ module usb_mmio (
       .cmd_len_i(cmd_len_w),
       .cmd_lun_i(cmd_lun_w),
       .cmd_adr_i(cmd_adr_w),
+      .cmd_rdy_o(axi_rdy_w),
       .cmd_err_o(axi_err_w),
       .cmd_res_o(axi_res_w),
 
@@ -469,6 +467,23 @@ module usb_mmio (
       .rdata_i(axi_rdata_i)
   );
 
-`endif  /* __spanner_montana */
+`ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_READ: dbg_state = "READ";
+      ST_WAIT: dbg_state = "WAIT";
+      ST_RESP: dbg_state = "RESP";
+      ST_HALT: dbg_state = "HALT";
+      default: dbg_state = " ?? ";
+    endcase
+  end
+
+`endif  /* __icarus */
 
 endmodule  /* usb_mmio */
