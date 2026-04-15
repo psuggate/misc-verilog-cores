@@ -300,7 +300,9 @@ module mmio_ep_in #(
         end else if (mmio_recv_i) begin
           state <= EP_SEND;
         end
-        EP_SEND: state <= sent ? EP_RESP : state;
+        // EP_SEND: state <= xmit == TX_IDLE ? EP_IDLE : state;
+        EP_SEND: state <= sent ? EP_IDLE : state;
+        // EP_SEND: state <= sent ? EP_RESP : state;
         EP_RESP: state <= resp ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
@@ -384,7 +386,7 @@ module mmio_ep_in #(
 
     case (xmit)
       TX_IDLE:
-      if (mmio_send_i) begin
+      if (mmio_send_i || mmio_recv_i) begin
         snxt = TX_SEND;
       end
 
@@ -421,6 +423,20 @@ module mmio_ep_in #(
   end
 
   assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o && !smax_w;
+
+  /*
+  reg last;
+
+  always @(posedge clock) begin
+    if (reset) begin
+      last <= 1'b0;
+    end else if (sent_w) begin
+      last <= 1'b1;
+    end else if (last && xmit == TX_IDLE) begin
+      last <= 1'b0;
+    end
+  end
+*/
 
   always @(posedge clock) begin
     xmit <= snxt;

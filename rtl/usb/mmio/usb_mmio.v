@@ -107,14 +107,14 @@ module usb_mmio (
 
   reg sel_apb_q, sel_axi_q, cmd_ack_q, cmd_rdy_q, cmd_err_q;
   wire cmd_vld_w, cmd_ack_w, cmd_dir_w, cmd_apb_w;
-  wire apb_rdy_w, axi_rdy_w, apb_err_w, axi_err_w;
+  wire apb_rdy_w, axi_rdy_w, apb_err_w, axi_err_w, axi_out_w;
   reg  [15:0] cmd_val_q;
   wire [ 1:0] cmd_cmd_w;
   wire [15:0] cmd_len_w, apb_val_w, axi_res_w;
   wire [3:0] cmd_tag_w, cmd_lun_w;
   wire [27:0] cmd_adr_w;
 
-  reg busy_q, send_q, done_q;
+  reg busy_q, send_q, resp_q, xmit_q, done_q;
   wire recv_w, sent_w, resp_w;
   wire s_tvalid, s_tready, s_tkeep, s_tlast;
   wire m_tvalid, m_tready, m_tkeep, m_tlast;
@@ -151,10 +151,16 @@ module usb_mmio (
 
     if (clear) begin
       busy_q <= 1'b0;
+      xmit_q <= 1'b0;
+      resp_q <= 1'b0;
       send_q <= 1'b0;
       done_q <= 1'b0;
     end else begin
-      if (cmd_ack_w) begin
+      // if (axi_rdy_w && axi_dir_w && usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
+      if (state == ST_READ && usb_ack_recv_i) begin
+        busy_q <= 1'b1;
+        done_q <= 1'b1;
+      end else if (cmd_ack_w) begin
         busy_q <= 1'b0;
         done_q <= 1'b1;
       end else if (cmd_vld_w) begin
@@ -165,11 +171,23 @@ module usb_mmio (
         done_q <= 1'b0;
       end
 
-      // if (recv_w || apb_rdy_w || axi_rdy_w || apb_err_w || axi_err_w) begin
       if (apb_rdy_w || axi_rdy_w || apb_err_w || axi_err_w) begin
-        send_q <= 1'b1;
-      end else begin  // if (sent_w) begin
-        send_q <= 1'b0;
+        resp_q <= 1'b1;
+      end else if (send_q) begin
+        resp_q <= 1'b0;
+      end
+
+      case (state)
+        ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q);
+        ST_RESP: send_q <= !send_q && resp_q;  // && (axi_rdy_w || axi_err_w);
+        default: send_q <= 1'b0;
+      endcase
+
+      // Todo: send data from AXI via USB Bulk IN to the host.
+      if (axi_out_w) begin
+        xmit_q <= 1'b1;
+      end else begin
+        xmit_q <= 1'b0;
       end
     end
   end
@@ -198,6 +216,9 @@ module usb_mmio (
           // For 'GET', 'READY', and 'QUERY' requests.
           if (cmd_apb_w && pready_i) begin
             state <= ST_RESP;
+            // end else if (axi_rdy_w) begin // sent_w) begin
+          end else if (usb_ack_recv_i) begin  // sent_w) begin
+            state <= ST_WAIT;
           end
         end
 
@@ -292,7 +313,7 @@ module usb_mmio (
 
       // From MMIO controller
       .mmio_busy_i(busy_q),
-      .mmio_recv_i(1'b0),    // Todo: handle AXI -> Bulk IN `recv_w`
+      .mmio_recv_i(xmit_q),  // Todo: handle AXI -> Bulk IN `recv_w`
       .mmio_send_i(send_q),
       .mmio_sent_o(sent_w),
       .mmio_resp_o(resp_w),
@@ -355,13 +376,9 @@ module usb_mmio (
     if (reset || cmd_ack_w) begin
       sel_apb_q <= 1'b0;
       sel_axi_q <= 1'b0;
-    end else begin
-      if (cmd_vld_w && cmd_apb_w) begin
-        sel_apb_q <= 1'b1;
-      end
-      if (cmd_vld_w && !cmd_apb_w) begin
-        sel_axi_q <= 1'b1;
-      end
+    end else if (cmd_vld_w) begin
+      sel_apb_q <= cmd_apb_w;
+      sel_axi_q <= !cmd_apb_w;
     end
   end
 
@@ -418,6 +435,9 @@ module usb_mmio (
       .cmd_rdy_o(axi_rdy_w),
       .cmd_err_o(axi_err_w),
       .cmd_res_o(axi_res_w),
+
+      .usb_send_o(axi_out_w),
+      .usb_sent_i(sent_w),
 
       .dat_tvalid_i(m_tvalid),
       .dat_tready_o(m_tready),

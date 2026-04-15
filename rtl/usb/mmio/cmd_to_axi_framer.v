@@ -71,7 +71,7 @@ module cmd_to_axi_framer #(
   assign usb_send_o = state == ST_SEND;
 
   assign axi_vld_o  = axi_vld_q;
-  assign axi_dir_o  = state == ST_RECV;
+  assign axi_dir_o  = state == ST_READ;
   assign axi_len_o  = axi_len_q;
   assign axi_stb_o  = 4'hf;
   assign axi_adr_o  = axi_adr_q;
@@ -83,7 +83,7 @@ module cmd_to_axi_framer #(
 
   assign axi_len_w  = beat_num_w < BURST_BEATS ? (beat_num_w[7:0] - 1) : BURST_BEATS;
   assign len_nxt_w  = beat_nxt_w < BURST_BEATS ? (beat_nxt_w[7:0] - 1) : BURST_BEATS;
-  assign adr_nxt_w  = axi_adr_q + axi_len_q + 1;
+  assign adr_nxt_w  = axi_adr_q + ((axi_len_q + 1) << 2);
 
   assign wr_level_w = fifo_wr_level_i[FBITS:2];
   assign rd_level_w = fifo_rd_level_i[FBITS:2];
@@ -106,14 +106,14 @@ module cmd_to_axi_framer #(
           axi_adr_q  <= cmd_adr_i;
         end
 
-        ST_RECV:
-        if (wr_ready_w) begin
+        ST_WRIT:
+        if (axi_ack_i) begin
           beat_num_q <= beat_nxt_w;
           axi_len_q  <= len_nxt_w;
           axi_adr_q  <= adr_nxt_w;
         end
 
-        ST_SEND:
+        ST_READ:
         if (rd_ready_w) begin
           beat_num_q <= beat_nxt_w;
           axi_len_q  <= len_nxt_w;
@@ -138,7 +138,8 @@ module cmd_to_axi_framer #(
     end else begin
       case (state)
         ST_RECV: axi_vld_q <= wr_ready_w;
-        ST_READ: axi_vld_q <= rd_ready_w;
+        ST_IDLE: axi_vld_q <= cmd_vld_i && cmd_dir_i;
+        ST_SEND: axi_vld_q <= beat_num_q > 0 && usb_sent_i;
         default: axi_vld_q <= 1'b0;
       endcase
     end

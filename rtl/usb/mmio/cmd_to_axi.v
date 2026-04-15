@@ -11,7 +11,7 @@ module cmd_to_axi #(
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1,
     parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
-    localparam RD_FRAME_FIFO = 0  // Not useful ??
+    localparam RD_FRAME_FIFO = 1  // Todo: Not useful ??
 ) (  // USB bus (command) clock-domain
     input cmd_clk,
     input cmd_rst,
@@ -28,6 +28,9 @@ module cmd_to_axi #(
     output cmd_rdy_o,
     output cmd_err_o,
     output [15:0] cmd_res_o,
+
+    output usb_send_o,
+    input  usb_sent_i,
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     input dat_tvalid_i,
@@ -101,7 +104,7 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg [15:0] res_q;
-  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w;
+  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w, com_rd_level_w;
   wire svalid_w, sready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
   wire [ISB:0] rid_w;
@@ -129,6 +132,8 @@ module cmd_to_axi #(
   wire [  SSB:0] x_tkeep;
   wire [ISB:0] x_tid, y_tid, tid_w;
   wire [MSB:0] x_tdata;
+
+  assign usb_send_o = usb_send_q;
 
   // Todo ...
   assign awvalid_o = cmd_m && !rd_m;
@@ -175,7 +180,7 @@ module cmd_to_axi #(
    * The `axi_*` outputs are to be fed into async. FIFOs, and data is handled
    * external to this module.
    */
-  reg cmd_vld_q, cmd_ack_q, axi_vld_q;
+  reg cmd_vld_q, cmd_ack_q, axi_vld_q, usb_send_q;
   wire cmd_err_w, cmd_rdy_w, usb_send_w, usb_sent_w;
 
   wire usb_recv_w, axi_write_w;
@@ -188,7 +193,8 @@ module cmd_to_axi #(
   assign cmd_res_o = cmd_len_i;
 
   // Todo: make less combinational ...
-  assign usb_sent_w = dat_tvalid_o && dat_tlast_o && dat_tready_i;
+  // assign usb_sent_w = dat_tvalid_o && dat_tlast_o && dat_tready_i;
+  assign usb_sent_w = usb_sent_i;
   assign cdata_w = {axi_write_w, cmd_tag_i, axi_length_w[7:0], axi_address_w};
 
   // assign dat_tvalid_o = usb_send_w && sready_w;
@@ -210,6 +216,29 @@ module cmd_to_axi #(
       axi_vld_q <= 1'b0;
     end else if (cmd_vld_q) begin
       axi_vld_q <= cvalid_w && cready_w;
+    end
+  end
+
+  // Signal the USB controller to send a USB 'Bulk IN' frame.
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      usb_send_q <= 1'b0;
+    end else if (usb_send_w && !usb_send_q && dat_tvalid_o && !dat_tready_i && dat_tkeep_o) begin
+      usb_send_q <= 1'b1;
+    end else if (dat_tready_i) begin
+      usb_send_q <= 1'b0;
+    end
+  end
+
+  reg b_xfer_q;
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      b_xfer_q <= 1'b0;
+    end else if (usb_send_w && b_tvalid) begin
+      b_xfer_q <= 1'b1;
+    end else if (!b_tvalid) begin
+      b_xfer_q <= 1'b0;
     end
   end
 
@@ -538,7 +567,7 @@ module cmd_to_axi #(
       .m_rst(cmd_rst),
 
       .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
-      .m_axis_tready(b_tready),
+      .m_axis_tready(b_tready && b_xfer_q),
       .m_axis_tkeep(b_tkeep),
       .m_axis_tlast(b_tlast),
       .m_axis_tid(b_tid),
@@ -557,7 +586,7 @@ module cmd_to_axi #(
       .s_status_bad_frame(),
       .s_status_good_frame(),
       .m_status_depth(cmd_rd_level_w),  // Status
-      .m_status_depth_commit(),
+      .m_status_depth_commit(com_rd_level_w),
       .m_status_overflow(),
       .m_status_bad_frame(),
       .m_status_good_frame()
@@ -580,7 +609,7 @@ module cmd_to_axi #(
       .clk(cmd_clk),
       .rst(cmd_rst),
 
-      .s_axis_tvalid(b_tvalid),  // AXI input: 32b
+      .s_axis_tvalid(b_tvalid && b_xfer_q),  // AXI input: 32b
       .s_axis_tready(b_tready),
       .s_axis_tkeep({STROBES{b_tvalid}}),
       .s_axis_tlast(b_tlast),
