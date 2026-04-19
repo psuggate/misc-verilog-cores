@@ -1,5 +1,6 @@
 `timescale 1ns / 100ps
 module cmd_to_axi #(
+    parameter USB_DWORDS = 128,
     parameter FIFO_DEPTH = 512,
     localparam DATA_WIDTH = 32,
     localparam MSB = DATA_WIDTH - 1,

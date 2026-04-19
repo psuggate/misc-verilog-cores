@@ -1,26 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sun Apr 19 04:26:19 2026
+[*] Sun Apr 19 09:24:41 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Sun Apr 19 04:25:47 2026"
-[dumpfile_size] 366063
+[dumpfile_mtime] "Sun Apr 19 09:24:24 2026"
+[dumpfile_size] 367208
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
-[timestart] 0
+[timestart] 2601700
 [size] 2560 1513
 [pos] -1 -1
-*-20.297403 11984000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-17.297403 3616000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usb_mmio_tb.
 [treeopen] usb_mmio_tb.U_REQ1.
 [treeopen] usb_mmio_tb.U_REQ1.U_AXI_CTRL0.
 [sst_width] 314
 [signals_width] 180
 [sst_expanded] 1
-[sst_vpaned_height] 641
+[sst_vpaned_height] 617
 @28
 usb_mmio_tb.clock
 usb_mmio_tb.reset
-@c00200
+@800200
 -Bench
 @28
 [color] 3
@@ -41,7 +41,12 @@ usb_mmio_tb.lim_q
 @28
 [color] 2
 usb_mmio_tb.zdp_q
-@1401200
+@421
+[color] 5
+usb_mmio_tb.txcnt
+[color] 5
+usb_mmio_tb.rxcnt
+@1000200
 -Bench
 @820
 [color] 7
@@ -237,7 +242,7 @@ usb_mmio_tb.U_REQ1.U_EPOUT0.dbg_state[39:0]
 usb_mmio_tb.U_REQ1.U_EPOUT0.dbg_parse[39:0]
 @1401200
 -EP Out
-@c00201
+@c00200
 -EP In
 @28
 usb_mmio_tb.U_REQ1.U_EPIN0.en_q
@@ -307,7 +312,7 @@ usb_mmio_tb.U_REQ1.U_EPIN0.idx_q[2:0]
 usb_mmio_tb.U_REQ1.U_EPIN0.dbg_state[39:0]
 [color] 7
 usb_mmio_tb.U_REQ1.U_EPIN0.dbg_xmit[39:0]
-@1401201
+@1401200
 -EP In
 @c00200
 -AXI Ctrl

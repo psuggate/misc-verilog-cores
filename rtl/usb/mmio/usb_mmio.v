@@ -429,7 +429,10 @@ module usb_mmio #(
    * Issues AXI transactions, transfers data to/from AXI bus, and then sends
    * the result to Bulk-In EP.
    */
-  cmd_to_axi U_AXI_CTRL0 (
+  cmd_to_axi #(
+      .USB_DWORDS(MAX_PACKET_LENGTH / 4),
+      .FIFO_DEPTH(PACKET_FIFO_DEPTH / 4)
+  ) U_AXI_CTRL0 (
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
 

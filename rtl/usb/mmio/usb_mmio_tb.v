@@ -9,6 +9,10 @@ module usb_mmio_tb;
   `include "axi_defs.vh"
 
   localparam MAX_PACKET_LENGTH = 64;
+  localparam PBITS = $clog2(MAX_PACKET_LENGTH);
+  localparam PSB = PBITS - 1;
+  localparam PZERO = {PBITS{1'b0}};
+
   localparam FIFO_DEPTH = 512;
   localparam DATA_WIDTH = 32;
   localparam MSB = DATA_WIDTH - 1;
@@ -375,14 +379,116 @@ module usb_mmio_tb;
   //
   //  Simulation tasks for entire transactions.
   //
-  integer lim_q;
-  reg [10:0] cnt_q;
-  reg [7:0] rnd_q;
-  reg [87:0] req_q;
+  integer lim_q, txcnt, rxcnt;
+  reg  [10:0] cnt_q;
+  reg  [ 7:0] rnd_q;
+  reg  [87:0] req_q;
   wire [11:0] inc_w;
+  wire [31:0] txnxt, rxnxt;
 
   assign s_tdata = req_q[7:0];
   assign inc_w   = cnt_q + 1;
+  assign txnxt   = txcnt - s_tkeep;
+  assign rxnxt   = rxcnt - m_tkeep;
+
+  task tx_bytes;
+    input [15:0] bytes;
+    begin
+      @(negedge clock) $display("%11t: Transmit frame (bytes = %1d)", $time, bytes);
+      @(posedge clock) begin
+        txcnt <= #2 bytes;
+        epo_sel_q <= #2 1'b1;
+        {s_tlast, s_tkeep, s_tvalid} <= #2 3'h0;
+      end
+
+      @(negedge clock) $display("%11t: Starting frame", $time);
+      @(posedge clock) begin
+        {s_tlast, s_tkeep, s_tvalid} <= #2{bytes > 1 ? 1'b0 : 1'b1, bytes > 0 ? 1'b1 : 1'b0, 1'b1};
+        txcnt <= #2 s_tvalid && s_tready && bytes > 0 ? txnxt : txcnt;
+      end
+      @(negedge clock);
+
+      while (!(s_tvalid && s_tready && s_tlast)) begin
+        @(posedge clock);
+        if (s_tready) begin
+          txcnt   <= #2 txnxt;
+          req_q   <= #2{rnd_q, req_q[87:8]};
+          rnd_q   <= #2 $urandom;
+          s_tlast <= #2 txnxt > 1 ? 1'b0 : 1'b1;
+        end
+        @(negedge clock);
+      end
+
+      $display("%11t: Frame sent (bytes = %1d)", $time, bytes);
+      @(posedge clock);
+      {s_tlast, s_tkeep, s_tvalid} <= #2 3'h0;
+
+      // Todo: the target device is supposed to 'ACK' the command frame.
+      @(negedge clock) #32 $display("%11t: Receiving USB ACK", $time);
+      @(posedge clock) ack_sent_q <= #2 1'b1;
+      #16 ack_sent_q <= #2 1'b0;
+
+      @(negedge clock) #16 $display("%11t: Finished frame", $time);
+      @(posedge clock) epo_sel_q <= #2 1'b0;
+    end
+  endtask  /* tx_bytes */
+
+  task rx_bytes;
+    input [15:0] bytes;
+    begin
+      epi_sel_q <= #2 1'b1;
+      @(negedge clock) $display("%11t: Receive frame (bytes = %1d)", $time, bytes);
+      @(posedge clock) begin
+        rxcnt <= #2 bytes;
+        m_tready <= #2 1'b1;
+      end
+
+      @(negedge clock) $display("%11t: Starting frame", $time);
+      @(posedge clock) begin
+        din_q <= #2 m_tvalid && m_tready ? {m_tdata, 48'bx} : 56'bx;
+        rxcnt <= #2 m_tvalid && m_tready && bytes > 0 ? rxnxt : rxcnt;
+      end
+      @(negedge clock);
+
+      while (!(m_tvalid && m_tready && m_tlast)) begin
+        @(posedge clock)
+        if (m_tvalid) begin
+          rxcnt <= #2 rxnxt;
+          din_q <= #2{m_tdata, din_q[55:8]};
+        end
+        @(negedge clock);
+      end
+      if (rxcnt == 0) begin
+        $display("%11t: Frame received (bytes = %1d)", $time, bytes);
+      end else begin
+        $error("%11t: Invalid frame length (remainder = %1d)", $time, rxcnt);
+        #640 $fatal(1);
+      end
+      @(posedge clock) m_tready <= #2 1'b0;
+
+      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
+      @(posedge clock) ack_recv_q <= #2 1'b1;
+      #16 ack_recv_q <= #2 1'b0;
+
+      @(negedge clock) #16 $display("%11t: Finished frame", $time);
+      @(posedge clock) epi_sel_q <= #2 1'b0;
+    end
+  endtask  /* rx_bytes */
+
+  task cmd_bulk;
+    input [15:0] len;
+    input [3:0] tag;
+    input [3:0] cmd;
+    input [27:0] adr;
+    input [3:0] lun;
+    begin
+      $display("%11t: Starting CMD (0x%x, ADR: %7x)", $time, cmd, adr);
+      req_q <= #2{tag, cmd, len, lun, adr, "T", "R", "A", "T"};
+      rnd_q <= $urandom;
+      tx_bytes(11);
+      @(posedge clock) $display("%11t: Sent CMD", $time);
+    end
+  endtask  /* cmd_bulk */
 
   task cmd_send;
     input [15:0] len;
@@ -483,6 +589,21 @@ module usb_mmio_tb;
       @(posedge clock) #32 epi_sel_q <= #2 1'b0;
     end
   endtask  /* res_recv */
+
+  /**
+   * Send one or more Bulk-Out frames, terminated with a ZDP, if required.
+   */
+  task bulk_out;
+    input [15:0] bytes;
+    begin
+      tx_bytes(bytes);
+      if (bytes[PSB:0] == PZERO) begin
+        // if (zdp_q) begin
+        tx_bytes(0);
+        zdp_q <= 1'b0;
+      end
+    end
+  endtask  /* bulk_out */
 
   /**
    * Send one or more Bulk-Out frames, terminated with a ZDP, if required.
@@ -629,14 +750,12 @@ module usb_mmio_tb;
     input [27:0] addr;
     input [3:0] lun;
     begin
-      cmd_send({4'd0, size}, tag, `CMD_STORE, addr, lun);
-      @(negedge clock) #16 $display("%11t: Finished sending AXI STORE command", $time);
-
-      dat_send(size);
-      @(negedge clock) #16 $display("%11t: Finished sending AXI STORE data", $time);
-
-      #32 res_recv();
-      @(negedge clock) #16 $display("%11t: Completed AXI STORE, RES: %x", $time, din_q);
+      $display("%11t: ========================================", $time);
+      cmd_bulk({4'd0, size}, tag, `CMD_STORE, addr, lun);
+      bulk_out(size + 1);
+      // #24 res_recv();
+      #24 rx_bytes(6);
+      $display("%11t: ========================================", $time);
     end
   endtask  /* axi_send */
 
