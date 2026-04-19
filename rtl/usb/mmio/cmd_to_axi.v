@@ -243,7 +243,10 @@ module cmd_to_axi #(
     end
   end
 
-  cmd_to_axi_framer U_C2AF1 (
+  cmd_to_axi_framer #(
+      .USB_DWORDS(USB_DWORDS),
+      .FIFO_DEPTH(FIFO_DEPTH)
+  ) U_C2AF1 (
       .cmd_clk(cmd_clk),
       .cmd_rst(cmd_rst),
 

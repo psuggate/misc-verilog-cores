@@ -159,7 +159,8 @@ module usb_mmio #(
       send_q <= 1'b0;
       done_q <= 1'b0;
     end else begin
-      if (state == ST_READ && usb_ack_recv_i) begin
+      // if (state == ST_READ && usb_ack_recv_i) begin
+      if (state == ST_READ && sent_w) begin // EXPERIMENTAL
         busy_q <= 1'b1;
         done_q <= 1'b1;
       end else if (cmd_ack_w) begin
@@ -218,7 +219,8 @@ module usb_mmio #(
           // For 'GET', 'READY', and 'QUERY' requests.
           if (cmd_apb_w && pready_i) begin
             state <= ST_RESP;
-          end else if (usb_ack_recv_i) begin
+          // end else if (usb_ack_recv_i) begin
+          end else if (sent_w) begin
             state <= ST_WAIT;
           end
         end

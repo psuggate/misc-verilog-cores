@@ -19,6 +19,7 @@ module mmio_ep_in #(
     parameter PACKET_FIFO_DEPTH = 2048,
     localparam PBITS = $clog2(PACKET_FIFO_DEPTH),
     localparam PSB = PBITS - 1,
+    localparam PZERO = {PBITS{1'b0}},
     parameter [31:0] MAGIC = "TART",
     parameter ENABLED = 1  // Todo
 ) (
@@ -188,7 +189,7 @@ module mmio_ep_in #(
    * then deassert once we have sent the response back to the USB host.
    */
   always @(posedge clock) begin
-    if (clear || mmio_done_i) begin
+    if (clear || sent || mmio_done_i) begin
       enb_q <= 1'b1;
     end else if (mmio_send_i || mmio_recv_i) begin
       enb_q <= 1'b0;
@@ -314,33 +315,47 @@ module mmio_ep_in #(
   // Chop-up large transfers into the (configured) USB frame-size, and send a
   // ZDP, if transfer ends on a USB frame-boundary.
   //
+  reg [PSB:0] rcount, scount;
+  wire [PBITS:0] rcnext, scnext;
+  wire rmax_w, smax_w;
+
+/*
   reg [CSB:0] rcount, scount;
   wire [CBITS:0] rcnext, scnext;
   wire rmax_w, smax_w;
+*/
 
   /**
    * Receive Counter.
    */
-  assign rcnext = fifo_tlast_w ? {1'b0, CZERO} : rcount + 1;
+  // assign rcnext = rcount + 1;
+  assign rcnext = fifo_tlast_w ? {1'b0, PZERO} : rcount + 1;
+  // assign rcnext = fifo_tlast_w ? {1'b0, CZERO} : rcount + 1;
 
   always @(posedge clock) begin
     if (clear) begin
-      rcount <= CZERO;
+      rcount <= PZERO;
+      // rcount <= CZERO;
     end else if (fifo_tvalid_w && fifo_tready_w) begin
-      rcount <= rcnext[CSB:0];
+      rcount <= rcnext[PSB:0];
+      // rcount <= rcnext[CSB:0];
     end
   end
 
   /**
    * Transmit (or, Send) Counter.
    */
-  assign scnext = usb_tlast_o ? {1'b0, CZERO} : scount + 1;
+  assign scnext = scount + 1;
+  // assign scnext = usb_tlast_o ? {1'b0, PZERO} : scount + 1;
+  // assign scnext = usb_tlast_o ? {1'b0, CZERO} : scount + 1;
 
   always @(posedge clock) begin
-    if (clear) begin
-      scount <= CZERO;
+    if (enb_q) begin
+      scount <= PZERO;
+      // scount <= CZERO;
     end else if (usb_tvalid_o && usb_tready_i) begin
-      scount <= scnext[CSB:0];
+      scount <= scnext[PSB:0];
+      // scount <= scnext[CSB:0];
     end
   end
 
@@ -348,9 +363,9 @@ module mmio_ep_in #(
   //
   // Logic for sending USB data as USB frames, via the `ulpi_encoder`.
   //
-  assign rmax_w = rcount == CMAX;  // Todo
+  assign rmax_w = rcount[CSB:0] == CMAX;  // Todo
   // assign rmax_w = rcount & max_size_i == max_size_i;
-  assign smax_w = scount == CMAX;  // Todo
+  assign smax_w = scount[CSB:0] == CMAX;  // Todo
   // assign smax_w = scount & max_size_i == max_size_i;
 
   assign save_w = fifo_tvalid_w && fifo_tready_w && (fifo_tlast_w || rmax_w);
@@ -377,6 +392,9 @@ module mmio_ep_in #(
     end
   end
 
+  reg all_q;
+  wire all_w;
+
   /**
    * FSM for sending USB frames.
    */
@@ -398,7 +416,7 @@ module mmio_ep_in #(
       // After sending a packet, wait for an ACK/ERR response.
       TX_WAIT:
       if (selected_i && ack_recv_i) begin
-        snxt = zdp_q ? TX_NONE : TX_IDLE;
+        snxt = all_q ? (zdp_q ? TX_NONE : TX_IDLE) : TX_WAIT;
       end else if (selected_i && timedout_i) begin
         snxt = TX_REDO;
       end
@@ -422,12 +440,16 @@ module mmio_ep_in #(
   end
 
   assign zdp_w  = smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o;
+  assign all_w = scount == cmd_len_i;
   assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
 
   always @(posedge clock) begin
     xmit <= snxt;
     next <= sent_w;
-    sent <= sent_w && !zdp_w;
+    sent <= sent_w && (cmd_apb_i || state == EP_RESP || !zdp_w && all_w);
+
+    // Todo: need to hold high until 'sent_w', or something ...
+    all_q <= cmd_apb_i || state == EP_RESP || all_w;
 
     // Todo: how to handle time-outs (while waiting for USB 'ACK')?
     if (clear || xmit == TX_NONE) begin

@@ -87,7 +87,7 @@ module cmd_to_axi_framer #(
 
   assign wr_level_w = fifo_wr_level_i[FBITS:2];
   assign rd_level_w = fifo_rd_level_i[FBITS:2];
-  assign wr_ready_w = wr_level_w >= beat_num_q || wr_level_w >= BURST_BEATS;
+  assign wr_ready_w = wr_level_w >= beat_num_q || wr_level_w >= BURST_BEATS || wr_level_w >= USB_DWORDS;
   assign rd_ready_w = rd_level_w >= beat_num_q || rd_level_w >= USB_DWORDS;
 
   /**
