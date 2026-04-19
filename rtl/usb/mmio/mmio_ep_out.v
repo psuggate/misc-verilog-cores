@@ -31,7 +31,7 @@ module mmio_ep_out #(
 
     input           set_conf_i,  // From CONTROL PIPE0
     input           clr_conf_i,  // From CONTROL PIPE0
-    input [CBITS:0] max_size_i,  // From CONTROL PIPE0
+    input [CBITS:0] max_size_i,  // Todo: From CONTROL PIPE0
 
     input selected_i,  // From USB controller
     input rx_error_i,  // Timed-out or CRC16 error
@@ -47,6 +47,7 @@ module mmio_ep_out #(
     input  mmio_sent_i,
     input  mmio_resp_i,
     input  mmio_done_i,
+    input  mmio_fail_i,  // Todo: connect to error (from 'usb_mmio')
 
     // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
     input usb_tvalid_i,
@@ -96,7 +97,6 @@ module mmio_ep_out #(
   assign ep_ready_o = ready;
   assign parity_o = parity;
   assign mmio_recv_o = recvd;
-  // assign usb_tready_o = bypass ? fifo_tready_w : rdy;
   assign usb_tready_o = byp ? fifo_tready_w : rdy;
   assign dat_tkeep_o = dat_tvalid_o;
 
@@ -164,7 +164,6 @@ module mmio_ep_out #(
    * Pipeline the incoming, streamed, USB data (and handshaking signals).
    */
   always @(posedge clock) begin
-    // if (clear || mmio_busy_i || !selected_i) begin
     if (clear || !selected_i) begin
       cyc <= 1'b0;
       stb <= 1'b0;
@@ -274,7 +273,6 @@ module mmio_ep_out #(
 
         // Wait for transaction to complete.
         MM_BUSY: parse <= parse;
-        // MM_BUSY: parse <= mmio_done_i ? MM_IDLE : parse;
 
         // Wait for end-point to be reset.
         MM_HALT: parse <= parse;
@@ -289,14 +287,11 @@ module mmio_ep_out #(
   //
   reg  [  CSB:0] count;
   wire [CBITS:0] cprev_w;
-  wire czero_w, cfull_w, zdp_w, end_w;
+  wire czero_w, cfull_w;
 
   assign cprev_w = count - 1;
   assign czero_w = count == CZERO;
   assign cfull_w = count == CMAX;
-
-  assign zdp_w   = cyc && !stb && lst && cfull_w;
-  assign end_w   = cyc && stb && lst && !czero_w;
 
   /**
    * Tracks the data transfered, and asserts `rxd_q` when the data-transfer

@@ -8,9 +8,11 @@ module usb_mmio_tb;
 
   `include "axi_defs.vh"
 
+  localparam MAX_PACKET_LENGTH = 64;
   localparam FIFO_DEPTH = 512;
   localparam DATA_WIDTH = 32;
   localparam MSB = DATA_WIDTH - 1;
+  localparam PACKET_FIFO_DEPTH = FIFO_DEPTH * 4;
 
   localparam [7:0] CMD_NOP = 8'h00;
   localparam [7:0] CMD_READY = 8'h00;
@@ -94,20 +96,32 @@ module usb_mmio_tb;
     apb_recv(tag_q, adr_q, lun_q);
     dbg_op <= "IDLE";
 
+    tag_q  <= tag_q + 1;
     #64 dbg_op <= "AXI_SEND";
-    axi_send(8'd7, tag_q, adr_q, lun_q);
+    axi_send(12'd7, tag_q, adr_q, lun_q);
     dbg_op <= "IDLE";
 
     adr_q  <= adr_q + 32;
     #64 dbg_op <= "AXI_RECV";
-    axi_recv(8'd15, tag_q, adr_q, lun_q);
+    axi_recv(12'd15, tag_q, adr_q, lun_q);
+    dbg_op <= "IDLE";
+
+    tag_q  <= tag_q + 1;
+    #64 dbg_op <= "AXI_SEND";
+    axi_send(12'd63, tag_q, adr_q, lun_q);
+    dbg_op <= "IDLE";
+
+    adr_q  <= adr_q + 32;
+    #64 dbg_op <= "AXI_RECV";
+    axi_recv(12'd63, tag_q, adr_q, lun_q);
     dbg_op <= "IDLE";
 
     #800 $finish;
   end
 
   initial begin : FAIL_SAFE
-    #6120 $finish;
+    #29120 $display("%11t: FAIL_SAFE: TERMINATING ...", $time);
+    $finish;
   end
 
   // -- Simulation Signals & Registers -- //
@@ -264,7 +278,10 @@ module usb_mmio_tb;
     end
   end
 
-  usb_mmio U_REQ1 (
+  usb_mmio #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
+  ) U_REQ1 (
       .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
 
       .clock(clock),  // USB clock domain
@@ -495,12 +512,36 @@ module usb_mmio_tb;
         @(negedge clock);
       end
 
+      if (zdp_q) begin
+        $display("%11t: Finishing transaction", $time);
+        @(posedge clock);
+        {s_tlast, s_tkeep, s_tvalid} <= #2 3'h0;
+
+        // Todo: the target device is supposed to 'ACK' the command frame.
+        @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+        @(posedge clock) ack_sent_q <= #2 1'b1;
+        #16 ack_sent_q <= #2 1'b0;
+
+        @(negedge clock) #16 $display("%11t: Finished transaction", $time);
+        @(posedge clock) epo_sel_q <= #2 1'b0;
+
+        #32 $display("%11t: Sending ZDP", $time);
+        epo_sel_q <= #2 1'b1;
+        {s_tlast, s_tkeep, s_tvalid} <= #2 3'h5;
+        @(negedge clock);
+        while (!s_tready) begin
+          @(posedge clock);
+          @(negedge clock);
+        end
+        zdp_q <= 1'b0;
+      end
+
       $display("%11t: Finishing transaction", $time);
       @(posedge clock);
       {s_tlast, s_tkeep, s_tvalid} <= #2 3'h0;
 
       // Todo: the target device is supposed to 'ACK' the command frame.
-      @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+      @(negedge clock) #64 $display("%11t: Receiving USB ACK", $time);
       @(posedge clock) ack_sent_q <= #2 1'b1;
       #16 ack_sent_q <= #2 1'b0;
 
@@ -535,20 +576,47 @@ module usb_mmio_tb;
         @(negedge clock);
       end
       if (m_tvalid && m_tready && m_tlast) begin
-        @(posedge clock) $display("%11t: Received RES", $time);
-        m_tready <= #2 1'b0;
+        @(posedge clock) m_tready <= #2 1'b0;
         $display("%11t: Rx[%d] := 0x%x", $time, cnt_q, m_tdata);
       end else begin
         #32 $error("%11t: Invalid transfer: %x", $time, din_q);
         #32 $fatal(1);
       end
 
-      // Todo: the target device is supposed to 'ACK' the command frame.
-      @(negedge clock) #32 $display("%11t: Receiving USB ACK", $time);
+      @(negedge clock) #32 $display("%11t: Sending USB ACK", $time);
       @(posedge clock) ack_recv_q <= #2 1'b1;
       #16 ack_recv_q <= #2 1'b0;
 
+      $display("%11t: Finishing DATA IN phase of transaction", $time);
       @(posedge clock) #32 epi_sel_q <= #2 1'b0;
+
+      if (zdp_q) begin
+        @(negedge clock) #32 $display("%11t: Receiving ZDP", $time);
+        @(posedge clock) begin
+          epi_sel_q <= #2 1'b1;
+          m_tready  <= #2 1'b1;
+        end
+        while (!m_tvalid || !m_tready) begin
+          @(negedge clock);
+          @(posedge clock);
+        end
+        if (m_tvalid && m_tready && !m_tkeep && m_tlast) begin
+          @(posedge clock) m_tready <= #2 1'b0;
+          zdp_q <= 1'b0;
+          $display("%11t: ZDP received", $time);
+        end else begin
+          #32 $error("%11t: Invalid transfer: %x", $time, din_q);
+          #320 $fatal(1);
+        end
+
+        // Todo: the target device is supposed to 'ACK' the command frame.
+        @(negedge clock) #64 $display("%11t: Sending USB ACK", $time);
+        @(posedge clock) ack_recv_q <= #2 1'b1;
+        #16 ack_recv_q <= #2 1'b0;
+
+        @(negedge clock) $display("%11t: Finished ZDP transaction", $time);
+        @(posedge clock) epo_sel_q <= #2 1'b0;
+      end
     end
   endtask  /* dat_recv */
 
@@ -556,12 +624,12 @@ module usb_mmio_tb;
    * Send a command frame, followed by as many data frames as required.
    */
   task axi_send;
-    input [7:0] size;
+    input [11:0] size;
     input [3:0] tag;
     input [27:0] addr;
     input [3:0] lun;
     begin
-      cmd_send({8'd0, size}, tag, `CMD_STORE, addr, lun);
+      cmd_send({4'd0, size}, tag, `CMD_STORE, addr, lun);
       @(negedge clock) #16 $display("%11t: Finished sending AXI STORE command", $time);
 
       dat_send(size);
@@ -576,21 +644,21 @@ module usb_mmio_tb;
    * Send a command frame, followed by as many data frames as required.
    */
   task axi_recv;
-    input [7:0] size;
+    input [11:0] size;
     input [3:0] tag;
     input [27:0] addr;
     input [3:0] lun;
     begin
-      cmd_send({8'd0, size}, tag, `CMD_FETCH, addr, lun);
+      cmd_send({4'd0, size}, tag, `CMD_FETCH, addr, lun);
       @(negedge clock) #16 $display("%11t: Finished sending AXI FETCH command", $time);
 
-      dat_recv(size);
+      dat_recv();
       @(negedge clock) #16 $display("%11t: Finished receiving AXI FETCH data", $time);
 
       #32 res_recv();
       @(negedge clock) #16 $display("%11t: Completed AXI FETCH, RES: %x", $time, din_q);
     end
-  endtask  /* axi_send */
+  endtask  /* axi_recv */
 
   /**
    * Send a command frame, followed by as many data frames as required.

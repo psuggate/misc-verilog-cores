@@ -45,6 +45,7 @@ module mmio_ep_in #(
     output mmio_sent_o,
     output mmio_resp_o,
     input  mmio_done_i,
+    output mmio_next_o,
 
     // From Bulk-In data source (AXI or APB, via AXI-S)
     input dat_tvalid_i,
@@ -79,11 +80,11 @@ module mmio_ep_in #(
   `define CMD_FAILURE 4'h1
   `define CMD_INVALID 4'hF
 
-  reg stall, clear, ready, parity, sent, resp;
+  reg stall, clear, ready, parity, sent, next, resp;
   reg vld_q, lst_q, zdp_q, enb_q, en_q, cyc, stb;
   reg save_q, redo_q, next_q;
   wire [7:0] dat_w;
-  wire save_w, redo_w, next_w, sent_w;
+  wire save_w, redo_w, next_w, sent_w, zdp_w;
   wire fifo_tvalid_w, fifo_tready_w, fifo_tkeep_w, fifo_tlast_w;
   wire ulpi_tvalid_w, ulpi_tready_w, ulpi_tkeep_w, ulpi_tlast_w;
   wire [7:0] fifo_tdata_w, ulpi_tdata_w;
@@ -103,6 +104,7 @@ module mmio_ep_in #(
 
   assign mmio_sent_o = sent;
   assign mmio_resp_o = resp;
+  assign mmio_next_o = next;
 
   // Todo ...
   assign fifo_tvalid_w = state == EP_SEND ? dat_tvalid_i : vld_q;
@@ -139,7 +141,7 @@ module mmio_ep_in #(
     if (clear || stall) begin
       ready <= 1'b0;
     end else if (en_q) begin
-      ready <= ulpi_tvalid_w || xmit == TX_NONE || zdp_q;
+      ready <= ulpi_tvalid_w || xmit == TX_NONE;
     end
 
     // USB end-point parity-bit logic.
@@ -197,7 +199,7 @@ module mmio_ep_in #(
    * Strobe `resp=HIGH` when we have successfully sent a reponse-frame.
    */
   always @(posedge clock) begin
-    if (!clear && state == EP_RESP && ack_recv_i) begin
+    if (!clear && state == EP_RESP && idx_q == 0 && ack_recv_i) begin
       resp <= 1'b1;
     end else begin
       resp <= 1'b0;
@@ -300,9 +302,7 @@ module mmio_ep_in #(
         end else if (mmio_recv_i) begin
           state <= EP_SEND;
         end
-        // EP_SEND: state <= xmit == TX_IDLE ? EP_IDLE : state;
-        EP_SEND: state <= sent ? EP_IDLE : state;
-        // EP_SEND: state <= sent ? EP_RESP : state;
+        EP_SEND: state <= next ? EP_IDLE : state;
         EP_RESP: state <= resp ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
@@ -353,7 +353,6 @@ module mmio_ep_in #(
   assign smax_w = scount == CMAX;  // Todo
   // assign smax_w = scount & max_size_i == max_size_i;
 
-  // assign save_w = dat_tvalid_i && dat_tready_o && (dat_tlast_i || rmax_w);
   assign save_w = fifo_tvalid_w && fifo_tready_w && (fifo_tlast_w || rmax_w);
   assign redo_w = xmit == TX_WAIT && selected_i && timedout_i;
   assign next_w = xmit == TX_WAIT && selected_i && ack_recv_i;
@@ -407,7 +406,7 @@ module mmio_ep_in #(
       // Rest of packet has already been sent, so transmit a ZDP
       TX_NONE:
       if (usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
-        snxt = TX_WAIT;
+        snxt = TX_SEND;
       end
 
       // Repeat the previous packet(-chunk), as an 'ACK' was not received.
@@ -422,30 +421,18 @@ module mmio_ep_in #(
     end
   end
 
-  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o && !smax_w;
-
-  /*
-  reg last;
-
-  always @(posedge clock) begin
-    if (reset) begin
-      last <= 1'b0;
-    end else if (sent_w) begin
-      last <= 1'b1;
-    end else if (last && xmit == TX_IDLE) begin
-      last <= 1'b0;
-    end
-  end
-*/
+  assign zdp_w  = smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o;
+  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
 
   always @(posedge clock) begin
     xmit <= snxt;
-    sent <= sent_w;
+    next <= sent_w;
+    sent <= sent_w && !zdp_w;
 
     // Todo: how to handle time-outs (while waiting for USB 'ACK')?
-    if (clear || xmit == TX_WAIT && ack_recv_i) begin
+    if (clear || xmit == TX_NONE) begin
       zdp_q <= 1'b0;
-    end else if (smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
+    end else if (zdp_w) begin
       zdp_q <= 1'b1;
     end
   end
@@ -498,11 +485,11 @@ module mmio_ep_in #(
 
   always @* begin
     case (xmit)
-      TX_IDLE: dbg_xmit = "IDLE";
-      TX_SEND: dbg_xmit = "SEND";
-      TX_WAIT: dbg_xmit = "WAIT";
-      TX_NONE: dbg_xmit = "NONE";
-      TX_REDO: dbg_xmit = "REDO";
+      TX_IDLE: dbg_xmit = "idle";
+      TX_SEND: dbg_xmit = "send";
+      TX_WAIT: dbg_xmit = "wait";
+      TX_NONE: dbg_xmit = "none";
+      TX_REDO: dbg_xmit = "redo";
       default: dbg_xmit = " ?? ";
     endcase
     case (state)

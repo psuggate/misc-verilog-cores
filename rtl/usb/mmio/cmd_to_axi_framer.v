@@ -160,7 +160,10 @@ module cmd_to_axi_framer #(
   // -- Main AXI-Framing State Machine -- //
 
   // Todo: throw errors when crossing 4kB page-boundaries, also.
-  assign cmd_err_w = cmd_adr_i[1:0] != 2'b00 || cmd_len_i[1:0] != 2'b11 || beat_err_w;
+  wire cmd_err_adr_w = cmd_adr_i[1:0] != 2'b00;
+  wire cmd_err_len_w = cmd_len_i[1:0] != 2'b11;
+
+  assign cmd_err_w = cmd_err_adr_w || cmd_err_len_w || beat_err_w;
 
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
@@ -171,7 +174,8 @@ module cmd_to_axi_framer #(
         if (!cmd_vld_i) begin
           state <= state;
         end else if (cmd_err_w) begin
-          $error("%10t: Invalid command", $time);
+          if (cmd_err_adr_w) $error("%10t: Invalid command, address alignment", $time);
+          if (cmd_err_len_w) $error("%10t: Invalid command, length error", $time);
           state <= ST_FAIL;
         end else begin
           $display("%10t: Command received: RD = %d, ADR = 0x%x", $time, cmd_dir_i, cmd_adr_i);

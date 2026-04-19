@@ -13,7 +13,10 @@
 //  - minimal state-logic, just ensuring that a response is issued after each
 //    command (and its corresponding data phase, if present);
 //
-module usb_mmio (
+module usb_mmio #(
+    parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
+    parameter PACKET_FIFO_DEPTH = 2048
+) (
     input areset_n,  // Global, asynchronous reset (active LOW)
 
     input clock,
@@ -115,7 +118,7 @@ module usb_mmio (
   wire [27:0] cmd_adr_w;
 
   reg busy_q, send_q, resp_q, xmit_q, done_q;
-  wire recv_w, sent_w, resp_w;
+  wire recv_w, next_w, sent_w, resp_w;
   wire s_tvalid, s_tready, s_tkeep, s_tlast;
   wire m_tvalid, m_tready, m_tkeep, m_tlast;
   wire [7:0] s_tdata, m_tdata;
@@ -156,7 +159,6 @@ module usb_mmio (
       send_q <= 1'b0;
       done_q <= 1'b0;
     end else begin
-      // if (axi_rdy_w && axi_dir_w && usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
       if (state == ST_READ && usb_ack_recv_i) begin
         busy_q <= 1'b1;
         done_q <= 1'b1;
@@ -179,7 +181,7 @@ module usb_mmio (
 
       case (state)
         ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q);
-        ST_RESP: send_q <= !send_q && resp_q;  // && (axi_rdy_w || axi_err_w);
+        ST_RESP: send_q <= !send_q && resp_q;
         default: send_q <= 1'b0;
       endcase
 
@@ -216,13 +218,13 @@ module usb_mmio (
           // For 'GET', 'READY', and 'QUERY' requests.
           if (cmd_apb_w && pready_i) begin
             state <= ST_RESP;
-            // end else if (axi_rdy_w) begin // sent_w) begin
-          end else if (usb_ack_recv_i) begin  // sent_w) begin
+          end else if (usb_ack_recv_i) begin
             state <= ST_WAIT;
           end
         end
 
         ST_WAIT:
+        // if (recv_w || usb_ack_recv_i) begin  // EXPERIMENTAL
         if (recv_w || sent_w) begin
           state <= ST_RESP;
         end
@@ -245,7 +247,10 @@ module usb_mmio (
   //  The MMIO interface requires two USB end-points, a Bulk-In and a Bulk-Out
   //  end-point.
   //
-  mmio_ep_out U_EPOUT0 (
+  mmio_ep_out #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
+  ) U_EPOUT0 (
       .clock(clock),
       .reset(reset),
 
@@ -294,7 +299,10 @@ module usb_mmio (
       .dat_tdata_o (m_tdata)
   );
 
-  mmio_ep_in U_EPIN0 (
+  mmio_ep_in #(
+      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
+      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
+  ) U_EPIN0 (
       .clock(clock),
       .reset(reset),
 
@@ -315,6 +323,7 @@ module usb_mmio (
       .mmio_busy_i(busy_q),
       .mmio_recv_i(xmit_q),  // Todo: handle AXI -> Bulk IN `recv_w`
       .mmio_send_i(send_q),
+      .mmio_next_o(next_w),
       .mmio_sent_o(sent_w),
       .mmio_resp_o(resp_w),
       .mmio_done_i(done_q),

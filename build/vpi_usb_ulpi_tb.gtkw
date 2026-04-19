@@ -1,15 +1,15 @@
 [*]
-[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
-[*] Sun Dec 28 12:49:07 2025
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sat Apr 18 09:27:29 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.vcd"
-[dumpfile_mtime] "Sun Dec 28 02:19:24 2025"
-[dumpfile_size] 8588996
+[dumpfile_mtime] "Sat Apr 18 09:17:47 2026"
+[dumpfile_size] 8588957
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/vpi_usb_ulpi_tb.gtkw"
-[timestart] 757643000
-[size] 2560 1363
-[pos] -1 -1
-*-18.048487 759084000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 762784200
+[size] 1920 1033
+[pos] 2559 -41
+*-17.048487 763260000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] vpi_usb_ulpi_tb.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.
 [treeopen] vpi_usb_ulpi_tb.U_DDRC1.U_LITE.
@@ -18,10 +18,10 @@
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.U_FIFO1.
 [treeopen] vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.U_FIFO1.
-[sst_width] 233
-[signals_width] 174
+[sst_width] 314
+[signals_width] 180
 [sst_expanded] 1
-[sst_vpaned_height] 647
+[sst_vpaned_height] 403
 @28
 vpi_usb_ulpi_tb.clock
 vpi_usb_ulpi_tb.arst_n
@@ -121,6 +121,16 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.level_w[10:0]
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.set_conf_i
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.rx_error_i
+[color] 3
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.s_tvalid
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.s_tready
+@29
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.s_tkeep
+@28
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.s_tlast
+@820
+[color] 7
+vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_OUT_EP1.dbg_state[39:0]
 @1000200
 -OUT1
 @800200
@@ -141,10 +151,9 @@ vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP2.selected_i
 @24
 [color] 7
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.level_w[10:0]
-@29
+@28
 [color] 3
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.selected_i
-@28
 [color] 1
 vpi_usb_ulpi_tb.U_USB1.U_TOP1.U_IN_EP3.timedout_i
 @800200

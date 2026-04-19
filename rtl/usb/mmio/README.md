@@ -4,6 +4,16 @@ Connects the AXI and APB buses of a SoC to a USB MMIO interface, for data transf
 
 Uses a protocol inspired by the Bulk-Only Transport (BOT) USB Mass Storage Class (MSC), so that a high degree of robustness is achieved, while only requiring two USB endpoints, Bulk-Out and Bulk-In.
 
+## Remaining Tasks
+
+At least:
+
++ Check that ZDPs are sent (when transfer-size is a multiple of the USB data-frame size).
++ Mechanism for generating USB STALLs, and also a way to resume.
++ Test in hardware.
++ Refactor and optimise a few of the combinational paths (in `cmd_to_axi_framer`).
++ Add support to the Rust `libusb`-based driver.
+
 ## Commands
 
 FETCH and STORE streams of data from/to the AXI bus of the SoC.

@@ -62,9 +62,12 @@ flash:	gowin
 #  Synthesise the USB2 + DDR3 test.
 ##
 USBDDR	:= /build/misc-verilog-cores/synth/gowin-ddr3-test
+DISXCB	:= -e DISPLAY=$(DISPLAY) -v /tmp/.X11-unix:/tmp/.X11-unix --network host
+
 .PHONY:	usbddr upload
 usbddr:	docker
-	@docker run $(VOLUMES) -e USER=$(USER) --user=$(UID):$(GID) -w=$(USBDDR) \
+	@xhost +local:root
+	@docker run $(VOLUMES) $(DISXCB) -e USER=$(USER) --user=$(UID):$(GID) -w=$(USBDDR) \
 --rm -it gowin-eda bash -c "$(MAKE)"
 	@openFPGALoader --board tangprimer20k --write-sram synth/gowin-ddr3-test/impl/pnr/project.fs
 
