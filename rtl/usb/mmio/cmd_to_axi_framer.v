@@ -64,26 +64,26 @@ module cmd_to_axi_framer #(
   wire [31:0] adr_nxt_w;
   wire [FSB:0] wr_level_w, rd_level_w;
 
-  assign cmd_rdy_o  = cmd_rdy_q;
-  assign cmd_err_o  = state == ST_FAIL;
+  assign cmd_rdy_o = cmd_rdy_q;
+  assign cmd_err_o = state == ST_FAIL;
 
   assign usb_recv_o = state == ST_RECV;
   assign usb_send_o = state == ST_SEND;
 
-  assign axi_vld_o  = axi_vld_q;
-  assign axi_dir_o  = state == ST_READ;
-  assign axi_len_o  = axi_len_q;
-  assign axi_stb_o  = 4'hf;
-  assign axi_adr_o  = axi_adr_q;
+  assign axi_vld_o = axi_vld_q;
+  assign axi_dir_o = state == ST_READ;
+  assign axi_len_o = axi_len_q;
+  assign axi_stb_o = 4'hf;
+  assign axi_adr_o = axi_adr_q;
 
   // Compute the total number of AXI transaction beats.
   assign beat_num_w = cmd_len_i[11:2] + 1;
   assign beat_err_w = cmd_len_i[15:12] != 4'd0;
   assign beat_nxt_w = beat_num_q - axi_len_q - 1;
 
-  assign axi_len_w  = beat_num_w < BURST_BEATS ? (beat_num_w[7:0] - 1) : BURST_BEATS;
-  assign len_nxt_w  = beat_nxt_w < BURST_BEATS ? (beat_nxt_w[7:0] - 1) : BURST_BEATS;
-  assign adr_nxt_w  = axi_adr_q + ((axi_len_q + 1) << 2);
+  assign axi_len_w = beat_num_w < BURST_BEATS ? (beat_num_w[7:0] - 1) : BURST_BEATS;
+  assign len_nxt_w = beat_nxt_w < BURST_BEATS ? (beat_nxt_w[7:0] - 1) : BURST_BEATS;
+  assign adr_nxt_w = axi_adr_q + ((axi_len_q + 1) << 2);
 
   assign wr_level_w = fifo_wr_level_i[FBITS:2];
   assign rd_level_w = fifo_rd_level_i[FBITS:2];
@@ -174,18 +174,18 @@ module cmd_to_axi_framer #(
         if (!cmd_vld_i) begin
           state <= state;
         end else if (cmd_err_w) begin
-          if (cmd_err_adr_w) $error("%10t: Invalid command, address alignment", $time);
-          if (cmd_err_len_w) $error("%10t: Invalid command, length error", $time);
+          if (cmd_err_adr_w) $error("%11t: Invalid command, address alignment", $time);
+          if (cmd_err_len_w) $error("%11t: Invalid command, length error", $time);
           state <= ST_FAIL;
         end else begin
-          $display("%10t: Command received: RD = %d, ADR = 0x%x", $time, cmd_dir_i, cmd_adr_i);
+          $display("%11t: Command received: RD = %d, ADR = 0x%x", $time, cmd_dir_i, cmd_adr_i);
           state <= cmd_dir_i ? ST_READ : ST_RECV;
         end
 
         // Compute the size of the first burst-transaction.
         ST_RECV:
         if (wr_ready_w) begin
-          $display("%10t: Burst beats = %d", $time, fifo_wr_level_i[FBITS:2]);
+          $display("%11t: Burst beats = %d", $time, fifo_wr_level_i[FBITS:2]);
           state <= ST_WRIT;
         end
 
@@ -196,7 +196,7 @@ module cmd_to_axi_framer #(
 
         ST_READ:
         if (rd_ready_w) begin
-          $display("%10t: USB transfer size = %d", $time, {fifo_rd_level_i, 2'b00});
+          $display("%11t: USB transfer size = %d", $time, {fifo_rd_level_i, 2'b00});
           state <= ST_SEND;
         end
 

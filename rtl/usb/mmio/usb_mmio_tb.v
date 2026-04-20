@@ -8,7 +8,7 @@ module usb_mmio_tb;
 
   `include "axi_defs.vh"
 
-  localparam MAX_PACKET_LENGTH = 32;
+  localparam MAX_PACKET_LENGTH = 64;
   localparam PBITS = $clog2(MAX_PACKET_LENGTH);
   localparam PSB = PBITS - 1;
   localparam PZERO = {PBITS{1'b0}};
@@ -38,6 +38,7 @@ module usb_mmio_tb;
   reg ack_sent_q, ack_recv_q;
   reg timeout_q, epo_err_q;
   reg epo_sel_q, epi_sel_q, err_q;
+  reg [PBITS:0] usb_max_size;
   wire ep_ready_w, ep_stall_w, ep_out_par;
 
   reg cmd_ack_q;
@@ -88,6 +89,7 @@ module usb_mmio_tb;
     dbg_op <= "IDLE";
 
     #80 set_conf_q <= 1'b1;
+    usb_max_size <= MAX_PACKET_LENGTH;
     dbg_op <= "USB_CONF";
     #16 set_conf_q <= 1'b0;
     dbg_op <= "IDLE";
@@ -160,18 +162,18 @@ module usb_mmio_tb;
       case (state)
         ST_IDLE: begin
           if (awvalid_w) begin
-            $display("%8t: Address-WRITE Request ('%m')", $time);
+            $display("[%10t] Address-WRITE Request ('%m')", $time);
             state <= ST_WDAT;
             bid   <= awid_w;
           end else if (arvalid_w) begin
-            $display("%8t: Address-READ Request ('%m')", $time);
+            $display("[%10t] Address-READ Request ('%m')", $time);
             state <= ST_RDAT;
           end
         end
 
         ST_WDAT: begin
           if (wvalid_w && wlast_w) begin
-            $display("%8t: Write-DATA Received ('%m')", $time);
+            $display("[%10t] Write-DATA Received ('%m')", $time);
             state <= ST_RESP;
           end
         end
@@ -180,7 +182,7 @@ module usb_mmio_tb;
           bvalid <= 1'b1;
           bresp  <= RESP_OKAY;
           if (bready_w) begin
-            $display("%8t: Write-Response Sent ('%m')", $time);
+            $display("[%10t] Write-Response Sent ('%m')", $time);
             state <= ST_DONE;
           end
         end
@@ -189,7 +191,7 @@ module usb_mmio_tb;
           bvalid <= 1'b0;
           bresp  <= 2'dx;
           state  <= ST_IDLE;
-          $display("%8t: Write DONE, returning to IDLE ('%m')", $time);
+          $display("[%10t] Write DONE, returning to IDLE ('%m')", $time);
         end
 
         ST_RDAT: begin
@@ -198,11 +200,11 @@ module usb_mmio_tb;
 
         ST_REND: begin
           state <= ST_IDLE;
-          $display("%8t: Read DONE, returning to IDLE ('%m')", $time);
+          $display("[%10t] Read DONE, returning to IDLE ('%m')", $time);
         end
 
         default: begin
-          $error("%8t: Error: Invalid 'state' value: %d ('%m')", $time, state);
+          $error("[%10t] Error: Invalid 'state' value: %d ('%m')", $time, state);
           $finish;
         end
       endcase
@@ -297,7 +299,7 @@ module usb_mmio_tb;
       .epi_clr_conf_i(clr_conf_q),
       .epi_selected_i(epi_sel_q),
       .epi_timedout_i(timeout_q),
-      .epi_max_size_i(10'd64),  // Todo
+      .epi_max_size_i(usb_max_size),  // Todo
       .epi_ready_o(epi_ready_w),
       .epi_parity_o(epi_parity_w),
       .epi_stalled_o(epi_stall_w),
@@ -306,7 +308,7 @@ module usb_mmio_tb;
       .epo_clr_conf_i(clr_conf_q),
       .epo_selected_i(epo_sel_q),
       .epo_rx_error_i(epo_err_q),
-      .epo_max_size_i(10'd64),  // Todo
+      .epo_max_size_i(usb_max_size),  // Todo
       .epo_ready_o(epo_ready_w),
       .epo_parity_o(epo_parity_w),
       .epo_stalled_o(epo_stall_w),
@@ -378,8 +380,8 @@ module usb_mmio_tb;
   //  Simulation tasks for entire transactions.
   //
   integer txcnt, rxcnt, total;
-  reg  [ 7:0] rnd_q;
-  reg  [87:0] req_q;
+  reg [ 7:0] rnd_q;
+  reg [87:0] req_q;
   wire [31:0] txnxt, rxnxt;
   reg [55:0] din_q;
 
@@ -418,7 +420,7 @@ module usb_mmio_tb;
       {s_tlast, s_tkeep, s_tvalid} <= #2 3'h0;
 
       @(negedge clock) #8 $display("%11t: Receiving USB ACK", $time);
-      @(posedge clock) ack_sent_q <= #2 1'b1; // Pretend to 'ACK'
+      @(posedge clock) ack_sent_q <= #2 1'b1;  // Pretend to 'ACK'
       #16 ack_sent_q <= #2 1'b0;
 
       @(negedge clock) #8 $display("%11t: Finished frame", $time);

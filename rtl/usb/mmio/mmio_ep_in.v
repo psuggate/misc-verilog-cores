@@ -190,6 +190,7 @@ module mmio_ep_in #(
    */
   always @(posedge clock) begin
     if (clear || sent || mmio_done_i) begin
+      // if (clear || mmio_done_i) begin
       enb_q <= 1'b1;
     end else if (mmio_send_i || mmio_recv_i) begin
       enb_q <= 1'b0;
@@ -315,30 +316,54 @@ module mmio_ep_in #(
   // Chop-up large transfers into the (configured) USB frame-size, and send a
   // ZDP, if transfer ends on a USB frame-boundary.
   //
-  reg [PSB:0] rcount, scount;
-  wire [PBITS:0] rcnext, scnext;
   wire rmax_w, smax_w;
 
-/*
+  // `define __single_frames_only
+`ifdef __single_frames_only
   reg [CSB:0] rcount, scount;
   wire [CBITS:0] rcnext, scnext;
-  wire rmax_w, smax_w;
-*/
+
+  /**
+   * Receive Counter.
+   */
+  assign rcnext = fifo_tlast_w ? {1'b0, CZERO} : rcount + 1;
+
+  always @(posedge clock) begin
+    if (clear) begin
+      rcount <= CZERO;
+    end else if (fifo_tvalid_w && fifo_tready_w) begin
+      rcount <= rcnext[CSB:0];
+    end
+  end
+
+  /**
+   * Transmit (or, Send) Counter.
+   */
+  assign scnext = usb_tlast_o ? {1'b0, CZERO} : scount + 1;
+
+  always @(posedge clock) begin
+    if (enb_q) begin
+      scount <= CZERO;
+    end else if (usb_tvalid_o && usb_tready_i) begin
+      scount <= scnext[CSB:0];
+    end
+  end
+
+`else  /* __single_frames_only */
+  reg [PSB:0] rcount, scount;
+  wire [PBITS:0] rcnext, scnext;
 
   /**
    * Receive Counter.
    */
   // assign rcnext = rcount + 1;
   assign rcnext = fifo_tlast_w ? {1'b0, PZERO} : rcount + 1;
-  // assign rcnext = fifo_tlast_w ? {1'b0, CZERO} : rcount + 1;
 
   always @(posedge clock) begin
     if (clear) begin
       rcount <= PZERO;
-      // rcount <= CZERO;
     end else if (fifo_tvalid_w && fifo_tready_w) begin
       rcount <= rcnext[PSB:0];
-      // rcount <= rcnext[CSB:0];
     end
   end
 
@@ -347,19 +372,16 @@ module mmio_ep_in #(
    */
   assign scnext = scount + 1;
   // assign scnext = usb_tlast_o ? {1'b0, PZERO} : scount + 1;
-  // assign scnext = usb_tlast_o ? {1'b0, CZERO} : scount + 1;
 
   always @(posedge clock) begin
     if (enb_q) begin
       scount <= PZERO;
-      // scount <= CZERO;
     end else if (usb_tvalid_o && usb_tready_i) begin
       scount <= scnext[PSB:0];
-      // scount <= scnext[CSB:0];
     end
   end
 
-
+`endif  /* __single_frames_only */
   //
   // Logic for sending USB data as USB frames, via the `ulpi_encoder`.
   //
@@ -392,7 +414,7 @@ module mmio_ep_in #(
     end
   end
 
-  reg all_q;
+  reg  all_q;
   wire all_w;
 
   /**
@@ -416,7 +438,8 @@ module mmio_ep_in #(
       // After sending a packet, wait for an ACK/ERR response.
       TX_WAIT:
       if (selected_i && ack_recv_i) begin
-        snxt = all_q ? (zdp_q ? TX_NONE : TX_IDLE) : TX_WAIT;
+        snxt = zdp_q ? TX_NONE : TX_IDLE;
+        // snxt = all_q ? (zdp_q ? TX_NONE : TX_IDLE) : TX_WAIT;
       end else if (selected_i && timedout_i) begin
         snxt = TX_REDO;
       end
@@ -440,13 +463,14 @@ module mmio_ep_in #(
   end
 
   assign zdp_w  = smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o;
-  assign all_w = scount == cmd_len_i;
+  assign all_w  = scount == cmd_len_i;
   assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
 
   always @(posedge clock) begin
-    xmit <= snxt;
-    next <= sent_w;
-    sent <= sent_w && (cmd_apb_i || state == EP_RESP || !zdp_w && all_w);
+    xmit  <= snxt;
+    next  <= sent_w;
+    sent  <= sent_w && !zdp_w;
+    // sent <= sent_w && (cmd_apb_i || state == EP_RESP || !zdp_w && all_w);
 
     // Todo: need to hold high until 'sent_w', or something ...
     all_q <= cmd_apb_i || state == EP_RESP || all_w;
@@ -458,7 +482,6 @@ module mmio_ep_in #(
       zdp_q <= 1'b1;
     end
   end
-
 
   //
   // Output packet FIFO, for command responses, or (FETCH or GET) data passed-
@@ -497,7 +520,6 @@ module mmio_ep_in #(
       .m_tlast (ulpi_tlast_w),
       .m_tdata (ulpi_tdata_w)
   );
-
 
 `ifdef __icarus
   //

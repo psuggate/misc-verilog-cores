@@ -60,3 +60,13 @@ AXI-only constraints:
 + When an unexpected ZDP is received by the peripheral, the transaction is canceled, and the response frame contains `CANCELED`.
 + The peripheral issues a `ZDP` to cancel a transaction, with the response frame containing the reason-code.
 + If the transaction times-out, then the host should issue a `QUERY`, and if this fails as well (or returns a USB `STALL` response), then the peripheral must be reset. (TODO??)
+
+### Fast-path
+
+As long as enough AXI data is available in the AXI-domain (packet) FIFO, along with the 32-bit to 8-bit width-aligner, and control-signals can be passed to the USB domain, then a USB frame can be sent (via a small asynchronous FIFO).
+
+Todo:
+
++ Should the AXI data be chunked into USB-sized frames within the AXI domain? I think that the existing `packet_fifo` can already handle this?
++ Use the control-signals from this `packet_fifo` to drive the USB-side FSM?
++ How to handle APB and response frames? Will require a MUX, similar to the old design?

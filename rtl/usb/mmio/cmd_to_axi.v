@@ -1,6 +1,8 @@
 `timescale 1ns / 100ps
 module cmd_to_axi #(
     parameter USB_DWORDS = 128,
+    parameter USB_WIDTH = 8,
+    localparam USB = USB_WIDTH - 1,
     parameter FIFO_DEPTH = 512,
     localparam DATA_WIDTH = 32,
     localparam MSB = DATA_WIDTH - 1,
@@ -38,14 +40,14 @@ module cmd_to_axi #(
     output dat_tready_o,
     input dat_tkeep_i,
     input dat_tlast_i,
-    input [7:0] dat_tdata_i,
+    input [USB:0] dat_tdata_i,
 
     // Pass-through data stream, to USB (Bulk-In, via AXI-S)
     output dat_tvalid_o,
     input dat_tready_i,
     output dat_tkeep_o,
     output dat_tlast_o,
-    output [7:0] dat_tdata_o,
+    output [USB:0] dat_tdata_o,
 
     // AXI clock-domain
     input aclk,
@@ -535,103 +537,164 @@ module cmd_to_axi #(
 
   // -- Read Datapath -- //
 
-  axis_async_fifo #(
-      .DEPTH(FIFO_DEPTH),
-      .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(STROBES),
-      .LAST_ENABLE(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(1),
-      .USER_WIDTH(2),
-      .RAM_PIPELINE(1),
-      .OUTPUT_FIFO_ENABLE(0),
-      .FRAME_FIFO(RD_FRAME_FIFO),
-      .USER_BAD_FRAME_VALUE(0),
-      .USER_BAD_FRAME_MASK(0),
-      .DROP_BAD_FRAME(0),
-      .DROP_WHEN_FULL(0)
-  ) U_RDFIFO1 (
-      .s_clk(aclk),
-      .s_rst(arst),
+  generate
+    if (DATA_WIDTH == USB_WIDTH) begin : g_fast_bulk_in_path
+      //
+      // Todo:
+      //  - 'redo' and 'next' signal domain-crossing;
+      //  - 'save' logic;
+      //  - AXI 'rresp' logic (and domain-crossing)?
+      //
+      reg [DSB:0] cmd_rd_level_p, cmd_rd_level_q;
+      reg save_q, redo_q, next_q;
 
-      .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
-      .s_axis_tready(fready_w),
-      .s_axis_tkeep({STROBES{rvalid_i}}),
-      .s_axis_tlast(rlast_i),
-      .s_axis_tid(rid_i),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(rresp_i),
-      .s_axis_tdata(rdata_i),
+      assign dat_tkeep_o = dat_tvalid_o;
+      assign cmd_rd_level_w = cmd_rd_level_q;
 
-      .m_clk(cmd_clk),
-      .m_rst(cmd_rst),
+      always @(posedge cmd_clk) begin
+        cmd_rd_level_p <= axi_rd_level_w;
+        cmd_rd_level_q <= cmd_level_p;
+      end
 
-      .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
-      .m_axis_tready(b_tready && b_xfer_q),
-      .m_axis_tkeep(b_tkeep),
-      .m_axis_tlast(b_tlast),
-      .m_axis_tid(b_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(b_tuser),
-      .m_axis_tdata(b_tdata),
+      //
+      // Output packet FIFO, for command responses, or (AXI FETCH) data passed-
+      // through to the USB host (via Bulk-In pipe), and with with Repeat-Last
+      // Packet, on timeout (while waiting for ACK).
+      //
+      packet_fifo #(
+          .WIDTH(DATA_WIDTH),
+          .DEPTH(FIFO_DEPTH),
+          .STORE_LASTS(1),
+          .SAVE_ON_LAST(1),
+          .LAST_ON_SAVE(1),
+          .NEXT_ON_LAST(0),
+          .USE_LENGTH(1),
+          .MAX_LENGTH(USB_DWORDS),
+          .OUTREG(2)
+      ) U_PFIFO1 (
+          .clock(aclk),
+          .reset(arst),
 
-      .s_pause_req(1'b0),
-      .s_pause_ack(),
-      .m_pause_req(1'b0),
-      .m_pause_ack(),
+          .level_o(axi_rd_level_w),
 
-      .s_status_depth(axi_rd_level_w),  // Status
-      .s_status_depth_commit(),
-      .s_status_overflow(),
-      .s_status_bad_frame(),
-      .s_status_good_frame(),
-      .m_status_depth(cmd_rd_level_w),  // Status
-      .m_status_depth_commit(com_rd_level_w),
-      .m_status_overflow(),
-      .m_status_bad_frame(),
-      .m_status_good_frame()
-  );
+          .drop_i(1'b0),    // Todo: correct?
+          .save_i(save_q),  // Todo: not required?
+          .redo_i(redo_q),
+          .next_i(next_q),
 
-  axis_adapter #(
-      .S_DATA_WIDTH(DATA_WIDTH),
-      .S_KEEP_ENABLE(1),
-      .S_KEEP_WIDTH(STROBES),
-      .M_DATA_WIDTH(8),
-      .M_KEEP_ENABLE(1),
-      .M_KEEP_WIDTH(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(1),
-      .USER_WIDTH(2)
-  ) U_ADAPT2 (
-      .clk(cmd_clk),
-      .rst(cmd_rst),
+          .s_tvalid(fvalid_w),
+          .s_tready(fready_w),
+          .s_tlast (rlast_i),
+          .s_tkeep ({STROBES{rvalid_i}}),
+          .s_tdata (rdata_i),
 
-      .s_axis_tvalid(b_tvalid && b_xfer_q),  // AXI input: 32b
-      .s_axis_tready(b_tready),
-      .s_axis_tkeep({STROBES{b_tvalid}}),
-      .s_axis_tlast(b_tlast),
-      .s_axis_tdata(b_tdata),
-      .s_axis_tid(b_tid),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(b_tuser),
+          .m_tvalid(dat_tvalid_o),
+          .m_tready(dat_tready_i),
+          .m_tlast (dat_tlast_o),
+          .m_tdata (dat_tdata_o)
+      );
 
-      .m_axis_tvalid(dat_tvalid_o),  // AXI output: 8b
-      .m_axis_tready(dat_tready_i),
-      .m_axis_tkeep(dat_tkeep_o),
-      .m_axis_tlast(dat_tlast_o),
-      .m_axis_tid(),
-      .m_axis_tdest(),
-      .m_axis_tuser(),
-      .m_axis_tdata(dat_tdata_o)
-  );
+    end else begin : g_slow_bulk_in_path
 
+      axis_async_fifo #(
+          .DEPTH(FIFO_DEPTH),
+          .DATA_WIDTH(DATA_WIDTH),
+          .KEEP_ENABLE(1),
+          .KEEP_WIDTH(STROBES),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(1),
+          .ID_WIDTH(ID_WIDTH),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(1),
+          .USER_WIDTH(2),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(RD_FRAME_FIFO),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_RDFIFO1 (
+          .s_clk(aclk),
+          .s_rst(arst),
+
+          .s_axis_tvalid(fvalid_w),  // AXI input: 32b, MEM domain
+          .s_axis_tready(fready_w),
+          .s_axis_tkeep({STROBES{rvalid_i}}),
+          .s_axis_tlast(rlast_i),
+          .s_axis_tid(rid_i),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(rresp_i),
+          .s_axis_tdata(rdata_i),
+
+          .m_clk(cmd_clk),
+          .m_rst(cmd_rst),
+
+          .m_axis_tvalid(b_tvalid),  // AXI output: 8b, BUS domain
+          .m_axis_tready(b_tready && b_xfer_q),
+          .m_axis_tkeep(b_tkeep),
+          .m_axis_tlast(b_tlast),
+          .m_axis_tid(b_tid),
+          .m_axis_tdest(),
+          .m_axis_tuser(b_tuser),
+          .m_axis_tdata(b_tdata),
+
+          .s_pause_req(1'b0),
+          .s_pause_ack(),
+          .m_pause_req(1'b0),
+          .m_pause_ack(),
+
+          .s_status_depth(axi_rd_level_w),  // Status
+          .s_status_depth_commit(),
+          .s_status_overflow(),
+          .s_status_bad_frame(),
+          .s_status_good_frame(),
+          .m_status_depth(cmd_rd_level_w),  // Status
+          .m_status_depth_commit(com_rd_level_w),
+          .m_status_overflow(),
+          .m_status_bad_frame(),
+          .m_status_good_frame()
+      );
+
+      axis_adapter #(
+          .S_DATA_WIDTH(DATA_WIDTH),
+          .S_KEEP_ENABLE(1),
+          .S_KEEP_WIDTH(STROBES),
+          .M_DATA_WIDTH(8),
+          .M_KEEP_ENABLE(1),
+          .M_KEEP_WIDTH(1),
+          .ID_ENABLE(1),
+          .ID_WIDTH(ID_WIDTH),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(1),
+          .USER_WIDTH(2)
+      ) U_ADAPT2 (
+          .clk(cmd_clk),
+          .rst(cmd_rst),
+
+          .s_axis_tvalid(b_tvalid && b_xfer_q),  // AXI input: 32b
+          .s_axis_tready(b_tready),
+          .s_axis_tkeep({STROBES{b_tvalid}}),
+          .s_axis_tlast(b_tlast),
+          .s_axis_tdata(b_tdata),
+          .s_axis_tid(b_tid),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(b_tuser),
+
+          .m_axis_tvalid(dat_tvalid_o),  // AXI output: 8b
+          .m_axis_tready(dat_tready_i),
+          .m_axis_tkeep(dat_tkeep_o),
+          .m_axis_tlast(dat_tlast_o),
+          .m_axis_tid(),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+          .m_axis_tdata(dat_tdata_o)
+      );
+
+    end
+  endgenerate
 
 `ifdef __icarus
   //

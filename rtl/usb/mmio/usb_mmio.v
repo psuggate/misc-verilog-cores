@@ -43,14 +43,14 @@ module usb_mmio #(
     output epo_parity_o,
     output epo_stalled_o,
 
-    // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
+    // USB command, and WRITE, packet stream (Bulk-Out pipe, AXI-S)
     input usb_tvalid_i,
     output usb_tready_o,
     input usb_tkeep_i,
     input usb_tlast_i,
     input [7:0] usb_tdata_i,
 
-    // USB status, and READ, packet stream (Bulk-Out pipe, AXI-S)
+    // USB status, and READ, packet stream (Bulk-In pipe, AXI-S)
     output usb_tvalid_o,
     input usb_tready_i,
     output usb_tkeep_o,
@@ -160,7 +160,7 @@ module usb_mmio #(
       done_q <= 1'b0;
     end else begin
       // if (state == ST_READ && usb_ack_recv_i) begin
-      if (state == ST_READ && sent_w) begin // EXPERIMENTAL
+      if (state == ST_READ && sent_w) begin  // EXPERIMENTAL
         busy_q <= 1'b1;
         done_q <= 1'b1;
       end else if (cmd_ack_w) begin
@@ -219,8 +219,8 @@ module usb_mmio #(
           // For 'GET', 'READY', and 'QUERY' requests.
           if (cmd_apb_w && pready_i) begin
             state <= ST_RESP;
-          // end else if (usb_ack_recv_i) begin
-          end else if (sent_w) begin
+            // end else if (usb_ack_recv_i) begin
+          end else if (sent_w) begin  // EXPERIMENTAL
             state <= ST_WAIT;
           end
         end
