@@ -107,7 +107,7 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg [15:0] res_q;
-  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w, com_rd_level_w;
+  wire [DBITS:0] cmd_wr_level_w, cmd_rd_level_w;
   wire svalid_w, sready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
   wire [ISB:0] rid_w;
@@ -230,18 +230,6 @@ module cmd_to_axi #(
       usb_send_q <= 1'b1;
     end else if (dat_tready_i) begin
       usb_send_q <= 1'b0;
-    end
-  end
-
-  reg b_xfer_q;
-
-  always @(posedge cmd_clk) begin
-    if (cmd_rst) begin
-      b_xfer_q <= 1'b0;
-    end else if (usb_send_w && b_tvalid) begin
-      b_xfer_q <= 1'b1;
-    end else if (!b_tvalid) begin
-      b_xfer_q <= 1'b0;
     end
   end
 
@@ -378,9 +366,7 @@ module cmd_to_axi #(
     end
   end
 
-  //
   //  Clock-domain crossing, for AXI transaction requests, to the AXI domain.
-  //
   axis_afifo #(
       .WIDTH(CMD_FIFO_WIDTH),
       .TLAST(0),
@@ -401,122 +387,7 @@ module cmd_to_axi #(
       .m_tdata ({rd_w, tid_w, len_w, adr_w})
   );
 
-  // -- Write Datapath -- //
-
-  assign svalid_w = dat_tvalid_i && !cmd_dir_i;
-  assign tkeep_w  = dat_tkeep_i;
-  assign tlast_w  = dat_tlast_i;
-
-  /**
-   * Widens the 8-bit stream (from USB) to 32-bit for AXI.
-   */
-  axis_adapter #(
-      .S_DATA_WIDTH(8),
-      .S_KEEP_ENABLE(1),
-      .S_KEEP_WIDTH(1),
-      .M_DATA_WIDTH(DATA_WIDTH),
-      .M_KEEP_ENABLE(1),
-      .M_KEEP_WIDTH(STROBES),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1)
-  ) U_ADAPT1 (
-      .clk(cmd_clk),
-      .rst(cmd_rst),
-
-      .s_axis_tvalid(svalid_w),
-      .s_axis_tready(sready_w),
-      .s_axis_tkeep(tkeep_w),
-      .s_axis_tlast(tlast_w),
-      .s_axis_tid(cmd_tag_i),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
-      .s_axis_tdata(dat_tdata_i),  // AXI input
-
-      .m_axis_tvalid(a_tvalid),
-      .m_axis_tready(a_tready),
-      .m_axis_tkeep(a_tkeep),
-      .m_axis_tlast(a_tlast),
-      .m_axis_tid(a_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(),
-      .m_axis_tdata(a_tdata)  // AXI output
-  );
-
-  /**
-   * Clock-domain crossing for the USB data, to the AXI clock-domain.
-   *
-   * Note(s):
-   *  - Because the data-transfer rate for USB data is likely to be less than
-   *    that of AXI, we need to store data for an entire AXI transaction.
-   */
-  axis_async_fifo #(
-      .DEPTH(FIFO_DEPTH),
-      .DATA_WIDTH(DATA_WIDTH),
-      .KEEP_ENABLE(1),
-      .KEEP_WIDTH(STROBES),
-      .LAST_ENABLE(1),
-      .ID_ENABLE(1),
-      .ID_WIDTH(ID_WIDTH),
-      .DEST_ENABLE(0),
-      .DEST_WIDTH(1),
-      .USER_ENABLE(0),
-      .USER_WIDTH(1),
-      .RAM_PIPELINE(1),
-      .OUTPUT_FIFO_ENABLE(0),
-      .FRAME_FIFO(WR_FRAME_FIFO),
-      .USER_BAD_FRAME_VALUE(0),
-      .USER_BAD_FRAME_MASK(0),
-      .DROP_BAD_FRAME(0),
-      .DROP_WHEN_FULL(0)
-  ) U_WRFIFO1 (
-      .s_clk(cmd_clk),
-      .s_rst(cmd_rst),
-
-      .s_axis_tvalid(a_tvalid),
-      .s_axis_tready(a_tready),
-      .s_axis_tkeep(a_tkeep),
-      .s_axis_tlast(a_tlast),
-      .s_axis_tdata(a_tdata),  // AXI input
-      .s_axis_tid(a_tid),
-      .s_axis_tdest(1'b0),
-      .s_axis_tuser(1'b0),
-
-      .m_clk(aclk),
-      .m_rst(arst),
-
-      .m_axis_tvalid(x_tvalid),
-      .m_axis_tready(x_tready),
-      .m_axis_tkeep(x_tkeep),
-      .m_axis_tlast(x_tlast),
-      .m_axis_tdata(x_tdata),  // AXI output
-      .m_axis_tid(x_tid),
-      .m_axis_tdest(),
-      .m_axis_tuser(),
-
-      .s_pause_req(1'b0),
-      .s_pause_ack(),
-      .m_pause_req(1'b0),
-      .m_pause_ack(),
-
-      .s_status_depth(cmd_wr_level_w),  // Status
-      .s_status_depth_commit(),
-      .s_status_overflow(),
-      .s_status_bad_frame(),
-      .s_status_good_frame(),
-      .m_status_depth(),  // Status
-      .m_status_depth_commit(),
-      .m_status_overflow(),
-      .m_status_bad_frame(),
-      .m_status_good_frame()
-  );
-
-  /**
-   * AXI write-responses need to cross back to the USB clock-domain.
-   */
+  // AXI write-responses need to cross back to the USB clock-domain.
   axis_afifo #(
       .WIDTH(ID_WIDTH + 1),
       .TLAST(0),
@@ -535,8 +406,6 @@ module cmd_to_axi #(
       .m_tdata ({rokay_w, rid_w})
   );
 
-  // -- Read Datapath -- //
-
   generate
     if (DATA_WIDTH == USB_WIDTH) begin : g_fast_bulk_in_path
       //
@@ -546,7 +415,7 @@ module cmd_to_axi #(
       //  - AXI 'rresp' logic (and domain-crossing)?
       //
       reg [DSB:0] cmd_rd_level_p, cmd_rd_level_q;
-      reg save_q, redo_q, next_q;
+      reg drop_q, save_q, redo_q, next_q;
 
       assign dat_tkeep_o = dat_tvalid_o;
       assign cmd_rd_level_w = cmd_rd_level_q;
@@ -556,11 +425,45 @@ module cmd_to_axi #(
         cmd_rd_level_q <= cmd_level_p;
       end
 
-      //
+      // Output packet FIFO, for (STORE) data passed-through from the USB Bulk-Out
+      // pipe, and with drop-packet-on-failure.
+      packet_fifo #(
+          .WIDTH(8),
+          .DEPTH(PACKET_FIFO_DEPTH),
+          .STORE_LASTS(1),
+          .SAVE_ON_LAST(0),  // save only after CRC16 checking
+          .LAST_ON_SAVE(1),  // delayed 'tlast', after CRC16-valid
+          .NEXT_ON_LAST(1),
+          .USE_LENGTH(0),
+          .MAX_LENGTH(MAX_PACKET_LENGTH),
+          .OUTREG(2)
+      ) U_PFIFO2 (
+          .clock(clock),
+          .reset(enb),
+
+          .level_o(axi_wr_level_w),
+
+          .drop_i(drop_q),  // Todo: cross from USB domain
+          .save_i(save_q),  // Todo: cross from USB domain
+          .redo_i(1'b0),
+          .next_i(1'b0),
+
+          .s_tvalid(dat_tvalid_i),
+          .s_tready(dat_tready_o),
+          .s_tkeep (dat_tkeep_i),
+          .s_tlast (dat_tlast_i),
+          .s_tdata (dat_tdata_i),
+
+          .m_tvalid(x_tvalid),
+          .m_tready(x_tready),
+          .m_tkeep (x_tkeep),
+          .m_tlast (x_tlast),
+          .m_tdata (x_tdata)
+      );
+
       // Output packet FIFO, for command responses, or (AXI FETCH) data passed-
       // through to the USB host (via Bulk-In pipe), and with with Repeat-Last
       // Packet, on timeout (while waiting for ACK).
-      //
       packet_fifo #(
           .WIDTH(DATA_WIDTH),
           .DEPTH(FIFO_DEPTH),
@@ -575,7 +478,7 @@ module cmd_to_axi #(
           .clock(aclk),
           .reset(arst),
 
-          .level_o(axi_rd_level_w),
+          .level_o(axi_rd_level_w),  // Todo: not required?
 
           .drop_i(1'b0),    // Todo: correct?
           .save_i(save_q),  // Todo: not required?
@@ -595,6 +498,129 @@ module cmd_to_axi #(
       );
 
     end else begin : g_slow_bulk_in_path
+
+      reg b_xfer_q;
+
+      assign svalid_w = dat_tvalid_i && !cmd_dir_i;
+      assign tkeep_w  = dat_tkeep_i;
+      assign tlast_w  = dat_tlast_i;
+
+      always @(posedge cmd_clk) begin
+        if (cmd_rst) begin
+          b_xfer_q <= 1'b0;
+        end else if (usb_send_w && b_tvalid) begin
+          b_xfer_q <= 1'b1;
+        end else if (!b_tvalid) begin
+          b_xfer_q <= 1'b0;
+        end
+      end
+
+      // -- Write Datapath -- //
+
+      // Widens the 8-bit stream (from USB) to 32-bit for AXI.
+      axis_adapter #(
+          .S_DATA_WIDTH(8),
+          .S_KEEP_ENABLE(1),
+          .S_KEEP_WIDTH(1),
+          .M_DATA_WIDTH(DATA_WIDTH),
+          .M_KEEP_ENABLE(1),
+          .M_KEEP_WIDTH(STROBES),
+          .ID_ENABLE(1),
+          .ID_WIDTH(ID_WIDTH),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1)
+      ) U_ADAPT1 (
+          .clk(cmd_clk),
+          .rst(cmd_rst),
+
+          .s_axis_tvalid(svalid_w),
+          .s_axis_tready(sready_w),
+          .s_axis_tkeep(tkeep_w),
+          .s_axis_tlast(tlast_w),
+          .s_axis_tid(cmd_tag_i),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(1'b0),
+          .s_axis_tdata(dat_tdata_i),  // AXI input
+
+          .m_axis_tvalid(a_tvalid),
+          .m_axis_tready(a_tready),
+          .m_axis_tkeep(a_tkeep),
+          .m_axis_tlast(a_tlast),
+          .m_axis_tid(a_tid),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+          .m_axis_tdata(a_tdata)  // AXI output
+      );
+
+      // Clock-domain crossing for the USB data, to the AXI clock-domain.
+      //
+      // Note(s):
+      //  - Because the data-transfer rate for USB data is likely to be less than
+      //    that of AXI, we need to store data for an entire AXI transaction.
+      axis_async_fifo #(
+          .DEPTH(FIFO_DEPTH),
+          .DATA_WIDTH(DATA_WIDTH),
+          .KEEP_ENABLE(1),
+          .KEEP_WIDTH(STROBES),
+          .LAST_ENABLE(1),
+          .ID_ENABLE(1),
+          .ID_WIDTH(ID_WIDTH),
+          .DEST_ENABLE(0),
+          .DEST_WIDTH(1),
+          .USER_ENABLE(0),
+          .USER_WIDTH(1),
+          .RAM_PIPELINE(1),
+          .OUTPUT_FIFO_ENABLE(0),
+          .FRAME_FIFO(WR_FRAME_FIFO),
+          .USER_BAD_FRAME_VALUE(0),
+          .USER_BAD_FRAME_MASK(0),
+          .DROP_BAD_FRAME(0),
+          .DROP_WHEN_FULL(0)
+      ) U_WRFIFO1 (
+          .s_clk(cmd_clk),
+          .s_rst(cmd_rst),
+
+          .s_axis_tvalid(a_tvalid),
+          .s_axis_tready(a_tready),
+          .s_axis_tkeep(a_tkeep),
+          .s_axis_tlast(a_tlast),
+          .s_axis_tdata(a_tdata),  // AXI input
+          .s_axis_tid(a_tid),
+          .s_axis_tdest(1'b0),
+          .s_axis_tuser(1'b0),
+
+          .m_clk(aclk),
+          .m_rst(arst),
+
+          .m_axis_tvalid(x_tvalid),
+          .m_axis_tready(x_tready),
+          .m_axis_tkeep(x_tkeep),
+          .m_axis_tlast(x_tlast),
+          .m_axis_tdata(x_tdata),  // AXI output
+          .m_axis_tid(x_tid),
+          .m_axis_tdest(),
+          .m_axis_tuser(),
+
+          .s_pause_req(1'b0),
+          .s_pause_ack(),
+          .m_pause_req(1'b0),
+          .m_pause_ack(),
+
+          .s_status_depth(cmd_wr_level_w),  // Status
+          .s_status_depth_commit(),
+          .s_status_overflow(),
+          .s_status_bad_frame(),
+          .s_status_good_frame(),
+          .m_status_depth(),  // Status
+          .m_status_depth_commit(),
+          .m_status_overflow(),
+          .m_status_bad_frame(),
+          .m_status_good_frame()
+      );
+
+      // -- Read Datapath -- //
 
       axis_async_fifo #(
           .DEPTH(FIFO_DEPTH),
@@ -651,7 +677,7 @@ module cmd_to_axi #(
           .s_status_bad_frame(),
           .s_status_good_frame(),
           .m_status_depth(cmd_rd_level_w),  // Status
-          .m_status_depth_commit(com_rd_level_w),
+          .m_status_depth_commit(),
           .m_status_overflow(),
           .m_status_bad_frame(),
           .m_status_good_frame()

@@ -247,9 +247,7 @@ module fast_ep_in #(
     end
   end
 
-  /**
-   * Writes the MMIO response, after the data transfer stage(s) have completed.
-   */
+  // Writes the MMIO response, after the data transfer stage(s) have completed.
   reg  [55:0] out_q;
   reg  [ 2:0] idx_q;
   wire [55:0] out_w;
@@ -286,10 +284,8 @@ module fast_ep_in #(
     end
   end
 
-  /**
-   * Top-level of a hierarchical FSM, and just transitions between the phases
-   * of parsing a command, transferring data, then sending a response.
-   */
+  // Top-level of a hierarchical FSM, and just transitions between the phases
+  // of parsing a command, transferring data, then sending a response.
   always @(posedge clock) begin
     if (clear) begin
       state <= EP_IDLE;
@@ -310,9 +306,7 @@ module fast_ep_in #(
     end
   end
 
-  /**
-   * Narrows the 32-bit AXI stream to an 8-bit stream (for USB).
-   */
+  // Narrows the 32-bit AXI stream to an 8-bit stream (for USB).
   axis_adapter #(
       .S_DATA_WIDTH(DATA_WIDTH),
       .S_KEEP_ENABLE(1),
@@ -349,9 +343,7 @@ module fast_ep_in #(
       .m_axis_tdata(a_tdata_w)  // AXI output
   );
 
-  /**
-   * Cross domains for the fetched AXI data.
-   */
+  // Cross domains for the fetched AXI data.
   axis_afifo #(
       .WIDTH(8),
       .TLAST(1),
@@ -372,10 +364,7 @@ module fast_ep_in #(
       .m_tdata (u_tdata_w)
   );
 
-  //
-  //  USB Datapath Multiplexor
-  ///
-
+  // USB data can be from AXI, APB, ZDP, or "responses."
   axis_mux #(
       .S_COUNT(2),
       .DATA_WIDTH(8),
