@@ -59,18 +59,18 @@ module usb_mmio_tb;
 
   reg mclk = 1, pclk = 1;
   reg presetn;
-  wire areset_n, configured;
+  wire aresetn, configured;
 
   reg [63:0] dbg_op;
 
-  assign areset_n = ~reset;
+  assign aresetn = ~reset;
 
   always #5 mclk <= ~mclk;
   always #8 clock <= ~clock;
   always #15 pclk <= ~pclk;
 
   always @(posedge pclk) begin
-    presetn <= areset_n;
+    presetn <= aresetn;
   end
 
   initial begin : SIM_FTW
@@ -287,7 +287,7 @@ module usb_mmio_tb;
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_REQ1 (
-      .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
+      .aresetn(aresetn),  // Global, asynchronous reset (active LOW)
 
       .clock(clock),  // USB clock domain
       .reset(reset),

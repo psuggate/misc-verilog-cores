@@ -57,6 +57,8 @@ module mmio_ep_out_tb;
   end
 
   mmio_ep_out U_EPOUT0 (
+      .aresetn(aresetn),
+
       .clock(clock),
       .reset(reset),
 
@@ -78,6 +80,7 @@ module mmio_ep_out_tb;
       .mmio_sent_i(sent_q),
       .mmio_resp_i(resp_q),
       .mmio_done_i(done_q),
+      .mmio_fail_i(1'b0),
 
       // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
       .usb_tvalid_i(s_tvalid),

@@ -15,9 +15,10 @@
 //
 module usb_mmio #(
     parameter MAX_PACKET_LENGTH = 512,  // For HS-mode
+    localparam CBITS = $clog2(MAX_PACKET_LENGTH),
     parameter PACKET_FIFO_DEPTH = 2048
 ) (
-    input areset_n,  // Global, asynchronous reset (active LOW)
+    input aresetn,  // Global, asynchronous reset (active LOW)
 
     input clock,
     input reset,
@@ -29,7 +30,7 @@ module usb_mmio #(
     input epi_clr_conf_i,
     input epi_selected_i,
     input epi_timedout_i,
-    input [9:0] epi_max_size_i,
+    input [CBITS:0] epi_max_size_i,
     output epi_ready_o,
     output epi_parity_o,
     output epi_stalled_o,
@@ -38,7 +39,7 @@ module usb_mmio #(
     input epo_clr_conf_i,
     input epo_selected_i,
     input epo_rx_error_i,
-    input [9:0] epo_max_size_i,
+    input [CBITS:0] epo_max_size_i,
     output epo_ready_o,
     output epo_parity_o,
     output epo_stalled_o,
@@ -118,10 +119,12 @@ module usb_mmio #(
   wire [27:0] cmd_adr_w;
 
   reg busy_q, send_q, resp_q, xmit_q, done_q;
-  wire recv_w, next_w, sent_w, resp_w;
-  wire s_tvalid, s_tready, s_tkeep, s_tlast;
-  wire m_tvalid, m_tready, m_tkeep, m_tlast;
-  wire [7:0] s_tdata, m_tdata;
+  wire recv_w, next_w, sent_w, resp_w, redo_w;
+  wire save_w, drop_w;
+  wire s_tvalid, s_tready, s_tlast;
+  wire m_tvalid, m_tready, m_tlast;
+  wire [3:0] s_tkeep, m_tkeep;
+  wire [31:0] s_tdata, m_tdata;
 
   localparam [4:0] ST_IDLE = 5'd1, ST_READ = 5'd2, ST_WAIT = 5'd4, ST_RESP = 5'd8, ST_HALT = 5'd16;
   reg [4:0] state;
@@ -129,10 +132,25 @@ module usb_mmio #(
 
 
   //
-  //  Module control-signals.
+  //  Module-wide control signals.
   //
-  always @(posedge clock or negedge areset_n) begin
-    if (reset || !areset_n || epo_set_conf_i || epo_clr_conf_i || epi_set_conf_i || epi_clr_conf_i) begin
+  reg arst, rst0, rst1;
+
+  always @(posedge aclk or negedge aresetn)
+    if (!aresetn) begin
+      rst0 <= 1'b1;
+      rst1 <= 1'b1;
+    end else begin
+      rst0 <= 1'b0;
+      rst1 <= rst0;
+    end
+
+  always @(posedge aclk) begin
+    arst <= rst1;
+  end
+
+  always @(posedge clock or negedge aresetn) begin
+    if (reset || !aresetn || epo_set_conf_i || epo_clr_conf_i || epi_set_conf_i || epi_clr_conf_i) begin
       clear <= 1'b1;
     end else begin
       clear <= 1'b0;
@@ -181,7 +199,7 @@ module usb_mmio #(
       end
 
       case (state)
-        ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q);
+        ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q || recv_w);
         ST_RESP: send_q <= !send_q && resp_q;
         default: send_q <= 1'b0;
       endcase
@@ -206,44 +224,22 @@ module usb_mmio #(
       case (state)
         ST_IDLE: begin
           // When CMD received, issue:
-          //  a) SET   => APB write, GOTO wait
-          //  b) GET   => APB read, GOTO read
-          //  c) FETCH => AXI read, GOTO wait
-          //  d) STORE => AXI write, GOTO wait
+          //  a) SET   => APB write, GOTO respond
+          //  b) GET   => APB read, GOTO respond
+          //  c) FETCH => AXI read, GOTO read (from AXI)
+          //  d) STORE => AXI write, GOTO wait (for write)
           if (cmd_vld_w) begin
-            state <= cmd_apb_w || !cmd_dir_w ? ST_WAIT : ST_READ;
+            state <= cmd_apb_w ? ST_RESP : (cmd_dir_w ? ST_READ : ST_WAIT);
           end
         end
 
-        ST_READ: begin
-          // For 'GET', 'READY', and 'QUERY' requests.
-          if (cmd_apb_w && pready_i) begin
-            state <= ST_RESP;
-            // end else if (usb_ack_recv_i) begin
-          end else if (sent_w) begin  // EXPERIMENTAL
-            state <= ST_WAIT;
-          end
-        end
-
-        ST_WAIT:
-        // if (recv_w || usb_ack_recv_i) begin  // EXPERIMENTAL
-        if (recv_w || sent_w) begin
-          state <= ST_RESP;
-        end
-
-        ST_RESP:
-        if (resp_w) begin
-          state <= ST_IDLE;
-        end
-
-        ST_HALT:
-        if (epo_en_q && epi_en_q) begin
-          state <= ST_IDLE;
-        end
+        ST_READ: state <= sent_w ? ST_RESP : state;
+        ST_WAIT: state <= recv_w ? ST_RESP : state;
+        ST_RESP: state <= resp_w ? ST_IDLE : state;
+        ST_HALT: state <= epo_en_q && epi_en_q ? ST_IDLE : state;
       endcase
     end
   end
-
 
   //
   //  The MMIO interface requires two USB end-points, a Bulk-In and a Bulk-Out
@@ -253,6 +249,8 @@ module usb_mmio #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_EPOUT0 (
+      .aresetn(aresetn),
+
       .clock(clock),
       .reset(reset),
 
@@ -271,9 +269,12 @@ module usb_mmio #(
       // From MMIO controller
       .mmio_busy_i(busy_q),  // Todo: what do I want?
       .mmio_recv_o(recv_w),
+      .mmio_save_o(save_w),
+      .mmio_drop_o(drop_w),
       .mmio_sent_i(sent_w),
       .mmio_resp_i(resp_w),
       .mmio_done_i(done_q),
+      .mmio_fail_i(1'b0),    // Todo: handle?
 
       // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
       .usb_tvalid_i(usb_tvalid_i),
@@ -293,6 +294,9 @@ module usb_mmio #(
       .cmd_lun_o(cmd_lun_w),
       .cmd_adr_o(cmd_adr_w),
 
+      .dat_clk(aclk),
+      .dat_rst(arst),
+
       // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
       .dat_tvalid_o(m_tvalid),
       .dat_tready_i(m_tready),
@@ -301,10 +305,12 @@ module usb_mmio #(
       .dat_tdata_o (m_tdata)
   );
 
-  mmio_ep_in #(
+  fast_ep_in #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_EPIN0 (
+      .aresetn(aresetn),
+
       .clock(clock),
       .reset(reset),
 
@@ -323,19 +329,13 @@ module usb_mmio #(
 
       // From MMIO controller
       .mmio_busy_i(busy_q),
-      .mmio_recv_i(xmit_q),  // Todo: handle AXI -> Bulk IN `recv_w`
-      .mmio_send_i(send_q),
-      .mmio_next_o(next_w),
+      .mmio_send_i(xmit_q),  // Todo: handle AXI -> Bulk IN `recv_w`
       .mmio_sent_o(sent_w),
+      .mmio_resp_i(send_q),
       .mmio_resp_o(resp_w),
+      .mmio_next_o(next_w),
+      .mmio_redo_o(redo_w),
       .mmio_done_i(done_q),
-
-      // From Bulk-In data source (AXI or APB(), via AXI-S)
-      .dat_tvalid_i(s_tvalid),
-      .dat_tready_o(s_tready),
-      .dat_tkeep_i (s_tkeep),
-      .dat_tlast_i (s_tlast),
-      .dat_tdata_i (s_tdata),
 
       // Decoded command (APB(), or AXI)
       .cmd_vld_i(cmd_vld_w),
@@ -355,7 +355,17 @@ module usb_mmio #(
       .usb_tready_i(usb_tready_i),
       .usb_tkeep_o (usb_tkeep_o),
       .usb_tlast_o (usb_tlast_o),
-      .usb_tdata_o (usb_tdata_o)
+      .usb_tdata_o (usb_tdata_o),
+
+      .dat_clk(aclk),
+      .dat_rst(arst),
+
+      // From Bulk-In data source (AXI or APB(), via AXI-S)
+      .dat_tvalid_i(s_tvalid),
+      .dat_tready_o(s_tready),
+      .dat_tkeep_i (s_tkeep),
+      .dat_tlast_i (s_tlast),
+      .dat_tdata_i (s_tdata)
   );
 
 
@@ -376,7 +386,7 @@ module usb_mmio #(
       cmd_ack_q <= cmd_ack_w;
       cmd_err_q <= apb_err_w || axi_err_w;
       cmd_rdy_q <= apb_rdy_w || axi_rdy_w;
-      cmd_val_q <= sel_apb_q ? apb_val_w : axi_res_w;
+      cmd_val_q <= sel_apb_q ? (cmd_dir_w ? apb_val_w : cmd_len_w) : axi_res_w;
     end
   end
 
@@ -397,7 +407,7 @@ module usb_mmio #(
    * Issues APB transactions, then sends the result to Bulk-In EP.
    */
   cmd_to_apb U_APB_CTRL0 (
-      .areset_n(areset_n),  // Global, asynchronous reset (active LOW)
+      .aresetn(aresetn),  // Global, asynchronous reset (active LOW)
 
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
@@ -433,7 +443,7 @@ module usb_mmio #(
    */
   cmd_to_axi #(
       .USB_DWORDS(MAX_PACKET_LENGTH / 4),
-      .FIFO_DEPTH(PACKET_FIFO_DEPTH / 4)
+      .FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_AXI_CTRL0 (
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
@@ -451,7 +461,11 @@ module usb_mmio #(
       .cmd_res_o(axi_res_w),
 
       .usb_send_o(axi_out_w),
+      .usb_save_i(save_w),
+      .usb_drop_i(drop_w),
       .usb_sent_i(sent_w),
+      .usb_next_i(next_w),
+      .usb_redo_i(redo_w),
 
       .dat_tvalid_i(m_tvalid),
       .dat_tready_o(m_tready),
@@ -466,7 +480,7 @@ module usb_mmio #(
       .dat_tdata_o (s_tdata),
 
       .aclk(aclk),  // AXI clock-domain
-      .aresetn(areset_n),  // Asynchronous reset (active LOW)
+      .aresetn(aresetn),  // Asynchronous reset (active LOW)
 
       .awvalid_o(axi_awvalid_o),  // AXI4 Interface
       .awready_i(axi_awready_i),

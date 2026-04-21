@@ -17,15 +17,20 @@ module mmio_ep_out #(
     parameter PACKET_FIFO_DEPTH = 2048,
     localparam PBITS = $clog2(PACKET_FIFO_DEPTH),
     localparam PSB = PBITS - 1,
+    localparam DATA_WIDTH = 32,
+    localparam MSB = DATA_WIDTH - 1,
+    localparam STROBES = DATA_WIDTH / 8,
+    localparam SSB = STROBES - 1,
     // Icarus/Verilog seems to use wrong-endian by default?
     parameter [7:0] MAGIC0 = "T",
     parameter [7:0] MAGIC1 = "A",
     parameter [7:0] MAGIC2 = "R",
     parameter [7:0] MAGIC3 = "T",
     localparam [31:0] MAGIC = {MAGIC3, MAGIC2, MAGIC1, MAGIC0},
-    // parameter [31:0] MAGIC = "TART",
     parameter ENABLED = 1
 ) (
+    input aresetn,
+
     input clock,
     input reset,
 
@@ -45,6 +50,8 @@ module mmio_ep_out #(
     input  mmio_busy_i,  // Todo: what do I want?
     output mmio_recv_o,
     input  mmio_sent_i,
+    output mmio_save_o,
+    output mmio_drop_o,
     input  mmio_resp_i,
     input  mmio_done_i,
     input  mmio_fail_i,  // Todo: connect to error (from 'usb_mmio')
@@ -67,17 +74,21 @@ module mmio_ep_out #(
     output [3:0] cmd_lun_o,
     output [27:0] cmd_adr_o,
 
+    // Bulk-In domain clock & reset signals
+    input dat_clk,
+    input dat_rst,
+
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     output dat_tvalid_o,
     input dat_tready_i,
-    output dat_tkeep_o,
+    output [SSB:0] dat_tkeep_o,
     output dat_tlast_o,
-    output [7:0] dat_tdata_o
+    output [MSB:0] dat_tdata_o
 );
 
   reg stall, clear, en_q, ready, bypass, parity, recvd;
   reg sel_q, rxd_q;
-  reg cyc, stb, lst, rdy, byp;
+  reg cyc, stb, lst, rdy, byp_q;
   reg vld, dir, enb, apb;
   reg drop_q, save_q, recv_q;
   reg [ 1:0] cmd;
@@ -96,9 +107,13 @@ module mmio_ep_out #(
   assign stalled_o = stall;
   assign ep_ready_o = ready;
   assign parity_o = parity;
+
   assign mmio_recv_o = recvd;
-  assign usb_tready_o = byp ? fifo_tready_w : rdy;
-  assign dat_tkeep_o = dat_tvalid_o;
+  assign mmio_save_o = save_q;
+  assign mmio_drop_o = drop_q;
+
+  assign usb_tready_o = byp_q ? fifo_tready_w : rdy;
+  assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
 
   assign cmd_vld_o = vld;
   assign cmd_cmd_o = cmd;
@@ -280,7 +295,6 @@ module mmio_ep_out #(
     end
   end
 
-
   //
   // Detect the end of the data-transfer phase by counting bytes per USB frame,
   // or arrival of a ZDP (Zero-Data Packet).
@@ -323,14 +337,14 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear || stall) begin
       bypass <= 1'b0;
-      sel_q <= 1'b0;
-      byp <= 1'b0;
+      sel_q  <= 1'b0;
+      byp_q  <= 1'b0;
     end else begin
       sel_q <= selected_i;
       if (!sel_q && selected_i && bypass) begin
-        byp <= 1'b1;
+        byp_q <= 1'b1;
       end else if (!selected_i || usb_tvalid_i && fifo_tready_w && usb_tlast_i) begin
-        byp <= 1'b0;
+        byp_q <= 1'b0;
       end
 
       case (parse)
@@ -339,7 +353,9 @@ module mmio_ep_out #(
         else bypass <= 1'b0;
 
         MM_BUSY:
-        if (bypass && cyc && lst && (!stb || stb && !czero_w)) bypass <= 1'b0;
+        // if (bypass && (ack_sent_i || rx_error_i)) bypass <= 1'b0;
+        if (bypass && cyc && lst && (!stb || stb && !czero_w))
+          bypass <= 1'b0;
         else bypass <= bypass;
 
         default: bypass <= 1'b0;
@@ -395,6 +411,8 @@ module mmio_ep_out #(
     end
   end
 
+  reg wait_q;
+
   /**
    * When we are performing a 'STORE', we need to save each packet (fragment) to
    * the packet-FIFO, so that it can be transferred out. And if there was any
@@ -407,48 +425,79 @@ module mmio_ep_out #(
       recv_q <= 1'b1;
     end
 
-    drop_q <= recv_q && rx_error_i;
-    save_q <= recv_q && ack_sent_i;
+    // drop_q <= recv_q && rx_error_i;
+    // save_q <= recv_q && ack_sent_i;
+    if (recv_q && bypass) begin
+      wait_q <= 1'b1;
+    end else if (!selected_i || drop_q || save_q) begin
+      wait_q <= 1'b0;
+    end
+    drop_q <= wait_q && rx_error_i;
+    save_q <= wait_q && ack_sent_i;
   end
 
+  wire b_tvalid_w, b_tready_w, b_tlast_w;
+  wire [7:0] b_tdata_w;
 
-  //
-  // Output packet FIFO, for (STORE) data passed-through from the USB Bulk-Out
-  // pipe, and with drop-packet-on-failure.
-  //
-  packet_fifo #(
+  wire fifo_tvalid_w = usb_tvalid_i && usb_tkeep_i && byp_q;
+
+  // Cross domains for data being sent to the AXI domain.
+  axis_afifo #(
       .WIDTH(8),
-      .DEPTH(PACKET_FIFO_DEPTH),
-      .STORE_LASTS(1),
-      .SAVE_ON_LAST(0),  // save only after CRC16 checking
-      .LAST_ON_SAVE(1),  // delayed 'tlast', after CRC16-valid
-      .NEXT_ON_LAST(1),
-      .USE_LENGTH(0),
-      .MAX_LENGTH(MAX_PACKET_LENGTH),
-      .OUTREG(2)
-  ) U_FIFO0 (
-      .clock(clock),
-      .reset(enb),
+      .TLAST(1),
+      .ABITS(4)
+  ) U_AFIFO1 (
+      .aresetn(aresetn),
 
-      .level_o(level_w),
-
-      .drop_i(drop_q),
-      .save_i(save_q),
-      .redo_i(1'b0),
-      .next_i(1'b0),
-
-      .s_tvalid(usb_tvalid_i),
+      .s_aclk  (clock),
+      .s_tvalid(fifo_tvalid_w),
       .s_tready(fifo_tready_w),
-      .s_tkeep (usb_tkeep_i),
       .s_tlast (usb_tlast_i),
       .s_tdata (usb_tdata_i),
 
-      .m_tvalid(dat_tvalid_o),
-      .m_tready(dat_tready_i),
-      .m_tlast (dat_tlast_o),
-      .m_tdata (dat_tdata_o)
+      .m_aclk  (dat_clk),
+      .m_tvalid(b_tvalid_w),
+      .m_tready(b_tready_w),
+      .m_tlast (b_tlast_w),
+      .m_tdata (b_tdata_w)
   );
 
+  // Widens the 8-bit stream (from USB) to 32-bit for AXI.
+  axis_adapter #(
+      .S_DATA_WIDTH(8),
+      .S_KEEP_ENABLE(0),
+      .S_KEEP_WIDTH(1),
+      .M_DATA_WIDTH(DATA_WIDTH),
+      .M_KEEP_ENABLE(1),
+      .M_KEEP_WIDTH(STROBES),
+      .ID_ENABLE(0),
+      .ID_WIDTH(1),
+      .DEST_ENABLE(0),
+      .DEST_WIDTH(1),
+      .USER_ENABLE(0),
+      .USER_WIDTH(1)
+  ) U_ADAPT1 (
+      .clk(dat_clk),
+      .rst(dat_rst),
+
+      .s_axis_tvalid(b_tvalid_w),
+      .s_axis_tready(b_tready_w),
+      .s_axis_tkeep(1'b0),
+      .s_axis_tlast(b_tlast_w),
+      .s_axis_tid(1'b0),
+      .s_axis_tdest(1'b0),
+      .s_axis_tuser(1'b0),
+      .s_axis_tdata(b_tdata_w),
+
+      .m_axis_tvalid(dat_tvalid_o),
+      .m_axis_tready(dat_tready_i),
+      .m_axis_tkeep(),
+      .m_axis_tlast(dat_tlast_o),
+      .m_axis_tid(),
+      .m_axis_tdest(),
+      .m_axis_tuser(),
+      .m_axis_tdata(dat_tdata_o)  // AXI output
+  );
 
 `ifdef __icarus
   //

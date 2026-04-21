@@ -1,7 +1,7 @@
 `timescale 1ns / 100ps
 module cmd_to_apb (  // USB bus (command) clock-domain
     // Global asynchronous reset
-    input areset_n,
+    input aresetn,
 
     // USB-domain clock & reset signals
     input cmd_clk,
@@ -62,8 +62,8 @@ module cmd_to_apb (  // USB bus (command) clock-domain
   /**
    * Transaction-framing logic, for APB requests.
    */
-  always @(posedge cmd_clk or negedge areset_n) begin
-    if (!areset_n || cmd_rst) begin
+  always @(posedge cmd_clk or negedge aresetn) begin
+    if (!aresetn || cmd_rst) begin
       vld_q <= 1'b0;
       rdy_q <= 1'b0;
       val_q <= 16'bx;
@@ -121,8 +121,8 @@ module cmd_to_apb (  // USB bus (command) clock-domain
   assign perror_w = pslverr_i || !presetn;
   assign strobe_w = cyc_p && pready_i;
 
-  always @(posedge pclk or negedge areset_n) begin
-    if (!areset_n || strobe_w) begin
+  always @(posedge pclk or negedge aresetn) begin
+    if (!aresetn || strobe_w) begin
       cyc_p <= 1'b0;
     end else if (pvalid_w && pready_w) begin
       cyc_p <= 1'b1;
@@ -135,7 +135,7 @@ module cmd_to_apb (  // USB bus (command) clock-domain
       .TLAST(0),
       .ABITS(4)
   ) U_AFIFO0 (
-      .aresetn(areset_n),
+      .aresetn(aresetn),
 
       .s_aclk  (cmd_clk),
       .s_tvalid(vld_q),
@@ -158,7 +158,7 @@ module cmd_to_apb (  // USB bus (command) clock-domain
       .TLAST(0),
       .ABITS(4)
   ) U_AFIFO1 (
-      .aresetn(areset_n),
+      .aresetn(aresetn),
 
       .s_aclk  (pclk),
       .s_tvalid(strobe_w),
