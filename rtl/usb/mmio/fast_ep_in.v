@@ -86,10 +86,8 @@ module fast_ep_in #(
     input [MSB:0] dat_tdata_i
 );
 
-  // Todo:
-  `define CMD_SUCCESS 4'h0
-  `define CMD_FAILURE 4'h1
-  `define CMD_INVALID 4'hF
+  localparam TZERO = {TBITS{1'b0}};
+  localparam TONES = {TBITS{1'b1}};
 
   reg res_q;
 
@@ -104,9 +102,9 @@ module fast_ep_in #(
   // -- USB clock-domain AXIS signals -- //
 
   wire u_tvalid_w, u_tready_w, u_tkeep_w, u_tlast_w;
-  wire r_tvalid_w, r_tready_w, r_tkeep_w, r_tlast_w;
+  wire res_tvalid_w, res_tready_w, res_tkeep_w, res_tlast_w;
   wire ulpi_tvalid_w, ulpi_tready_w, ulpi_tkeep_w, ulpi_tlast_w;
-  wire [7:0] u_tdata_w, r_tdata_w, ulpi_tdata_w;
+  wire [7:0] u_tdata_w, res_tdata_w, ulpi_tdata_w;
 
   // -- Top-level USB 'Bulk In' end-point (EP) state-machine -- //
 
@@ -160,9 +158,6 @@ module fast_ep_in #(
   //
   reg  [  TSB:0] ticks;
   wire [TBITS:0] dec_w;
-
-  localparam TZERO = {TBITS{1'b0}};
-  localparam TONES = {TBITS{1'b1}};
 
   assign dec_w = ticks - 1;
 
@@ -218,9 +213,75 @@ module fast_ep_in #(
           state <= EP_SEND;
         end
         EP_SEND: state <= next ? EP_IDLE : state;
-        EP_RESP: state <= resp ? EP_IDLE : state;
+        EP_RESP: state <= issued_w ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
+    end
+  end
+
+  /**
+   * FSM for sending USB frames.
+   */
+  always @* begin
+    snxt = xmit;
+
+    case (xmit)
+      TX_IDLE:
+      if (mmio_send_i || mmio_recv_i) begin
+        snxt = TX_SEND;
+      end
+
+      // Transferring data from source to USB encoder (via the packet FIFO).
+      TX_SEND:
+      if (ulpi_tvalid_w && usb_tready_i && ulpi_tlast_w) begin
+        snxt = TX_WAIT;
+      end
+
+      // After sending a packet, wait for an ACK/ERR response.
+      TX_WAIT:
+      if (selected_i && ack_recv_i) begin
+        snxt = zdp_q ? TX_NONE : TX_IDLE;
+        // snxt = all_q ? (zdp_q ? TX_NONE : TX_IDLE) : TX_WAIT;
+      end else if (selected_i && timedout_i) begin
+        snxt = TX_REDO;
+      end
+
+      // Rest of packet has already been sent, so transmit a ZDP
+      TX_NONE:
+      if (usb_tvalid_o && usb_tready_i && usb_tlast_o) begin
+        snxt = TX_SEND;
+      end
+
+      // Repeat the previous packet(-chunk), as an 'ACK' was not received.
+      TX_REDO:
+      if (selected_i) begin
+        snxt = zdp_q ? TX_NONE : TX_SEND;  // Todo
+      end
+    endcase
+
+    if (en_q != 1'b1 || ENABLED != 1) begin
+      snxt = TX_IDLE;
+    end
+  end
+
+  assign zdp_w  = smax_w && usb_tvalid_o && usb_tready_i && usb_tlast_o;
+  assign all_w  = scount == cmd_len_i;
+  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
+
+  always @(posedge clock) begin
+    xmit  <= snxt;
+    next  <= sent_w;
+    sent  <= sent_w && !zdp_w;
+    // sent <= sent_w && (cmd_apb_i || state == EP_RESP || !zdp_w && all_w);
+
+    // Todo: need to hold high until 'sent_w', or something ...
+    all_q <= cmd_apb_i || state == EP_RESP || all_w;
+
+    // Todo: how to handle time-outs (while waiting for USB 'ACK')?
+    if (clear || xmit == TX_NONE) begin
+      zdp_q <= 1'b0;
+    end else if (zdp_w) begin
+      zdp_q <= 1'b1;
     end
   end
 
@@ -305,7 +366,7 @@ module fast_ep_in #(
   axis_mux #(
       .S_COUNT(2),
       .DATA_WIDTH(8),
-      .KEEP_ENABLE(1),
+      .KEEP_ENABLE(0),
       .KEEP_WIDTH(1),
       .ID_ENABLE(0),
       .ID_WIDTH(1),
@@ -317,17 +378,17 @@ module fast_ep_in #(
       .clk(cmd_clk),
       .rst(cmd_rst),
 
-      .enable(mux_en_w),
-      .select(mux_sel_w),
+      .enable(selected_i),
+      .select(state != EP_RESP),
 
-      .s_axis_tvalid({u_tvalid_w, r_tvalid_w}),
-      .s_axis_tready({u_tready_w, r_tready_w}),
-      .s_axis_tkeep ({u_tkeep_w, r_tkeep_w}),
-      .s_axis_tlast ({u_tlast_w, r_tlast_w}),
+      .s_axis_tvalid({u_tvalid_w, res_tvalid_w}),
+      .s_axis_tready({u_tready_w, res_tready_w}),
+      .s_axis_tkeep ({u_tkeep_w, res_tkeep_w}),
+      .s_axis_tlast ({u_tlast_w, res_tlast_w}),
       .s_axis_tuser (2'bx),
       .s_axis_tid   (2'bx),
       .s_axis_tdest (2'bx),
-      .s_axis_tdata ({u_tdata_w, r_tdata_w}),
+      .s_axis_tdata ({u_tdata_w, res_tdata_w}),
 
       .m_axis_tvalid(ulpi_tvalid_w),
       .m_axis_tready(ulpi_tready_w),

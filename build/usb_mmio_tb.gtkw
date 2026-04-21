@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Apr 21 01:04:18 2026
+[*] Tue Apr 21 01:11:50 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Tue Apr 21 01:02:26 2026"
-[dumpfile_size] 350104
+[dumpfile_mtime] "Tue Apr 21 01:11:24 2026"
+[dumpfile_size] 350007
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
 [timestart] 0
 [size] 2560 1513
@@ -14,7 +14,6 @@
 [treeopen] usb_mmio_tb.U_REQ1.
 [treeopen] usb_mmio_tb.U_REQ1.U_AXI_CTRL0.
 [treeopen] usb_mmio_tb.U_REQ1.U_EPIN0.
-[treeopen] usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.
 [sst_width] 314
 [signals_width] 190
 [sst_expanded] 1
@@ -279,26 +278,6 @@ usb_mmio_tb.U_REQ1.U_EPIN0.zdp_q
 usb_mmio_tb.U_REQ1.U_EPIN0.scount[10:0]
 @1000200
 -Internal
-@c00201
--Result
-@28
-[color] 3
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.result_i
-[color] 2
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.selected_i
-@24
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.idx_q[2:0]
-@420
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.state
-@28
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.usb_tvalid_o
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.usb_tready_i
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.usb_tkeep_o
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.usb_tlast_o
-@22
-usb_mmio_tb.U_REQ1.U_EPIN0.g_cmd_res_module.URESULT.usb_tdata_o[7:0]
-@1401201
--Result
 @c00200
 -TxFIFO
 @28

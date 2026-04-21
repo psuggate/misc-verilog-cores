@@ -27,7 +27,7 @@ module cmd_result (
   `define CMD_INVALID 4'hF
 
   localparam ST_IDLE = 1, ST_SEND = 2, ST_WAIT = 4;
-  integer state;
+  reg [2:0] state;
 
   reg vld_q, lst_q, res_q;
   reg  [7:0] out_q;
