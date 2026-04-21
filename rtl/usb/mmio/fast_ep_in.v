@@ -67,7 +67,7 @@ module fast_ep_in #(
     input cmd_err_i,
     input [15:0] cmd_val_i,
 
-    // Output data stream (via AXI-S, to Bulk-In), and USB data or responses
+    // Output data stream (via AXI-S, to ULPI encoder)
     output usb_tvalid_o,
     input usb_tready_i,
     output usb_tlast_o,
@@ -90,6 +90,8 @@ module fast_ep_in #(
   `define CMD_SUCCESS 4'h0
   `define CMD_FAILURE 4'h1
   `define CMD_INVALID 4'hF
+
+  reg res_q;
 
   // -- AXI/data clock-domain AXIS signals -- //
 
@@ -139,9 +141,9 @@ module fast_ep_in #(
     end
 
     // End-point ready for data/transactions.
-    if (clear || stall) begin
+    if (!en_q || !selected_i) begin
       ready <= 1'b0;
-    end else if (en_q) begin
+    end else begin
       ready <= ulpi_tvalid_w || xmit == TX_NONE;
     end
 
@@ -196,92 +198,8 @@ module fast_ep_in #(
     end
   end
 
-  /**
-   * Strobe `resp=HIGH` when we have successfully sent a reponse-frame.
-   */
   always @(posedge clock) begin
-    if (!clear && state == EP_RESP && idx_q == 0 && ack_recv_i) begin
-      resp <= 1'b1;
-    end else begin
-      resp <= 1'b0;
-    end
-  end
-
-  /**
-   * Compute the "residual" of a transaction, of the value returned by an APB
-   * transaction.
-   *
-   * Todo:
-   *  - can be either 16-bit value from APB, or the number of bytes _not_ sent;
-   *  - how to handle 0 vs 65536 (as the residual)?
-   *  - how to count bytes transferred by other end-point?
-   */
-  reg end_q;
-  reg [15:0] val_q;
-  wire [16:0] val_w;
-
-  assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
-
-  always @(posedge clock) begin
-    if (clear) begin
-      end_q <= 1'b0;
-      val_q <= 16'bx;
-    end else if (cmd_vld_i) begin
-      case (state)
-        EP_IDLE:
-        if (cmd_rdy_i) begin
-          val_q <= cmd_dir_i ? cmd_val_i : cmd_len_i;
-        end else if (ack_sent_i) begin
-          val_q <= val_w[15:0];
-        end
-
-        EP_SEND:  // Todo: 'val_q'??
-        if (dat_tvalid_i && dat_tkeep_i && dat_tready_o) begin
-          val_q <= cmd_apb_i ? {dat_tdata_i, val_q[15:8]} : val_w[15:0];
-        end
-
-        EP_RESP: val_q <= val_q;
-
-        default: val_q <= 16'bx;
-      endcase
-    end
-  end
-
-  // Writes the MMIO response, after the data transfer stage(s) have completed.
-  reg  [55:0] out_q;
-  reg  [ 2:0] idx_q;
-  wire [55:0] out_w;
-  wire [ 3:0] idx_w;
-
-  assign idx_w = idx_q - 1;
-  assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
-  assign dat_w = out_q[7:0];
-
-  always @(posedge clock) begin
-    if (clear) begin
-      vld_q <= 1'b0;
-      lst_q <= 1'b0;
-      idx_q <= 3'd0;
-      out_q <= 56'bx;
-    end else begin
-      case (state)
-        EP_RESP:
-        if (idx_q != 3'd0) begin
-          vld_q <= !(fifo_tready_w && idx_q == 3'd1);
-          if (fifo_tready_w) begin
-            lst_q <= idx_q == 3'd2;
-            idx_q <= idx_w[2:0];
-            out_q <= {8'bx, out_q[55:8]};
-          end
-        end
-        default: begin
-          vld_q <= 1'b0;
-          lst_q <= 1'b0;
-          idx_q <= 3'd7;
-          out_q <= out_w;
-        end
-      endcase
-    end
+    res_q <= mmio_send_i;
   end
 
   // Top-level of a hierarchical FSM, and just transitions between the phases
@@ -305,6 +223,25 @@ module fast_ep_in #(
       endcase
     end
   end
+
+  cmd_result URESULT (
+      .clock(clock),
+
+      .selected_i(state == EP_RESP),
+      .ack_recv_i(ack_recv_i),
+      .timedout_i(timedout_i),
+      .result_i  (res_q),
+      .issued_o  (issued_w),
+
+      .cmd_tag_i(cmd_tag_i),
+      .cmd_res_i(cmd_val_i),
+
+      .usb_tvalid_o(res_tvalid_w),
+      .usb_tready_i(fifo_tready_w),
+      .usb_tkeep_o (res_tkeep_w),
+      .usb_tlast_o (res_tlast_w),
+      .usb_tdata_o (res_tdata_w)
+  );
 
   // Narrows the 32-bit AXI stream to an 8-bit stream (for USB).
   axis_adapter #(

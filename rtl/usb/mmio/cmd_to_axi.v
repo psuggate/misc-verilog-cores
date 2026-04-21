@@ -195,13 +195,13 @@ module cmd_to_axi #(
   assign cmd_err_o = cmd_err_w;
   assign cmd_res_o = cmd_len_i;
 
-  // Todo: make less combinational ...
-  // assign usb_sent_w = dat_tvalid_o && dat_tlast_o && dat_tready_i;
+  assign usb_qued_w = dat_tvalid_o;  // avail_q;
   assign usb_sent_w = usb_sent_i;
   assign cdata_w = {axi_write_w, cmd_tag_i, axi_length_w[7:0], axi_address_w};
 
-  // assign dat_tvalid_o = usb_send_w && sready_w;
   assign dat_tready_o = usb_recv_w && sready_w;
+  assign svalid_w = dat_tvalid_i && !cmd_dir_i;
+
   assign rready_w = cmd_vld_q;
 
   always @(posedge cmd_clk) begin
@@ -250,6 +250,7 @@ module cmd_to_axi #(
       .cmd_adr_i(cmd_adr_i),
 
       .usb_recv_o(usb_recv_w),
+      .usb_qued_i(usb_qued_w),
       .usb_send_o(usb_send_w),
       .usb_sent_i(usb_sent_w),
 
@@ -366,7 +367,7 @@ module cmd_to_axi #(
     end
   end
 
-  //  Clock-domain crossing, for AXI transaction requests, to the AXI domain.
+  //  AXI transaction request clock-domain crossing.
   axis_afifo #(
       .WIDTH(CMD_FIFO_WIDTH),
       .TLAST(0),
@@ -393,12 +394,14 @@ module cmd_to_axi #(
       .TLAST(0),
       .ABITS(4)
   ) U_BFIFO1 (
-      .aresetn (aresetn),
+      .aresetn(aresetn),
+
       .s_aclk  (aclk),
       .s_tvalid(bvalid_i),
       .s_tready(bready_o),
       .s_tlast (1'b1),
       .s_tdata ({bokay_w, bid_i}),
+
       .m_aclk  (cmd_clk),
       .m_tvalid(rvalid_w),
       .m_tready(rready_w),
@@ -416,6 +419,7 @@ module cmd_to_axi #(
       //
       reg [DSB:0] cmd_rd_level_p, cmd_rd_level_q;
       reg drop_q, save_q, redo_q, next_q;
+      reg avail_p, avail_q;
 
       assign dat_tkeep_o = dat_tvalid_o;
       assign cmd_rd_level_w = cmd_rd_level_q;
@@ -425,11 +429,16 @@ module cmd_to_axi #(
         cmd_rd_level_q <= cmd_level_p;
       end
 
+      always @(posedge cmd_clk) begin
+        avail_p <= dat_tvalid_o;  // Todo: axi_rd_level_w != 0; ??
+        avail_q <= avail_p;
+      end
+
       // Output packet FIFO, for (STORE) data passed-through from the USB Bulk-Out
       // pipe, and with drop-packet-on-failure.
       packet_fifo #(
-          .WIDTH(8),
-          .DEPTH(PACKET_FIFO_DEPTH),
+          .WIDTH(DATA_WIDTH),
+          .DEPTH(FIFO_DEPTH),
           .STORE_LASTS(1),
           .SAVE_ON_LAST(0),  // save only after CRC16 checking
           .LAST_ON_SAVE(1),  // delayed 'tlast', after CRC16-valid
@@ -437,9 +446,9 @@ module cmd_to_axi #(
           .USE_LENGTH(0),
           .MAX_LENGTH(MAX_PACKET_LENGTH),
           .OUTREG(2)
-      ) U_PFIFO2 (
-          .clock(clock),
-          .reset(enb),
+      ) WRFIFO (
+          .clock(aclk),
+          .reset(arst),
 
           .level_o(axi_wr_level_w),
 
@@ -448,8 +457,10 @@ module cmd_to_axi #(
           .redo_i(1'b0),
           .next_i(1'b0),
 
-          .s_tvalid(dat_tvalid_i),
-          .s_tready(dat_tready_o),
+          // .s_tvalid(dat_tvalid_i),
+          // .s_tready(dat_tready_o),
+          .s_tvalid(svalid_w),
+          .s_tready(sready_w),
           .s_tkeep (dat_tkeep_i),
           .s_tlast (dat_tlast_i),
           .s_tdata (dat_tdata_i),
@@ -474,7 +485,7 @@ module cmd_to_axi #(
           .USE_LENGTH(1),
           .MAX_LENGTH(USB_DWORDS),
           .OUTREG(2)
-      ) U_PFIFO1 (
+      ) RDFIFO (
           .clock(aclk),
           .reset(arst),
 
@@ -501,9 +512,8 @@ module cmd_to_axi #(
 
       reg b_xfer_q;
 
-      assign svalid_w = dat_tvalid_i && !cmd_dir_i;
-      assign tkeep_w  = dat_tkeep_i;
-      assign tlast_w  = dat_tlast_i;
+      assign tkeep_w = dat_tkeep_i;
+      assign tlast_w = dat_tlast_i;
 
       always @(posedge cmd_clk) begin
         if (cmd_rst) begin

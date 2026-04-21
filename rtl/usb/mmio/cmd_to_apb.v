@@ -85,7 +85,6 @@ module cmd_to_apb (  // USB bus (command) clock-domain
         ST_WRIT: begin
           vld_q <= 1'b0;
           rdy_q <= cvalid_w && cwrite_w && !cerror_w;
-          // rdy_q <= 1'b0;
           val_q <= 16'bx;
           err_q <= cvalid_w && (!cwrite_w || cerror_w);
         end

@@ -38,6 +38,7 @@ module cmd_to_axi_framer #(
     input [FBITS:0] fifo_wr_level_i,
 
     output usb_recv_o,
+    input  usb_qued_i,
     output usb_send_o,
     input  usb_sent_i,
 

@@ -81,8 +81,8 @@ module mmio_ep_in #(
   `define CMD_FAILURE 4'h1
   `define CMD_INVALID 4'hF
 
-  reg stall, clear, ready, parity, sent, next, resp;
-  reg vld_q, lst_q, zdp_q, enb_q, en_q, cyc, stb;
+  reg stall, clear, ready, parity, sent, next;
+  reg zdp_q, enb_q, en_q, cyc, stb;
   reg save_q, redo_q, next_q;
   wire [7:0] dat_w;
   wire save_w, redo_w, next_w, sent_w, zdp_w;
@@ -90,8 +90,11 @@ module mmio_ep_in #(
   wire ulpi_tvalid_w, ulpi_tready_w, ulpi_tkeep_w, ulpi_tlast_w;
   wire [7:0] fifo_tdata_w, ulpi_tdata_w;
 
+  wire res_tvalid_w, res_tkeep_w, res_tlast_w, issued_w;
+  wire [7:0] res_tdata_w;
+
   // Top-level states for the high-level control of this end-point (EP).
-  reg [3:0] state;
+  reg  [3:0] state;
   localparam [3:0] EP_IDLE = 4'h1, EP_SEND = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
 
   // Top-level states for the high-level control of this end-point (EP).
@@ -104,15 +107,15 @@ module mmio_ep_in #(
   assign parity_o = parity;
 
   assign mmio_sent_o = sent;
-  assign mmio_resp_o = resp;
+  assign mmio_resp_o = issued_w;
   assign mmio_next_o = next;
 
   // Todo ...
-  assign fifo_tvalid_w = state == EP_SEND ? dat_tvalid_i : vld_q;
+  assign fifo_tvalid_w = state == EP_SEND ? dat_tvalid_i : res_tvalid_w;
   assign dat_tready_o = state == EP_SEND ? fifo_tready_w : 1'b0;
-  assign fifo_tkeep_w = state == EP_SEND ? dat_tkeep_i : 1'b1;
-  assign fifo_tlast_w = state == EP_SEND ? dat_tlast_i : lst_q;
-  assign fifo_tdata_w = state == EP_SEND ? dat_tdata_i : dat_w;
+  assign fifo_tkeep_w = state == EP_SEND ? dat_tkeep_i : res_tkeep_w;
+  assign fifo_tlast_w = state == EP_SEND ? dat_tlast_i : res_tlast_w;
+  assign fifo_tdata_w = state == EP_SEND ? dat_tdata_i : res_tdata_w;
 
   assign usb_tvalid_o = xmit == TX_SEND && ulpi_tvalid_w || xmit == TX_NONE;
   assign ulpi_tready_w = xmit == TX_SEND && usb_tready_i;
@@ -139,9 +142,9 @@ module mmio_ep_in #(
     end
 
     // End-point ready for data/transactions.
-    if (clear || stall) begin
+    if (!en_q || !selected_i) begin
       ready <= 1'b0;
-    end else if (en_q) begin
+    end else begin
       ready <= ulpi_tvalid_w || xmit == TX_NONE;
     end
 
@@ -197,95 +200,129 @@ module mmio_ep_in #(
     end
   end
 
-  /**
-   * Strobe `resp=HIGH` when we have successfully sent a reponse-frame.
-   */
-  always @(posedge clock) begin
-    if (!clear && state == EP_RESP && idx_q == 0 && ack_recv_i) begin
-      resp <= 1'b1;
-    end else begin
-      resp <= 1'b0;
-    end
-  end
+  localparam SPANNER_MONTANA = 1;
 
-  /**
-   * Compute the "residual" of a transaction, of the value returned by an APB
-   * transaction.
-   *
-   * Todo:
-   *  - can be either 16-bit value from APB, or the number of bytes _not_ sent;
-   *  - how to handle 0 vs 65536 (as the residual)?
-   *  - how to count bytes transferred by other end-point?
-   */
-  reg end_q;
-  reg [15:0] val_q;
-  wire [16:0] val_w;
+  generate
+    if (SPANNER_MONTANA) begin : g_cmd_res_module
 
-  assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
+      reg res_q;
 
-  always @(posedge clock) begin
-    if (clear) begin
-      end_q <= 1'b0;
-      val_q <= 16'bx;
-    end else if (cmd_vld_i) begin
-      case (state)
-        EP_IDLE:
-        if (cmd_rdy_i) begin
-          val_q <= cmd_dir_i ? cmd_val_i : cmd_len_i;
-        end else if (ack_sent_i) begin
-          val_q <= val_w[15:0];
+      always @(posedge clock) begin
+        res_q <= mmio_send_i;
+      end
+
+      cmd_result URESULT (
+          .clock(clock),
+
+          .selected_i(state == EP_RESP),
+          .ack_recv_i(ack_recv_i),
+          .timedout_i(timedout_i),
+          .result_i  (res_q),
+          .issued_o  (issued_w),
+
+          .cmd_tag_i(cmd_tag_i),
+          .cmd_res_i(cmd_val_i),
+
+          .usb_tvalid_o(res_tvalid_w),
+          .usb_tready_i(fifo_tready_w),
+          .usb_tkeep_o (res_tkeep_w),
+          .usb_tlast_o (res_tlast_w),
+          .usb_tdata_o (res_tdata_w)
+      );
+
+    end else begin : g_cmd_res_yucky
+
+      reg vld_q, lst_q, resp;
+      reg  [15:0] val_q;
+      reg  [55:0] out_q;
+      reg  [ 2:0] idx_q;
+      wire [55:0] out_w;
+      wire [ 3:0] idx_w;
+      wire [16:0] val_w;
+
+      assign val_w = state == EP_IDLE ? cmd_len_i + 1 : val_q - 1;
+      assign idx_w = idx_q - 1;
+      assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
+      assign dat_w = out_q[7:0];
+
+      assign issued_w = resp;
+
+      assign res_tvalid_w = vld_q;
+      assign res_tkeep_w = vld_q;
+      assign res_tlast_w = lst_q;
+      assign res_tdata_w = dat_w;
+
+      // Strobe `resp=HIGH` when we have successfully sent a reponse-frame.
+      always @(posedge clock) begin
+        if (!clear && state == EP_RESP && idx_q == 0 && ack_recv_i) begin
+          resp <= 1'b1;
+        end else begin
+          resp <= 1'b0;
         end
+      end
 
-        EP_SEND:
-        if (dat_tvalid_i && dat_tkeep_i && dat_tready_o) begin
-          val_q <= cmd_apb_i ? {dat_tdata_i, val_q[15:8]} : val_w[15:0];
+      // Compute the "residual" of a transaction, of the value returned by an APB
+      // transaction.
+      //
+      // Todo:
+      //  - can be either 16-bit value from APB, or the number of bytes _not_ sent;
+      //  - how to handle 0 vs 65536 (as the residual)?
+      //  - how to count bytes transferred by other end-point?
+      always @(posedge clock) begin
+        if (clear) begin
+          val_q <= 16'bx;
+        end else if (cmd_vld_i) begin
+          case (state)
+            EP_IDLE:
+            if (cmd_rdy_i) begin
+              val_q <= cmd_dir_i ? cmd_val_i : cmd_len_i;
+            end else if (ack_sent_i) begin
+              val_q <= val_w[15:0];
+            end
+
+            EP_SEND:
+            if (dat_tvalid_i && dat_tkeep_i && dat_tready_o) begin
+              val_q <= cmd_apb_i ? {dat_tdata_i, val_q[15:8]} : val_w[15:0];
+            end
+
+            EP_RESP: val_q <= val_q;
+
+            default: val_q <= 16'bx;
+          endcase
         end
+      end
 
-        EP_RESP: val_q <= val_q;
-
-        default: val_q <= 16'bx;
-      endcase
-    end
-  end
-
-  /**
-   * Writes the MMIO response, after the data transfer stage(s) have completed.
-   */
-  reg  [55:0] out_q;
-  reg  [ 2:0] idx_q;
-  wire [55:0] out_w;
-  wire [ 3:0] idx_w;
-
-  assign idx_w = idx_q - 1;
-  assign out_w = {cmd_tag_i, `CMD_SUCCESS, val_q, "T", "R", "A", "T"};
-  assign dat_w = out_q[7:0];
-
-  always @(posedge clock) begin
-    if (clear) begin
-      vld_q <= 1'b0;
-      lst_q <= 1'b0;
-      idx_q <= 3'd0;
-      out_q <= 56'bx;
-    end else begin
-      case (state)
-        EP_RESP:
-        if (idx_q != 3'd0) begin
-          vld_q <= !(fifo_tready_w && idx_q == 3'd1);
-          if (fifo_tready_w) begin
-            lst_q <= idx_q == 3'd2;
-            idx_q <= idx_w[2:0];
-            out_q <= {8'bx, out_q[55:8]};
-          end
-        end
-        default: begin
+      // Writes the MMIO response, after the data transfer stage(s) have completed.
+      always @(posedge clock) begin
+        if (clear) begin
           vld_q <= 1'b0;
           lst_q <= 1'b0;
-          idx_q <= 3'd7;
-          out_q <= out_w;
+          idx_q <= 3'd0;
+          out_q <= 56'bx;
+        end else begin
+          case (state)
+            EP_RESP:
+            if (idx_q != 3'd0) begin
+              vld_q <= !(fifo_tready_w && idx_q == 3'd1);
+              if (fifo_tready_w) begin
+                lst_q <= idx_q == 3'd2;
+                idx_q <= idx_w[2:0];
+                out_q <= {8'bx, out_q[55:8]};
+              end
+            end
+            default: begin
+              vld_q <= 1'b0;
+              lst_q <= 1'b0;
+              idx_q <= 3'd7;
+              out_q <= out_w;
+            end
+          endcase
         end
-      endcase
-    end
-  end
+      end
+
+    end  /* g_cmd_res_yucky */
+  endgenerate
+
 
   /**
    * Top-level of a hierarchical FSM, and just transitions between the phases
@@ -305,12 +342,11 @@ module mmio_ep_in #(
           state <= EP_SEND;
         end
         EP_SEND: state <= next ? EP_IDLE : state;
-        EP_RESP: state <= resp ? EP_IDLE : state;
+        EP_RESP: state <= issued_w ? EP_IDLE : state;
         EP_HALT: state <= state;
       endcase
     end
   end
-
 
   //
   // Chop-up large transfers into the (configured) USB frame-size, and send a
