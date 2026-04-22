@@ -1,10 +1,10 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Wed Apr 22 08:28:17 2026
+[*] Wed Apr 22 11:09:39 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.vcd"
-[dumpfile_mtime] "Wed Apr 22 08:28:10 2026"
-[dumpfile_size] 275517
+[dumpfile_mtime] "Wed Apr 22 11:07:32 2026"
+[dumpfile_size] 274518
 [savefile] "/home/patrick/dev/misc-verilog-cores/build/usb_mmio_tb.gtkw"
 [timestart] 0
 [size] 2560 1513
@@ -251,7 +251,7 @@ usb_mmio_tb.U_REQ1.U_EPOUT0.dat_tdata_o[31:0]
 usb_mmio_tb.U_REQ1.U_EPOUT0.dat_tlast_o
 @1401200
 -EP Out
-@c00200
+@c00201
 -EP In
 @28
 [color] 2
@@ -278,8 +278,6 @@ usb_mmio_tb.U_REQ1.U_EPIN0.ready
 usb_mmio_tb.U_REQ1.U_EPIN0.ack_sent_i
 [color] 3
 usb_mmio_tb.U_REQ1.U_EPIN0.ack_recv_i
-[color] 2
-usb_mmio_tb.U_REQ1.U_EPIN0.enb_q
 [color] 3
 usb_mmio_tb.U_REQ1.U_EPIN0.next_q
 usb_mmio_tb.U_REQ1.U_EPIN0.succ_w
@@ -292,9 +290,9 @@ usb_mmio_tb.U_REQ1.U_EPIN0.wrap_w
 usb_mmio_tb.U_REQ1.U_EPIN0.xfer_q
 [color] 5
 usb_mmio_tb.U_REQ1.U_EPIN0.part_q
-usb_mmio_tb.U_REQ1.U_EPIN0.zero_w
 [color] 5
 usb_mmio_tb.U_REQ1.U_EPIN0.zero_q
+usb_mmio_tb.U_REQ1.U_EPIN0.done_q
 [color] 2
 usb_mmio_tb.U_REQ1.U_EPIN0.done_w
 [color] 2
@@ -309,7 +307,6 @@ usb_mmio_tb.U_REQ1.U_EPIN0.p_sready_w
 -TxFIFO
 @28
 [color] 2
-usb_mmio_tb.U_REQ1.U_EPIN0.enb_q
 usb_mmio_tb.U_REQ1.U_EPIN0.p_svalid_w
 usb_mmio_tb.U_REQ1.U_EPIN0.dat_tready_o
 @22
@@ -350,6 +347,7 @@ usb_mmio_tb.U_REQ1.U_EPIN0.ulpi_tlast_w
 usb_mmio_tb.U_REQ1.U_EPIN0.ulpi_tdata_w[7:0]
 @1401200
 -ULPI
+@1401201
 -EP In
 @c00200
 -AXI Ctrl

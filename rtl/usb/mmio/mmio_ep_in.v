@@ -95,7 +95,7 @@ module mmio_ep_in #(
   localparam COUNT_BITS = 16 - CBITS;
   localparam MAX_FRAMES = 1 << COUNT_BITS;
 
-  reg en_q, enb_q, res_q, clear, stall, ready, parity;
+  reg en_q, res_q, clear, stall, ready, parity;
   reg none_q, redo_q, sent_q, next_q;
   wire issued_w;
 
@@ -103,7 +103,6 @@ module mmio_ep_in #(
 
   reg drdy_m, drdy_r;
   wire p_svalid_w, p_sready_w;
-
   wire a_tvalid_w, a_tready_w, a_tkeep_w, a_tlast_w;
   wire [7:0] a_tdata_w;
 
@@ -116,11 +115,11 @@ module mmio_ep_in #(
 
   // -- Top-level USB 'Bulk In' end-point (EP) state-machine -- //
 
-  localparam ST_IDLE = 1, ST_SEND = 2, ST_RESP = 4, ST_HALT = 8;
-  integer stage;
+  localparam [3:0] ST_IDLE = 1, ST_SEND = 2, ST_RESP = 4, ST_HALT = 8;
+  reg [3:0] stage;
 
-  localparam [4:0] TX_IDLE = 5'h1, TX_SEND = 5'h2, TX_WAIT = 5'h4;
-  localparam [4:0] TX_NONE = 5'h8, TX_REDO = 5'h10;
+  localparam [4:0] TX_IDLE = 5'h01, TX_SEND = 5'h02, TX_WAIT = 5'h04;
+  localparam [4:0] TX_NONE = 5'h08, TX_REDO = 5'h10;
   reg [4:0] phase;
 
   // -- USB datapath I/O assignments -- //
@@ -144,9 +143,7 @@ module mmio_ep_in #(
   assign mmio_next_o = next_q;
   assign mmio_redo_o = redo_q;
 
-  /**
-   * Pipeline some of the control signals.
-   */
+  // Pipeline some of the control signals.
   always @(posedge clock) begin
     // Clear state values, as required.
     if (reset || set_conf_i || clr_conf_i) begin
@@ -203,52 +200,32 @@ module mmio_ep_in #(
 
   // -- USB-Frame Control Signals -- //
 
-  // Enable the packet-FIFO, if we are bypassing (USB) Bulk-In data to ULPI, and
-  // then deassert once we have sent the response back to the USB host.
-  always @(posedge clock) begin
-    if (clear || sent_q || mmio_done_i) begin
-      // if (clear || mmio_done_i) begin
-      enb_q <= 1'b1;
-    end else if (mmio_resp_i || mmio_send_i) begin
-      enb_q <= 1'b0;
-    end
-  end
+  reg xfer_q, succ_q, last_q, done_q;
+  reg load_q, busy_q, zero_q, part_q;
+  wire sent_w, last_w, done_w, wrap_w;
+  wire smax_w, xfer_w, succ_w;
+
+  assign xfer_w = u_tvalid_w && u_tready_w;
+  assign succ_w = xfer_w && u_tlast_w;
+  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
 
   // We have been requested to send the 'RESPONSE' packet.
   always @(posedge clock) begin
     res_q <= mmio_resp_i;
   end
 
-  // -- USB Byte-Data Counter Controls -- //
-
-  reg xfer_q, succ_q, last_q, done_q;
-  reg load_q, busy_q, zero_q, part_q;
-  wire sent_w, last_w, done_w;
-  wire smax_w, xfer_w, succ_w;
-  wire wrap_w, zero_w;
-
-  assign xfer_w = u_tvalid_w && u_tready_w;
-  assign succ_w = xfer_w && u_tlast_w;  // OR, USB 'ACK'?
-  assign sent_w = usb_tvalid_o && usb_tready_i && usb_tlast_o;
-  assign zero_w = xfer_q && succ_q && smax_w && last_q;
-  assign part_w = xfer_q && succ_q && !smax_w && last_q;
-
-  // Ticks for each (USB data-)byte send, and each (USB data-)frame sent.
   always @(posedge clock) begin
-    if (selected_i) begin
-      xfer_q <= xfer_w;  // Valid data sent
-      succ_q <= succ_w;  // End-of-data-frame
-    end else begin
-      xfer_q <= 1'b0;
-      succ_q <= 1'b0;
-    end
+    case (stage)
+      ST_SEND: begin
+        redo_q <= phase == TX_REDO;
+        next_q <= phase == TX_WAIT && ack_recv_i;
+        done_q <= done_w && (!zero_q || part_q);
+      end
+      default: {done_q, next_q, redo_q} <= 3'd0;
+    endcase
   end
 
   always @(posedge clock) begin
-    redo_q <= stage == ST_SEND && phase == TX_REDO;
-    next_q <= stage == ST_SEND && phase == TX_WAIT && ack_recv_i;
-    done_q <= stage == ST_SEND && done_w && (!zero_q || part_q);
-
     if (stage == ST_SEND && succ_q && last_w && smax_w) begin
       zero_q <= 1'b1;
     end else if (!selected_i || phase == TX_NONE && ack_recv_i) begin
@@ -274,18 +251,6 @@ module mmio_ep_in #(
     end
   end
 
-  // -- Counter Logic for USB Data-Frames  -- //
-
-  // Generate a strobe at the start of a transaction to load the number of USB
-  // frames into the 'down_counter'.
-  always @(posedge clock) begin
-    if (selected_i) begin
-      {load_q, busy_q} <= {~busy_q, 1'b1};
-    end else begin
-      {load_q, busy_q} <= 2'b00;
-    end
-  end
-
   always @(posedge clock) begin
     if (stage == ST_SEND && ack_recv_i) begin
       case (phase)
@@ -295,6 +260,31 @@ module mmio_ep_in #(
       endcase
     end else begin
       sent_q <= 1'b0;
+    end
+  end
+
+  // -- USB Byte-Data Counter Controls -- //
+
+  // Ticks for each (USB data-)byte send, and each (USB data-)frame sent.
+  always @(posedge clock) begin
+    if (selected_i) begin
+      xfer_q <= xfer_w;  // Valid data sent
+      succ_q <= succ_w;  // End-of-data-frame
+    end else begin
+      xfer_q <= 1'b0;
+      succ_q <= 1'b0;
+    end
+  end
+
+  // -- Counter Logic for USB Data-Frames  -- //
+
+  // Generate a strobe at the start of a transaction to load the number of USB
+  // frames into the 'down_counter'.
+  always @(posedge clock) begin
+    if (selected_i) begin
+      {load_q, busy_q} <= {~busy_q, 1'b1};
+    end else begin
+      {load_q, busy_q} <= 2'b00;
     end
   end
 
@@ -344,30 +334,13 @@ module mmio_ep_in #(
     end
   end
 
-  // -- USB Frame -length and -number Counters -- //
+  // -- Cross-Domain Datapath Control Logic -- //
 
-  /*
-  always @(posedge clock) begin
-    if (selected_i && (mmio_send_i || mmio_resp_i)) begin
-      sel_q <= 1'b1;
-    end else if (clear || !selected_i) begin
-      sel_q <= 1'b0;
-    end
+  always @(posedge dat_clk) begin
+    {drdy_m, drdy_r} <= {drdy_r, stage == ST_SEND};
   end
-*/
 
-  wire [CBITS-1:0] up_w;
-
-  initial begin : i_some_stats
-    $display(" >> MAX_PACKET_LENGTH: %3d", MAX_PACKET_LENGTH);
-    $display(" >> Up-counter width:   %2d", CBITS);
-    $display(" >> Down-counter width: %2d", COUNT_BITS);
-    // $monitor("%11t: Up-counter value: %3d", $time, up_w);
-  end  // i_some_stats
-
-  reg wrap_q;
-
-  always @(posedge clock) wrap_q <= wrap_w;
+  // -- USB Frame -length and -number Counters -- //
 
   // Count the bytes in the (USB) frame being sent.
   up_counter #(
@@ -383,7 +356,7 @@ module mmio_ep_in #(
       .limit_o(smax_w),
       .oflow_o(wrap_w),
       .value_i(CZERO),
-      .count_o(up_w)
+      .count_o()
   );
 
   // Count the number of (USB) frames sent.
@@ -441,12 +414,6 @@ module mmio_ep_in #(
       .m_axis_tuser(),
       .m_axis_tdata(a_tdata_w)  // AXI output
   );
-
-  // -- Cross-Domain Datapath Control Logic -- //
-
-  always @(posedge dat_clk) begin
-    {drdy_m, drdy_r} <= {drdy_r, stage == ST_SEND};
-  end
 
   // Cross domains for the fetched AXI data.
   axis_afifo #(
@@ -533,6 +500,12 @@ module mmio_ep_in #(
   //  Simulation Only
   ///
   reg [39:0] dbg_stage, dbg_phase;
+
+  initial begin : i_some_stats
+    $display(" >> MAX_PACKET_LENGTH: %3d", MAX_PACKET_LENGTH);
+    $display(" >> Up-counter width:   %2d", CBITS);
+    $display(" >> Down-counter width: %2d", COUNT_BITS);
+  end  // i_some_stats
 
   always @* begin
     case (phase)

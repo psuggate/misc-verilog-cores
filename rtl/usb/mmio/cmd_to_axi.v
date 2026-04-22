@@ -104,11 +104,13 @@ module cmd_to_axi #(
   localparam AXI_ADR_BITS = 12 - USB_LEN_BITS;
   localparam AXI_LEN_BITS = 16 - USB_LEN_BITS;
 
-  localparam ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8, ST_SEND = 16, ST_DONE = 32, ST_FAIL = 64;
-  integer state;
+  localparam [6:0] ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8;
+  localparam [6:0] ST_SEND = 16, ST_DONE = 32, ST_FAIL = 64;
+  reg [6:0] state;
 
   localparam [3:0] WR_IDLE = 1, WR_ADDR = 2, WR_DATA = 4, WR_RESP = 8;
   localparam [3:0] RD_IDLE = 1, RD_ADDR = 2, RD_DATA = 4, RD_SEND = 8;
+  reg [3:0] wr, rd;
 
   //
   //  Module-wide registers and signals.
@@ -119,10 +121,9 @@ module cmd_to_axi #(
   reg cmd_rdy_q, cmd_vld_q, cmd_err_q, cmd_ack_q, axi_vld_q, usb_send_q;
   reg cvalid_q;
   reg [15:0] res_q;
-  wire svalid_w, sready_w;
+  wire svalid_w, sready_w, cready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
   wire [ISB:0] rid_w;
-  wire cready_w;
   wire [CSB:0] cdata_w;
 
   assign cmd_rdy_o = cmd_rdy_q;
@@ -136,7 +137,6 @@ module cmd_to_axi #(
 
   // -- AXI clock-domain signals and state -- //
 
-  reg [3:0] wr, rd;
   reg cmd_m, rd_m;
   reg [  7:0] len_m;
   reg [ISB:0] tid_m;
@@ -235,26 +235,15 @@ module cmd_to_axi #(
 
   // Signal the USB controller to send a USB 'Bulk IN' frame.
   always @(posedge cmd_clk) begin
-    if (cmd_rst) begin
-      usb_send_q <= 1'b0;
-    end else begin
-      case (state)
-        ST_READ: usb_send_q <= rd_rdy_q;
-        ST_SEND:
-        if (dat_tvalid_o && dat_tready_i) begin
-          usb_send_q <= 1'b0;
-        end
-      endcase
-    end
+    case (state)
+      ST_READ: usb_send_q <= rd_rdy_q;
+      ST_SEND:
+      if (dat_tvalid_o && dat_tready_i) begin
+        usb_send_q <= 1'b0;
+      end
+      default: usb_send_q <= 1'b0;
+    endcase
   end
-  /*
-    end else if (state == ST_SEND && !usb_send_q && dat_tvalid_o && !dat_tready_i) begin
-      usb_send_q <= 1'b1;
-    end else if (dat_tready_i) begin
-      usb_send_q <= 1'b0;
-    end
-  end
-*/
 
   // -- AXI Transaction Control Signals -- //
 
@@ -371,7 +360,6 @@ module cmd_to_axi #(
           state <= ST_READ;
         end else if (usb_sent_i) begin
           state <= ST_DONE;
-          // state <= cnt_done_w ? ST_DONE : ST_READ;
         end
 
         // Wait for parent module to issue success/error response.
@@ -583,12 +571,6 @@ module cmd_to_axi #(
       .m_tdata ({rokay_w, rid_w})
   );
 
-  //
-  // Todo:
-  //  - 'redo' and 'next' signal domain-crossing;
-  //  - 'save' logic;
-  //  - AXI 'rresp' logic (and domain-crossing)?
-  //
   reg drop_p, drop_q, save_p, save_q;
   reg redo_p, next_p, redo_q, next_q;
 

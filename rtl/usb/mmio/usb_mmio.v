@@ -130,9 +130,8 @@ module usb_mmio #(
   reg [4:0] state;
   reg epi_en_q, epo_en_q, clear;
 
-  //
-  //  Module-wide control signals.
-  //
+  // -- Module-Wide Control Signals -- //
+
   reg arst, rst0, rst1;
 
   always @(posedge aclk or negedge aresetn)
@@ -176,8 +175,7 @@ module usb_mmio #(
       send_q <= 1'b0;
       done_q <= 1'b0;
     end else begin
-      // if (state == ST_READ && usb_ack_recv_i) begin
-      if (state == ST_READ && sent_w) begin  // EXPERIMENTAL
+      if (state == ST_READ && sent_w) begin
         busy_q <= 1'b1;
         done_q <= 1'b1;
       end else if (cmd_ack_w) begin
@@ -198,12 +196,10 @@ module usb_mmio #(
       end
 
       case (state)
-        // ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q || recv_w);
         ST_RESP: send_q <= !send_q && resp_q;
         default: send_q <= 1'b0;
       endcase
 
-      // Todo: send data from AXI via USB Bulk IN to the host.
       if (axi_out_w) begin
         xmit_q <= 1'b1;
       end else begin
@@ -212,10 +208,8 @@ module usb_mmio #(
     end
   end
 
+  // -- Simple FSM to Handle One Command at a Time -- //
 
-  //
-  //  Simple FSM to handle one command at a time.
-  //
   always @(posedge clock) begin
     if (reset) begin
       state <= ST_HALT;
@@ -240,10 +234,8 @@ module usb_mmio #(
     end
   end
 
-  //
-  //  The MMIO interface requires two USB end-points, a Bulk-In and a Bulk-Out
-  //  end-point.
-  //
+  // The MMIO interface requires two USB end-points, a Bulk-In and a Bulk-Out
+  // end-point.
   mmio_ep_out #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
@@ -367,15 +359,11 @@ module usb_mmio #(
       .dat_tdata_i (s_tdata)
   );
 
+  // -- Controllers for the APB and AXI Transactions -- //
 
-  //
-  //  Controllers for the APB and AXI transactions.
-  //
   assign cmd_ack_w = state == ST_RESP && resp_w;
 
-  /**
-   * Command-processing logic, for GET, QUERY, and READY requests.
-   */
+  // Command-processing logic, for GET, QUERY, and READY requests.
   always @(posedge clock) begin
     if (reset) begin
       cmd_ack_q <= 1'b0;
@@ -389,9 +377,7 @@ module usb_mmio #(
     end
   end
 
-  /**
-   * Select the controller for the transaction, either the APB or the AXI.
-   */
+  // Select the controller for the transaction, either the APB or the AXI.
   always @(posedge clock) begin
     if (reset || cmd_ack_w) begin
       sel_apb_q <= 1'b0;
@@ -402,9 +388,7 @@ module usb_mmio #(
     end
   end
 
-  /**
-   * Issues APB transactions, then sends the result to Bulk-In EP.
-   */
+  // Issues APB transactions, then sends the result to Bulk-In EP.
   cmd_to_apb U_APB_CTRL0 (
       .aresetn(aresetn),  // Global, asynchronous reset (active LOW)
 
@@ -436,10 +420,8 @@ module usb_mmio #(
       .prdata_i (prdata_i)
   );
 
-  /**
-   * Issues AXI transactions, transfers data to/from AXI bus, and then sends
-   * the result to Bulk-In EP.
-   */
+  // Issues AXI transactions, transfers data to/from AXI bus, and then sends
+  // the result to Bulk-In EP.
   cmd_to_axi #(
       .USB_DWORDS(MAX_PACKET_LENGTH / 4),
       .FIFO_DEPTH(PACKET_FIFO_DEPTH)
