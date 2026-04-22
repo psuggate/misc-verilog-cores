@@ -130,7 +130,6 @@ module usb_mmio #(
   reg [4:0] state;
   reg epi_en_q, epo_en_q, clear;
 
-
   //
   //  Module-wide control signals.
   //
@@ -199,7 +198,7 @@ module usb_mmio #(
       end
 
       case (state)
-        ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q || recv_w);
+        // ST_WAIT: send_q <= !send_q && (apb_rdy_w || apb_err_w || resp_q || recv_w);
         ST_RESP: send_q <= !send_q && resp_q;
         default: send_q <= 1'b0;
       endcase
@@ -305,7 +304,7 @@ module usb_mmio #(
       .dat_tdata_o (m_tdata)
   );
 
-  fast_ep_in #(
+  mmio_ep_in #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_EPIN0 (

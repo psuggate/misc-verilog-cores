@@ -11,6 +11,11 @@ module packet_fifo #(
     parameter  WIDTH = 8,
     localparam MSB   = WIDTH - 1,
 
+    // Todo:
+    parameter STROBE_EN = 1,
+    localparam STROBES = WIDTH / 8,
+    localparam SSB = STROBES - 1,
+
     parameter  DEPTH = 16,
     localparam ABITS = $clog2(DEPTH),
     localparam ASB   = ABITS - 1,
@@ -133,7 +138,7 @@ module packet_fifo #(
       // a 'tlast', to trigger 'store_w' and 'accept_a'.
 
       reg xvld, xlst, xmax;
-      reg [7:0] xdat;
+      reg [MSB:0] xdat;
 
       assign store_w = xvld && wready && (s_tvalid && s_tkeep || xlst && SAVE_ON_LAST || save_q);
       assign last_w  = xlst || save_q && LAST_ON_SAVE || xmax;

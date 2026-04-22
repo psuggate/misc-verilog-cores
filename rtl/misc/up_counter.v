@@ -31,6 +31,7 @@ module up_counter #(
   assign oflow_w = UPPER == CONES ? cnext_w[WIDTH] : cnext_w > UPPER;
 
   assign limit_o = limit_q;
+  assign oflow_o = oflow_q;
   assign count_o = count_q;
 
   always @(posedge clk) begin

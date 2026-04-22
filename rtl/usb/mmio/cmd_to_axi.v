@@ -9,8 +9,7 @@ module cmd_to_axi #(
     localparam AZERO = {ADDRESS_WIDTH{1'b0}},
     localparam ASB = ADDRESS_WIDTH - 1,
     parameter USB_DWORDS = 128,
-    localparam USB_WIDTH = 32,
-    localparam USB = USB_WIDTH - 1,
+    localparam USB_WIDTH = DATA_WIDTH,
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1,
     parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
@@ -44,14 +43,14 @@ module cmd_to_axi #(
     output dat_tready_o,
     input [SSB:0] dat_tkeep_i,
     input dat_tlast_i,
-    input [USB:0] dat_tdata_i,
+    input [MSB:0] dat_tdata_i,
 
     // Pass-through data stream, to USB (Bulk-In, via AXI-S)
     output dat_tvalid_o,
     input dat_tready_i,
     output [SSB:0] dat_tkeep_o,
     output dat_tlast_o,
-    output [USB:0] dat_tdata_o,
+    output [MSB:0] dat_tdata_o,
 
     // AXI clock-domain
     input aclk,
@@ -101,6 +100,13 @@ module cmd_to_axi #(
   localparam DBITS = $clog2(FIFO_DEPTH);
   localparam DSB = DBITS - 1;
 
+  localparam USB_LEN_BITS = $clog2(USB_DWORDS) + 2;
+  localparam AXI_ADR_BITS = 12 - USB_LEN_BITS;
+  localparam AXI_LEN_BITS = 16 - USB_LEN_BITS;
+
+  localparam ST_IDLE = 1, ST_RECV = 2, ST_WRIT = 4, ST_READ = 8, ST_SEND = 16, ST_DONE = 32, ST_FAIL = 64;
+  integer state;
+
   localparam [3:0] WR_IDLE = 1, WR_ADDR = 2, WR_DATA = 4, WR_RESP = 8;
   localparam [3:0] RD_IDLE = 1, RD_ADDR = 2, RD_DATA = 4, RD_SEND = 8;
 
@@ -110,12 +116,23 @@ module cmd_to_axi #(
 
   // -- Command (USB) clock-domain signals and state -- //
 
+  reg cmd_rdy_q, cmd_vld_q, cmd_err_q, cmd_ack_q, axi_vld_q, usb_send_q;
+  reg cvalid_q;
   reg [15:0] res_q;
   wire svalid_w, sready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
   wire [ISB:0] rid_w;
-  wire cvalid_w, cready_w;
+  wire cready_w;
   wire [CSB:0] cdata_w;
+
+  assign cmd_rdy_o = cmd_rdy_q;
+  assign cmd_err_o = cmd_err_q;
+  assign cmd_res_o = cmd_len_i;
+
+  assign usb_send_o = usb_send_q;
+
+  assign dat_tready_o = state == ST_RECV && sready_w;
+  assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
 
   // -- AXI clock-domain signals and state -- //
 
@@ -137,8 +154,6 @@ module cmd_to_axi #(
   wire [ASB:0] adr_w;
   wire [ISB:0] x_tid, y_tid, tid_w;
   wire [MSB:0] x_tdata;
-
-  assign usb_send_o = usb_send_q;
 
   // Todo ...
   assign awvalid_o = cmd_m && !rd_m;
@@ -185,26 +200,20 @@ module cmd_to_axi #(
    * The `axi_*` outputs are to be fed into async. FIFOs, and data is handled
    * external to this module.
    */
-  reg cmd_vld_q, cmd_ack_q, axi_vld_q, usb_send_q;
-  wire cmd_err_w, cmd_rdy_w, usb_send_w, usb_sent_w, usb_qued_w;
+  reg [ 9:0] beat_num_q;
+  reg [ 7:0] axi_len_q;
+  reg [31:0] axi_adr_q;
 
-  wire usb_recv_w, axi_write_w;
-  wire [ 7:0] axi_length_w;
-  wire [ 3:0] axi_strobe_w;
-  wire [31:0] axi_address_w;
+  wire cmd_err_w, beat_err_w;
+  wire [10:0] beat_nxt_w;
+  wire [ 7:0] len_nxt_w;
+  wire [31:0] axi_adr_w, nxt_adr_w;
+  wire [AXI_LEN_BITS-1:0] cnt_left_w;
 
-  assign cmd_rdy_o = cmd_rdy_w;
-  assign cmd_err_o = cmd_err_w;
-  assign cmd_res_o = cmd_len_i;
-
-  assign usb_qued_w = dat_tvalid_o;  // avail_q;
-  assign usb_sent_w = usb_sent_i;
-  assign cdata_w = {axi_write_w, cmd_tag_i, axi_length_w[7:0], axi_address_w};
-
-  assign dat_tready_o = usb_recv_w && sready_w;
-  assign svalid_w = dat_tvalid_i && !cmd_dir_i;
-
-  assign rready_w = cmd_vld_q;
+  assign axi_adr_w = {cmd_lun_i, cmd_adr_i};
+  assign cdata_w   = {cmd_dir_i, cmd_tag_i, axi_len_q, axi_adr_w};
+  assign svalid_w  = dat_tvalid_i && !cmd_dir_i;
+  assign rready_w  = cmd_vld_q;
 
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
@@ -220,7 +229,7 @@ module cmd_to_axi #(
     if (cmd_rst) begin
       axi_vld_q <= 1'b0;
     end else if (cmd_vld_q) begin
-      axi_vld_q <= cvalid_w && cready_w;
+      axi_vld_q <= cvalid_q && cready_w;
     end
   end
 
@@ -228,44 +237,190 @@ module cmd_to_axi #(
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
       usb_send_q <= 1'b0;
-    end else if (usb_send_w && !usb_send_q && dat_tvalid_o && !dat_tready_i && dat_tkeep_o) begin
+    end else begin
+      case (state)
+        ST_READ: usb_send_q <= rd_rdy_q;
+        ST_SEND:
+        if (dat_tvalid_o && dat_tready_i) begin
+          usb_send_q <= 1'b0;
+        end
+      endcase
+    end
+  end
+  /*
+    end else if (state == ST_SEND && !usb_send_q && dat_tvalid_o && !dat_tready_i) begin
       usb_send_q <= 1'b1;
     end else if (dat_tready_i) begin
       usb_send_q <= 1'b0;
     end
   end
+*/
 
-  cmd_to_axi_framer #(
-      .USB_DWORDS(USB_DWORDS),
-      .FIFO_DEPTH(FIFO_DEPTH)
-  ) U_C2AF1 (
-      .cmd_clk(cmd_clk),
-      .cmd_rst(cmd_rst),
+  // -- AXI Transaction Control Signals -- //
 
-      .cmd_vld_i(cmd_vld_q),
-      .cmd_dir_i(cmd_dir_i),
-      .cmd_ack_i(cmd_ack_q),
-      .cmd_rdy_o(cmd_rdy_w),
-      .cmd_err_o(cmd_err_w),
-      .cmd_len_i(cmd_len_i),
-      .cmd_lun_i(cmd_lun_i),
-      .cmd_adr_i(cmd_adr_i),
+  reg read_q, read_p, read_r;
+  reg wr_rdy_q, rd_rdy_q;
+  reg cnt_load_q, cnt_next_q;
+  wire cnt_done_w;
 
-      .usb_recv_o(usb_recv_w),
-      .usb_qued_i(usb_qued_w),
-      .usb_send_o(usb_send_w),
-      .usb_sent_i(usb_sent_w),
+  // Todo: can this assert too early (before packet FIFO is ready)?
+  wire read_a = read_p & ~read_q;
 
-      .fifo_rd_level_i(cmd_rd_level_q),
-      .fifo_wr_level_i(cmd_wr_level_q),
+  always @(posedge cmd_clk) begin
+    cnt_next_q <= cvalid_q && cready_w;
+    cnt_load_q <= state == ST_IDLE && cmd_vld_i;
+  end
 
-      .axi_vld_o(cvalid_w),
-      .axi_ack_i(axi_vld_q),
-      .axi_fin_i(rvalid_w),
-      .axi_dir_o(axi_write_w),
-      .axi_len_o(axi_length_w),
-      .axi_stb_o(axi_strobe_w),
-      .axi_adr_o(axi_address_w)
+  always @(posedge cmd_clk) begin
+    case (state)
+      ST_RECV: wr_rdy_q <= usb_save_i ? 1'b1 : wr_rdy_q;
+      ST_WRIT: wr_rdy_q <= axi_vld_q ? 1'b0 : wr_rdy_q;
+      ST_READ: rd_rdy_q <= read_a ? 1'b1 : rd_rdy_q;
+      ST_SEND: rd_rdy_q <= axi_vld_q ? 1'b0 : rd_rdy_q;
+      default: {wr_rdy_q, rd_rdy_q} <= 2'h0;
+    endcase
+  end
+
+  always @(posedge cmd_clk) begin
+    case (state)
+      ST_WRIT: cmd_rdy_q <= cnt_done_w && rvalid_w;
+      ST_SEND: cmd_rdy_q <= cnt_done_w && usb_sent_i;
+      default: cmd_rdy_q <= 1'b0;
+    endcase
+  end
+
+  // -- Data Transfer Counting and Address Calculation -- //
+
+  // Compute the total number of AXI transaction beats.
+  assign beat_err_w = cmd_len_i[15:12] != 4'd0;
+  assign beat_nxt_w = beat_num_q - USB_DWORDS;
+  assign len_nxt_w  = cnt_left_w > 0 ? USB_DWORDS - 1 : beat_num_q[7:0];
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      beat_num_q <= 'bx;
+      axi_len_q  <= 'bx;
+      axi_adr_q  <= 'bx;
+    end else begin
+      case (state)
+        ST_IDLE: begin
+          beat_num_q <= cmd_len_i[11:2];
+          axi_len_q  <= cmd_len_i[11:2] >= USB_DWORDS ? USB_DWORDS - 1 : cmd_len_i[9:2];
+          axi_adr_q  <= cmd_adr_i;
+        end
+        default: begin
+          beat_num_q <= cnt_next_q ? beat_nxt_w[9:0] : beat_num_q;
+          axi_len_q  <= cnt_next_q ? len_nxt_w : axi_len_q;
+          axi_adr_q  <= cnt_next_q ? nxt_adr_w : axi_adr_q;
+        end
+      endcase
+    end
+  end
+
+  always @(posedge cmd_clk) begin
+    case (state)
+      ST_IDLE: cvalid_q <= cmd_vld_i && cmd_dir_i && !cmd_err_w;
+      ST_RECV: cvalid_q <= wr_rdy_q;
+      ST_SEND: cvalid_q <= usb_next_i && !cnt_done_w;
+      default: cvalid_q <= 1'b0;
+    endcase
+  end
+
+  // Todo: throw errors when crossing 4kB page-boundaries, also.
+  wire cmd_err_adr_w = cmd_adr_i[1:0] != 2'b00;
+  wire cmd_err_len_w = cmd_len_i[1:0] != 2'b11;
+
+  assign cmd_err_w = cmd_err_adr_w || cmd_err_len_w || beat_err_w;
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      cmd_err_q <= 1'b0;
+    end else if (cmd_vld_i && cmd_err_w) begin
+      cmd_err_q <= cmd_err_w;
+      if (cmd_err_adr_w) $error("%11t: Invalid command, address alignment", $time);
+      if (cmd_err_len_w) $error("%11t: Invalid command, length error", $time);
+    end
+  end
+
+  // -- Main AXI-Framing State Machine -- //
+
+  always @(posedge cmd_clk) begin
+    if (cmd_rst) begin
+      state <= ST_IDLE;
+    end else if (cmd_err_q) begin
+      state <= ST_FAIL;
+    end else begin
+      case (state)
+        ST_IDLE:
+        if (!cmd_vld_i) begin
+          state <= state;
+        end else begin
+          $display("%11t: Command received: RD = %d, ADR = 0x%x", $time, cmd_dir_i, cmd_adr_i);
+          state <= cmd_dir_i ? ST_READ : ST_RECV;
+        end
+
+        ST_RECV: state <= wr_rdy_q ? ST_WRIT : state;
+        ST_WRIT:
+        if (rvalid_w) begin
+          state <= cnt_done_w ? ST_DONE : ST_RECV;
+        end
+
+        ST_READ: state <= rd_rdy_q ? ST_SEND : state;
+        ST_SEND:
+        if (usb_next_i && !cnt_done_w) begin
+          state <= ST_READ;
+        end else if (usb_sent_i) begin
+          state <= ST_DONE;
+          // state <= cnt_done_w ? ST_DONE : ST_READ;
+        end
+
+        // Wait for parent module to issue success/error response.
+        ST_DONE: state <= cmd_ack_i ? ST_IDLE : state;
+        ST_FAIL: state <= cmd_ack_i ? ST_IDLE : state;
+
+        default: begin
+          state <= ST_IDLE;
+          #10 if (state != ST_IDLE) $fatal;
+        end
+      endcase
+    end
+  end
+
+  // Increment the AXI address, for each USB frame sent/received.
+  assign nxt_adr_w[31:12] = axi_adr_w[31:12];
+  assign nxt_adr_w[USB_LEN_BITS-1:0] = axi_adr_w[USB_LEN_BITS-1:0];
+
+  up_counter #(
+      .WIDTH(AXI_ADR_BITS),
+      .CLAMP(0)
+  ) UCOUNT1 (
+      .clk(cmd_clk),
+      .en (state != ST_IDLE),
+
+      .inc_i  (cnt_next_q),
+      .clear_i(1'b0),
+      .store_i(cnt_load_q),
+      .limit_o(),
+      .oflow_o(),
+      .value_i(cmd_adr_i[11:USB_LEN_BITS]),
+      .count_o(nxt_adr_w[11:USB_LEN_BITS])
+  );
+
+  // Count the number of AXI beats.
+  down_counter #(
+      .WIDTH(AXI_LEN_BITS),
+      .CLAMP(0)
+  ) DCOUNT1 (
+      .clk(cmd_clk),
+      .en (state != ST_IDLE),
+
+      .dec_i  (cnt_next_q),
+      .clear_i(1'b0),
+      .store_i(cnt_load_q),
+      .limit_o(),
+      .uflow_o(cnt_done_w),
+      .value_i(cmd_len_i[15:USB_LEN_BITS]),
+      .count_o(cnt_left_w)
   );
 
   //
@@ -274,6 +429,7 @@ module cmd_to_axi #(
 
   // -- Memory-Domain Command & Address Synchronisation -- //
 
+  reg rd_end_m;
   reg a_vld, a_ack;
   wire [7:0] len_w;
 
@@ -303,15 +459,12 @@ module cmd_to_axi #(
   //   between 'valid' and 'ready' ports, which is why these signals are laid-
   //   out this way.
   assign ack_w = a_ack;
-  // assign ack_w = !cmd_m && wr == WR_IDLE && rd == RD_IDLE && (rd_w ? fready_w : x_tvalid);
 
   assign wr_cmd_w = rd_w == 1'b0 && cmd_w && a_vld;
-  // assign wr_cmd_w = rd_w == 1'b0 && cmd_w && ack_w;
   assign wr_ack_w = awvalid_o && awready_i;
   assign wr_end_w = x_tvalid && x_tready && x_tlast;
 
   assign rd_cmd_w = rd_w == 1'b1 && cmd_w && a_vld;
-  // assign rd_cmd_w = rd_w == 1'b1 && cmd_w && ack_w;
   assign rd_ack_w = arvalid_o && arready_i;
   assign rd_end_w = fvalid_w && fready_w && rlast_i;
 
@@ -326,6 +479,25 @@ module cmd_to_axi #(
       len_m <= len_w;
       adr_m <= adr_w;
     end
+  end
+
+  // Latch the FETCH response.
+  always @(posedge aclk) begin
+    rd_end_m <= rd_end_w && rresp_i == RESP_OKAY;
+  end
+
+  // Signal that the AXI FETCH result across to the USB domain.
+  always @(posedge cmd_clk or posedge rd_end_m) begin
+    if (rd_end_m) begin
+      read_r <= 1'b1;
+    end else if (cmd_rst || read_p) begin
+      read_r <= 1'b0;
+    end
+  end
+
+  // Latch the read-response.
+  always @(posedge cmd_clk) begin
+    {read_q, read_p} <= {read_p, read_r};
   end
 
   // -- Write-Port, AXI-Domain FSM -- //
@@ -378,7 +550,7 @@ module cmd_to_axi #(
       .aresetn(aresetn),
 
       .s_aclk  (cmd_clk),
-      .s_tvalid(cvalid_w),
+      .s_tvalid(cvalid_q),
       .s_tready(cready_w),
       .s_tlast (1'b1),
       .s_tdata (cdata_w),
@@ -417,29 +589,20 @@ module cmd_to_axi #(
   //  - 'save' logic;
   //  - AXI 'rresp' logic (and domain-crossing)?
   //
-  reg [DSB:0] cmd_rd_level_p, cmd_rd_level_q;
-  reg [DSB:0] cmd_wr_level_p, cmd_wr_level_q;
   reg drop_p, drop_q, save_p, save_q;
-  reg avail_p, avail_q;
   reg redo_p, next_p, redo_q, next_q;
 
-  assign dat_tkeep_o = dat_tvalid_o;
+  wire drop_a = ~drop_q & drop_p;
+  wire save_a = ~save_q & save_p;
+  wire redo_a = ~redo_q & redo_p;
+  wire next_a = ~next_q & next_p;
 
+  // FIXME: these should be one-shots!!
   always @(posedge aclk) begin
     {save_q, save_p} <= {save_p, usb_save_i};
     {drop_q, drop_p} <= {drop_p, usb_drop_i};
     {next_q, next_p} <= {next_p, usb_next_i};
     {redo_q, redo_p} <= {redo_p, usb_redo_i};
-  end
-
-  always @(posedge cmd_clk) begin
-    {cmd_wr_level_q, cmd_wr_level_p} <= {cmd_wr_level_p, axi_wr_level_w};
-    {cmd_rd_level_q, cmd_rd_level_p} <= {cmd_rd_level_p, axi_rd_level_w};
-  end
-
-  always @(posedge cmd_clk) begin
-    avail_p <= dat_tvalid_o;  // Todo: axi_rd_level_w != 0; ??
-    avail_q <= avail_p;
   end
 
   // Output packet FIFO, for (STORE) data passed-through from the USB Bulk-Out
@@ -458,15 +621,13 @@ module cmd_to_axi #(
       .clock(aclk),
       .reset(arst),
 
-      .level_o(axi_wr_level_w),
+      .level_o(),
 
-      .drop_i(drop_q),  // Todo: cross from USB domain
-      .save_i(save_q),  // Todo: cross from USB domain
+      .drop_i(drop_a),  // Todo: cross from USB domain
+      .save_i(save_a),  // Todo: cross from USB domain
       .redo_i(1'b0),
       .next_i(1'b0),
 
-      // .s_tvalid(dat_tvalid_i),
-      // .s_tready(dat_tready_o),
       .s_tvalid(svalid_w),
       .s_tready(sready_w),
       .s_tkeep (1'b1),
@@ -500,8 +661,8 @@ module cmd_to_axi #(
 
       .drop_i(1'b0),    // Todo: correct?
       .save_i(1'b0),    // Todo: not required?
-      .redo_i(redo_q),
-      .next_i(next_q),
+      .redo_i(redo_a),
+      .next_i(next_a),
 
       .s_tvalid(fvalid_w),
       .s_tready(fready_w),
@@ -520,6 +681,20 @@ module cmd_to_axi #(
   //  Simulation Only
   ///
   reg [39:0] dbg_rd, dbg_wr;
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_RECV: dbg_state = "RECV";
+      ST_WRIT: dbg_state = "WRIT";
+      ST_READ: dbg_state = "READ";
+      ST_SEND: dbg_state = "SEND";
+      ST_DONE: dbg_state = "DONE";
+      ST_FAIL: dbg_state = "FAIL";
+      default: dbg_state = " ?? ";
+    endcase
+  end
 
   always @* begin
     case (wr)

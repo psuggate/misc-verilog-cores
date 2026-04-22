@@ -30,6 +30,7 @@ module down_counter #(
   assign uflow_w = LOWER == CZERO ? cprev_w[WIDTH] : cprev_w < LOWER;
 
   assign limit_o = limit_q;
+  assign uflow_o = uflow_q;
   assign count_o = count_q;
 
   always @(posedge clk) begin

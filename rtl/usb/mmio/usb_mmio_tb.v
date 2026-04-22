@@ -8,7 +8,7 @@ module usb_mmio_tb;
 
   `include "axi_defs.vh"
 
-  localparam MAX_PACKET_LENGTH = 64;
+  localparam MAX_PACKET_LENGTH = 32;
   localparam PBITS = $clog2(MAX_PACKET_LENGTH);
   localparam PSB = PBITS - 1;
   localparam PZERO = {PBITS{1'b0}};
@@ -121,7 +121,7 @@ module usb_mmio_tb;
     axi_recv(12'd63, tag_q, adr_q, lun_q);
     dbg_op <= "IDLE";
 
-    #800 $finish;
+    #400 $finish;
   end
 
   initial begin : FAIL_SAFE
