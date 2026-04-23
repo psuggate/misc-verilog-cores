@@ -70,11 +70,11 @@ module usbaxi_top (
 `ifdef DDR3_250_MHZ
   // So 27.0 MHz divided by 4, then x37 = 249.75 MHz.
   localparam DDR_FREQ_MHZ = 125;
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 36;
+  localparam CLK_IDIV_SEL = 3;
+  localparam CLK_FBDV_SEL = 36;
   // localparam FBDIV_SEL = 39; // Works with 'PHY_RD_DELAY = 3', below
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
+  localparam CLK_ODIV_SEL = 4;
+  localparam CLK_SDIV_SEL = 2;
 
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
@@ -112,22 +112,26 @@ module usbaxi_top (
   localparam DFIFO_BYPASS = 1;
   localparam DDR3_WIDTH = 32;
   localparam DDR3_NPINS = DDR3_WIDTH / 2;
-  localparam QSB = DDR3_NPINS / 8;
 
   localparam ADDRS = 27;
   localparam REQID = 4;
 
   // -- Signals -- //
 
+  assign uart_tx = 1'b1;
+
   // Global signals //
-  wire clock, reset;
+  wire clock, reset, aresetn;
   wire pclk, presetn;
   wire mclk, mrst;
   wire [3:0] cbits;
 
+  assign aresetn = ~areset;
+  assign presetn = aresetn;
+
   localparam AXI_WIDTH = DDR3_WIDTH;
   localparam MSB = AXI_WIDTH - 1;
-  localparam STROBES = AXI_WIDTH / 4;
+  localparam STROBES = AXI_WIDTH / 8;
   localparam BSB = STROBES - 1;
   localparam AXI_ADDRS = 32;
   localparam ASB = AXI_ADDRS - 1;
@@ -137,7 +141,7 @@ module usbaxi_top (
   // AXI4 Signals to/from the Memory Controller //
   wire awvalid_w, wvalid_w, wlast_w, bready_w, arvalid_w, rready_w;
   wire awready_w, wready_w, bvalid_w, arready_w, rvalid_w, rlast_w;
-  wire [ISB:0] awid_w, arid_w, bid, rid_w;
+  wire [ISB:0] awid_w, arid_w, bid_w, rid_w;
   wire [7:0] awlen_w, arlen_w;
   wire [1:0] awburst_w, arburst_w;
   wire [ASB:0] awaddr_w, araddr_w;
@@ -167,7 +171,7 @@ module usbaxi_top (
 
       .usb_clock(uclk),    // 60 MHz, PLL output, phase-shifted
       .usb_reset(areset),  // Active HI
-      .ddr_clock()         // 120 MHz, PLL output, phase-shifted
+      .ddr_clock(pclk)     // 120 MHz, PLL output, phase-shifted
   );
 
   // -- ULPI Core and BULK IN/OUT SRAM -- //
@@ -182,7 +186,7 @@ module usbaxi_top (
       .usb_clock_o(clock),
       .usb_reset_o(reset),
 
-      .ulpi_clock_i(usb_clk),
+      .ulpi_clock_i(uclk),
       .ulpi_dir_i  (ulpi_dir),
       .ulpi_nxt_i  (ulpi_nxt),
       .ulpi_stp_o  (ulpi_stp),
@@ -192,6 +196,16 @@ module usbaxi_top (
       .high_speed_o(high_speed),
       .conf_event_o(conf_event),
       .conf_value_o(),
+
+      .blki_tvalid_i(1'b0),  // Extra 'BULK IN' EP data-path
+      .blki_tready_o(),
+      .blki_tlast_i (1'b0),
+      .blki_tdata_i (8'd0),
+
+      .blko_tvalid_o(),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(1'b1),
+      .blko_tlast_o(),
+      .blko_tdata_o(),
 
       .pclk(pclk),
       .presetn(presetn),
@@ -204,47 +218,68 @@ module usbaxi_top (
       .pslverr_i(1'b0),
       .paddr_o  (),
       .pwdata_o (),
-      .prdata_i (0),
+      .prdata_i (16'd0),
 
       .aclk(mclk),  // AXI clock domain
-      .aresetn(~areset),
+      .aresetn(aresetn),
 
-      .axi_awvalid_o(awvalid_w),
-      .axi_awready_i(awready_w),
-      .axi_awaddr_o(awaddr_w),
-      .axi_awid_o(awid_w),
-      .axi_awlen_o(awlen_w),
-      .axi_awburst_o(awburst_w),
+      .awvalid_o(awvalid_w),
+      .awready_i(awready_w),
+      .awaddr_o(awaddr_w),
+      .awid_o(awid_w),
+      .awlen_o(awlen_w),
+      .awburst_o(awburst_w),
 
-      .axi_wvalid_o(wvalid_w),
-      .axi_wready_i(wready_w),
-      .axi_wlast_o (wlast_w),
-      .axi_wstrb_o (wstrb_w),
-      .axi_wdata_o (wdata_w),
+      .wvalid_o(wvalid_w),
+      .wready_i(wready_w),
+      .wlast_o (wlast_w),
+      .wstrb_o (wstrb_w),
+      .wdata_o (wdata_w),
 
-      .axi_bvalid_i(bvalid_w),
-      .axi_bready_o(bready_w),
-      .axi_bresp_i(bresp_w),
-      .axi_bid_i(bid_w),
+      .bvalid_i(bvalid_w),
+      .bready_o(bready_w),
+      .bresp_i(bresp_w),
+      .bid_i(bid_w),
 
-      .axi_arvalid_o(arvalid_w),
-      .axi_arready_i(arready_w),
-      .axi_araddr_o(araddr_w),
-      .axi_arid_o(arid_w),
-      .axi_arlen_o(arlen_w),
-      .axi_arburst_o(arburst_w),
+      .arvalid_o(arvalid_w),
+      .arready_i(arready_w),
+      .araddr_o(araddr_w),
+      .arid_o(arid_w),
+      .arlen_o(arlen_w),
+      .arburst_o(arburst_w),
 
-      .axi_rvalid_i(rvalid_w),
-      .axi_rready_o(rready_w),
-      .axi_rlast_i(rlast_w),
-      .axi_rresp_i(rresp_w),
-      .axi_rid_i(rid_w),
-      .axi_rdata_i(rdata_w)
+      .rvalid_i(rvalid_w),
+      .rready_o(rready_w),
+      .rlast_i(rlast_w),
+      .rresp_i(rresp_w),
+      .rid_i(rid_w),
+      .rdata_i(rdata_w)
   );
 
   //
   //  DDR3 Cores Under Next-generation Tests
   ///
+
+  // Data-path widths
+  localparam DDR_DQ_WIDTH = 16;
+  localparam DSB = DDR_DQ_WIDTH - 1;
+
+  localparam DDR_DM_WIDTH = 2;
+  localparam QSB = DDR_DM_WIDTH - 1;
+
+  // Address widths
+  localparam DDR_ROW_BITS = 13;
+  localparam RSB = DDR_ROW_BITS - 1;
+
+  localparam DDR_COL_BITS = 10;
+  localparam CSB = DDR_COL_BITS - 1;
+
+  localparam DDR3_MASKS = DDR3_WIDTH / 8;
+  localparam ESB = DDR3_MASKS - 1;
+
+  // note: (AXI4) byte address, not burst-aligned address
+  // localparam ADDRS = DDR_COL_BITS + DDR_ROW_BITS + 4;
+  // localparam ASB = ADDRS - 1;
 
   wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
   wire [1:0] dfi_wrdly;
@@ -255,7 +290,7 @@ module usbaxi_top (
   wire dfi_odt, dfi_wstb, dfi_wren, dfi_rden, dfi_valid, dfi_last;
   wire [  2:0] dfi_bank;
   wire [RSB:0] dfi_addr;
-  wire [BSB:0] dfi_mask;
+  wire [ESB:0] dfi_mask;
   wire [MSB:0] dfi_wdata, dfi_rdata;
 
   wire dfi_calib, dfi_align;
@@ -275,9 +310,10 @@ module usbaxi_top (
   ) U_rPLL1 (
       .clkout(clk_x2),  // Default: 249.75  MHz
       .clockd(mclk),    // Default: 124.875 MHz
+      .clockp(),
       .lock  (mlock),
       .clkin (clk_26),
-      .reset (~arst_n)
+      .reset (~rst_n)
   );
 
   axi_ddr3_lite #(
@@ -304,7 +340,7 @@ module usbaxi_top (
       // Write Channels
       .axi_awvalid_i(awvalid_w),
       .axi_awready_o(awready_w),
-      .axi_awaddr_i(awaddr_w),
+      .axi_awaddr_i(awaddr_w[ADDRS-1:0]),
       .axi_awid_i(awid_w),
       .axi_awlen_i(awlen_w),
       .axi_awburst_i(awburst_w),
@@ -323,7 +359,7 @@ module usbaxi_top (
       // Standard Read-Channels
       .axi_arvalid_i(arvalid_w),
       .axi_arready_o(arready_w),
-      .axi_araddr_i(araddr_w),
+      .axi_araddr_i(araddr_w[ADDRS-1:0]),
       .axi_arid_i(arid_w),
       .axi_arlen_i(arlen_w),
       .axi_arburst_i(arburst_w),
@@ -428,8 +464,8 @@ module usbaxi_top (
   // Generic PHY -- that probably won't synthesise correctly, due to how the
   // (read-)data is registered ...
   generic_ddr3_phy #(
-      .DDR3_WIDTH(16),  // (default)
-      .ADDR_BITS(DDR_ROW_BITS)  // default: 14
+      .DDR3_WIDTH(DDR3_NPINS),   // (default)
+      .ADDR_BITS (DDR_ROW_BITS)  // default: 14
   ) U_PHY1 (
       .clock  (clock),
       .reset  (reset),

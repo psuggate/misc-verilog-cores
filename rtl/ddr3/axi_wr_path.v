@@ -192,7 +192,7 @@ module axi_wr_path #(
     if (reset) begin
       bvalid <= 1'b0;
       bresp  <= AXI_RESP_OKAY;
-      bwrid  <= 'bx;
+      bwrid  <= {AXI_ID_WIDTH{1'bx}};
     end else begin
       bresp <= AXI_RESP_OKAY;
 

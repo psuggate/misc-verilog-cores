@@ -19,47 +19,49 @@
 localparam TCK = 1000 / DDR_FREQ_MHZ;  // in ns (nanoseconds)
 
 // Low-speed mode, and data-capture "edges" can be a bit trickier
-parameter DDR_DLL_OFF = 1;
+localparam DDR_DLL_OFF = 1;
 
 // Minimum period in DLL=off mode is 8 ns (or, max freq of 125 MHz)
-parameter DDR_CL = 6;  // DLL=off mode is required to support this
-parameter DDR_CWL = 6;  // DLL=off mode is required to support this
+localparam DDR_CL = 6;  // DLL=off mode is required to support this
+localparam DDR_CWL = 6;  // DLL=off mode is required to support this
 
 // DDR reset, refresh, and initialisation parameters
-parameter DDR_TREFI = 7800;  // REFRESH-interval in ns, at normal temperatures
-parameter DDR_TRFC = 160;  // self-REFRESH duration, in ns, for 2Gb DDR3 SDRAM
-// parameter DDR_TRFC = 110;  // self-REFRESH duration, in ns, for 1Gb DDR3 SDRAM
+localparam DDR_TREFI = 7800;  // REFRESH-interval in ns, at normal temperatures
+localparam DDR_TRFC = 160;  // self-REFRESH duration, in ns, for 2Gb DDR3 SDRAM
+// localparam DDR_TRFC = 110;  // self-REFRESH duration, in ns, for 1Gb DDR3 SDRAM
+
 localparam DDR_TRESET = 200000;  // RESET# for 200 us after power-on
 localparam DDR_TWAKE = 500000;  // after RESET# deasserts, before first command
 localparam DDR_TCKE0 = 10;  // at least 10 ns between CKE := 0 and RESET# := 1
 localparam DDR_CCKE1 = 5;  // at least 5x cycles between CK valid and CKE := 1
-parameter DDR_TXS = 170;  // todo
-parameter DDR_TXPR = 170;  // tXPR := max(tXS; 5x tCK)
-// parameter DDR_TXPR = $max(DDR_TXS, 5 * TCK);  // tXPR := max(tXS; 5x tCK)
-// parameter DDR_TRRD = 10; // tRRD := max(10ns; 4x tCK)
+
+localparam DDR_TXS = 170;  // todo
+localparam DDR_TXPR = 170;  // tXPR := max(tXS; 5x tCK)
+// localparam DDR_TXPR = $max(DDR_TXS, 5 * TCK);  // tXPR := max(tXS; 5x tCK)
+// localparam DDR_TRRD = 10; // tRRD := max(10ns; 4x tCK)
 
 // DDR3-800E (6-6-6) speed bin parameters (from pp. 157)
-parameter DDR_TAAMIN = 15;  // min time (ns) for internal-read -> data
-parameter DDR_TAAMAX = 20;  // max time (ns) for internal-read -> data
-parameter DDR_TWR = 15;  // post-WRITE recovery time, in ns
-parameter DDR_TRP = 15;  // min time (ns) for PRE command
-parameter DDR_TRCD = 15;  // min time (ns) for ACT -> internal rd/wr
-parameter DDR_TRC = 53;  // 52.5;  // min ACT -> {ACT, REF} command period
-parameter DDR_TRAS = 38;  // 37.5;  // min ACT -> PRE command period
+localparam DDR_TAAMIN = 15;  // min time (ns) for internal-read -> data
+localparam DDR_TAAMAX = 20;  // max time (ns) for internal-read -> data
+localparam DDR_TWR = 15;  // post-WRITE recovery time, in ns
+localparam DDR_TRP = 15;  // min time (ns) for PRE command
+localparam DDR_TRCD = 15;  // min time (ns) for ACT -> internal rd/wr
+localparam DDR_TRC = 53;  // 52.5;  // min ACT -> {ACT, REF} command period
+localparam DDR_TRAS = 38;  // 37.5;  // min ACT -> PRE command period
 
 // From pp. 169
-parameter DDR_CDLLK = 512;  // number of cycles for DLL lock
-parameter DDR_CZQINIT = 512;  // cycles for ZCQL, or 640 ns (if greater)
-parameter DDR_CRTP = 4;  // cycles for internal READ -> PRE
-parameter DDR_CWTR = 4;  // cycles for internal WRITE -> internal READ
-parameter DDR_CMRD = 4;  // cycles for Mode Reg. Set command
-parameter DDR_CMOD = 12;  // cycles for Mode Reg. Set update
-parameter DDR_CCCD = 4;  // CAS# -> CAS# command delay (cycles)
-parameter DDR_CRRD = 4;  // min ACT -> ACT
+localparam DDR_CDLLK = 512;  // number of cycles for DLL lock
+localparam DDR_CZQINIT = 512;  // cycles for ZCQL, or 640 ns (if greater)
+localparam DDR_CRTP = 4;  // cycles for internal READ -> PRE
+localparam DDR_CWTR = 4;  // cycles for internal WRITE -> internal READ
+localparam DDR_CMRD = 4;  // cycles for Mode Reg. Set command
+localparam DDR_CMOD = 12;  // cycles for Mode Reg. Set update
+localparam DDR_CCCD = 4;  // CAS# -> CAS# command delay (cycles)
+localparam DDR_CRRD = 4;  // min ACT -> ACT
 
 // todo: with DLL=off, not relevant because cycle-minimums?
-parameter DDR_TRRD = 10;  // in ns, for x16, DDR-800E
-parameter DDR_TFAW = 50;  // in ns, for x16, DDR-800E
+localparam DDR_TRRD = 10;  // in ns, for x16, DDR-800E
+localparam DDR_TFAW = 50;  // in ns, for x16, DDR-800E
 
 
 //

@@ -193,7 +193,7 @@ end else if (M_BYTE_LANES > S_BYTE_LANES) begin : upsize
                     seg_reg <= 0;
                     m_axis_tvalid_reg <= 1'b1;
                 end else begin
-                    seg_reg <= seg_reg + 1;
+                    seg_reg <= seg_reg + 1'b1;
                 end
             end else if (s_axis_tvalid) begin
                 // data direct from input
@@ -201,7 +201,7 @@ end else if (M_BYTE_LANES > S_BYTE_LANES) begin : upsize
                     seg_reg <= 0;
                     m_axis_tvalid_reg <= 1'b1;
                 end else begin
-                    seg_reg <= seg_reg + 1;
+                    seg_reg <= seg_reg + 1'b1;
                 end
             end
         end else if (s_axis_tvalid && s_axis_tready) begin

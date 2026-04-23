@@ -162,7 +162,7 @@ module stdreq #(
           req_cycle_q <= 1'b1;
         end
       end else begin
-        xcptr <= xcptr + 1;
+        xcptr <= (xcptr + 1'b1) & 3'h7;
       end
     end else begin
       req_start_q <= 1'b0;

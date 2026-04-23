@@ -260,6 +260,8 @@ module afifo_gray #(
   //  Sanity Check
   //-------------------------------------------------------------------------
 
+`ifdef __icarus
+
   always @(posedge wr_clk_i) begin
     if (wr_en_i && wfull_q) begin
       $display("%m WARNING: Writing while FIFO is FULL (%t)", $time);
@@ -271,5 +273,7 @@ module afifo_gray #(
       $display("%m WARNING: Reading while FIFO is EMPTY (%t)", $time);
     end
   end
+
+`endif  /* __icarus */
 
 endmodule  /* afifo_gray */

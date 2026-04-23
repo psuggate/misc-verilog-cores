@@ -15,18 +15,11 @@ module ulpi_reset #(
     output ddr_clock   // 120 MHz, PLL output, phase-shifted
 );
 
-  // todo: good enough ??
   localparam NEGATE_CLOCK = PHASE[31:24] == "1";
 
   reg [4:0] reset_count = 5'd0;
   reg [2:0] reset_delay = 3'd7;
   wire locked, clockd, clockp;
-
-  initial begin
-    $display("ULPI Reset module:");
-    $display(" - Clock-negation: %1d", NEGATE_CLOCK);
-  end
-
 
   assign ulpi_rst_n = reset_count[4];
   assign usb_reset  = reset_delay[2];
@@ -34,7 +27,6 @@ module ulpi_reset #(
   assign pll_locked = PLLEN ? locked : ulpi_rst_n;
   assign usb_clock  = PLLEN ? clockd : NEGATE_CLOCK ? ~ulpi_clk : ulpi_clk;
   assign ddr_clock  = PLLEN ? clockp : 1'b0;
-
 
   // Reset delays after ULPI clock starts
   always @(posedge sys_clock or negedge areset_n) begin
@@ -55,7 +47,6 @@ module ulpi_reset #(
       reset_delay <= {reset_delay[1:0], ~reset_count[4]};
     end
   end
-
 
   generate
     if (PLLEN) begin : g_gowin_pll
@@ -84,5 +75,13 @@ module ulpi_reset #(
     end
   endgenerate
 
+`ifdef __icarus
+
+  initial begin
+    $display("ULPI Reset module:");
+    $display(" - Clock-negation: %1d", NEGATE_CLOCK);
+  end
+
+`endif  /* __icarus */
 
 endmodule  // ulpi_reset

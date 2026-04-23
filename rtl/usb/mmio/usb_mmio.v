@@ -120,7 +120,7 @@ module usb_mmio #(
 
   reg busy_q, send_q, resp_q, xmit_q, done_q;
   wire recv_w, next_w, sent_w, resp_w, redo_w;
-  wire save_w, drop_w;
+  wire save_w, drop_w, wrdy_w;
   wire s_tvalid, s_tready, s_tlast;
   wire m_tvalid, m_tready, m_tlast;
   wire [3:0] s_tkeep, m_tkeep;
@@ -259,6 +259,7 @@ module usb_mmio #(
 
       // From MMIO controller
       .mmio_busy_i(busy_q),  // Todo: what do I want?
+      .mmio_wrdy_i(wrdy_w),
       .mmio_recv_o(recv_w),
       .mmio_save_o(save_w),
       .mmio_drop_o(drop_w),
@@ -447,6 +448,7 @@ module usb_mmio #(
       .usb_sent_i(sent_w),
       .usb_next_i(next_w),
       .usb_redo_i(redo_w),
+      .usb_wrdy_o(wrdy_w),
 
       .dat_tvalid_i(m_tvalid),
       .dat_tready_o(m_tready),

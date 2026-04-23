@@ -94,9 +94,8 @@ module axis_demux #
     input  wire [$clog2(M_COUNT)-1:0]       select
 );
 
-parameter CL_M_COUNT = $clog2(M_COUNT);
-
-parameter M_DEST_WIDTH_INT = M_DEST_WIDTH > 0 ? M_DEST_WIDTH : 1;
+localparam CL_M_COUNT = $clog2(M_COUNT);
+localparam M_DEST_WIDTH_INT = M_DEST_WIDTH > 0 ? M_DEST_WIDTH : 1;
 
 // check configuration
 initial begin

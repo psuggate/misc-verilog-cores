@@ -48,6 +48,7 @@ module mmio_ep_out #(
 
     // From MMIO controller
     input  mmio_busy_i,  // Todo: what do I want?
+    input  mmio_wrdy_i,
     output mmio_recv_o,
     input  mmio_sent_i,
     output mmio_save_o,
@@ -127,12 +128,6 @@ module mmio_ep_out #(
   /**
    * Pipeline some of the control signals.
    */
-  wire avail_w;
-  wire [PSB:0] level_w, space_w;
-
-  assign space_w = PACKET_FIFO_DEPTH - level_w;
-  assign avail_w = space_w > MAX_PACKET_LENGTH;
-
   always @(posedge clock) begin
     // Clear state values, as required.
     if (reset || set_conf_i || clr_conf_i) begin
@@ -152,7 +147,7 @@ module mmio_ep_out #(
     if (clear || stall) begin
       ready <= 1'b0;
     end else if (en_q) begin
-      ready <= avail_w;
+      ready <= mmio_wrdy_i;
     end
 
     // USB end-point parity-bit logic.
@@ -303,7 +298,7 @@ module mmio_ep_out #(
   wire [CBITS:0] cprev_w;
   wire czero_w, cfull_w;
 
-  assign cprev_w = count - 1;
+  assign cprev_w = count - 1'b1;
   assign czero_w = count == CZERO;
   assign cfull_w = count == CMAX;
 

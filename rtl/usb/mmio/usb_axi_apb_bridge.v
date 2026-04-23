@@ -4,8 +4,8 @@ module usb_axi_apb_bridge #(
 
     localparam USE_EP1_OUT = 1,
     localparam USE_EP2_IN  = 1,
-    parameter  USE_EP3_IN  = 0,
-    parameter  USE_EP4_OUT = 0,
+    parameter  USE_EP3_IN  = 0,  // Optional
+    parameter  USE_EP4_OUT = 0,  // Optional
 
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
@@ -16,6 +16,12 @@ module usb_axi_apb_bridge #(
     localparam integer FIFO_DEPTH_DWORDS = PACKET_FIFO_DEPTH / 4,
     localparam integer AXI_DATA_WIDTH = 32,
     localparam integer MSB = AXI_DATA_WIDTH - 1,
+    localparam integer AXI_STROBE_NUM = AXI_DATA_WIDTH / 8,
+    localparam integer SSB = AXI_STROBE_NUM - 1,
+    localparam integer AXI_ADDR_WIDTH = 32,
+    localparam integer ASB = AXI_ADDR_WIDTH - 1,
+    parameter integer AXI_TAGID_BITS = 4,
+    localparam integer ISB = AXI_TAGID_BITS - 1,
 
     localparam integer MAX_PACKET_LENGTH = 512,  // 32-bit words, in HS-mode
     localparam integer MAX_CONFIG_LENGTH = 64,   // For HS- & FS- modes
@@ -47,6 +53,16 @@ module usb_axi_apb_bridge #(
     input ulpi_nxt_i,
     output ulpi_stp_o,
     inout [7:0] ulpi_data_io,
+
+    input blki_tvalid_i,  // Optional Bulk IN endpoint
+    output blki_tready_o,
+    input blki_tlast_i,
+    input [7:0] blki_tdata_i,
+
+    output blko_tvalid_o,  // Optional Bulk OUT endpoint
+    input blko_tready_i,
+    output blko_tlast_o,
+    output [7:0] blko_tdata_o,
 
     // APB clock-domain
     input pclk,
@@ -644,8 +660,8 @@ module usb_axi_apb_bridge #(
   ) U_REQ1 (
       .aresetn(aresetn),  // Global, asynchronous reset (active LOW)
 
-      .clock(usb_clk),  // USB clock domain
-      .reset(usb_rst),
+      .clock(clock),  // USB clock domain
+      .reset(reset),
 
       .usb_ack_sent_i(ep1_ack_w),
       .usb_ack_recv_i(ep2_ack_w),
@@ -654,7 +670,7 @@ module usb_axi_apb_bridge #(
       .epi_clr_conf_i(conf_error_w),
       .epi_selected_i(ep2_sel_w),
       .epi_timedout_i(ep2_err_w),
-      .epi_max_size_i(512),  // Todo
+      .epi_max_size_i(10'd512),  // Todo
       .epi_ready_o(ep2_rdy_w),
       .epi_stalled_o(ep2_hlt_w),
       .epi_parity_o(ep2_par_w),
@@ -663,7 +679,7 @@ module usb_axi_apb_bridge #(
       .epo_clr_conf_i(conf_error_w),
       .epo_selected_i(ep1_sel_w),
       .epo_rx_error_i(ep1_err_w),
-      .epo_max_size_i(512),  // Todo
+      .epo_max_size_i(10'd512),  // Todo
       .epo_ready_o(ep1_rdy_w),
       .epo_stalled_o(ep1_hlt_w),
       .epo_parity_o(ep1_par_w),
@@ -738,8 +754,9 @@ module usb_axi_apb_bridge #(
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
       .ENABLED(USE_EP3_IN)
   ) U_IN_EP3 (
-      .clock     (clock),
-      .reset     (reset),
+      .clock(clock),
+      .reset(reset),
+
       .set_conf_i(conf_event_w),
       .clr_conf_i(conf_error_w),
       .selected_i(ep3_sel_w),
@@ -748,15 +765,17 @@ module usb_axi_apb_bridge #(
       .ep_ready_o(ep3_rdy_w),
       .stalled_o (ep3_hlt_w),
       .parity_o  (ep3_par_w),
-      .s_tvalid  (blkx_tvalid_i),
-      .s_tready  (blkx_tready_o),
-      .s_tlast   (blkx_tlast_i),
-      .s_tdata   (blkx_tdata_i),
-      .m_tvalid  (ep3_tvalid_w),
-      .m_tready  (ep3_tready_w),
-      .m_tkeep   (ep3_tkeep_w),
-      .m_tlast   (ep3_tlast_w),
-      .m_tdata   (ep3_tdata_w)
+
+      .s_tvalid(blki_tvalid_i),
+      .s_tready(blki_tready_o),
+      .s_tlast (blki_tlast_i),
+      .s_tdata (blki_tdata_i),
+
+      .m_tvalid(ep3_tvalid_w),
+      .m_tready(ep3_tready_w),
+      .m_tkeep (ep3_tkeep_w),
+      .m_tlast (ep3_tlast_w),
+      .m_tdata (ep3_tdata_w)
   );
 
   ep_bulk_out #(
@@ -783,10 +802,10 @@ module usb_axi_apb_bridge #(
       .s_tlast(dec_tlast_w),
       .s_tdata(dec_tdata_w),
 
-      .m_tvalid(blky_tvalid_o),
-      .m_tready(blky_tready_i),
-      .m_tlast (blky_tlast_o),
-      .m_tdata (blky_tdata_o)
+      .m_tvalid(blko_tvalid_o),
+      .m_tready(blko_tready_i),
+      .m_tlast (blko_tlast_o),
+      .m_tdata (blko_tdata_o)
   );
 
 endmodule  /* usb_axi_apb_bridge */

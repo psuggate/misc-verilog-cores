@@ -35,6 +35,7 @@ module cmd_to_axi #(
     input  usb_next_i,
     input  usb_redo_i,
     input  usb_sent_i,
+    output usb_wrdy_o,
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     input dat_tvalid_i,
@@ -117,7 +118,7 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg cmd_rdy_q, cmd_vld_q, cmd_err_q, cmd_ack_q, axi_vld_q, usb_send_q;
-  reg cvalid_q;
+  reg wrdy_a, cvalid_q;
   reg [15:0] res_q;
   wire svalid_w, sready_w, cready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
@@ -129,6 +130,7 @@ module cmd_to_axi #(
   assign cmd_res_o = cmd_len_i;
 
   assign usb_send_o = usb_send_q;
+  assign usb_wrdy_o = wrdy_a;
 
   assign dat_tready_o = state == ST_RECV && sready_w;
   assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
@@ -245,6 +247,7 @@ module cmd_to_axi #(
 
   // -- AXI Transaction Control Signals -- //
 
+  reg wrdy_m, wrdy_q, wrdy_p;
   reg read_q, read_p, read_r;
   reg wr_rdy_q, rd_rdy_q;
   reg cnt_load_q, cnt_next_q;
@@ -252,6 +255,11 @@ module cmd_to_axi #(
 
   // Todo: can this assert too early (before packet FIFO is ready)?
   wire read_a = read_p & ~read_q;
+
+  // Bring the write-data FIFO status into the USB clock domain.
+  always @(posedge cmd_clk) begin
+    {wrdy_a, wrdy_q, wrdy_p} <= {~wrdy_q & wrdy_p, wrdy_p, wrdy_m};
+  end
 
   always @(posedge cmd_clk) begin
     cnt_next_q <= cvalid_q && cready_w;
@@ -280,19 +288,19 @@ module cmd_to_axi #(
 
   // Compute the total number of AXI transaction beats.
   assign beat_err_w = cmd_len_i[15:12] != 4'd0;
-  assign beat_nxt_w = beat_num_q - USB_DWORDS;
-  assign len_nxt_w  = cnt_left_w > 0 ? USB_DWORDS - 1 : beat_num_q[7:0];
+  assign beat_nxt_w = beat_num_q - USB_DWORDS[USB_LEN_BITS-3:0];
+  assign len_nxt_w  = cnt_left_w > 0 ? USB_DWORDS - 1'b1 : beat_num_q[7:0];
 
   always @(posedge cmd_clk) begin
     if (cmd_rst) begin
-      beat_num_q <= 'bx;
-      axi_len_q  <= 'bx;
-      axi_adr_q  <= 'bx;
+      beat_num_q <= 10'bx;
+      axi_len_q  <= 8'bx;
+      axi_adr_q  <= 32'bx;
     end else begin
       case (state)
         ST_IDLE: begin
           beat_num_q <= cmd_len_i[11:2];
-          axi_len_q  <= cmd_len_i[11:2] >= USB_DWORDS ? USB_DWORDS - 1 : cmd_len_i[9:2];
+          axi_len_q  <= cmd_len_i[11:2] >= USB_DWORDS ? USB_DWORDS - 1'b1 : cmd_len_i[9:2];
           axi_adr_q  <= cmd_adr_i;
         end
         default: begin
@@ -324,8 +332,10 @@ module cmd_to_axi #(
       cmd_err_q <= 1'b0;
     end else if (cmd_vld_i && cmd_err_w) begin
       cmd_err_q <= cmd_err_w;
+`ifdef __icarus
       if (cmd_err_adr_w) $error("%11t: Invalid command, address alignment", $time);
       if (cmd_err_len_w) $error("%11t: Invalid command, length error", $time);
+`endif  /* __icarus */
     end
   end
 
@@ -342,7 +352,9 @@ module cmd_to_axi #(
         if (!cmd_vld_i) begin
           state <= state;
         end else begin
+`ifdef __icarus
           $display("%11t: Command received: RD = %d, ADR = 0x%x", $time, cmd_dir_i, cmd_adr_i);
+`endif  /* __icarus */
           state <= cmd_dir_i ? ST_READ : ST_RECV;
         end
 
@@ -366,7 +378,9 @@ module cmd_to_axi #(
 
         default: begin
           state <= ST_IDLE;
+`ifdef __icarus
           #10 if (state != ST_IDLE) $fatal;
+`endif  /* __icarus */
         end
       endcase
     end
@@ -503,7 +517,7 @@ module cmd_to_axi #(
         if (bvalid_i && bready_o) begin
           wr <= WR_IDLE;
         end
-        default: wr <= 'bx;
+        default: wr <= 4'bx;
       endcase
     end
   end
@@ -522,7 +536,7 @@ module cmd_to_axi #(
         RD_ADDR: rd <= rd_ack_w ? RD_DATA : rd;
         RD_DATA: rd <= rd_end_w ? RD_SEND : rd;
         RD_SEND: rd <= rd_mid_w ? rd : RD_IDLE;
-        default: rd <= 'bx;
+        default: rd <= 4'bx;
       endcase
     end
   end
@@ -577,6 +591,12 @@ module cmd_to_axi #(
   wire redo_a = ~redo_q & redo_p;
   wire next_a = ~next_q & next_p;
 
+  wire wrdy_w = (FIFO_DEPTH - axi_wr_level_w) >= USB_DWORDS;
+
+  always @(posedge aclk) begin
+    wrdy_m <= wrdy_w;
+  end
+
   // FIXME: these should be one-shots!!
   always @(posedge aclk) begin
     {save_q, save_p} <= {save_p, usb_save_i};
@@ -601,7 +621,7 @@ module cmd_to_axi #(
       .clock(aclk),
       .reset(arst),
 
-      .level_o(),
+      .level_o(axi_wr_level_w),
 
       .drop_i(drop_a),  // Todo: cross from USB domain
       .save_i(save_a),  // Todo: cross from USB domain

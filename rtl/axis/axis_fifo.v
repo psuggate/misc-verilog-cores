@@ -134,9 +134,8 @@ module axis_fifo #
     output wire                   status_good_frame
 );
 
-parameter ADDR_WIDTH = (KEEP_ENABLE && KEEP_WIDTH > 1) ? $clog2(DEPTH/KEEP_WIDTH) : $clog2(DEPTH);
-
-parameter OUTPUT_FIFO_ADDR_WIDTH = RAM_PIPELINE < 2 ? 3 : $clog2(RAM_PIPELINE*2+7);
+localparam ADDR_WIDTH = (KEEP_ENABLE && KEEP_WIDTH > 1) ? $clog2(DEPTH/KEEP_WIDTH) : $clog2(DEPTH);
+localparam OUTPUT_FIFO_ADDR_WIDTH = RAM_PIPELINE < 2 ? 3 : $clog2(RAM_PIPELINE*2+7);
 
 // check configuration
 initial begin
@@ -317,7 +316,7 @@ always @(posedge clk) begin
                         mark_frame_reg <= 1'b0;
                         mem[wr_ptr_reg[ADDR_WIDTH-1:0]] <= s_axis;
                         wr_ptr_reg <= wr_ptr_reg + 1;
-                        wr_ptr_commit_reg <= wr_ptr_reg + 1;
+                        wr_ptr_commit_reg <= wr_ptr_reg + 1'b1;
                     end
                     // end of frame, clear drop flag
                     drop_frame_reg <= 1'b0;
@@ -335,15 +334,15 @@ always @(posedge clk) begin
             end else begin
                 // transfer in
                 mem[wr_ptr_reg[ADDR_WIDTH-1:0]] <= s_axis;
-                wr_ptr_reg <= wr_ptr_reg + 1;
-                wr_ptr_commit_reg <= wr_ptr_reg + 1;
+                wr_ptr_reg <= wr_ptr_reg + 1'b1;
+                wr_ptr_commit_reg <= wr_ptr_reg + 1'b1;
             end
         end else if ((!full && !drop_frame_reg && mark_frame_reg) && MARK_WHEN_FULL) begin
             // terminate marked frame
             mark_frame_reg <= 1'b0;
             mem[wr_ptr_reg[ADDR_WIDTH-1:0]] <= s_axis;
-            wr_ptr_reg <= wr_ptr_reg + 1;
-            wr_ptr_commit_reg <= wr_ptr_reg + 1;
+            wr_ptr_reg <= wr_ptr_reg + 1'b1;
+            wr_ptr_commit_reg <= wr_ptr_reg + 1'b1;
         end
     end
 
@@ -393,7 +392,7 @@ always @(posedge clk) begin
         if (!empty && pipe_ready) begin
             // not empty, increment pointer
             m_axis_tvalid_pipe_reg[0] <= 1'b1;
-            rd_ptr_reg <= rd_ptr_reg + 1;
+            rd_ptr_reg <= rd_ptr_reg + 1'b1;
         end
     end
 

@@ -41,7 +41,7 @@ module cmd_result (
   assign usb_tlast_o = lst_q;
   assign usb_tdata_o = out_q[7:0];
 
-  assign idx_w = idx_q - 1;
+  assign idx_w = idx_q - 1'b1;
 
   // Writes the MMIO response, after the data transfer stage(s) have completed.
   always @(posedge clock) begin
@@ -71,7 +71,7 @@ module cmd_result (
           3: out_q <= cmd_res_i[7:0];
           2: out_q <= cmd_res_i[15:8];
           1: out_q <= {cmd_tag_i, `CMD_SUCCESS};
-          default: out_q <= 'bx;
+          default: out_q <= 8'bx;
         endcase
       end
 

@@ -186,7 +186,7 @@ module ctl_pipe0 #(
   // -- Current USB Configuration State -- //
 
   reg [6:0] adr_q = 7'h00;
-  reg [7:0] cfg_q = 8'h00;
+  reg [2:0] cfg_q = 3'd0;
   reg enm_q = 1'b0, set_q = 1'b0;
   reg ctl_done_q;
 
@@ -232,6 +232,7 @@ module ctl_pipe0 #(
   localparam MBITS = $clog2(MAXLEN + 1);
   localparam MSB = MBITS - 1;
   localparam MZERO = {MBITS{1'b0}};
+  localparam MONES = {MBITS{1'b1}};
   localparam MUNIT = {{MSB{1'b0}}, 1'b1};
 
   //
@@ -244,20 +245,21 @@ module ctl_pipe0 #(
   wire tvalid_w, tready_w, tkeep_w, tlast_w;
   wire [7:0] tdata_w;
 
-  assign cnext = count - 1;
+  assign cnext = count - 1'b1;
 
   assign tvalid_w = status_i | (get_desc_q & ~count[6]);
   assign tkeep_w = ~status_i;
   assign tlast_w = status_i | desc_tlast[mem_addr] | cnext[6];
   assign tdata_w = descriptor[mem_addr];
 
-  wire [MBITS:0] maxlen_w = (req_length_i > MAXLEN ? MAXLEN : req_length_i) - 1;
+  wire [MBITS:0] maxlen_w;
+  assign maxlen_w = ((req_length_i > MAXLEN ? MAXLEN : req_length_i) - 1'b1) & MONES;
 
   always @(posedge clock) begin
     if (!select_i) begin
-      count <= maxlen_w[6:0];
+      count <= maxlen_w[MSB:0];
     end else if (tvalid_w && tready_w) begin
-      count <= cnext[6:0];
+      count <= cnext[MSB:0];
     end
   end
 
@@ -320,7 +322,7 @@ module ctl_pipe0 #(
   localparam integer DESC_STATUS1_INDEX = DESC_STATUS_START + 2;
   localparam integer DESC_STATUS2_INDEX = DESC_STATUS_START + 4;
 
-  assign mem_next = mem_addr + 1;
+  assign mem_next = mem_addr + 1'b1;
 
   always @(posedge clock) begin
     if (select_i && start_i) begin

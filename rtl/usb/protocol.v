@@ -597,7 +597,6 @@ module protocol #(
     if (reset) begin
       timeout_q <= 1'b0;
     end else begin
-      // timeout_q <= 1'b0;
       timeout_q <= ta_err_q | ep_err_q;
     end
   end
@@ -612,7 +611,7 @@ module protocol #(
   reg  [6:0] ta_count;
   wire [7:0] ta_cnext;
 
-  assign ta_cnext = ta_count - 1;
+  assign ta_cnext = ({ta_count} - 1'b1) & 8'hFF;
 
   always @(posedge clock) begin
     if (tag_q) begin
@@ -627,7 +626,7 @@ module protocol #(
       ta_count <= MAX_TA_TIMER;
     end else if (ta_run_q) begin
       // Still waiting ...
-      ta_count <= ta_cnext;
+      ta_count <= ta_cnext[6:0];
     end else begin
       ta_run_q <= 1'b0;
       ta_err_q <= 1'b0;
@@ -640,7 +639,7 @@ module protocol #(
   reg  [4:0] ep_count;
   wire [5:0] ep_cnext;
 
-  assign ep_cnext = ep_count - 1;
+  assign ep_cnext = ep_count - 1'b1;
 
   always @(posedge clock) begin
     if (epg_q) begin
@@ -662,7 +661,7 @@ module protocol #(
         ep_err_q <= 1'b1;
       end else begin
         // Still waiting ...
-        ep_count <= ep_cnext;
+        ep_count <= ep_cnext[4:0];
       end
     end else begin
       ep_run_q <= 1'b0;

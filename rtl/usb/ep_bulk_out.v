@@ -48,6 +48,7 @@ module ep_bulk_out #(
   // Address-/level- bits, for the FIFO
   localparam ABITS = $clog2(PACKET_FIFO_DEPTH);
   localparam ASB = ABITS - 1;
+  localparam AMASK = {ABITS + 1{1'b1}};
 
   localparam [4:0] ST_HALT = 5'b00001;
   localparam [4:0] ST_IDLE = 5'b00010;
@@ -69,7 +70,7 @@ module ep_bulk_out #(
 
   // Goes negative when there is no longer space for 'MAX_PACKET_LENGTH' to be
   // received.
-  assign space_w = PACKET_FIFO_DEPTH - level_w - MAX_PACKET_LENGTH - 1;
+  assign space_w = (PACKET_FIFO_DEPTH - level_w - MAX_PACKET_LENGTH - 1) & AMASK;
 
   // -- End-Point Reset & Parity Flags -- //
 

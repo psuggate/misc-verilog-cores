@@ -1,5 +1,6 @@
 PROJECT  := usbddr3
-TOP      := usb_ddr3_top
+# TOP      := usb_ddr3_top
+TOP      := usbaxi_top
 FAMILY   := GW2A-18C
 DEVICE   := GW2A-LV18PG256C8/I7
 CST	 := gowin-ddr3-test.cst
@@ -19,7 +20,7 @@ DDR3_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/ddr3/*.v))
 FIFO_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/fifo/*.v))
 MISC_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/misc/*.v))
 UART_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/uart/*.v))
-USB2_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/usb/*.v))
+USB2_V	:= $(filter-out %_tb.v, $(wildcard $(RTL)/usb/*.v $(RTL)/usb/mmio/*.v))
 
 SOURCES	:= \
 	$(ARCH_V) $(AXIS_V) $(DDR3_V) $(FIFO_V) $(MISC_V) $(UART_V) $(USB2_V) \

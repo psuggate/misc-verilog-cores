@@ -124,6 +124,10 @@ module mmio_ep_in #(
 
   // -- USB datapath I/O assignments -- //
 
+  assign stalled_o = stall;
+  assign ep_ready_o = ready;
+  assign parity_o = parity;
+
   assign usb_tvalid_o = phase == TX_SEND && ulpi_tvalid_w || none_q;
   assign ulpi_tready_w = phase == TX_SEND && usb_tready_i;
   assign usb_tkeep_o = phase == TX_SEND && !zero_q;
@@ -179,7 +183,7 @@ module mmio_ep_in #(
   reg  [  TSB:0] ticks;
   wire [TBITS:0] dec_w;
 
-  assign dec_w = ticks - 1;
+  assign dec_w = ticks - 1'b1;
 
   // Count the number of wait-states, and timeout if tardy.
   always @(posedge clock) begin
@@ -416,6 +420,8 @@ module mmio_ep_in #(
   );
 
   // Cross domains for the fetched AXI data.
+  assign u_tkeep_w = u_tvalid_w;
+
   axis_afifo #(
       .WIDTH(8),
       .TLAST(1),
