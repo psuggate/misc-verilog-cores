@@ -161,7 +161,7 @@ module ddr3_axi_ctrl #(
     if (reset) begin
       req_id <= TZERO;
     end else if (issued) begin
-      req_id <= req_id + 1;
+      req_id <= req_id + 1'b1;
     end else begin
       req_id <= req_id;
     end
@@ -279,6 +279,8 @@ module ddr3_axi_ctrl #(
   ) U_RD_RESP1 (
       .clock(clock),
       .reset(reset),
+
+      .level_o(),
 
       .valid_i(rd_accept),
       .ready_o(),

@@ -107,17 +107,17 @@ module ddr3_cfg #(
   reg  [XSB:0] count;
   wire [XSB:0] cnext;
 
-  assign cnext = count - 1;
+  assign cnext = count - 1'b1;
 
   always @(posedge clock) begin
     if (reset) begin
-      count <= COUNTER_INIT;
+      count <= COUNTER_INIT[XSB:0];
     end else begin
       if (cnext != COUNTER_ZERO) begin
         count <= cnext;
       end else begin
         // After SDRAM startup, reuse the counter for refresh intervals
-        count <= COUNTER_REFI;
+        count <= COUNTER_REFI[XSB:0];
       end
     end
   end
@@ -132,12 +132,12 @@ module ddr3_cfg #(
       if (refresh_issued) begin
         refresh_pending <= refresh_pending;
       end else begin
-        refresh_pending <= refresh_pending + 1;
+        refresh_pending <= refresh_pending + 1'b1;
       end
     end else if (run_q) begin
       // REFRESH completed?
       if (refresh_issued && refresh_pending != 3'd0) begin
-        refresh_pending <= refresh_pending - 1;
+        refresh_pending <= refresh_pending - 1'b1;
       end else begin
         refresh_pending <= refresh_pending;
       end
@@ -428,7 +428,9 @@ module ddr3_cfg #(
         end
 
         default: begin
+`ifdef __icarus
           $error("%10t: CFG: Unhandled CFG state: %1x", $time, state);
+`endif  /* __icarus */
           state <= ST_RSTN;
           rst_nq <= 1'b0;
           cke_q <= 1'b0;

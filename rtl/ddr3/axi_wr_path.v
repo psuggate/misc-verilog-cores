@@ -175,7 +175,9 @@ module axi_wr_path #(
         end
 
         default: begin
+`ifdef __icarus
           $error("%10t: WRITE data state-machine failure!", $time);
+`endif  /* !__icarus */
           state  <= ST_IDLE;
           aready <= 1'b0;
           wready <= 1'b0;

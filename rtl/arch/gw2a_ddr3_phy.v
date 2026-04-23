@@ -291,7 +291,7 @@ module gw2a_ddr3_phy #(
     if (reset || err_q) begin
       cnt_q <= 4'd0;
     end else if (rcv_q && !cyc_q && !cnt_q[3]) begin
-      cnt_q <= cnt_q + 1;
+      cnt_q <= cnt_q + 1'b1;
     end
 
     if (reset) begin
@@ -302,7 +302,7 @@ module gw2a_ddr3_phy #(
       cyc_q <= valid_q;
       if (!cyc_q && err_q) begin
         // Rx. error occurred, so advance the clock-shift value
-        rdcal <= rdcal + 1;
+        rdcal <= rdcal + 1'b1;
       end
     end
   end

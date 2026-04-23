@@ -160,7 +160,7 @@ module ddr3_ddl #(
   // -- Internal Control Signals -- //
 
   assign nop_w = ~ctl_req_i | ~ready;
-  assign cnext = count - 1;
+  assign cnext = count - 1'b1;
 
   // -- Connection to the DDR PHY IOB's -- //
 
@@ -286,7 +286,7 @@ module ddr3_ddl #(
             CMD_ZQCL: begin
               busy  <= 1'b1;
               delay <= 0;
-              count <= DDR_CZQINIT;
+              count <= DDR_CZQINIT[XSB:0];
             end
 
             // Ignore these, other than noting that the memory-contoller is
@@ -421,7 +421,7 @@ module ddr3_ddl #(
           case (ctl_cmd_i)
             CMD_ZQCL: begin
               busy  <= 1'b1;
-              count <= DDR_CZQINIT;
+              count <= DDR_CZQINIT[XSB:0];
             end
             default: begin
               busy  <= 1'b0;

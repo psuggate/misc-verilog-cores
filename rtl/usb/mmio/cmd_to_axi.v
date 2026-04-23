@@ -118,7 +118,7 @@ module cmd_to_axi #(
   // -- Command (USB) clock-domain signals and state -- //
 
   reg cmd_rdy_q, cmd_vld_q, cmd_err_q, cmd_ack_q, axi_vld_q, usb_send_q;
-  reg wrdy_a, cvalid_q;
+  reg wrdy_q, cvalid_q;
   reg [15:0] res_q;
   wire svalid_w, sready_w, cready_w;
   wire tkeep_w, tlast_w, rvalid_w, rready_w, rokay_w;
@@ -130,7 +130,7 @@ module cmd_to_axi #(
   assign cmd_res_o = cmd_len_i;
 
   assign usb_send_o = usb_send_q;
-  assign usb_wrdy_o = wrdy_a;
+  assign usb_wrdy_o = wrdy_q;
 
   assign dat_tready_o = state == ST_RECV && sready_w;
   assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
@@ -247,7 +247,7 @@ module cmd_to_axi #(
 
   // -- AXI Transaction Control Signals -- //
 
-  reg wrdy_m, wrdy_q, wrdy_p;
+  reg wrdy_m, wrdy_p;
   reg read_q, read_p, read_r;
   reg wr_rdy_q, rd_rdy_q;
   reg cnt_load_q, cnt_next_q;
@@ -258,7 +258,7 @@ module cmd_to_axi #(
 
   // Bring the write-data FIFO status into the USB clock domain.
   always @(posedge cmd_clk) begin
-    {wrdy_a, wrdy_q, wrdy_p} <= {~wrdy_q & wrdy_p, wrdy_p, wrdy_m};
+    {wrdy_q, wrdy_p} <= {wrdy_p, wrdy_m};
   end
 
   always @(posedge cmd_clk) begin

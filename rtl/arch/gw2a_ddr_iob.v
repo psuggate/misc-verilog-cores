@@ -59,7 +59,7 @@ module gw2a_ddr_iob #(
       shift <= 2'd0;
     end else if (CALIB) begin
       CALIB <= 1'b0;
-      shift <= shift + 1;
+      shift <= shift + 1'b1;
     end else if (shift != SHIFT[1:0]) begin
       CALIB <= 1'b1;
       shift <= shift;
