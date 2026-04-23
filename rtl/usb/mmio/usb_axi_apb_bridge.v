@@ -1,16 +1,11 @@
 `timescale 1ns / 100ps
-/**
- * USB2.0 HighSpeed (HS) core with up to four Bulk In/Out endpoints.
- * License: MIT
- *  Copyright (c) 2026 Patrick Suggate
- */
-module usb_ulpi_top #(
+module usb_axi_apb_bridge #(
     parameter DEBUG = 0,
 
-    parameter USE_EP2_IN  = 1,
-    parameter USE_EP1_OUT = 1,
-    parameter USE_EP3_IN  = 0,
-    parameter USE_EP4_OUT = 0,
+    localparam USE_EP1_OUT = 1,
+    localparam USE_EP2_IN  = 1,
+    parameter  USE_EP3_IN  = 0,
+    parameter  USE_EP4_OUT = 0,
 
     parameter [3:0] ENDPOINT1 = 4'd1,
     parameter [3:0] ENDPOINT2 = 4'd2,
@@ -18,8 +13,12 @@ module usb_ulpi_top #(
     parameter [3:0] ENDPOINT4 = 4'd4,
 
     parameter integer PACKET_FIFO_DEPTH = 2048,
-    parameter integer MAX_PACKET_LENGTH = 512,   // For HS-mode
-    parameter integer MAX_CONFIG_LENGTH = 64,    // For HS- & FS- modes
+    localparam integer FIFO_DEPTH_DWORDS = PACKET_FIFO_DEPTH / 4,
+    localparam integer AXI_DATA_WIDTH = 32,
+    localparam integer MSB = AXI_DATA_WIDTH - 1,
+
+    localparam integer MAX_PACKET_LENGTH = 512,  // 32-bit words, in HS-mode
+    localparam integer MAX_CONFIG_LENGTH = 64,   // For HS- & FS- modes
 
     parameter integer SERIAL_LENGTH = 8,
     parameter [SERIAL_LENGTH*8-1:0] SERIAL_STRING = "TART0001",
@@ -32,8 +31,15 @@ module usb_ulpi_top #(
     parameter integer PRODUCT_LENGTH = 8,
     parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
 ) (
-    // Global, asynchronous reset & ULPI PHY reset
-    input areset_n,
+    // USB clock-domain clock & reset
+    output usb_clock_o,
+    output usb_reset_o,  // USB core is in reset state
+
+    // Current USB state/settings
+    output configured_o,
+    output high_speed_o,
+    output conf_event_o,
+    output [2:0] conf_value_o,
 
     // UTMI Low Pin Interface (ULPI)
     input ulpi_clock_i,
@@ -42,34 +48,56 @@ module usb_ulpi_top #(
     output ulpi_stp_o,
     inout [7:0] ulpi_data_io,
 
-    // USB clock-domain clock & reset
-    output usb_clock_o,
-    output usb_reset_o,  // USB core is in reset state
+    // APB clock-domain
+    input pclk,
+    input presetn,
 
-    output configured_o,
-    output high_speed_o,
-    output conf_event_o,
-    output [2:0] conf_value_o,
+    // APB requester interface, to controllers
+    output penable_o,
+    output pwrite_o,
+    output [1:0] pstrb_o,
+    input pready_i,
+    input pslverr_i,
+    output [31:0] paddr_o,
+    output [15:0] pwdata_o,
+    input [15:0] prdata_i,
 
-    input blki_tvalid_i,
-    output blki_tready_o,
-    input blki_tlast_i,
-    input [7:0] blki_tdata_i,
+    // AXI clock-domain
+    input aclk,
+    input aresetn,
 
-    input blkx_tvalid_i,  // Optional Bulk IN endpoint
-    output blkx_tready_o,
-    input blkx_tlast_i,
-    input [7:0] blkx_tdata_i,
+    // AXI4 Interface
+    output awvalid_o,
+    input awready_i,
+    output [ASB:0] awaddr_o,
+    output [ISB:0] awid_o,
+    output [7:0] awlen_o,
+    output [1:0] awburst_o,
 
-    output blko_tvalid_o,
-    input blko_tready_i,
-    output blko_tlast_o,
-    output [7:0] blko_tdata_o,
+    output wvalid_o,
+    input wready_i,
+    output wlast_o,
+    output [SSB:0] wstrb_o,
+    output [MSB:0] wdata_o,
 
-    output blky_tvalid_o,
-    input blky_tready_i,
-    output blky_tlast_o,
-    output [7:0] blky_tdata_o
+    input bvalid_i,
+    output bready_o,
+    input [1:0] bresp_i,
+    input [ISB:0] bid_i,
+
+    output arvalid_o,
+    input arready_i,
+    output [ASB:0] araddr_o,
+    output [ISB:0] arid_o,
+    output [7:0] arlen_o,
+    output [1:0] arburst_o,
+
+    input rvalid_i,
+    output rready_o,
+    input rlast_i,
+    input [1:0] rresp_i,
+    input [ISB:0] rid_i,
+    input [MSB:0] rdata_i
 );
 
   `include "usb_defs.vh"
@@ -263,7 +291,7 @@ module usb_ulpi_top #(
       .HIGH_SPEED(1)
   ) U_LS1 (
       .clock(clock),
-      .reset(~areset_n),
+      .reset(~aresetn),
 
       .LineState(LineState),
       .VbusState(VbusState),
@@ -339,7 +367,7 @@ module usb_ulpi_top #(
 
   ulpi_encoder U_ENC1 (
       .clock(clock),
-      .reset(~areset_n),
+      .reset(~aresetn),
 
       .high_speed_i (high_speed_w),
       .encode_idle_o(),
@@ -608,67 +636,102 @@ module usb_ulpi_top #(
       .m_tdata_o (stdreq_tdata_w)
   );
 
-  // -- USB Bulk IN & OUT End-Points -- //
+  // -- USB Bulk IN & OUT End-Points for the AXI+APB Bridge -- //
 
-  ep_bulk_out #(
+  usb_mmio #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
-      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
-      .ENABLED(USE_EP1_OUT)
-  ) U_OUT_EP1 (
-      .clock(clock),
-      .reset(reset),
+      .PACKET_FIFO_DEPTH(FIFO_DEPTH_DWORDS)
+  ) U_REQ1 (
+      .aresetn(aresetn),  // Global, asynchronous reset (active LOW)
 
-      .set_conf_i(conf_event_w),
-      .clr_conf_i(conf_error_w),
+      .clock(usb_clk),  // USB clock domain
+      .reset(usb_rst),
 
-      .selected_i(ep1_sel_w),
-      .ack_sent_i(ep1_ack_w),  // Todo ...
-      .rx_error_i(ep1_err_w),
-      .ep_ready_o(ep1_rdy_w),
-      .stalled_o (ep1_hlt_w),
-      .parity_o  (ep1_par_w),
+      .usb_ack_sent_i(ep1_ack_w),
+      .usb_ack_recv_i(ep2_ack_w),
 
-      .s_tvalid(dec_tvalid_w),
-      .s_tready(),  // Todo: route to protocol, for error-handling
-      .s_tkeep(dec_tkeep_w),
-      .s_tlast(dec_tlast_w),
-      .s_tdata(dec_tdata_w),
+      .epi_set_conf_i(conf_event_w),
+      .epi_clr_conf_i(conf_error_w),
+      .epi_selected_i(ep2_sel_w),
+      .epi_timedout_i(ep2_err_w),
+      .epi_max_size_i(512),  // Todo
+      .epi_ready_o(ep2_rdy_w),
+      .epi_stalled_o(ep2_hlt_w),
+      .epi_parity_o(ep2_par_w),
 
-      .m_tvalid(blko_tvalid_o),
-      .m_tready(blko_tready_i),
-      .m_tlast (blko_tlast_o),
-      .m_tdata (blko_tdata_o)
+      .epo_set_conf_i(conf_event_w),
+      .epo_clr_conf_i(conf_error_w),
+      .epo_selected_i(ep1_sel_w),
+      .epo_rx_error_i(ep1_err_w),
+      .epo_max_size_i(512),  // Todo
+      .epo_ready_o(ep1_rdy_w),
+      .epo_stalled_o(ep1_hlt_w),
+      .epo_parity_o(ep1_par_w),
+
+      // USB command, and WRITE, packet stream (Bulk-In pipe, AXI-S)
+      .usb_tvalid_i(dec_tvalid_w),
+      .usb_tready_o(),
+      .usb_tkeep_i (dec_tkeep_w),
+      .usb_tlast_i (dec_tlast_w),
+      .usb_tdata_i (dec_tdata_w),
+
+      // USB status, and READ, packet stream (Bulk-Out pipe, AXI-S)
+      .usb_tvalid_o(ep2_tvalid_w),
+      .usb_tready_i(ep2_tready_w),
+      .usb_tkeep_o (ep2_tkeep_w),
+      .usb_tlast_o (ep2_tlast_w),
+      .usb_tdata_o (ep2_tdata_w),
+
+      // APB clock domain
+      .pclk(pclk),
+      .presetn(presetn),
+
+      // APB requester interface, to controllers
+      .penable_o(penable_o),
+      .pwrite_o (pwrite_o),
+      .pstrb_o  (pstrb_o),
+      .pready_i (pready_i),
+      .pslverr_i(pslverr_i),
+      .paddr_o  (paddr_o),
+      .pwdata_o (pwdata_o),
+      .prdata_i (prdata_i),
+
+      .aclk(aclk),  // AXI clock domain
+
+      .axi_awvalid_o(awvalid_o),
+      .axi_awready_i(awready_i),
+      .axi_awaddr_o(awaddr_o),
+      .axi_awid_o(awid_o),
+      .axi_awlen_o(awlen_o),
+      .axi_awburst_o(awburst_o),
+
+      .axi_wvalid_o(wvalid_o),
+      .axi_wready_i(wready_i),
+      .axi_wlast_o (wlast_o),
+      .axi_wstrb_o (wstrb_o),
+      .axi_wdata_o (wdata_o),
+
+      .axi_bvalid_i(bvalid_i),
+      .axi_bready_o(bready_o),
+      .axi_bresp_i(bresp_i),
+      .axi_bid_i(bid_i),
+
+      .axi_arvalid_o(arvalid_o),
+      .axi_arready_i(arready_i),
+      .axi_araddr_o(araddr_o),
+      .axi_arid_o(arid_o),
+      .axi_arlen_o(arlen_o),
+      .axi_arburst_o(arburst_o),
+
+      .axi_rvalid_i(rvalid_i),
+      .axi_rready_o(rready_o),
+      .axi_rlast_i(rlast_i),
+      .axi_rresp_i(rresp_i),
+      .axi_rid_i(rid_i),
+      .axi_rdata_i(rdata_i)
   );
 
-  ep_bulk_in #(
-      .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
-      .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
-      .ENABLED(USE_EP2_IN)
-  ) U_IN_EP2 (
-      .clock     (clock),
-      .reset     (reset),
-
-      .set_conf_i(conf_event_w),
-      .clr_conf_i(conf_error_w),
-
-      .selected_i(ep2_sel_w),
-      .ack_recv_i(ep2_ack_w),
-      .timedout_i(ep2_err_w),
-      .ep_ready_o(ep2_rdy_w),
-      .stalled_o (ep2_hlt_w),
-      .parity_o  (ep2_par_w),
-
-      .s_tvalid  (blki_tvalid_i),
-      .s_tready  (blki_tready_o),
-      .s_tlast   (blki_tlast_i),
-      .s_tdata   (blki_tdata_i),
-
-      .m_tvalid  (ep2_tvalid_w),
-      .m_tready  (ep2_tready_w),
-      .m_tkeep   (ep2_tkeep_w),
-      .m_tlast   (ep2_tlast_w),
-      .m_tdata   (ep2_tdata_w)
-  );
+  // -- Additional (Optional) USB Bulk IN & OUT End-Points -- //
 
   ep_bulk_in #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
@@ -726,4 +789,4 @@ module usb_ulpi_top #(
       .m_tdata (blky_tdata_o)
   );
 
-endmodule  /* usb_ulpi_top */
+endmodule  /* usb_axi_apb_bridge */

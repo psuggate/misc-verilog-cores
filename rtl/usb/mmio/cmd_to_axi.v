@@ -11,9 +11,7 @@ module cmd_to_axi #(
     parameter USB_DWORDS = 128,
     localparam USB_WIDTH = DATA_WIDTH,
     localparam ID_WIDTH = 4,
-    localparam ISB = ID_WIDTH - 1,
-    parameter WR_FRAME_FIFO = 1,  // Avoid "starvation," if slow upstream source
-    localparam RD_FRAME_FIFO = 1  // Todo: Not useful ??
+    localparam ISB = ID_WIDTH - 1
 ) (  // USB bus (command) clock-domain
     input cmd_clk,
     input cmd_rst,

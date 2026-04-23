@@ -5,7 +5,7 @@ all:	build
 #  Icarus Verilog settings
 ##
 IVC	?= iverilog
-OPT	:= -g2005-sv -D__icarus -Wall -I../../axis
+OPT	:= -g2005-sv -D__icarus -Wall -I../../axis -I..
 
 LIB	:= $(wildcard ../../arch/*.v ../../fifo/*.v ../../axis/*.v ../../misc/*.v)
 DEP	:= $(filter-out %_tb.v, $(LIB))
