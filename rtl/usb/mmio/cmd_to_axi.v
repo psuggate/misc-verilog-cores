@@ -13,6 +13,8 @@ module cmd_to_axi #(
     localparam ID_WIDTH = 4,
     localparam ISB = ID_WIDTH - 1
 ) (  // USB bus (command) clock-domain
+    input aresetn,
+
     input cmd_clk,
     input cmd_rst,
 
@@ -53,7 +55,7 @@ module cmd_to_axi #(
 
     // AXI clock-domain
     input aclk,
-    input aresetn,
+    input arst,
 
     // AXI4 Interface
     output awvalid_o,
@@ -176,24 +178,6 @@ module cmd_to_axi #(
   assign araddr_o  = adr_m;
 
   assign rready_o = rd == RD_DATA && fready_w;
-
-  //
-  //  Module-wide control signals.
-  //
-  reg arst, rst0, rst1;
-
-  always @(posedge aclk or negedge aresetn)
-    if (!aresetn) begin
-      rst0 <= 1'b1;
-      rst1 <= 1'b1;
-    end else begin
-      rst0 <= 1'b0;
-      rst1 <= rst0;
-    end
-
-  always @(posedge aclk) begin
-    arst <= rst1;
-  end
 
   /**
    * Generates AXI(4) requests in response to commands from the USB interface.
@@ -468,8 +452,9 @@ module cmd_to_axi #(
   assign rd_ack_w = arvalid_o && arready_i;
   assign rd_end_w = fvalid_w && fready_w && rlast_i;
 
-  always @(posedge aclk or negedge aresetn) begin
-    if (!aresetn || wr_ack_w || rd_ack_w) begin
+  // always @(posedge aclk or negedge aresetn) begin
+  always @(posedge aclk) begin
+    if (arst || wr_ack_w || rd_ack_w) begin
       cmd_m <= 1'b0;
       {rd_m, tid_m, len_m, adr_m} <= {CMD_FIFO_WIDTH{1'bx}};
     end else if (cmd_w && ack_w) begin
@@ -505,8 +490,8 @@ module cmd_to_axi #(
   assign x_tready = wr == WR_DATA ? wready_i : 1'b0;
   assign bokay_w  = bresp_i == RESP_OKAY;
 
-  always @(posedge aclk or negedge aresetn) begin
-    if (!aresetn) begin
+  always @(posedge aclk) begin
+    if (arst) begin
       wr <= WR_IDLE;
     end else begin
       case (wr)
@@ -527,8 +512,8 @@ module cmd_to_axi #(
   assign fvalid_w = rd == RD_DATA && rvalid_i;
   assign rd_mid_w = axi_rd_level_w[DSB];
 
-  always @(posedge aclk or negedge aresetn) begin
-    if (!aresetn) begin
+  always @(posedge aclk) begin
+    if (arst) begin
       rd <= RD_IDLE;
     end else begin
       case (rd)
@@ -597,7 +582,6 @@ module cmd_to_axi #(
     wrdy_m <= wrdy_w;
   end
 
-  // FIXME: these should be one-shots!!
   always @(posedge aclk) begin
     {save_q, save_p} <= {save_p, usb_save_i};
     {drop_q, drop_p} <= {drop_p, usb_drop_i};

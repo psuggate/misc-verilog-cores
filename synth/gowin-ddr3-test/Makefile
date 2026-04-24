@@ -12,10 +12,10 @@ AXIS	:= $(DIR)/axis
 DDR3	:= $(DIR)/ddr3
 FIFO	:= $(DIR)/fifo
 MISC	:= $(DIR)/misc
-UART	:= $(DIR)/uart
+USB2	:= $(DIR)/usb
 
 # Verilog dependencies
-DEP	:= $(wildcard $(ARCH)/*.v $(AXIS)/*.v $(DDR3)/*.v $(FIFO)/*.v $(MISC)/*.v $(UART)/*.v)
+DEP	:= $(wildcard $(ARCH)/*.v $(AXIS)/*.v $(DDR3)/*.v $(FIFO)/*.v $(MISC)/*.v $(USB2)/*.v $(USB2)/mmio/*.v)
 CORES	:= $(filter-out %_tb.v, $(DEP))
 
 LIB	:= $(filter-out %_tb.v, $(wildcard $(DIR)/*.v)) $(CORES)
@@ -29,7 +29,7 @@ OUT	:= $(TB:%.v=%.out)
 VCD	:= $(OUT:%.out=%.vcd)
 
 # Icarus settings & options
-OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I../../bench/ -I$(DIR)/ddr3/ -I$(DIR)/axis/
+OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I$(USB2) -I../../bench/ -I$(DIR)/ddr3/ -I$(DIR)/axis/ -L../../vpi -mulpisim
 
 sim:	build $(VCD)
 
@@ -39,4 +39,4 @@ build:	$(OUT) $(RTL)
 	iverilog $(OPT) -o $@ -s $(*F) $^
 
 %.vcd:	%.out
-	./$<
+	time vvp -M../../vpi -mulpisim ./$<

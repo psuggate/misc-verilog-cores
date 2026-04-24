@@ -31,8 +31,24 @@ module usb_mmio_tb;
   localparam [7:0] RES_RDATA = 8'h81;
   localparam [7:0] RES_RFAIL = 8'h82;
 
+  // -- Module-Wide Control Signals -- //
+
   reg clock = 1;
-  reg reset;
+  reg reset, mrst, rst0, rst1;
+  wire aresetn;
+
+  always @(posedge mclk or negedge aresetn)
+    if (!aresetn) begin
+      rst0 <= 1'b1;
+      rst1 <= 1'b1;
+    end else begin
+      rst0 <= 1'b0;
+      rst1 <= rst0;
+    end
+
+  always @(posedge mclk) begin
+    mrst <= rst1;
+  end
 
   reg set_conf_q, clr_conf_q;
   reg ack_sent_q, ack_recv_q;
@@ -59,7 +75,7 @@ module usb_mmio_tb;
 
   reg mclk = 1, pclk = 1;
   reg presetn;
-  wire aresetn, configured;
+  wire configured;
 
   reg [63:0] dbg_op;
 
@@ -341,7 +357,9 @@ module usb_mmio_tb;
       .pwdata_o (pwdata_w),
       .prdata_i (prdata_q),
 
-      .aclk(mclk),  // AXI clock domain
+      // AXI clock domain
+      .aclk(mclk),
+      .arst(mrst),
 
       .axi_awvalid_o(awvalid_w),
       .axi_awready_i(1'b1),

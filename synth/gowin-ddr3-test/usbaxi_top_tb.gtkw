@@ -1,0 +1,132 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Fri Apr 24 04:16:39 2026
+[*]
+[dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.vcd"
+[dumpfile_mtime] "Fri Apr 24 04:16:28 2026"
+[dumpfile_size] 31197489
+[savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.gtkw"
+[timestart] 49132600
+[size] 2560 1513
+[pos] -1 -1
+*-17.480907 50364000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] usbaxi_top_tb.
+[treeopen] usbaxi_top_tb.U_TOP1.
+[treeopen] usbaxi_top_tb.U_TOP1.U_USB1.
+[treeopen] usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.
+[sst_width] 314
+[signals_width] 170
+[sst_expanded] 1
+[sst_vpaned_height] 473
+@28
+usbaxi_top_tb.clk_26
+usbaxi_top_tb.arst_n
+@800200
+-DDR3
+@28
+usbaxi_top_tb.ddr_ck_p
+usbaxi_top_tb.ddr_ck_n
+usbaxi_top_tb.ddr_cke
+[color] 3
+usbaxi_top_tb.ddr_cs_n
+usbaxi_top_tb.ddr_ras_n
+usbaxi_top_tb.ddr_cas_n
+usbaxi_top_tb.ddr_we_n
+usbaxi_top_tb.ddr_ba[2:0]
+@22
+usbaxi_top_tb.ddr_a[12:0]
+@28
+usbaxi_top_tb.ddr_dm[1:0]
+usbaxi_top_tb.ddr_dqs_p[1:0]
+usbaxi_top_tb.ddr_dqs_n[1:0]
+@22
+usbaxi_top_tb.ddr_dq[15:0]
+@1000200
+-DDR3
+@800200
+-ULPI
+@28
+usbaxi_top_tb.usb_clock
+usbaxi_top_tb.usb_rst_n
+usbaxi_top_tb.ulpi_dir
+usbaxi_top_tb.ulpi_nxt
+usbaxi_top_tb.ulpi_stp
+@22
+usbaxi_top_tb.ulpi_data[7:0]
+@1000200
+-ULPI
+@800200
+-Top
+@28
+usbaxi_top_tb.U_TOP1.mclk
+usbaxi_top_tb.U_TOP1.mrst
+usbaxi_top_tb.U_TOP1.mlock
+@800200
+-MMIO
+-AXIControl
+@28
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.aresetn
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.cmd_m
+@1000200
+-AXIControl
+-MMIO
+@800200
+-AXI
+-Write
+@29
+[color] 3
+usbaxi_top_tb.U_TOP1.awvalid_w
+usbaxi_top_tb.U_TOP1.awready_w
+@23
+usbaxi_top_tb.U_TOP1.awlen_w[7:0]
+@29
+usbaxi_top_tb.U_TOP1.awburst_w[1:0]
+@23
+usbaxi_top_tb.U_TOP1.awid_w[3:0]
+usbaxi_top_tb.U_TOP1.awaddr_w[31:0]
+@29
+[color] 3
+usbaxi_top_tb.U_TOP1.wvalid_w
+usbaxi_top_tb.U_TOP1.wready_w
+usbaxi_top_tb.U_TOP1.wlast_w
+@23
+usbaxi_top_tb.U_TOP1.wstrb_w[3:0]
+usbaxi_top_tb.U_TOP1.wdata_w[31:0]
+@29
+[color] 3
+usbaxi_top_tb.U_TOP1.bvalid_w
+usbaxi_top_tb.U_TOP1.bready_w
+@23
+usbaxi_top_tb.U_TOP1.bid_w[3:0]
+@29
+usbaxi_top_tb.U_TOP1.bresp_w[1:0]
+@1000200
+-Write
+@800200
+-Read
+@28
+[color] 3
+usbaxi_top_tb.U_TOP1.arvalid_w
+usbaxi_top_tb.U_TOP1.arready_w
+@22
+usbaxi_top_tb.U_TOP1.arlen_w[7:0]
+@28
+usbaxi_top_tb.U_TOP1.arburst_w[1:0]
+@22
+usbaxi_top_tb.U_TOP1.arid_w[3:0]
+usbaxi_top_tb.U_TOP1.araddr_w[31:0]
+@28
+[color] 3
+usbaxi_top_tb.U_TOP1.rvalid_w
+usbaxi_top_tb.U_TOP1.rready_w
+usbaxi_top_tb.U_TOP1.rlast_w
+usbaxi_top_tb.U_TOP1.rresp_w[1:0]
+@22
+usbaxi_top_tb.U_TOP1.rid_w[3:0]
+usbaxi_top_tb.U_TOP1.rdata_w[31:0]
+@1000200
+-Read
+-AXI
+-Top
+[pattern_trace] 1
+[pattern_trace] 0

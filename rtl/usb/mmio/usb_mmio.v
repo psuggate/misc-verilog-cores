@@ -74,6 +74,7 @@ module usb_mmio #(
 
     // AXI clock-domain
     input aclk,
+    input arst,
 
     // AXI4 Interface
     output axi_awvalid_o,
@@ -129,23 +130,6 @@ module usb_mmio #(
   localparam [4:0] ST_IDLE = 5'd1, ST_READ = 5'd2, ST_WAIT = 5'd4, ST_RESP = 5'd8, ST_HALT = 5'd16;
   reg [4:0] state;
   reg epi_en_q, epo_en_q, clear;
-
-  // -- Module-Wide Control Signals -- //
-
-  reg arst, rst0, rst1;
-
-  always @(posedge aclk or negedge aresetn)
-    if (!aresetn) begin
-      rst0 <= 1'b1;
-      rst1 <= 1'b1;
-    end else begin
-      rst0 <= 1'b0;
-      rst1 <= rst0;
-    end
-
-  always @(posedge aclk) begin
-    arst <= rst1;
-  end
 
   always @(posedge clock or negedge aresetn) begin
     if (reset || !aresetn || epo_set_conf_i || epo_clr_conf_i || epi_set_conf_i || epi_clr_conf_i) begin
@@ -427,6 +411,8 @@ module usb_mmio #(
       .USB_DWORDS(MAX_PACKET_LENGTH / 4),
       .FIFO_DEPTH(PACKET_FIFO_DEPTH)
   ) U_AXI_CTRL0 (
+      .aresetn(aresetn),  // Asynchronous reset (active LOW)
+
       .cmd_clk(clock),  // USB bus (command) clock-domain
       .cmd_rst(reset),
 
@@ -463,7 +449,7 @@ module usb_mmio #(
       .dat_tdata_o (s_tdata),
 
       .aclk(aclk),  // AXI clock-domain
-      .aresetn(aresetn),  // Asynchronous reset (active LOW)
+      .arst(arst),
 
       .awvalid_o(axi_awvalid_o),  // AXI4 Interface
       .awready_i(axi_awready_i),

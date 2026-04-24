@@ -6,8 +6,8 @@
  * Copyright 2024, Patrick Suggate.
  *
  */
-
 `define __gowin_for_the_win
+// `define __spanner_montana
 
 // With the DDR3 clock at 250 MHz, this slows down simulations
 `ifndef __icarus
@@ -85,10 +85,10 @@ module usbaxi_top (
 `else  /* !DDR_FREQ_MHZ */
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   localparam DDR_FREQ_MHZ = 100;
-  localparam IDIV_SEL = 3;
-  localparam FBDIV_SEL = 28;
-  localparam ODIV_SEL = 4;
-  localparam SDIV_SEL = 2;
+  localparam CLK_IDIV_SEL = 3;
+  localparam CLK_FBDV_SEL = 28;
+  localparam CLK_ODIV_SEL = 4;
+  localparam CLK_SDIV_SEL = 2;
 
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
@@ -100,6 +100,8 @@ module usbaxi_top (
   //
   // Uses simulation-only clocks, and a "generic" DDR3 PHY
   //
+  localparam DDR_FREQ_MHZ = 125;
+
   localparam CLOCK_SHIFT = 2'b11;
   localparam WRITE_DELAY = 2'b01;
   localparam PHY_WR_DELAY = 1;
@@ -113,7 +115,25 @@ module usbaxi_top (
   localparam DDR3_WIDTH = 32;
   localparam DDR3_NPINS = DDR3_WIDTH / 2;
 
-  localparam ADDRS = 27;
+  // Data-path widths
+  localparam DDR_DQ_WIDTH = 16;
+  localparam DSB = DDR_DQ_WIDTH - 1;
+
+  localparam DDR_DM_WIDTH = 2;
+  localparam QSB = DDR_DM_WIDTH - 1;
+
+  // Address widths
+  localparam DDR_ROW_BITS = 13;
+  localparam RSB = DDR_ROW_BITS - 1;
+
+  localparam DDR_COL_BITS = 10;
+  localparam CSB = DDR_COL_BITS - 1;
+
+  localparam DDR3_MASKS = DDR3_WIDTH / 8;
+  localparam ESB = DDR3_MASKS - 1;
+
+  // note: (AXI4) byte address, not burst-aligned address
+  localparam ADDRS = DDR_COL_BITS + DDR_ROW_BITS + 4;
   localparam REQID = 4;
 
   // -- Signals -- //
@@ -137,17 +157,6 @@ module usbaxi_top (
   localparam ASB = AXI_ADDRS - 1;
   localparam AXI_IDTAG = REQID;
   localparam ISB = AXI_IDTAG - 1;
-
-  // AXI4 Signals to/from the Memory Controller //
-  wire awvalid_w, wvalid_w, wlast_w, bready_w, arvalid_w, rready_w;
-  wire awready_w, wready_w, bvalid_w, arready_w, rvalid_w, rlast_w;
-  wire [ISB:0] awid_w, arid_w, bid_w, rid_w;
-  wire [7:0] awlen_w, arlen_w;
-  wire [1:0] awburst_w, arburst_w;
-  wire [ASB:0] awaddr_w, araddr_w;
-  wire [BSB:0] wstrb_w;
-  wire [1:0] bresp_w, rresp_w;
-  wire [MSB:0] rdata_w, wdata_w;
 
   // -- LEDs Stuffs -- //
 
@@ -174,15 +183,28 @@ module usbaxi_top (
       .ddr_clock(pclk)     // 120 MHz, PLL output, phase-shifted
   );
 
-  // -- ULPI Core and BULK IN/OUT SRAM -- //
+  // -- USB ULPI Core and AXI+APB Bridge -- //
 
   wire configured, high_speed, conf_event, ddr3_conf;
 
   assign cbits = {configured, high_speed, conf_event, ddr3_conf};
 
+  // AXI4 Signals to/from the Memory Controller //
+  wire awvalid_w, wvalid_w, wlast_w, bready_w, arvalid_w, rready_w;
+  wire awready_w, wready_w, bvalid_w, arready_w, rvalid_w, rlast_w;
+  wire [ISB:0] awid_w, arid_w, bid_w, rid_w;
+  wire [7:0] awlen_w, arlen_w;
+  wire [1:0] awburst_w, arburst_w;
+  wire [ASB:0] awaddr_w, araddr_w;
+  wire [BSB:0] wstrb_w;
+  wire [1:0] bresp_w, rresp_w;
+  wire [MSB:0] rdata_w, wdata_w;
+
   usb_axi_apb_bridge #(
       .DEBUG(DEBUG)
   ) U_USB1 (
+      .aresetn(aresetn),
+
       .usb_clock_o(clock),
       .usb_reset_o(reset),
 
@@ -221,7 +243,7 @@ module usbaxi_top (
       .prdata_i (16'd0),
 
       .aclk(mclk),  // AXI clock domain
-      .aresetn(aresetn),
+      .arst(mrst),
 
       .awvalid_o(awvalid_w),
       .awready_i(awready_w),
@@ -260,27 +282,6 @@ module usbaxi_top (
   //  DDR3 Cores Under Next-generation Tests
   ///
 
-  // Data-path widths
-  localparam DDR_DQ_WIDTH = 16;
-  localparam DSB = DDR_DQ_WIDTH - 1;
-
-  localparam DDR_DM_WIDTH = 2;
-  localparam QSB = DDR_DM_WIDTH - 1;
-
-  // Address widths
-  localparam DDR_ROW_BITS = 13;
-  localparam RSB = DDR_ROW_BITS - 1;
-
-  localparam DDR_COL_BITS = 10;
-  localparam CSB = DDR_COL_BITS - 1;
-
-  localparam DDR3_MASKS = DDR3_WIDTH / 8;
-  localparam ESB = DDR3_MASKS - 1;
-
-  // note: (AXI4) byte address, not burst-aligned address
-  // localparam ADDRS = DDR_COL_BITS + DDR_ROW_BITS + 4;
-  // localparam ASB = ADDRS - 1;
-
   wire [QSB:0] dfi_dqs_p, dfi_dqs_n;
   wire [1:0] dfi_wrdly;
   wire [2:0] dfi_rddly;
@@ -300,6 +301,30 @@ module usbaxi_top (
 
   assign mrst = ~mlock;
 
+`ifdef __spanner_montana
+
+  reg mem_clk_125 = 1;
+  reg mem_clk_250 = 0;
+  reg mem_clk_rdy = 0;
+
+  assign mclk = mem_clk_rdy ? mem_clk_125 : 1'b0;
+  assign clk_x2 = mem_clk_rdy ? mem_clk_250 : 1'b0;
+  assign #360 mlock = mem_clk_rdy;
+
+  always #5.0 mem_clk_125 <= ~mem_clk_125;
+  always #2.5 mem_clk_250 <= ~mem_clk_250;
+
+  always @(posedge clk_26 or negedge rst_n) begin
+    if (!rst_n) begin
+      mem_clk_rdy <= 1'b0;
+    end else begin
+      mem_clk_rdy <= #49948 1'b1;
+    end
+  end
+
+`else  /* !__spanner_montana */
+`ifdef __gowin_for_the_win
+
   // So 27.0 MHz divided by 4, then x29 = 195.75 MHz.
   gw2a_rpll #(
       .FCLKIN(CLK_IN_FREQ),
@@ -315,6 +340,9 @@ module usbaxi_top (
       .clkin (clk_26),
       .reset (~rst_n)
   );
+
+`endif  /* __gowin_for_the_win */
+`endif  /* !__spanner_montana */
 
   axi_ddr3_lite #(
       .DDR_FREQ_MHZ(DDR_FREQ_MHZ),
@@ -411,8 +439,8 @@ module usbaxi_top (
       .WRITE_DELAY(WRITE_DELAY),
       .CLOCK_SHIFT(CLOCK_SHIFT)
   ) U_PHY1 (
-      .clock  (clock),
-      .reset  (reset),
+      .clock  (mclk),
+      .reset  (mrst),
       .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),
@@ -467,8 +495,8 @@ module usbaxi_top (
       .DDR3_WIDTH(DDR3_NPINS),   // (default)
       .ADDR_BITS (DDR_ROW_BITS)  // default: 14
   ) U_PHY1 (
-      .clock  (clock),
-      .reset  (reset),
+      .clock  (mclk),
+      .reset  (mrst),
       .clk_ddr(clk_x2),
 
       .dfi_rst_ni(dfi_rst_n),

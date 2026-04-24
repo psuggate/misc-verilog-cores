@@ -37,6 +37,8 @@ module usb_axi_apb_bridge #(
     parameter integer PRODUCT_LENGTH = 8,
     parameter [PRODUCT_LENGTH*8-1:0] PRODUCT_STRING = "TART USB"
 ) (
+    input aresetn,
+
     // USB clock-domain clock & reset
     output usb_clock_o,
     output usb_reset_o,  // USB core is in reset state
@@ -80,7 +82,7 @@ module usb_axi_apb_bridge #(
 
     // AXI clock-domain
     input aclk,
-    input aresetn,
+    input arst,
 
     // AXI4 Interface
     output awvalid_o,
@@ -713,6 +715,7 @@ module usb_axi_apb_bridge #(
       .prdata_i (prdata_i),
 
       .aclk(aclk),  // AXI clock domain
+      .arst(arst),
 
       .axi_awvalid_o(awvalid_o),
       .axi_awready_i(awready_i),
