@@ -14,7 +14,12 @@
 `define DDR3_250_MHZ
 `endif  /* __icarus */
 
-module usbaxi_top (
+module usbaxi_top #(
+    parameter ENDPOINT1 = 4'd5,
+    parameter ENDPOINT2 = 4'd3,
+    parameter ENDPOINT3 = 4'd1,
+    parameter ENDPOINT4 = 4'd2
+) (
     // Clock and reset from the dev-board
     input clk_26,
     input rst_n,   // 'S2' button for async-reset
@@ -189,6 +194,9 @@ module usbaxi_top (
 
   assign cbits = {configured, high_speed, conf_event, ddr3_conf};
 
+  wire io_tvalid_w, io_tready_w, io_tlast_w;
+  wire [7:0] io_tdata_w;
+
   // AXI4 Signals to/from the Memory Controller //
   wire awvalid_w, wvalid_w, wlast_w, bready_w, arvalid_w, rready_w;
   wire awready_w, wready_w, bvalid_w, arready_w, rvalid_w, rlast_w;
@@ -201,7 +209,13 @@ module usbaxi_top (
   wire [MSB:0] rdata_w, wdata_w;
 
   usb_axi_apb_bridge #(
-      .DEBUG(DEBUG)
+      .ENDPOINT1  (ENDPOINT1),
+      .ENDPOINT2  (ENDPOINT2),
+      .ENDPOINT3  (ENDPOINT3),
+      .ENDPOINT4  (ENDPOINT4),
+      .USE_EP3_IN (1),
+      .USE_EP4_OUT(1),
+      .DEBUG      (DEBUG)
   ) U_USB1 (
       .aresetn(aresetn),
 
@@ -219,15 +233,15 @@ module usbaxi_top (
       .conf_event_o(conf_event),
       .conf_value_o(),
 
-      .blki_tvalid_i(1'b0),  // Extra 'BULK IN' EP data-path
-      .blki_tready_o(),
-      .blki_tlast_i (1'b0),
-      .blki_tdata_i (8'd0),
+      .blki_tvalid_i(io_tvalid_w),  // Extra 'BULK IN' EP data-path
+      .blki_tready_o(io_tready_w),
+      .blki_tlast_i (io_tlast_w),
+      .blki_tdata_i (io_tdata_w),
 
-      .blko_tvalid_o(),  // USB 'BULK OUT' EP data-path
-      .blko_tready_i(1'b1),
-      .blko_tlast_o(),
-      .blko_tdata_o(),
+      .blko_tvalid_o(io_tvalid_w),  // USB 'BULK OUT' EP data-path
+      .blko_tready_i(io_tready_w),
+      .blko_tlast_o (io_tlast_w),
+      .blko_tdata_o (io_tdata_w),
 
       .pclk(pclk),
       .presetn(presetn),

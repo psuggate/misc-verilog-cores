@@ -1,23 +1,23 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Apr 24 04:16:39 2026
+[*] Fri Apr 24 06:59:04 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.vcd"
-[dumpfile_mtime] "Fri Apr 24 04:16:28 2026"
-[dumpfile_size] 31197489
+[dumpfile_mtime] "Fri Apr 24 06:52:55 2026"
+[dumpfile_size] 219995547
 [savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.gtkw"
-[timestart] 49132600
+[timestart] 1017106000
 [size] 2560 1513
 [pos] -1 -1
-*-17.480907 50364000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-19.217873 1020192000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usbaxi_top_tb.
 [treeopen] usbaxi_top_tb.U_TOP1.
 [treeopen] usbaxi_top_tb.U_TOP1.U_USB1.
 [treeopen] usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.
 [sst_width] 314
-[signals_width] 170
+[signals_width] 200
 [sst_expanded] 1
-[sst_vpaned_height] 473
+[sst_vpaned_height] 456
 @28
 usbaxi_top_tb.clk_26
 usbaxi_top_tb.arst_n
@@ -67,38 +67,58 @@ usbaxi_top_tb.U_TOP1.mlock
 @28
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.aresetn
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.cmd_m
+[color] 3
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tvalid_i
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tready_o
+@22
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tkeep_i[3:0]
+@28
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tlast_i
+@22
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tdata_i[31:0]
+@28
+[color] 3
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tvalid_o
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tready_i
+@23
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tkeep_o[3:0]
+@28
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tlast_o
+@22
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tkeep_o[3:0]
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tdata_o[31:0]
 @1000200
 -AXIControl
 -MMIO
 @800200
 -AXI
 -Write
-@29
+@28
 [color] 3
 usbaxi_top_tb.U_TOP1.awvalid_w
 usbaxi_top_tb.U_TOP1.awready_w
-@23
+@22
 usbaxi_top_tb.U_TOP1.awlen_w[7:0]
-@29
+@28
 usbaxi_top_tb.U_TOP1.awburst_w[1:0]
-@23
+@22
 usbaxi_top_tb.U_TOP1.awid_w[3:0]
 usbaxi_top_tb.U_TOP1.awaddr_w[31:0]
-@29
+@28
 [color] 3
 usbaxi_top_tb.U_TOP1.wvalid_w
 usbaxi_top_tb.U_TOP1.wready_w
 usbaxi_top_tb.U_TOP1.wlast_w
-@23
+@22
 usbaxi_top_tb.U_TOP1.wstrb_w[3:0]
 usbaxi_top_tb.U_TOP1.wdata_w[31:0]
-@29
+@28
 [color] 3
 usbaxi_top_tb.U_TOP1.bvalid_w
 usbaxi_top_tb.U_TOP1.bready_w
-@23
+@22
 usbaxi_top_tb.U_TOP1.bid_w[3:0]
-@29
+@28
 usbaxi_top_tb.U_TOP1.bresp_w[1:0]
 @1000200
 -Write

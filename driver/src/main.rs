@@ -46,6 +46,9 @@ struct Args {
     #[arg(long, default_value = "false")]
     sdram: bool,
 
+    #[arg(long, default_value = "false")]
+    mmio: bool,
+
     #[arg(short, long, default_value = "false")]
     telemetry: bool,
 
@@ -208,6 +211,103 @@ fn tart_ddr3_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Err
     Ok(wrdat)
 }
 
+fn tart_mmio_read(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
+    let rdcmd: [u8; 11]
+        = [0x54, 0x41, 0x52, 0x54, 0x20, 0x08, 0x00, 0x00, 0x1F, 0x00, 0xC8];
+    let rdcmd: Vec<u8> = rdcmd.to_vec();
+    let num = tart.write(&rdcmd)?;
+
+    if num != rdcmd.len() {
+        error!("TART MMIO CMD failed, num = {}", num);
+        return Ok(Vec::new());
+    }
+    debug!(
+        "MMIO FETCH COMMAND (bytes = {}): {}",
+        num,
+        hex_array_string(&rdcmd)
+    );
+
+    if args.no_read {
+        return Ok(Vec::new());
+    }
+
+    if args.read_twice {
+        let mut bytes = Vec::new();
+        while let Ok(mut xs) = tart.try_read(None) {
+            if xs.is_empty() {
+                break;
+            }
+            bytes.append(&mut xs);
+        }
+        info!(
+            "MMIO DATA RECEIVED (bytes = {}): {}",
+            bytes.len(),
+            hex_array_string(&bytes)
+        );
+        return Ok(bytes);
+    }
+
+    let bytes: Vec<u8> = match tart.try_read(None) {
+        Ok(xs) => xs,
+        Err(e) => {
+            error!("TART MMIO READ failed: {:?}", e);
+            Vec::new()
+        }
+    };
+    info!(
+        "MMIO DATA RECEIVED (bytes = {}): {}",
+        bytes.len(),
+        hex_array_string(&bytes)
+    );
+
+    Ok(bytes)
+}
+
+fn tart_mmio_write(args: &Args, tart: &mut AxisUSB) -> Result<Vec<u8>, rusb::Error> {
+    let wrcmd: [u8; 11]
+        = [0x54, 0x41, 0x52, 0x54, 0x20, 0x08, 0x00, 0x00, 0x1F, 0x00, 0xC0];
+    let wrcmd: Vec<u8> = wrcmd.to_vec();
+    let num = tart.write(&wrcmd)?;
+
+    info!(
+        "COMMAND WRITTEN (bytes = {}): {}",
+        num,
+        hex_array_string(&wrcmd)
+    );
+    spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
+
+    let wrdat: [u8; 32] = [
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
+        0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0,
+    ];
+    let wrdat: Vec<u8> = wrdat.to_vec();
+    let num = tart.write(&wrdat)?;
+
+    info!(
+        "MMIO DDR3 WRITTEN (bytes = {}): {}",
+        num,
+        hex_array_string(&wrdat)
+    );
+    spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
+
+    // Each 'WRITE' should generate a seven-byte response
+    let bytes: Vec<u8> = match tart.try_read(None) {
+        Ok(xs) => xs,
+        Err(e) => {
+            error!("TART MMIO READ-RESPONSE failed: {:?}", e);
+            Vec::new()
+        }
+    };
+    info!(
+        "DDR3 RESPONSE (bytes = {}): {}",
+        bytes.len(), hex_array_string(&bytes)
+    );
+
+    Ok(bytes)
+}
+
 fn axis_usb(args: Args) -> Result<(), rusb::Error> {
     if args.verbose > 0 {
         info!("{:?}", &args);
@@ -285,19 +385,35 @@ fn usb_ddr3(args: Args) -> Result<(), rusb::Error> {
 
     if !args.writeless {
         spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
-        let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+        if args.mmio {
+            let _ = tart_mmio_write(&args, &mut axis_usb)?;
+        } else {
+            let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+        }
         spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
         if args.write_twice {
-            let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+            if args.mmio {
+                let _ = tart_mmio_write(&args, &mut axis_usb)?;
+            } else {
+                let _ = tart_ddr3_write(&args, &mut axis_usb)?;
+            }
         }
     }
 
     spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
-    let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
+    if args.mmio {
+        let _bytes: Vec<u8> = tart_mmio_read(&args, &mut axis_usb)?;
+    } else {
+        let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
+    }
 
     if args.read_twice {
         spin_sleep::native_sleep(Duration::from_millis(args.delay as u64));
-        let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
+        if args.mmio {
+            let _bytes: Vec<u8> = tart_mmio_read(&args, &mut axis_usb)?;
+        } else {
+            let _bytes: Vec<u8> = tart_ddr3_read(&args, &mut axis_usb)?;
+        }
     }
 
     if args.telemetry {
@@ -324,7 +440,7 @@ fn main() -> Result<(), rusb::Error> {
     };
     SimpleLogger::new().with_level(level).init().unwrap();
 
-    let res = if args.sdram {
+    let res = if args.sdram || args.mmio {
         usb_ddr3(args)
     } else {
         axis_usb(args)

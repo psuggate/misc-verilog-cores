@@ -1,6 +1,11 @@
 `timescale 1ns / 100ps
 module usbaxi_top_tb;
 
+  localparam ENDPOINT1 = 4'd2;
+  localparam ENDPOINT2 = 4'd1;
+  localparam ENDPOINT3 = 4'd3;
+  localparam ENDPOINT4 = 4'd5;
+
   reg usb_clock = 1'b1;
   reg clk_26 = 1'b1;
   reg arst_n;
@@ -84,7 +89,12 @@ module usbaxi_top_tb;
 
   wire [5:0] leds;
 
-  usbaxi_top U_TOP1 (
+  usbaxi_top #(
+      .ENDPOINT1(ENDPOINT1),
+      .ENDPOINT2(ENDPOINT2),
+      .ENDPOINT3(ENDPOINT3),
+      .ENDPOINT4(ENDPOINT4)
+  ) U_TOP1 (
       .clk_26(clk_26),
       .rst_n(arst_n),
       .send_n(1'b1),
