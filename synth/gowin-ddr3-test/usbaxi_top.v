@@ -313,7 +313,7 @@ module usbaxi_top #(
 
   wire clk_x2, mlock;
 
-  assign mrst = ~mlock;
+  assign #500000 mrst = ~mlock;
 
 `ifdef __spanner_montana
 
