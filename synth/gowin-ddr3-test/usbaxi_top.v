@@ -7,7 +7,7 @@
  *
  */
 `define __gowin_for_the_win
-// `define __spanner_montana
+`define __spanner_montana
 
 // With the DDR3 clock at 250 MHz, this slows down simulations
 `ifndef __icarus
@@ -146,9 +146,10 @@ module usbaxi_top #(
   assign uart_tx = 1'b1;
 
   // Global signals //
+  reg mrst;
   wire clock, reset, aresetn;
   wire pclk, presetn;
-  wire mclk, mrst;
+  wire mclk;
   wire [3:0] cbits;
 
   assign aresetn = ~areset;
@@ -313,7 +314,12 @@ module usbaxi_top #(
 
   wire clk_x2, mlock;
 
-  assign #500000 mrst = ~mlock;
+  // assign mrst = ~mlock;
+  initial begin
+    mrst <= 1'b1;
+    #5000 while (!mlock) #5000;
+    #800000 mrst <= ~mlock;
+  end
 
 `ifdef __spanner_montana
 

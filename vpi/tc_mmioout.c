@@ -6,8 +6,10 @@
 #include <stdlib.h>
 #include <vpi_user.h>
 
-#define MMIO_OUT_EP DDR3_OUT_EP
-#define MMIO_IN_EP  DDR3_IN_EP
+// #define MMIO_OUT_EP DDR3_OUT_EP
+// #define MMIO_IN_EP  DDR3_IN_EP
+#define MMIO_OUT_EP 2
+#define MMIO_IN_EP  1
 
 #define NUM_ITER        (7)
 
@@ -167,7 +169,7 @@ static int tc_mmioout_step(usb_host_t* host, void* data)
         // MMIOOut completed, so move on to the next MMIO 'STORE' command
 	if (++st->iter < NUM_ITER) {
 	    tc_mmioout_dat(host, mmioout_lengths[st->iter], st);
-	    st->step = MMIOOut;
+	    st->step = MMIORes;
 	    return 0;
 	}
 	st->iter = 0;
@@ -179,7 +181,7 @@ static int tc_mmioout_step(usb_host_t* host, void* data)
         // Fetch each of the MMIO 'STORE' responses
 	if (++st->iter < NUM_ITER) {
 	    tc_mmioout_res(host, st);
-	    st->step = MMIORes;
+	    st->step = MMIOCmd;
 	    return 0;
 	}
         host->op = HostIdle;

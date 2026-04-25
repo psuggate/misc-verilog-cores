@@ -14,6 +14,11 @@ FIFO	:= $(DIR)/fifo
 MISC	:= $(DIR)/misc
 USB2	:= $(DIR)/usb
 
+# Simulation module
+VPI	:= ../../vpi
+MOD	:= $(VPI)/ulpisim.vpi
+CSRC	:= $(wildcard $(VPI)/*.c $(VPI)/*.h)
+
 # Verilog dependencies
 DEP	:= $(wildcard $(ARCH)/*.v $(AXIS)/*.v $(DDR3)/*.v $(FIFO)/*.v $(MISC)/*.v $(USB2)/*.v $(USB2)/mmio/*.v)
 CORES	:= $(filter-out %_tb.v, $(DEP))
@@ -29,14 +34,17 @@ OUT	:= $(TB:%.v=%.out)
 VCD	:= $(OUT:%.out=%.vcd)
 
 # Icarus settings & options
-OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I$(USB2) -I../../bench/ -I$(DIR)/ddr3/ -I$(DIR)/axis/ -L../../vpi -mulpisim
+OPT	:= -g2005-sv -D__icarus -Wall -I$(DIR)/ -I$(USB2) -I../../bench/ -I$(DIR)/ddr3/ -I$(DIR)/axis/ -L$(VPI) -mulpisim
 
-sim:	build $(VCD)
+%.vpi:	$(CSRC)
+	make -C $(VPI) build
+
+sim:	build $(MOD) $(VCD)
 
 build:	$(OUT) $(RTL)
 
 %.out:	%.v $(RTL)
 	iverilog $(OPT) -o $@ -s $(*F) $^
 
-%.vcd:	%.out
+%.vcd:	%.out $(MOD)
 	time vvp -M../../vpi -mulpisim ./$<

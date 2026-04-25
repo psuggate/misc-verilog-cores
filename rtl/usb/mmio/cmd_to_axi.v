@@ -419,7 +419,7 @@ module cmd_to_axi #(
 
   // Todo: async-reset not required?
   always @(posedge aclk or negedge aresetn) begin
-    if (!aresetn || wr_ack_w || rd_ack_w) begin
+    if (!aresetn || arst || wr_ack_w || rd_ack_w) begin
       a_vld <= 1'b0;
       a_ack <= 1'b0;
     end else if (cmd_w && !a_vld && rd == RD_IDLE && wr == WR_IDLE) begin

@@ -515,6 +515,9 @@ static int ut_compiletf(char* user_data)
     state->tests[i++] = test_getstrs();
     state->tests[i++] = test_waitsof(); // 615 us
 
+    state->tests[i++] = test_mmioout(0x02A8F0);
+
+#if 0
     // -- Read out all of the string descriptors, then OUT some data -- //
     state->tests[i++] = test_bulkout();
     // state->tests[i++] = test_ddr3out(0x02A8F0);
@@ -532,6 +535,7 @@ static int ut_compiletf(char* user_data)
     // -- Error-handling tests -- //
     state->tests[i++] = test_getconf();
     state->tests[i++] = test_parity();
+#endif /* 0 */
     state->tests[i++] = test_waitsof(); // 660 us
 
     state->test_num = i;

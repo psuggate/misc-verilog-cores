@@ -21,7 +21,7 @@ module usbaxi_top_tb;
   // -- Simulation Data -- //
 
   initial begin
-    $dumpfile("usbaxi_top_tb.vcd");
+    #659000 $dumpfile("usbaxi_top_tb.vcd");
     $dumpvars;
   end
 

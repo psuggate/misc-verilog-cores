@@ -90,7 +90,7 @@ module mmio_ep_out #(
   reg stall, clear, en_q, ready, bypass, parity, recvd;
   reg sel_q, rxd_q;
   reg cyc, stb, lst, rdy, byp_q;
-  reg vld, dir, enb, apb;
+  reg vld_q, dir_q, enb, apb;
   reg drop_q, save_q, recv_q;
   reg [ 1:0] cmd;
   reg [27:0] adr;
@@ -116,9 +116,9 @@ module mmio_ep_out #(
   assign usb_tready_o = byp_q ? fifo_tready_w : rdy;
   assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
 
-  assign cmd_vld_o = vld;
+  assign cmd_vld_o = vld_q;
   assign cmd_cmd_o = cmd;
-  assign cmd_dir_o = dir;  // 1: Bulk-In (device to host)
+  assign cmd_dir_o = dir_q;  // 1: Bulk-In (device to host)
   assign cmd_apb_o = apb;  // 1: send/recieve 16-bit value, via APB
   assign cmd_tag_o = tag;  // Identifier for the transaction
   assign cmd_len_o = len;
@@ -187,7 +187,7 @@ module mmio_ep_out #(
       stb <= 1'b0;
       lst <= 1'b0;
     end else begin
-      stb <= usb_tvalid_i & usb_tready_o;
+      stb <= usb_tvalid_i & usb_tready_o & usb_tkeep_i;
       lst <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
     end
   end
@@ -214,8 +214,8 @@ module mmio_ep_out #(
       dat32 <= 32'bx;
       sel   <= 2'd0;
     end else if (usb_tvalid_i && usb_tready_o) begin
-      dat32 <= {usb_tdata_i, dat32[31:8]};
-      sel   <= usb_tlast_i ? 2'd0 : sel_w[1:0];
+      dat32 <= usb_tkeep_i ? {usb_tdata_i, dat32[31:8]} : dat32;
+      sel   <= usb_tlast_i ? 2'd0 : (usb_tkeep_i ? sel_w[1:0] : sel);
     end
   end
 
@@ -227,9 +227,10 @@ module mmio_ep_out #(
       case (parse)
         MM_ADDR: if (sel == 2'd0) {lun, adr} <= dat32;
         MM_WORD: if (sel == 2'd2) len <= dat32[31:16];
-        MM_IDOP: if (lst) {tag, dir, apb, cmd} <= dat32[31:24];
+        MM_IDOP: if (lst) {tag, dir_q, apb, cmd} <= dat32[31:24];
+        MM_BUSY: if (lst && !vld_q) {tag, dir_q, apb, cmd} <= dat32[31:24];
       endcase
-    end
+    end else if (cyc && lst && !vld_q) {tag, dir_q, apb, cmd} <= dat32[31:24];
   end
 
   /**
@@ -237,9 +238,9 @@ module mmio_ep_out #(
    */
   always @(posedge clock) begin
     if (clear || stall || cmd_ack_i || mmio_done_i || mmio_resp_i) begin
-      vld <= 1'b0;
-    end else if (parse == MM_IDOP && cyc && stb && lst) begin
-      vld <= 1'b1;
+      vld_q <= 1'b0;
+    end else if ((parse == MM_IDOP || parse == MM_BUSY) && cyc && lst) begin
+      vld_q <= 1'b1;
     end
   end
 
@@ -278,7 +279,10 @@ module mmio_ep_out #(
 
         // Last byte is 4-bit tag, and 4-bit command/op.
         MM_IDOP:
-        if (!cyc || stb && !lst) parse <= MM_HALT;
+        // Fixme: better handling for end-of-command-packet!
+        // if (!cyc || stb && !lst) parse <= MM_HALT;
+        if (!cyc)
+          parse <= MM_HALT;
         else if (stb) parse <= MM_BUSY;
 
         // Wait for transaction to complete.
@@ -342,6 +346,12 @@ module mmio_ep_out #(
         byp_q <= 1'b0;
       end
 
+      if (cyc && lst && !vld_q && dat32[27:26] == 2'b00) begin
+        bypass <= 1'b1;
+      end else if (vld_q && bypass && cyc && lst && (!stb || stb && !czero_w)) begin
+        bypass <= 1'b0;
+      end
+      /*
       case (parse)
         MM_IDOP:
         if (cyc && stb && lst && dat32[27:26] == 2'b00) bypass <= 1'b1;
@@ -355,9 +365,9 @@ module mmio_ep_out #(
 
         default: bypass <= 1'b0;
       endcase
+*/
     end
   end
-
 
   //
   // Top-level FSM.
@@ -398,7 +408,7 @@ module mmio_ep_out #(
       state <= EP_HALT;
     end else begin
       case (state)
-        EP_IDLE: state <= vld ? EP_RECV : state;
+        EP_IDLE: state <= vld_q ? EP_RECV : state;
         EP_RECV: state <= mmio_sent_i || recvd ? EP_RESP : state;
         EP_RESP: state <= mmio_resp_i ? EP_IDLE : state;
         EP_HALT: state <= state;
