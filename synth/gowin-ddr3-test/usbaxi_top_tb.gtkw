@@ -1,27 +1,28 @@
 [*]
-[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Sat Apr 25 03:07:43 2026
+[*] GTKWave Analyzer v3.3.121 (w)1999-2024 BSI
+[*] Mon Apr 27 09:32:16 2026
 [*]
 [dumpfile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.vcd"
-[dumpfile_mtime] "Sat Apr 25 03:04:45 2026"
-[dumpfile_size] 31226133
+[dumpfile_mtime] "Mon Apr 27 09:32:01 2026"
+[dumpfile_size] 31227086
 [savefile] "/home/patrick/dev/misc-verilog-cores/synth/gowin-ddr3-test/usbaxi_top_tb.gtkw"
-[timestart] 982562000
-[size] 2560 1513
+[timestart] 982357000
+[size] 2560 1392
 [pos] -1 -1
-*-18.217873 985632000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-18.217873 985568000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] usbaxi_top_tb.
 [treeopen] usbaxi_top_tb.U_TOP1.
 [treeopen] usbaxi_top_tb.U_TOP1.U_USB1.
 [treeopen] usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.
-[sst_width] 314
-[signals_width] 200
+[treeopen] usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.
+[sst_width] 209
+[signals_width] 166
 [sst_expanded] 1
-[sst_vpaned_height] 593
+[sst_vpaned_height] 553
 @28
 usbaxi_top_tb.clk_26
 usbaxi_top_tb.arst_n
-@800200
+@c00200
 -DDR3
 @28
 usbaxi_top_tb.ddr_ck_p
@@ -41,7 +42,7 @@ usbaxi_top_tb.ddr_dqs_p[1:0]
 usbaxi_top_tb.ddr_dqs_n[1:0]
 @22
 usbaxi_top_tb.ddr_dq[15:0]
-@1000200
+@1401200
 -DDR3
 @800200
 -ULPI
@@ -53,9 +54,8 @@ usbaxi_top_tb.ulpi_nxt
 usbaxi_top_tb.ulpi_stp
 @22
 usbaxi_top_tb.ulpi_data[7:0]
-@c00200
--USB
 @800200
+-USB
 -Decoder
 @22
 usbaxi_top_tb.U_TOP1.U_USB1.U_DEC1.tok_endp_o[3:0]
@@ -89,9 +89,7 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_PROTO1.pid_q[3:0]
 usbaxi_top_tb.U_TOP1.U_USB1.U_PROTO1.dbg_state[39:0]
 @1000200
 -Protocol
-@1401200
 -USB
-@1000200
 -ULPI
 @800200
 -Top
@@ -99,7 +97,7 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_PROTO1.dbg_state[39:0]
 usbaxi_top_tb.U_TOP1.mclk
 usbaxi_top_tb.U_TOP1.mrst
 usbaxi_top_tb.U_TOP1.mlock
-@c00200
+@800200
 -MMIO
 @28
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.epi_selected_i
@@ -108,6 +106,7 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.epo_selected_i
 usbaxi_top_tb.U_TOP1.U_USB1.ep1_rdy_w
 usbaxi_top_tb.U_TOP1.U_USB1.ep1_ack_w
 usbaxi_top_tb.U_TOP1.U_USB1.ep2_rdy_w
+usbaxi_top_tb.U_TOP1.U_USB1.ep2_ack_w
 @820
 [color] 7
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.dbg_state[39:0]
@@ -118,17 +117,28 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.aresetn
 @800200
 -OUT
 @28
+[color] 2
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.selected_i
+@820
+[color] 7
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dbg_parse[39:0]
+[color] 7
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dbg_state[39:0]
+@c00200
+-Stream
+@28
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.usb_tvalid_i
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.usb_tready_o
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.usb_tkeep_i
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.usb_tlast_i
 @22
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.usb_tdata_i[7:0]
-@28
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.cyc
-[color] 2
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.stb
+@1401200
+-Stream
+@c00200
+-Internal
 @22
+[color] 2
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dat32[31:0]
 @28
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.cmd_apb_o
@@ -137,17 +147,41 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dir_q
 [color] 3
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.vld_q
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.byp_q
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.rdy
 [color] 3
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.lst
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.bypass
-@820
-[color] 7
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dbg_parse[39:0]
-[color] 7
-usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.dbg_state[39:0]
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.stb_q
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.lst_q
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.rxd_q
+@22
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPOUT0.count[8:0]
+@1401200
+-Internal
 @1000200
 -OUT
+@800200
+-EPIN2
+@28
+[color] 2
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.selected_i
+@820
+[color] 7
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.dbg_stage[39:0]
+[color] 7
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.dbg_phase[39:0]
+@800200
+-Result
+@28
+[color] 2
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.URESULT.selected_i
+[color] 3
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.URESULT.result_i
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.URESULT.issued_o
+@820
+[color] 7
+usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_EPIN0.URESULT.dbg_state[39:0]
+@1000200
+-Result
+-EPIN2
 @28
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.cmd_vld_i
 usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.cmd_dir_i
@@ -198,10 +232,10 @@ usbaxi_top_tb.U_TOP1.U_USB1.U_REQ1.U_AXI_CTRL0.dat_tdata_i[31:0]
 @1000200
 -OUT
 -AXIControl
-@1401200
 -MMIO
-@800200
+@c00200
 -AXI
+@800200
 -Write
 @28
 [color] 3
@@ -217,9 +251,7 @@ usbaxi_top_tb.U_TOP1.awaddr_w[31:0]
 @28
 [color] 3
 usbaxi_top_tb.U_TOP1.wvalid_w
-@29
 usbaxi_top_tb.U_TOP1.wready_w
-@28
 usbaxi_top_tb.U_TOP1.wlast_w
 @22
 usbaxi_top_tb.U_TOP1.wstrb_w[3:0]
@@ -258,7 +290,9 @@ usbaxi_top_tb.U_TOP1.rid_w[3:0]
 usbaxi_top_tb.U_TOP1.rdata_w[31:0]
 @1000200
 -Read
+@1401200
 -AXI
+@1000200
 -Top
 [pattern_trace] 1
 [pattern_trace] 0

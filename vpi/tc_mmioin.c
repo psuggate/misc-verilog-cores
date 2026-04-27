@@ -163,7 +163,7 @@ static int tc_mmioin_step(usb_host_t* host, void* data)
     case MMIORes:
         // Fetch each of the MMIO 'STORE' responses
 	if (++st->iter < NUM_ITER) {
-	    tc_mmioout_res(host, st);
+	    tc_mmioin_res(host, st);
 	    st->step = MMIORes;
 	    return 0;
 	}

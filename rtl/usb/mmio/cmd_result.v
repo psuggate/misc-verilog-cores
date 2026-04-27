@@ -114,4 +114,21 @@ module cmd_result (
     end
   end
 
+`ifdef __icarus
+  //
+  //  Simulation Only
+  ///
+  reg [39:0] dbg_state;
+
+  always @* begin
+    case (state)
+      ST_IDLE: dbg_state = "IDLE";
+      ST_SEND: dbg_state = "SEND";
+      ST_WAIT: dbg_state = "WAIT";
+      default: dbg_state = " ?? ";
+    endcase
+  end
+
+`endif  /* __icarus */
+
 endmodule  /* cmd_result */

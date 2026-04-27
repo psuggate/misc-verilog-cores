@@ -752,6 +752,7 @@ module usb_axi_apb_bridge #(
 
   // -- Additional (Optional) USB Bulk IN & OUT End-Points -- //
 
+  // [OPTIONAL] Additional USB End-Point for a Bulk IN stream //
   ep_bulk_in #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),
@@ -781,6 +782,7 @@ module usb_axi_apb_bridge #(
       .m_tdata (ep3_tdata_w)
   );
 
+  // [OPTIONAL] Additional USB End-Point for a Bulk OUT stream //
   ep_bulk_out #(
       .MAX_PACKET_LENGTH(MAX_PACKET_LENGTH),
       .PACKET_FIFO_DEPTH(PACKET_FIFO_DEPTH),

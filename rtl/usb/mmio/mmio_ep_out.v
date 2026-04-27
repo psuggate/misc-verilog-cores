@@ -48,8 +48,8 @@ module mmio_ep_out #(
 
     // From MMIO controller
     input  mmio_busy_i,  // Todo: what do I want?
-    input  mmio_wrdy_i,
-    output mmio_recv_o,
+    input  mmio_wrdy_i,  // Ready to receive STORE commands & data
+    output mmio_recv_o,  // All STORE data USB frames received
     input  mmio_sent_i,
     output mmio_save_o,
     output mmio_drop_o,
@@ -88,9 +88,9 @@ module mmio_ep_out #(
 );
 
   reg stall, clear, en_q, ready, bypass, parity, recvd;
-  reg sel_q, rxd_q;
-  reg cyc, stb, lst, rdy, byp_q;
-  reg vld_q, dir_q, enb, apb;
+  reg cyc_q, stb_q, lst_q, sel_q, rxd_q;
+  reg wrdy_q, byp_q;
+  reg vld_q, dir_q, apb_q;
   reg drop_q, save_q, recv_q;
   reg [ 1:0] cmd;
   reg [27:0] adr;
@@ -103,7 +103,7 @@ module mmio_ep_out #(
   localparam [5:0] MM_BUSY = 6'h10, MM_HALT = 6'h20;
 
   // Top-level states for the high-level control of this end-point (EP).
-  localparam [3:0] EP_IDLE = 4'h1, EP_RECV = 4'h2, EP_RESP = 4'h4, EP_HALT = 4'h8;
+  localparam [3:0] ST_IDLE = 4'h1, ST_RECV = 4'h2, ST_RESP = 4'h4, ST_HALT = 4'h8;
 
   assign stalled_o = stall;
   assign ep_ready_o = ready;
@@ -113,13 +113,13 @@ module mmio_ep_out #(
   assign mmio_save_o = save_q;
   assign mmio_drop_o = drop_q;
 
-  assign usb_tready_o = byp_q ? fifo_tready_w : rdy;
+  assign usb_tready_o = byp_q ? fifo_tready_w : wrdy_q;
   assign dat_tkeep_o = {STROBES{dat_tvalid_o}};
 
   assign cmd_vld_o = vld_q;
   assign cmd_cmd_o = cmd;
   assign cmd_dir_o = dir_q;  // 1: Bulk-In (device to host)
-  assign cmd_apb_o = apb;  // 1: send/recieve 16-bit value, via APB
+  assign cmd_apb_o = apb_q;  // 1: send/recieve 16-bit value, via APB
   assign cmd_tag_o = tag;  // Identifier for the transaction
   assign cmd_len_o = len;
   assign cmd_lun_o = lun;
@@ -175,30 +175,30 @@ module mmio_ep_out #(
    */
   always @(posedge clock) begin
     if (clear || !selected_i) begin
-      cyc <= 1'b0;
-      stb <= 1'b0;
-      lst <= 1'b0;
-    end else if (!cyc && usb_tvalid_i && usb_tready_o) begin
-      cyc <= 1'b1;
-      stb <= usb_tkeep_i;
-      lst <= usb_tlast_i;
-    end else if (cyc && stb && lst) begin
-      cyc <= 1'b0;
-      stb <= 1'b0;
-      lst <= 1'b0;
+      cyc_q <= 1'b0;
+      stb_q <= 1'b0;
+      lst_q <= 1'b0;
+    end else if (!cyc_q && usb_tvalid_i && usb_tready_o) begin
+      cyc_q <= 1'b1;
+      stb_q <= usb_tkeep_i;
+      lst_q <= usb_tlast_i;
+    end else if (cyc_q && stb_q && lst_q) begin
+      cyc_q <= 1'b0;
+      stb_q <= 1'b0;
+      lst_q <= 1'b0;
     end else begin
-      stb <= usb_tvalid_i & usb_tready_o & usb_tkeep_i;
-      lst <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
+      stb_q <= usb_tvalid_i & usb_tready_o & usb_tkeep_i;
+      lst_q <= usb_tvalid_i & usb_tready_o & usb_tlast_i;
     end
   end
 
   always @(posedge clock) begin
     if (clear || mmio_busy_i || !selected_i) begin
-      rdy <= 1'b0;
+      wrdy_q <= 1'b0;
     end else if (parse == MM_IDLE) begin
-      rdy <= 1'b1;
+      wrdy_q <= 1'b1;
     end else if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
-      rdy <= 1'b0;
+      wrdy_q <= 1'b0;
     end
   end
 
@@ -206,16 +206,16 @@ module mmio_ep_out #(
    * Demultiplex the incoming byte data, to 32-bit (d)words.
    */
   reg  [31:0] dat32;
-  reg  [ 1:0] sel;
-  wire [ 2:0] sel_w = sel + 1;
+  reg  [ 1:0] idx_q;
+  wire [ 2:0] idx_w = idx_q + 1;
 
   always @(posedge clock) begin
     if (clear || mmio_busy_i || !selected_i) begin
       dat32 <= 32'bx;
-      sel   <= 2'd0;
+      idx_q <= 2'd0;
     end else if (usb_tvalid_i && usb_tready_o) begin
       dat32 <= usb_tkeep_i ? {usb_tdata_i, dat32[31:8]} : dat32;
-      sel   <= usb_tlast_i ? 2'd0 : (usb_tkeep_i ? sel_w[1:0] : sel);
+      idx_q <= usb_tlast_i ? 2'd0 : (usb_tkeep_i ? idx_w[1:0] : idx_q);
     end
   end
 
@@ -223,14 +223,14 @@ module mmio_ep_out #(
    * Capture the address (and LUN), length/value (word), tag, and op.
    */
   always @(posedge clock) begin
-    if (cyc && stb) begin
+    if (cyc_q && stb_q) begin
       case (parse)
-        MM_ADDR: if (sel == 2'd0) {lun, adr} <= dat32;
-        MM_WORD: if (sel == 2'd2) len <= dat32[31:16];
-        MM_IDOP: if (lst) {tag, dir_q, apb, cmd} <= dat32[31:24];
-        MM_BUSY: if (lst && !vld_q) {tag, dir_q, apb, cmd} <= dat32[31:24];
+        MM_ADDR: if (idx_q == 2'd0) {lun, adr} <= dat32;
+        MM_WORD: if (idx_q == 2'd2) len <= dat32[31:16];
+        MM_IDOP: if (lst_q) {tag, dir_q, apb_q, cmd} <= dat32[31:24];
+        MM_BUSY: if (lst_q && !vld_q) {tag, dir_q, apb_q, cmd} <= dat32[31:24];
       endcase
-    end else if (cyc && lst && !vld_q) {tag, dir_q, apb, cmd} <= dat32[31:24];
+    end else if (cyc_q && lst_q && !vld_q) {tag, dir_q, apb_q, cmd} <= dat32[31:24];
   end
 
   /**
@@ -239,7 +239,7 @@ module mmio_ep_out #(
   always @(posedge clock) begin
     if (clear || stall || cmd_ack_i || mmio_done_i || mmio_resp_i) begin
       vld_q <= 1'b0;
-    end else if ((parse == MM_IDOP || parse == MM_BUSY) && cyc && lst) begin
+    end else if ((parse == MM_IDOP || parse == MM_BUSY) && cyc_q && lst_q) begin
       vld_q <= 1'b1;
     end
   end
@@ -264,26 +264,26 @@ module mmio_ep_out #(
       case (parse)
         // If the first four bytes match "TART", then parse a command packet.
         MM_IDLE:
-        if (cyc && stb && sel == 2'd0 && dat32 == MAGIC) parse <= MM_ADDR;
-        else if (!cyc && sel != 2'd0) parse <= MM_HALT;
+        if (cyc_q && stb_q && idx_q == 2'd0 && dat32 == MAGIC) parse <= MM_ADDR;
+        else if (!cyc_q && idx_q != 2'd0) parse <= MM_HALT;
 
         // Extract the 32-bit address from the packet.
         MM_ADDR:
-        if (!cyc) parse <= MM_HALT;
-        else if (stb && sel == 2'd0) parse <= MM_WORD;
+        if (!cyc_q) parse <= MM_HALT;
+        else if (stb_q && idx_q == 2'd0) parse <= MM_WORD;
 
         // Then 16-bits which is either a length, or a word to send over APB.
         MM_WORD:
-        if (!cyc) parse <= MM_HALT;
-        else if (stb && sel == 2'd2) parse <= MM_IDOP;
+        if (!cyc_q) parse <= MM_HALT;
+        else if (stb_q && idx_q == 2'd2) parse <= MM_IDOP;
 
         // Last byte is 4-bit tag, and 4-bit command/op.
         MM_IDOP:
         // Fixme: better handling for end-of-command-packet!
-        // if (!cyc || stb && !lst) parse <= MM_HALT;
-        if (!cyc)
+        // if (!cyc_q || stb_q && !lst_q) parse <= MM_HALT;
+        if (!cyc_q)
           parse <= MM_HALT;
-        else if (stb) parse <= MM_BUSY;
+        else if (stb_q) parse <= MM_BUSY;
 
         // Wait for transaction to complete.
         MM_BUSY: parse <= parse;
@@ -311,12 +311,13 @@ module mmio_ep_out #(
    * stage has completed.
    */
   always @(posedge clock) begin
-    if (clear || state != EP_RECV) begin
+    if (clear || state != ST_RECV) begin
       count <= CMAX;
       rxd_q <= 1'b0;
-    end else if (bypass && cyc) begin
-      count <= stb ? cprev_w[CSB:0] : count;
-      rxd_q <= lst && (stb && !czero_w || !stb && cfull_w);
+    end else if (bypass && cyc_q) begin
+      count <= stb_q ? cprev_w[CSB:0] : count;
+      // rxd_q <= lst_q && (stb_q && !czero_w || !stb_q && cfull_w);
+      rxd_q <= lst_q && (!czero_w || cfull_w);
     end else begin
       count <= count;
       rxd_q <= rxd_q;
@@ -346,20 +347,23 @@ module mmio_ep_out #(
         byp_q <= 1'b0;
       end
 
-      if (cyc && lst && !vld_q && dat32[27:26] == 2'b00) begin
+      // Todo: clean this up, as I had to hack it to get AXIS streams working
+      // for cases where 'tkeep' was deasserted, on the last transfer -- when
+      // 'tvalid' and 'tlast' were asserted.
+      if (cyc_q && lst_q && !vld_q && dat32[27:26] == 2'b00) begin
         bypass <= 1'b1;
-      end else if (vld_q && bypass && cyc && lst && (!stb || stb && !czero_w)) begin
+      end else if (vld_q && bypass && cyc_q && lst_q && (!stb_q || stb_q && !czero_w)) begin
         bypass <= 1'b0;
       end
       /*
       case (parse)
         MM_IDOP:
-        if (cyc && stb && lst && dat32[27:26] == 2'b00) bypass <= 1'b1;
+        if (cyc_q && stb_q && lst_q && dat32[27:26] == 2'b00) bypass <= 1'b1;
         else bypass <= 1'b0;
 
         MM_BUSY:
         // if (bypass && (ack_sent_i || rx_error_i)) bypass <= 1'b0;
-        if (bypass && cyc && lst && (!stb || stb && !czero_w))
+        if (bypass && cyc_q && lst_q && (!stb_q || stb_q && !czero_w))
           bypass <= 1'b0;
         else bypass <= bypass;
 
@@ -386,32 +390,20 @@ module mmio_ep_out #(
   end
 
   /**
-   * Enable the packet-FIFO, if we are bypassing (USB) Bulk-Out data to AXI, and
-   * then deassert once we have sent the response back to the USB host.
-   */
-  always @(posedge clock) begin
-    if (clear || mmio_resp_i) begin
-      enb <= 1'b1;
-    end else if (state == EP_RECV && bypass) begin
-      enb <= 1'b0;
-    end
-  end
-
-  /**
    * Top-level of a hierarchical FSM, and just transitions between the phases
    * of parsing a command, transferring data, then sending a response.
    */
   always @(posedge clock) begin
     if (clear) begin
-      state <= EP_IDLE;
+      state <= ST_IDLE;
     end else if (stall) begin
-      state <= EP_HALT;
+      state <= ST_HALT;
     end else begin
       case (state)
-        EP_IDLE: state <= vld_q ? EP_RECV : state;
-        EP_RECV: state <= mmio_sent_i || recvd ? EP_RESP : state;
-        EP_RESP: state <= mmio_resp_i ? EP_IDLE : state;
-        EP_HALT: state <= state;
+        ST_IDLE: state <= vld_q ? ST_RECV : state;
+        ST_RECV: state <= mmio_sent_i || recvd ? ST_RESP : state;
+        ST_RESP: state <= mmio_resp_i ? ST_IDLE : state;
+        ST_HALT: state <= state;
       endcase
     end
   end
@@ -424,7 +416,7 @@ module mmio_ep_out #(
    * problem receiving, then we have to drop that packet (fragment).
    */
   always @(posedge clock) begin
-    if (clear || rx_error_i || ack_sent_i || state != EP_RECV) begin
+    if (clear || rx_error_i || ack_sent_i || state != ST_RECV) begin
       recv_q <= 1'b0;
     end else if (usb_tvalid_i && usb_tready_o && usb_tlast_i) begin
       recv_q <= 1'b1;
@@ -521,10 +513,10 @@ module mmio_ep_out #(
       default: dbg_parse = " ?? ";
     endcase
     case (state)
-      EP_IDLE: dbg_state = "IDLE";
-      EP_RECV: dbg_state = "RECV";
-      EP_RESP: dbg_state = "RESP";
-      EP_HALT: dbg_state = "HALT";
+      ST_IDLE: dbg_state = "IDLE";
+      ST_RECV: dbg_state = "RECV";
+      ST_RESP: dbg_state = "RESP";
+      ST_HALT: dbg_state = "HALT";
       default: dbg_state = " ?? ";
     endcase
   end

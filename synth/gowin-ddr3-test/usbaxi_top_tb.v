@@ -29,7 +29,7 @@ module usbaxi_top_tb;
   // initial #200000 $finish;
 
   initial begin
-    #3800000 $finish;
+    #1800000 $finish;
   end
 
   // -- Simulation Signals -- //

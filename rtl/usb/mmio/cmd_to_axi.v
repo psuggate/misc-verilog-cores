@@ -1,5 +1,6 @@
 `timescale 1ns / 100ps
 module cmd_to_axi #(
+    parameter AXI_FAST_READY = 1,
     parameter FIFO_DEPTH = 512,
     parameter DATA_WIDTH = 32,
     localparam MSB = DATA_WIDTH - 1,
@@ -31,13 +32,13 @@ module cmd_to_axi #(
     output cmd_err_o,
     output [15:0] cmd_res_o,
 
-    output usb_send_o,
-    input  usb_save_i,
-    input  usb_drop_i,
-    input  usb_next_i,
-    input  usb_redo_i,
-    input  usb_sent_i,
-    output usb_wrdy_o,
+    output usb_wrdy_o,  // Ready to receive STORE data
+    input  usb_save_i,  // Save USB frame within the (OUT/Rx) packet FIFO
+    input  usb_drop_i,  // Discard the (OUT/Rx) USB frame
+    input  usb_next_i,  // USB frame filled with AXI data
+    input  usb_redo_i,  // Retransmit the USB frame, from the packet FIFO
+    output usb_send_o,  // Ready to transmit FETCH data
+    input  usb_sent_i,  // All (IN/Tx) data sent, for the FETCH request
 
     // Pass-through data stream, from USB (Bulk-Out, via AXI-S)
     input dat_tvalid_i,
@@ -260,13 +261,38 @@ module cmd_to_axi #(
     endcase
   end
 
-  always @(posedge cmd_clk) begin
-    case (state)
-      ST_WRIT: cmd_rdy_q <= cnt_done_w && rvalid_w;
-      ST_SEND: cmd_rdy_q <= cnt_done_w && usb_sent_i;
-      default: cmd_rdy_q <= 1'b0;
-    endcase
-  end
+  reg issued_q;
+
+  generate
+    if (AXI_FAST_READY == 1) begin : g_axi_fast_ready
+
+      always @(posedge cmd_clk) begin
+        case (state)
+          ST_WRIT:
+          if (axi_vld_q && cnt_next_q) issued_q <= 1'b1;
+          else if (cmd_rdy_q || rvalid_w) issued_q <= 1'b0;
+          default: issued_q <= 1'b0;
+        endcase
+
+        case (state)
+          ST_WRIT: cmd_rdy_q <= issued_q && cnt_done_w;
+          ST_SEND: cmd_rdy_q <= cnt_done_w && usb_sent_i;
+          default: cmd_rdy_q <= 1'b0;
+        endcase
+      end
+
+    end else begin : g_axi_ready_on_success
+
+      always @(posedge cmd_clk) begin
+        case (state)
+          ST_WRIT: cmd_rdy_q <= cnt_done_w && rvalid_w;
+          ST_SEND: cmd_rdy_q <= cnt_done_w && usb_sent_i;
+          default: cmd_rdy_q <= 1'b0;
+        endcase
+      end
+
+    end
+  endgenerate  /* AXI_FAST_READY */
 
   // -- Data Transfer Counting and Address Calculation -- //
 
@@ -344,7 +370,9 @@ module cmd_to_axi #(
 
         ST_RECV: state <= wr_rdy_q ? ST_WRIT : state;
         ST_WRIT:
-        if (rvalid_w) begin
+        if (AXI_FAST_READY && cmd_rdy_q) begin
+          state <= ST_DONE;
+        end else if (rvalid_w) begin
           state <= cnt_done_w ? ST_DONE : ST_RECV;
         end
 

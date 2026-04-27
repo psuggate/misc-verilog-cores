@@ -125,9 +125,11 @@ module mmio_ep_in #(
   // -- USB datapath I/O assignments -- //
 
   assign stalled_o = stall;
+  // assign ep_ready_o = ready || res_q; // EXPERIMENTAL
   assign ep_ready_o = ready;
   assign parity_o = parity;
 
+  // Todo: skid-buffer
   assign usb_tvalid_o = phase == TX_SEND && ulpi_tvalid_w || none_q;
   assign ulpi_tready_w = phase == TX_SEND && usb_tready_i;
   assign usb_tkeep_o = phase == TX_SEND && !zero_q;
@@ -167,7 +169,7 @@ module mmio_ep_in #(
     if (!en_q || !selected_i) begin
       ready <= 1'b0;
     end else begin
-      ready <= phase == TX_SEND;
+      ready <= phase == TX_SEND || res_q;
     end
 
     // USB end-point parity-bit logic.
@@ -215,7 +217,11 @@ module mmio_ep_in #(
 
   // We have been requested to send the 'RESPONSE' packet.
   always @(posedge clock) begin
-    res_q <= mmio_resp_i;
+    if (reset || stage == ST_RESP) begin
+      res_q <= 1'b0;
+    end else begin
+      res_q <= res_q || mmio_resp_i;
+    end
   end
 
   always @(posedge clock) begin
@@ -301,7 +307,7 @@ module mmio_ep_in #(
       stage <= ST_IDLE;
     end else if (selected_i) begin
       case (stage)
-        ST_IDLE: stage <= mmio_send_i ? ST_SEND : (mmio_resp_i ? ST_RESP : stage);
+        ST_IDLE: stage <= mmio_send_i ? ST_SEND : (mmio_resp_i || res_q ? ST_RESP : stage);
         ST_SEND: stage <= mmio_resp_i ? ST_RESP : stage;
         ST_RESP: stage <= issued_w ? ST_IDLE : stage;
         ST_HALT: stage <= stage;
@@ -317,7 +323,7 @@ module mmio_ep_in #(
       phase <= TX_IDLE;
     end else if (selected_i) begin
       case (phase)
-        TX_IDLE: phase <= mmio_resp_i || mmio_send_i ? TX_SEND : phase;
+        TX_IDLE: phase <= mmio_send_i || mmio_resp_i || res_q ? TX_SEND : phase;
         TX_SEND: phase <= sent_w ? TX_WAIT : phase;
         TX_WAIT:
         if (ack_recv_i && stage == ST_SEND) begin
