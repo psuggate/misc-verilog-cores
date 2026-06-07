@@ -157,6 +157,7 @@ typedef enum {
     REGR,
     REGD,      // 18
     LineIdle,
+    WaitNAK,
 } xfer_stage_t;
 
 typedef struct {
@@ -176,6 +177,7 @@ typedef struct {
     uint8_t tok2;
     uint8_t crc1;
     uint8_t crc2;
+    uint8_t retries;
 } transfer_t;
 
 

@@ -137,36 +137,36 @@ static int tc_mmioin_step(usb_host_t* host, void* data)
     switch (st->step) {
     case MMIOCmd:
         // MMIOCmd completed, so move to MMIODat
-	if (++st->iter < NUM_ITER) {
-	    tc_mmioin_cmd(host, mmioin_lengths[st->iter], st);
-	    st->step = MMIOCmd;
-	    return 0;
-	}
+        if (++st->iter < NUM_ITER) {
+            tc_mmioin_cmd(host, mmioin_lengths[st->iter], st);
+            st->step = MMIOCmd;
+            return 0;
+        }
         tc_mmioin_dat(host, st);
-	st->iter = 0;
+        st->iter = 0;
         st->step = MMIODat;
         return 0;
 
     case MMIODat:
         // MMIODat completed, so move to MMIOEnd
         xfer->stage = NoXfer;
-	if (++st->iter >= NUM_ITER) {
-	    xfer->type = XferIdle;
-	    host->op = HostIdle;
-	    st->step = MMIOEnd;
-	    return 1;
-	}
-	tc_mmioin_dat(host, st);
-	st->step = MMIODat;
-	return 0;
+        if (++st->iter >= NUM_ITER) {
+            xfer->type = XferIdle;
+            host->op = HostIdle;
+            st->step = MMIOEnd;
+            return 1;
+        }
+        tc_mmioin_dat(host, st);
+        st->step = MMIODat;
+        return 0;
 
     case MMIORes:
         // Fetch each of the MMIO 'STORE' responses
-	if (++st->iter < NUM_ITER) {
-	    tc_mmioin_res(host, st);
-	    st->step = MMIORes;
-	    return 0;
-	}
+        if (++st->iter < NUM_ITER) {
+            tc_mmioin_res(host, st);
+            st->step = MMIORes;
+            return 0;
+        }
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;

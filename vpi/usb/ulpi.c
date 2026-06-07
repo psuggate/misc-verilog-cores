@@ -40,7 +40,7 @@ static const char type_strings[19][16] = {
     {"TimeOut"}
 };
 
-static const char stage_strings[20][16] = {
+static const char stage_strings[21][16] = {
     {"NoXfer"},
     {"AssertDir"},
     {"InitRXCMD"},
@@ -61,6 +61,7 @@ static const char stage_strings[20][16] = {
     {"REGR"},
     {"REGD"},
     {"LineIdle"},
+    {"WaitNAK"},
 };
 
 
@@ -337,10 +338,41 @@ int drive_eop(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
         xfer->stage = NoXfer;
         return 1;
 
+    case AssertDir:
+    case InitRXCMD:
+    case TokenPID:
+    case Token1:
+    case HskStop:
+    case DATAxPID:
+    case DATAxBody:
+    case DATAxCRC1:
+    case ULPITurn:
+    case REGW:
+    case REGR:
+    case REGD:
+        printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
+               xfer->stage, stage_strings[xfer->stage]);
+        return -1;
+
+    case WaitNAK:
+    default:
+        assert(in->dir == SIG0);
+        assert(in->nxt == SIG0);
+        assert(in->data.a == 0x00);
+        if (++xfer->stage >= 40) {
+            printf("[%s:%d] Re-issuing DATA IN command: %u (%s)\n", __FILE__, __LINE__,
+                   xfer->stage, stage_strings[WaitNAK]);
+            xfer->type = IN;
+            xfer->stage = XferIdle;
+        }
+        return 0;
+
+#if 0
     default:
         printf("[%s:%d] Not a valid EOP stage: %u (%s)\n", __FILE__, __LINE__,
                xfer->stage, stage_strings[xfer->stage]);
         return -1;
+#endif /* 0 */
     }
 
     return 0;
@@ -612,7 +644,12 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             out->nxt = SIG0;
             xfer->stage = DATAxBody;
             xfer->rx_ptr = 0;
-            if (in->data.a != ULPITX_DATA0 && in->data.a != ULPITX_DATA1) {
+            if (in->data.a == ULPITX_NAK) {
+                printf("[%s:%d] NAK received: 0x%02x, waiting to try again ...\n",
+                       __FILE__, __LINE__, in->data.a);
+                xfer->stage = WaitNAK;
+                assert(xfer->retries++ < 5);
+            } else if (in->data.a != ULPITX_DATA0 && in->data.a != ULPITX_DATA1) {
                 printf("[%s:%d] Invalid PID value: 0x%02x\n",
                        __FILE__, __LINE__, in->data.a);
                 return -2;
@@ -635,10 +672,12 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
                 out->dir = SIG0;
                 out->data.b = 0x00;
                 xfer->stage = ULPITurn;
+
 #else   /* !__fast_eop */
                 out->dir = SIG1;
                 out->data.b = 0xFF;
                 xfer->stage = DATAxStop;
+
 #endif  /* !__fast_eop */
                 xfer->rx_len = xfer->rx_ptr - 2;
                 if (check_rx_crc16(xfer) < 1) {
@@ -651,6 +690,12 @@ int datax_recv_step(transfer_t* xfer, const ulpi_bus_t* in, ulpi_bus_t* out)
             }
             break;
 
+#if 0
+        case WaitNAK:
+            assert(false && "Hellooooo!");
+            return -23;
+
+#endif /* 0 */
         default:
             return drive_eop(xfer, in, out);
         }

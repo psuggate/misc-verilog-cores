@@ -208,6 +208,7 @@ static int bulk_in_step(usb_host_t* host, const ulpi_bus_t* in, ulpi_bus_t* out)
             transfer_ack(xfer);
             xfer->type = XferIdle;
             xfer->stage = NoXfer;
+	    xfer->retries = 0;
         }
         return result;
 

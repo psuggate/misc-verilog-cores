@@ -38,6 +38,7 @@ static const char mmioout_strings[4][16] = {
     {"MMIOEnd"},
 };
 static const int mmioout_lengths[8] = { 4, 4, 8, 16, 20, 12, 24, 0 };
+// static const int mmioout_lengths[8] = {16,16,32, 64, 80, 48, 96, 0 };
 
 
 /**
@@ -46,6 +47,7 @@ static const int mmioout_lengths[8] = { 4, 4, 8, 16, 20, 12, 24, 0 };
 static void tc_mmioout_cmd(usb_host_t* host, int n, const mmioout_state_t* st)
 {
     transfer_t* xfer = &host->xfer;
+    n *= 4;
     host->op = HostBulkOUT;
 
     xfer->type = OUT;
@@ -155,35 +157,35 @@ static int tc_mmioout_step(usb_host_t* host, void* data)
     switch (st->step) {
     case MMIOCmd:
         // MMIOOut completed, so move on to the next MMIO 'STORE' command
-	if (++st->iter < NUM_ITER) {
-	    tc_mmioout_cmd(host, mmioout_lengths[st->iter], st);
-	    st->step = MMIOOut;
-	    return 0;
-	}
-	st->iter = 0;
+        if (++st->iter < NUM_ITER) {
+            tc_mmioout_cmd(host, mmioout_lengths[st->iter], st);
+            st->step = MMIOOut;
+            return 0;
+        }
+        st->iter = 0;
         st->step = MMIOOut;
         tc_mmioout_dat(host, mmioout_lengths[st->iter], st);
         return 0;
 
     case MMIOOut:
         // MMIOOut completed, so move on to the next MMIO 'STORE' command
-	if (++st->iter < NUM_ITER) {
-	    tc_mmioout_dat(host, mmioout_lengths[st->iter], st);
-	    st->step = MMIORes;
-	    return 0;
-	}
-	st->iter = 0;
+        if (++st->iter < NUM_ITER) {
+            tc_mmioout_dat(host, mmioout_lengths[st->iter], st);
+            st->step = MMIORes;
+            return 0;
+        }
+        st->iter = 0;
         st->step = MMIORes;
         tc_mmioout_res(host, st);
         return 0;
 
     case MMIORes:
         // Fetch each of the MMIO 'STORE' responses
-	if (++st->iter < NUM_ITER) {
-	    tc_mmioout_res(host, st);
-	    st->step = MMIOCmd;
-	    return 0;
-	}
+        if (++st->iter < NUM_ITER) {
+            tc_mmioout_res(host, st);
+            st->step = MMIOCmd;
+            return 0;
+        }
         host->op = HostIdle;
         xfer->type = XferIdle;
         xfer->stage = NoXfer;
